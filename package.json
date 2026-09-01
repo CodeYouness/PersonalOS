@@ -2,11 +2,23 @@
   "name": "personalos",
   "version": "0.1.0",
   "private": true,
+  "description": "A single-user personal dashboard: capture once, let the system file it, read it back.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc -p jsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "check:secrets": "node scripts/check-secrets.js",
+    "data:reset": "node scripts/reset-data.js"
   },
   "dependencies": {
     "next": "16.3.4",
@@ -14,7 +26,12 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.4"
+    "eslint-config-next": "16.3.4",
+    "typescript": "^5",
+    "vitest": "^4"
   }
 }
