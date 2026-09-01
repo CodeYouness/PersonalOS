@@ -1,0 +1,59 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# ---------------------------------------------------------------------------
+# PersonalOS
+# ---------------------------------------------------------------------------
+
+# Personal data. data/seed.json is versioned; the working copy never is.
+/data/personalos.json
+/data/*.local.json
+
+# Reference material that is not ours to redistribute.
+# The original guide by Giuseppe Castagna stays on disk, out of version control.
+/PersonalOS.md
+
+# Local spreadsheet exports read by the finance card (FINANCE_FILE_PATH)
+/data/finance/
+
+# macOS
+.DS_Store
