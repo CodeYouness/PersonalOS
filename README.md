@@ -1,34 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PersonalOS
 
-## Getting Started
+A personal dashboard for one person: tasks, calendar, finances, habits, and a
+memory that learns who you are. You say a thing once -- typed or spoken -- and
+the system decides where it belongs and files it. When you ask it a question,
+it answers from your own data and cites where each claim came from.
 
-First, run the development server:
+This is both a working personal system and a template. Clone it, change the
+configuration, and it is yours.
+
+> **Status: foundations.** The data layer, configuration and verification
+> pipeline are in place. The capture pipeline and the dashboard cards are next
+> -- see [docs/roadmap.md](docs/roadmap.md).
+
+## Getting started
 
 ```bash
+nvm use                # Node 22
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. It runs on demo seed data with no API key set.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+Nothing is required in `.env.local` to start. Each variable switches on the
+feature described next to it; `ANTHROPIC_API_KEY` is what turns the classifier
+from keyword rules into a model.
 
-## Learn More
+## Your data
 
-To learn more about Next.js, take a look at the following resources:
+Two files, and the difference matters:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| File | What it is |
+| --- | --- |
+| `data/seed.json` | The starting state. Versioned, demo content, never written to. |
+| `data/personalos.json` | Your life. Git-ignored, regenerated from the seed when missing. |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Deleting the second one restores the first. That is the undo button, and
+`npm run data:reset` is the same thing as a command. Set `DATA_DIR` if you
+would rather keep your data outside the repository entirely.
 
-## Deploy on Vercel
+## Commands
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Development server |
+| `npm run verify` | lint + typecheck + test + build -- the gate for any change |
+| `npm test` | Tests only |
+| `npm run check:secrets` | Fails if personal data or a credential is tracked |
+| `npm run data:reset` | Restore the working data from the seed |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Architecture in one paragraph
+
+Every read and write goes through `lib/store.js`, which delegates to a storage
+adapter. Today that adapter is a JSON file; the contract in
+`lib/adapters/contract.js` is written in domain terms so a database adapter can
+take its place without anything above it changing, and it inherits the existing
+test suite as proof of equivalence. Product configuration lives in
+`personalos.config.js`, secrets only in the environment, and exactly one module
+reads `process.env`.
+
+See [docs/architecture.md](docs/architecture.md) for the long version and
+[docs/domain.md](docs/domain.md) for what the words mean.
+
+## Working with an AI agent
+
+The repository is written to be picked up by a coding agent that has never seen
+it. [CLAUDE.md](CLAUDE.md) is the operating brief, [docs/](docs) holds the
+detail, and [docs/decisions/](docs/decisions) records the choices that would
+otherwise look arbitrary and get "fixed" by mistake.
+
+## Credits
+
+Built following the guide *PersonalOS* by Giuseppe Castagna -- see
+[docs/spec-source.md](docs/spec-source.md).
+
+## License
+
+MIT. See [LICENSE](LICENSE).

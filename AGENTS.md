@@ -7,3 +7,16 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# PersonalOS
+
+Project rules, architecture and domain vocabulary live in **CLAUDE.md** and
+**docs/**. Read CLAUDE.md first, whichever agent you are -- it is short and it
+is where the non-negotiable rules are.
+
+Quick orientation:
+
+- All data access goes through `lib/store.js`. Nothing else touches storage.
+- `lib/` uses relative imports only, so it runs under plain Node.
+- `npm run verify` decides whether a change is finished.
+- The repository is public. Never commit secrets or personal data.
