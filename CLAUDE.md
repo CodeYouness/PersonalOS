@@ -16,7 +16,7 @@ code doing C.
 Next.js 16 (App Router) · JavaScript with JSDoc types (`checkJs`) · JSON file
 storage on the local path · ESLint + Vitest. Node 22.
 
-## The four rules that are not up for negotiation
+## The rules that are not up for negotiation
 
 1. **All reads and writes go through `lib/store.js`.** No component and no
    route handler touches storage. This is what keeps swapping JSON for
@@ -24,32 +24,46 @@ storage on the local path · ESLint + Vitest. Node 22.
 2. **Capture never fails. At worst it files badly.** Below every model call
    sits a rule-based classifier. If a sentence can be lost, the system has
    broken the only promise that matters.
-3. **Loading a page never calls the model.** Cards read the last saved value.
-   The model runs on a capture, a question, a button you pressed, or a
-   scheduled job. Nothing else.
+3. **Loading a page never calls the model, and never calls an integration.**
+   Cards read the last saved value. The model runs on a capture, a question, a
+   button you pressed, or a scheduled job. Nothing else.
 4. **"What day is it" has one answer**, `lib/domain/dates.js`, in
    `USER_TIMEZONE`. Never `new Date().toISOString().slice(0, 10)`.
+5. **Relations live in `links`, never as a field on an entity.** A task has no
+   `personId`. Ask the store: `getTasksForPerson()`.
+6. **Do not store what can be derived.** `overdue`, streaks, totals and net
+   worth are computed in `lib/domain/derive/`. The one exception is the net
+   worth snapshot, and it has an ADR explaining why.
+7. **The original is never lost.** A capture keeps its sentence; a journal
+   entry keeps its text after a memory is extracted from it. A memory that was
+   extracted must be able to say what from.
 
 ## Layout
 
 ```
-app/            routes and screens; the only place that may use the @/ alias
-lib/store.js    the data layer facade -- the only import for data
-lib/adapters/   contract + the JSON implementation
-lib/domain/     pure domain: dates, ids, types
-lib/config/     the only module that reads process.env
-personalos.config.js   product configuration for anyone cloning this
-data/seed.json  demo starting state, versioned, never written to
-docs/           architecture, domain, development, roadmap, decisions
+app/               routes and screens; the only place that may use @/
+lib/store.js       the data layer facade -- the only import for data
+lib/adapters/      contract, JSON implementation, schema migrations
+lib/domain/        pure domain: dates, ids, refs, types
+lib/domain/derive/ every computed number, one implementation each
+lib/integrations/  contract + registry; no concrete integration yet
+lib/config/        the only module that reads process.env
+personalos.config.js  closed vocabularies and product configuration
+data/seed.json     demo starting state, versioned, never written to
+docs/              architecture, domain, development, roadmap, decisions
 ```
 
 ## Rules for changing things
 
 - `lib/` must run under plain Node: **relative imports only, no `@/` alias.**
   Scripts and one-off migrations depend on that.
-- Adding a capture destination means editing `personalos.config.js` and
-  nothing else. The list is validated against; a destination the model invents
-  is rejected, never written.
+- The closed vocabularies -- destinations, link relations, event types,
+  memory types, bands -- all live in `personalos.config.js` and are validated
+  at the store boundary. Add one there and document it in `docs/domain.md`;
+  never accept a free-form string in their place.
+- Money is an integer in minor units. Never a float.
+- An importer writes only the fields its source owns. `categoryId`, `note` and
+  links belong to the user and survive a re-import.
 - Validate at the boundary. Model output, request bodies and env values are
   untrusted until checked.
 - Never an empty `catch`. On a failed write, re-read the real state instead of
@@ -94,7 +108,10 @@ before pushing. Git history does not forget.
 
 - The timezone one (rule 4). It sleeps on a laptop and wakes up on a server.
 - Goals never auto-reset. A habit belongs to a day, a promise does not.
-- `overdue` is a state reached by time passing, never an input value.
+- `overdue` is derived from `band` + `bandSetOn`, never stored.
+- A transfer between your own accounts is not spending. Aggregations exclude
+  it, or your month doubles.
+- An account with no observation is unknown, not zero.
 - Next 16 changed APIs since most training data. If code that "should work"
   will not compile, read `node_modules/next/dist/docs/` before retrying.
 
