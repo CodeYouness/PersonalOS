@@ -1,17 +1,80 @@
 {
-  "version": 1,
+  "schemaVersion": 2,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
     "city": "Lisbon",
     "focus": "Ship the pricing page",
+    "baseCurrency": "EUR",
+    "calorieTarget": 2200,
     "habits": [
-      { "id": "habit_move", "label": "Move for 30 minutes", "type": "check", "target": null },
-      { "id": "habit_read", "label": "Read", "type": "check", "target": null },
-      { "id": "habit_water", "label": "Glasses of water", "type": "counter", "target": 8 },
-      { "id": "habit_deep_work", "label": "Deep work blocks", "type": "counter", "target": 3 }
+      {
+        "id": "habit_move",
+        "label": "Move for 30 minutes",
+        "type": "check",
+        "target": null,
+        "archived": false
+      },
+      {
+        "id": "habit_read",
+        "label": "Read",
+        "type": "check",
+        "target": null,
+        "archived": false
+      },
+      {
+        "id": "habit_water",
+        "label": "Glasses of water",
+        "type": "counter",
+        "target": 8,
+        "archived": false
+      },
+      {
+        "id": "habit_deep_work",
+        "label": "Deep work blocks",
+        "type": "counter",
+        "target": 3,
+        "archived": false
+      }
     ],
-    "calorieTarget": 2200
+    "financeCategories": [
+      {
+        "id": "cat_consulting",
+        "name": "Consulting",
+        "kind": "income",
+        "archived": false
+      },
+      {
+        "id": "cat_teaching",
+        "name": "Teaching",
+        "kind": "income",
+        "archived": false
+      },
+      {
+        "id": "cat_rent",
+        "name": "Rent",
+        "kind": "expense",
+        "archived": false
+      },
+      {
+        "id": "cat_groceries",
+        "name": "Groceries",
+        "kind": "expense",
+        "archived": false
+      },
+      {
+        "id": "cat_eating_out",
+        "name": "Eating out",
+        "kind": "expense",
+        "archived": false
+      },
+      {
+        "id": "cat_transport",
+        "name": "Transport",
+        "kind": "expense",
+        "archived": false
+      }
+    ]
   },
   "tasks": [
     {
@@ -19,36 +82,48 @@
       "title": "Send the revised quote",
       "note": "They asked for the two-phase option.",
       "band": "today",
+      "bandSetOn": "2026-01-05",
       "temperature": "hot",
-      "personId": "person_seed_1",
-      "tags": ["billing"],
+      "tags": [
+        "billing"
+      ],
       "position": 0,
-      "createdAt": "2026-01-05T08:12:00.000Z",
-      "completedAt": null
+      "completedAt": null,
+      "createdAt": "2026-01-04T08:12:00.000Z",
+      "updatedAt": "2026-01-05T08:12:00.000Z",
+      "source": "capture"
     },
     {
       "id": "task_seed_2",
       "title": "Book the dentist",
       "note": "",
       "band": "week",
+      "bandSetOn": "2026-01-04",
       "temperature": "cold",
-      "personId": null,
-      "tags": ["admin"],
+      "tags": [
+        "admin"
+      ],
       "position": 0,
+      "completedAt": null,
       "createdAt": "2026-01-04T17:40:00.000Z",
-      "completedAt": null
+      "updatedAt": "2026-01-04T17:40:00.000Z",
+      "source": "user"
     },
     {
       "id": "task_seed_3",
       "title": "Reply about the workshop dates",
       "note": "Waiting on their side since the 2nd.",
-      "band": "overdue",
+      "band": "today",
+      "bandSetOn": "2026-01-02",
       "temperature": "warm",
-      "personId": "person_seed_2",
-      "tags": ["teaching"],
-      "position": 0,
+      "tags": [
+        "teaching"
+      ],
+      "position": 1,
+      "completedAt": null,
       "createdAt": "2026-01-02T09:00:00.000Z",
-      "completedAt": null
+      "updatedAt": "2026-01-02T09:00:00.000Z",
+      "source": "user"
     }
   ],
   "people": [
@@ -58,7 +133,9 @@
       "organization": "Nordis",
       "kind": "client",
       "note": "Prefers a call over email.",
-      "createdAt": "2025-11-20T10:00:00.000Z"
+      "createdAt": "2025-11-20T10:00:00.000Z",
+      "updatedAt": "2025-11-20T10:00:00.000Z",
+      "source": "user"
     },
     {
       "id": "person_seed_2",
@@ -66,32 +143,218 @@
       "organization": "Helix Academy",
       "kind": "partner",
       "note": "",
-      "createdAt": "2025-12-01T10:00:00.000Z"
+      "createdAt": "2025-12-01T10:00:00.000Z",
+      "updatedAt": "2025-12-01T10:00:00.000Z",
+      "source": "user"
+    }
+  ],
+  "goals": [
+    {
+      "id": "goal_seed_1",
+      "name": "Close the Nordis contract",
+      "kind": "objective",
+      "horizon": "week",
+      "done": false,
+      "progress": null,
+      "targetDate": null,
+      "createdAt": "2026-01-02T09:00:00.000Z",
+      "updatedAt": "2026-01-02T09:00:00.000Z",
+      "source": "user"
+    },
+    {
+      "id": "goal_seed_2",
+      "name": "Three deep work mornings",
+      "kind": "objective",
+      "horizon": "week",
+      "done": false,
+      "progress": {
+        "current": 1,
+        "target": 3
+      },
+      "targetDate": null,
+      "createdAt": "2026-01-02T09:00:00.000Z",
+      "updatedAt": "2026-01-05T09:00:00.000Z",
+      "source": "user"
+    },
+    {
+      "id": "goal_seed_3",
+      "name": "Publish the case study",
+      "kind": "project",
+      "horizon": "month",
+      "done": false,
+      "progress": null,
+      "targetDate": "2026-01-31",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "source": "user"
+    }
+  ],
+  "links": [
+    {
+      "id": "link_seed_1",
+      "from": "task_seed_1",
+      "to": "person_seed_1",
+      "rel": "involves",
+      "confidence": null,
+      "createdAt": "2026-01-04T08:12:00.000Z",
+      "source": "capture"
+    },
+    {
+      "id": "link_seed_2",
+      "from": "task_seed_3",
+      "to": "person_seed_2",
+      "rel": "involves",
+      "confidence": null,
+      "createdAt": "2026-01-02T09:00:00.000Z",
+      "source": "user"
+    },
+    {
+      "id": "link_seed_3",
+      "from": "task_seed_1",
+      "to": "goal_seed_1",
+      "rel": "belongs_to",
+      "confidence": null,
+      "createdAt": "2026-01-04T08:12:00.000Z",
+      "source": "user"
+    },
+    {
+      "id": "link_seed_4",
+      "from": "habit_deep_work",
+      "to": "goal_seed_2",
+      "rel": "belongs_to",
+      "confidence": null,
+      "createdAt": "2026-01-02T09:00:00.000Z",
+      "source": "user"
+    },
+    {
+      "id": "link_seed_5",
+      "from": "capture_seed_1",
+      "to": "task_seed_1",
+      "rel": "about",
+      "confidence": null,
+      "createdAt": "2026-01-04T08:12:00.000Z",
+      "source": "capture"
+    },
+    {
+      "id": "link_seed_6",
+      "from": "memory_seed_2",
+      "to": "journal_seed_1",
+      "rel": "derived_from",
+      "confidence": null,
+      "createdAt": "2026-01-04T22:40:00.000Z",
+      "source": "journal"
     }
   ],
   "captures": [
     {
       "id": "capture_seed_1",
       "text": "remember to send Marta the revised quote",
-      "source": "bar",
+      "origin": "bar",
       "destination": "people",
-      "targetId": "task_seed_1",
       "route": "model",
-      "createdAt": "2026-01-05T08:12:00.000Z"
+      "createdAt": "2026-01-04T08:12:00.000Z",
+      "updatedAt": "2026-01-04T08:12:00.000Z",
+      "source": "capture"
+    },
+    {
+      "id": "capture_seed_2",
+      "text": "paid 340 euro to the accountant",
+      "origin": "bar",
+      "destination": "finance",
+      "route": "rules",
+      "createdAt": "2026-01-05T09:12:00.000Z",
+      "updatedAt": "2026-01-05T09:12:00.000Z",
+      "source": "capture"
     }
   ],
   "memory": [
     {
       "id": "memory_seed_1",
-      "text": "remember to send Marta the revised quote",
-      "source": "capture",
-      "createdAt": "2026-01-05T08:12:00.000Z"
+      "type": "fact",
+      "content": "Marta Oliveira prefers a call over email.",
+      "confidence": 1,
+      "tags": [
+        "people"
+      ],
+      "validFrom": null,
+      "validUntil": null,
+      "embedding": null,
+      "createdAt": "2025-11-20T10:05:00.000Z",
+      "updatedAt": "2025-11-20T10:05:00.000Z",
+      "source": "user"
+    },
+    {
+      "id": "memory_seed_2",
+      "type": "decision",
+      "content": "Going with two-phase pricing rather than a single fee.",
+      "confidence": 0.8,
+      "tags": [
+        "pricing"
+      ],
+      "validFrom": "2026-01-04",
+      "validUntil": null,
+      "embedding": null,
+      "createdAt": "2026-01-04T22:40:00.000Z",
+      "updatedAt": "2026-01-04T22:40:00.000Z",
+      "source": "journal"
+    }
+  ],
+  "journal": [
+    {
+      "id": "journal_seed_1",
+      "date": "2026-01-04",
+      "text": "Long day. The two-phase pricing idea felt right when I said it out loud to Marta, and she did not flinch at the number. Distracted all afternoon though. Gym in the evening fixed it.",
+      "tags": [
+        "work",
+        "pricing"
+      ],
+      "createdAt": "2026-01-04T22:35:00.000Z",
+      "updatedAt": "2026-01-04T22:35:00.000Z",
+      "source": "user"
+    }
+  ],
+  "events": [
+    {
+      "id": "event_seed_1",
+      "type": "capture.filed",
+      "at": "2026-01-04T08:12:00.000Z",
+      "date": "2026-01-04",
+      "subject": "capture_seed_1",
+      "payload": {
+        "destination": "people"
+      },
+      "source": "capture"
+    },
+    {
+      "id": "event_seed_2",
+      "type": "journal.written",
+      "at": "2026-01-04T22:35:00.000Z",
+      "date": "2026-01-04",
+      "subject": "journal_seed_1",
+      "payload": {},
+      "source": "user"
+    },
+    {
+      "id": "event_seed_3",
+      "type": "finance.synced",
+      "at": "2026-01-05T06:00:00.000Z",
+      "date": "2026-01-05",
+      "subject": null,
+      "payload": {
+        "integration": "demo",
+        "written": 4
+      },
+      "source": "integration"
     }
   ],
   "dailyLogs": {
     "2026-01-05": {
       "date": "2026-01-05",
-      "habits": { "habit_move": true, "habit_water": 5, "habit_deep_work": 2 },
+      "habits": {
+        "habit_move": true,
+        "habit_water": 5,
+        "habit_deep_work": 2
+      },
       "meals": [
         {
           "id": "meal_seed_1",
@@ -123,11 +386,18 @@
           "recordedAt": "2026-01-05T07:05:00.000Z"
         }
       ],
-      "notes": []
+      "notes": [
+        "paid 340 euro to the accountant"
+      ]
     },
     "2026-01-04": {
       "date": "2026-01-04",
-      "habits": { "habit_move": true, "habit_read": true, "habit_water": 8, "habit_deep_work": 3 },
+      "habits": {
+        "habit_move": true,
+        "habit_read": true,
+        "habit_water": 8,
+        "habit_deep_work": 3
+      },
       "meals": [
         {
           "id": "meal_seed_3",
@@ -144,22 +414,246 @@
       "notes": []
     }
   },
-  "goals": {
-    "week": [
-      { "id": "goal_seed_1", "name": "Close the Nordis contract", "done": false, "progress": null },
-      { "id": "goal_seed_2", "name": "Three deep work mornings", "done": false, "progress": { "current": 1, "target": 3 } }
-    ],
-    "month": [
-      { "id": "goal_seed_3", "name": "Publish the case study", "done": false, "progress": null }
-    ]
-  },
-  "activity": [
+  "accounts": [
     {
-      "id": "activity_seed_1",
-      "action": "capture.filed",
-      "subjectId": "capture_seed_1",
-      "detail": "people",
-      "at": "2026-01-05T08:12:00.000Z"
+      "id": "account_seed_current",
+      "name": "Main current account",
+      "kind": "cash",
+      "currency": "EUR",
+      "origin": null,
+      "archived": false,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "account_seed_savings",
+      "name": "Emergency savings",
+      "kind": "cash",
+      "currency": "EUR",
+      "origin": null,
+      "archived": false,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "account_seed_portfolio",
+      "name": "Index portfolio",
+      "kind": "investment",
+      "currency": "EUR",
+      "origin": {
+        "source": "demo",
+        "externalId": "PF-1",
+        "syncedAt": "2026-01-05T06:00:00.000Z",
+        "sourceUpdatedAt": null
+      },
+      "archived": false,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "account_seed_carloan",
+      "name": "Car loan",
+      "kind": "liability",
+      "currency": "EUR",
+      "origin": null,
+      "archived": false,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "seed"
+    }
+  ],
+  "observations": [
+    {
+      "id": "observation_seed_1",
+      "accountId": "account_seed_current",
+      "kind": "balance",
+      "amount": 1240000,
+      "currency": "EUR",
+      "date": "2026-01-05",
+      "observedAt": "2026-01-05T06:00:00.000Z",
+      "origin": null,
+      "createdAt": "2026-01-05T06:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "observation_seed_2",
+      "accountId": "account_seed_savings",
+      "kind": "balance",
+      "amount": 1620000,
+      "currency": "EUR",
+      "date": "2026-01-05",
+      "observedAt": "2026-01-05T06:00:00.000Z",
+      "origin": null,
+      "createdAt": "2026-01-05T06:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "observation_seed_3",
+      "accountId": "account_seed_portfolio",
+      "kind": "position",
+      "amount": 5894000,
+      "currency": "EUR",
+      "date": "2026-01-05",
+      "observedAt": "2026-01-05T06:00:00.000Z",
+      "origin": {
+        "source": "demo",
+        "externalId": "PF-1",
+        "syncedAt": "2026-01-05T06:00:00.000Z",
+        "sourceUpdatedAt": null
+      },
+      "createdAt": "2026-01-05T06:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "observation_seed_4",
+      "accountId": "account_seed_carloan",
+      "kind": "balance",
+      "amount": -715000,
+      "currency": "EUR",
+      "date": "2026-01-05",
+      "observedAt": "2026-01-05T06:00:00.000Z",
+      "origin": null,
+      "createdAt": "2026-01-05T06:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "seed"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "transaction_seed_1",
+      "date": "2026-01-02",
+      "amount": 250000,
+      "currency": "EUR",
+      "description": "Nordis - December retainer",
+      "kind": "income",
+      "accountId": "account_seed_current",
+      "counterAccountId": null,
+      "categoryId": "cat_consulting",
+      "note": "",
+      "origin": {
+        "source": "demo",
+        "externalId": "TX-1001",
+        "syncedAt": "2026-01-05T06:00:00.000Z",
+        "sourceUpdatedAt": null
+      },
+      "createdAt": "2026-01-05T06:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "integration"
+    },
+    {
+      "id": "transaction_seed_2",
+      "date": "2026-01-03",
+      "amount": 80000,
+      "currency": "EUR",
+      "description": "Helix Academy - workshop",
+      "kind": "income",
+      "accountId": "account_seed_current",
+      "counterAccountId": null,
+      "categoryId": "cat_teaching",
+      "note": "",
+      "origin": {
+        "source": "demo",
+        "externalId": "TX-1002",
+        "syncedAt": "2026-01-05T06:00:00.000Z",
+        "sourceUpdatedAt": null
+      },
+      "createdAt": "2026-01-05T06:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "integration"
+    },
+    {
+      "id": "transaction_seed_3",
+      "date": "2026-01-03",
+      "amount": 95000,
+      "currency": "EUR",
+      "description": "Rent January",
+      "kind": "expense",
+      "accountId": "account_seed_current",
+      "counterAccountId": null,
+      "categoryId": "cat_rent",
+      "note": "",
+      "origin": {
+        "source": "demo",
+        "externalId": "TX-1003",
+        "syncedAt": "2026-01-05T06:00:00.000Z",
+        "sourceUpdatedAt": null
+      },
+      "createdAt": "2026-01-05T06:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "integration"
+    },
+    {
+      "id": "transaction_seed_4",
+      "date": "2026-01-04",
+      "amount": 6250,
+      "currency": "EUR",
+      "description": "Mercado da Ribeira",
+      "kind": "expense",
+      "accountId": "account_seed_current",
+      "counterAccountId": null,
+      "categoryId": "cat_groceries",
+      "note": "",
+      "origin": {
+        "source": "demo",
+        "externalId": "TX-1004",
+        "syncedAt": "2026-01-05T06:00:00.000Z",
+        "sourceUpdatedAt": null
+      },
+      "createdAt": "2026-01-05T06:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "integration"
+    },
+    {
+      "id": "transaction_seed_5",
+      "date": "2026-01-04",
+      "amount": 100000,
+      "currency": "EUR",
+      "description": "To savings",
+      "kind": "transfer",
+      "accountId": "account_seed_current",
+      "counterAccountId": "account_seed_savings",
+      "categoryId": null,
+      "note": "Not spending. Excluded from totals.",
+      "origin": {
+        "source": "demo",
+        "externalId": "TX-1005",
+        "syncedAt": "2026-01-05T06:00:00.000Z",
+        "sourceUpdatedAt": null
+      },
+      "createdAt": "2026-01-05T06:00:00.000Z",
+      "updatedAt": "2026-01-05T06:00:00.000Z",
+      "source": "integration"
+    }
+  ],
+  "snapshots": [
+    {
+      "id": "snapshot_seed_1",
+      "date": "2026-01-05",
+      "netWorth": 8039000,
+      "cash": 2860000,
+      "invested": 5894000,
+      "otherAssets": 0,
+      "liabilities": 715000,
+      "currency": "EUR",
+      "rates": {},
+      "notes": "Demo data. The 2024 sheet appears to duplicate the pension row; counted once.",
+      "createdAt": "2026-01-05T06:00:00.000Z",
+      "source": "derived"
+    }
+  ],
+  "syncStates": [
+    {
+      "integration": "demo",
+      "lastRunAt": "2026-01-05T06:00:00.000Z",
+      "status": "ok",
+      "error": "",
+      "itemCount": 9
     }
   ]
 }
