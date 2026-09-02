@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "profile": {
+    "name": "Sam Rivers",
+    "role": "Independent consultant",
+    "city": "Lisbon",
+    "focus": "Ship the pricing page",
+    "habits": [
+      { "id": "habit_move", "label": "Move for 30 minutes", "type": "check", "target": null },
+      { "id": "habit_read", "label": "Read", "type": "check", "target": null },
+      { "id": "habit_water", "label": "Glasses of water", "type": "counter", "target": 8 },
+      { "id": "habit_deep_work", "label": "Deep work blocks", "type": "counter", "target": 3 }
+    ],
+    "calorieTarget": 2200
+  },
+  "tasks": [
+    {
+      "id": "task_seed_1",
+      "title": "Send the revised quote",
+      "note": "They asked for the two-phase option.",
+      "band": "today",
+      "temperature": "hot",
+      "personId": "person_seed_1",
+      "tags": ["billing"],
+      "position": 0,
+      "createdAt": "2026-01-05T08:12:00.000Z",
+      "completedAt": null
+    },
+    {
+      "id": "task_seed_2",
+      "title": "Book the dentist",
+      "note": "",
+      "band": "week",
+      "temperature": "cold",
+      "personId": null,
+      "tags": ["admin"],
+      "position": 0,
+      "createdAt": "2026-01-04T17:40:00.000Z",
+      "completedAt": null
+    },
+    {
+      "id": "task_seed_3",
+      "title": "Reply about the workshop dates",
+      "note": "Waiting on their side since the 2nd.",
+      "band": "overdue",
+      "temperature": "warm",
+      "personId": "person_seed_2",
+      "tags": ["teaching"],
+      "position": 0,
+      "createdAt": "2026-01-02T09:00:00.000Z",
+      "completedAt": null
+    }
+  ],
+  "people": [
+    {
+      "id": "person_seed_1",
+      "name": "Marta Oliveira",
+      "organization": "Nordis",
+      "kind": "client",
+      "note": "Prefers a call over email.",
+      "createdAt": "2025-11-20T10:00:00.000Z"
+    },
+    {
+      "id": "person_seed_2",
+      "name": "Tom Fischer",
+      "organization": "Helix Academy",
+      "kind": "partner",
+      "note": "",
+      "createdAt": "2025-12-01T10:00:00.000Z"
+    }
+  ],
+  "captures": [
+    {
+      "id": "capture_seed_1",
+      "text": "remember to send Marta the revised quote",
+      "source": "bar",
+      "destination": "people",
+      "targetId": "task_seed_1",
+      "route": "model",
+      "createdAt": "2026-01-05T08:12:00.000Z"
+    }
+  ],
+  "memory": [
+    {
+      "id": "memory_seed_1",
+      "text": "remember to send Marta the revised quote",
+      "source": "capture",
+      "createdAt": "2026-01-05T08:12:00.000Z"
+    }
+  ],
+  "dailyLogs": {
+    "2026-01-05": {
+      "date": "2026-01-05",
+      "habits": { "habit_move": true, "habit_water": 5, "habit_deep_work": 2 },
+      "meals": [
+        {
+          "id": "meal_seed_1",
+          "time": "08:30",
+          "name": "Porridge with berries",
+          "calories": 380,
+          "protein": 12,
+          "carbs": 62,
+          "fat": 9,
+          "estimated": true
+        },
+        {
+          "id": "meal_seed_2",
+          "time": "13:15",
+          "name": "Chicken breast with rice and an apple",
+          "calories": 640,
+          "protein": 48,
+          "carbs": 78,
+          "fat": 11,
+          "estimated": true
+        }
+      ],
+      "measurements": [
+        {
+          "id": "measurement_seed_1",
+          "metric": "weight",
+          "value": 74.6,
+          "unit": "kg",
+          "recordedAt": "2026-01-05T07:05:00.000Z"
+        }
+      ],
+      "notes": []
+    },
+    "2026-01-04": {
+      "date": "2026-01-04",
+      "habits": { "habit_move": true, "habit_read": true, "habit_water": 8, "habit_deep_work": 3 },
+      "meals": [
+        {
+          "id": "meal_seed_3",
+          "time": "09:00",
+          "name": "Eggs and toast",
+          "calories": 420,
+          "protein": 24,
+          "carbs": 34,
+          "fat": 20,
+          "estimated": false
+        }
+      ],
+      "measurements": [],
+      "notes": []
+    }
+  },
+  "goals": {
+    "week": [
+      { "id": "goal_seed_1", "name": "Close the Nordis contract", "done": false, "progress": null },
+      { "id": "goal_seed_2", "name": "Three deep work mornings", "done": false, "progress": { "current": 1, "target": 3 } }
+    ],
+    "month": [
+      { "id": "goal_seed_3", "name": "Publish the case study", "done": false, "progress": null }
+    ]
+  },
+  "activity": [
+    {
+      "id": "activity_seed_1",
+      "action": "capture.filed",
+      "subjectId": "capture_seed_1",
+      "detail": "people",
+      "at": "2026-01-05T08:12:00.000Z"
+    }
+  ]
+}
