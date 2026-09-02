@@ -12,7 +12,8 @@ import { readFileSync, statSync } from 'node:fs';
 
 /** Repo-relative paths that must never be tracked. */
 const FORBIDDEN_PATHS = [
-  { pattern: /^\.env($|\.)/, reason: 'environment file with real values' },
+  // .env.example is documentation and carries no values.
+  { pattern: /^\.env(?!\.example$)($|\.)/, reason: 'environment file with real values' },
   { pattern: /^data\/personalos\.json$/, reason: 'personal working data' },
   { pattern: /^PersonalOS\.md$/, reason: 'third-party reference material' },
   { pattern: /\.pem$/, reason: 'private key' },
