@@ -131,3 +131,22 @@ developer machine does not prove the tests ran.
 `docs/architecture.md` (layers and boundaries) · `docs/domain.md` (what the
 words mean) · `docs/development.md` (how to work here) ·
 `docs/roadmap.md` (what is built and what is next) · `docs/decisions/` (why).
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues on `CodeYouness/PersonalOS`, via the `gh` CLI. The
+nine foundation-v2 tickets are the exception and stay on disk.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, each label string equal to its name.
+See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context. The glossary is `docs/domain.md` and the ADRs are in
+`docs/decisions/` -- not the `CONTEXT.md` / `docs/adr/` the skills assume.
+See `docs/agents/domain.md`.
