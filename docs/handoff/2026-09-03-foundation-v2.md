@@ -30,6 +30,11 @@ have not been observed passing here. Ticket 01 exists to fix that and it
 blocks everything else, because until it is done no other result is
 trustworthy.
 
+**Resolved 2026-09-03 by ticket 01.** `node_modules` was reinstalled on
+darwin/arm64; `npm run verify` now completes all four stages and 96 tests are
+observed passing here. The paragraph above is kept because it explains why the
+tickets are ordered the way they are -- not because it is still true.
+
 ## The bug that matters
 
 `updateState` in the JSON adapter is a read-modify-write with no
