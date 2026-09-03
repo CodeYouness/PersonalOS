@@ -477,6 +477,41 @@ export function runAdapterContract(label, load) {
       });
     });
 
+    describe('concurrent writes', () => {
+      it('keeps all three when three writes start at the same moment', async () => {
+        // Two overlapping requests in one process is not exotic: the capture
+        // bar saving while a card refreshes does exactly this. A
+        // read-modify-write with no serialisation keeps only the last one.
+        const before = await store.getTasks();
+
+        await Promise.all([
+          store.createTask({ title: 'First at once' }),
+          store.createTask({ title: 'Second at once' }),
+          store.createTask({ title: 'Third at once' }),
+        ]);
+
+        const after = await store.getTasks();
+        expect(after).toHaveLength(before.length + 3);
+        expect(after.map((task) => task.title)).toEqual(
+          expect.arrayContaining(['First at once', 'Second at once', 'Third at once'])
+        );
+      });
+
+      it('does not lose a capture to a write in another collection', async () => {
+        // Capture never fails is the promise the whole system rests on, and
+        // the write it races is usually not another capture.
+        await Promise.all([
+          store.createCapture({ text: 'Ring the dentist' }),
+          store.createTask({ title: 'Ring the dentist' }),
+        ]);
+
+        const captures = await store.getCaptures();
+        const tasks = await store.getTasks();
+        expect(captures.some((capture) => capture.text === 'Ring the dentist')).toBe(true);
+        expect(tasks.some((task) => task.title === 'Ring the dentist')).toBe(true);
+      });
+    });
+
     describe('reset', () => {
       it('restores the seeded state', async () => {
         // Deleting the working data is the undo button this whole design
