@@ -115,6 +115,17 @@ before pushing. Git history does not forget.
 - Next 16 changed APIs since most training data. If code that "should work"
   will not compile, read `node_modules/next/dist/docs/` before retrying.
 
+## Picking this up cold
+
+Read `docs/handoff/2026-09-03-foundation-v2.md` before anything else. It says
+where the project is, which bug is currently able to lose data, and which
+findings from an old external review have already been fixed and must not be
+re-fixed.
+
+Open work lives in `.scratch/foundation-v2-remediation/issues/`, in order.
+Ticket 01 blocks the rest: until it lands, a green `npm run verify` on a
+developer machine does not prove the tests ran.
+
 ## Deeper
 
 `docs/architecture.md` (layers and boundaries) · `docs/domain.md` (what the
