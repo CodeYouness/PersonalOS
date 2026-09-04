@@ -1,3 +1,7 @@
+import Topbar from '@/components/Topbar.js';
+
+import './globals.css';
+
 export const metadata = {
   title: 'PersonalOS',
   description: 'Capture once, let the system file it, read it back.',
@@ -9,7 +13,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Topbar />
+        {children}
+      </body>
     </html>
   );
 }
