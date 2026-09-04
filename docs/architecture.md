@@ -122,9 +122,14 @@ personal install is an environment variable, never a code change.
 - **One JSON document, rewritten whole on every change.** A single person
   generates a few thousand rows a year. A file you can open and read with your
   own eyes is worth more than query power you will not use.
-- **No optimistic locking.** One writer, one machine. That stops being true
-  the day you write from a phone and a laptop at once — which is exactly the
-  day to move to a database.
+- **A write queue rather than optimistic locking.** Two requests in one
+  Next.js process overlap easily — the capture bar saving while a card
+  refreshes — so the JSON adapter serialises every read-modify-write on one
+  promise chain and gives each temporary file a unique name. Within a process
+  that is enough. Across two processes it is not, and neither would a lock
+  file be worth its failure modes: the day you write from a phone and a laptop
+  at once is the day to move to a database. See
+  [0011](decisions/0011-writes-are-serialised-in-process.md).
 - **An in-memory link scan rather than an index.** At this volume a filter
   over an array is instant. When it stops being instant, the adapter builds a
   map on read; nothing above it changes.

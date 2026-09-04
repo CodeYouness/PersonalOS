@@ -115,8 +115,38 @@ before pushing. Git history does not forget.
 - Next 16 changed APIs since most training data. If code that "should work"
   will not compile, read `node_modules/next/dist/docs/` before retrying.
 
+## Picking this up cold
+
+Read `docs/handoff/2026-09-03-foundation-v2.md` before anything else. It says
+where the project is, which bug is currently able to lose data, and which
+findings from an old external review have already been fixed and must not be
+re-fixed.
+
+Open work lives in `.scratch/foundation-v2-remediation/issues/`, in order.
+Ticket 01 blocks the rest: until it lands, a green `npm run verify` on a
+developer machine does not prove the tests ran.
+
 ## Deeper
 
 `docs/architecture.md` (layers and boundaries) · `docs/domain.md` (what the
 words mean) · `docs/development.md` (how to work here) ·
 `docs/roadmap.md` (what is built and what is next) · `docs/decisions/` (why).
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues on `CodeYouness/PersonalOS`, via the `gh` CLI. The
+nine foundation-v2 tickets are the exception and stay on disk.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, each label string equal to its name.
+See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context. The glossary is `docs/domain.md` and the ADRs are in
+`docs/decisions/` -- not the `CONTEXT.md` / `docs/adr/` the skills assume.
+See `docs/agents/domain.md`.
