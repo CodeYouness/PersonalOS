@@ -526,6 +526,16 @@ export function runAdapterContract(label, load) {
         expect(await store.getTasks()).toHaveLength(seededTasks.length);
         expect((await store.getProfile()).focus).toBe(seededFocus);
       });
+
+      it('reports where the discarded state was backed up', async () => {
+        // Whatever "reset" is about to discard might be a real life, not a
+        // demo left over from setup -- every adapter must say where it went,
+        // not just the JSON one. What the identifier means is the adapter's
+        // business; that it exists whenever there was something real to
+        // protect is the contract.
+        await store.updateProfile({ focus: 'Not the seed' });
+        expect(await store.reset()).toBeTruthy();
+      });
     });
   });
 }

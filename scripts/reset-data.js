@@ -13,5 +13,8 @@
 
 import { resetState, workingPath } from '../lib/adapters/json/file.js';
 
-await resetState();
+const backupPath = await resetState();
 console.log('restored ' + workingPath() + ' from seed.json');
+if (backupPath !== null) {
+  console.log('the previous working data is backed up at ' + backupPath);
+}
