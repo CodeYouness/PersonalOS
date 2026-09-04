@@ -1,15 +1,19 @@
+import SessionCard from '@/components/SessionCard.js';
+import TodayCard from '@/components/TodayCard.js';
+
+export const dynamic = 'force-dynamic';
+
 /**
- * The Home screen shell, ported from design/mockup.html.
- *
- * Empty on purpose: Today and Session are the next two cards, each its own
- * commit per docs/roadmap.md. This ticket only proves the shell -- topbar,
- * layout, ported CSS -- renders in place of the old bootstrap page.
+ * The Home screen, ported from design/mockup.html. Today and Session are
+ * the first two cards -- the rest (compact Habits, Calendar, Finance pulse)
+ * follow one commit at a time, per docs/roadmap.md.
  */
 export default function Home() {
   return (
     <section id="screen-home" className="screen is-active">
       <div className="screen-grid">
-        <p className="caption span-12">Cards land here next, one at a time.</p>
+        <TodayCard />
+        <SessionCard />
       </div>
     </section>
   );
