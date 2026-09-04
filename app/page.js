@@ -1,34 +1,16 @@
-import { getProfile, storageName } from '@/lib/store.js';
-
-export const dynamic = 'force-dynamic';
-
 /**
- * The bootstrap shell.
+ * The Home screen shell, ported from design/mockup.html.
  *
- * Deliberately not the dashboard: the four screens are ported from a mockup
- * once the visual language is decided, because settling the look after the
- * components exist means writing them twice. What this page does is prove the
- * whole chain -- server component to store to adapter to disk -- with the
- * smallest possible thing on screen.
+ * Empty on purpose: Today and Session are the next two cards, each its own
+ * commit per docs/roadmap.md. This ticket only proves the shell -- topbar,
+ * layout, ported CSS -- renders in place of the old bootstrap page.
  */
-export default async function Home() {
-  const profile = await getProfile();
-
+export default function Home() {
   return (
-    <main style={{ fontFamily: 'system-ui, sans-serif', margin: '3rem auto', maxWidth: '38rem' }}>
-      <h1>PersonalOS</h1>
-      <p>
-        Foundations are in place. The data layer is live on the <code>{storageName}</code> adapter
-        and this page is reading through it.
-      </p>
-      <p>
-        Profile: <strong>{profile.name}</strong>, {profile.role} in {profile.city}. Today&rsquo;s
-        focus is {profile.focus}, with {profile.habits.length} habits configured.
-      </p>
-      <p>
-        That is seed data, not yours. Run <code>npm run data:reset</code> at any time to return to
-        it. See <code>docs/roadmap.md</code> for what gets built next.
-      </p>
-    </main>
+    <section id="screen-home" className="screen is-active">
+      <div className="screen-grid">
+        <p className="caption span-12">Cards land here next, one at a time.</p>
+      </div>
+    </section>
   );
 }

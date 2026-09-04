@@ -35,7 +35,7 @@ hardest so each finished one is usable the same evening.
 | # | Piece | Notes |
 | --- | --- | --- |
 | 6 | **Mockup, revised** | The design in `design/mockup.html` predates v2. Habits has its own screen and every aggregating card has a period selector; both now have a data model underneath. |
-| 7 | **Port the mockup** | Into `components/`: top bar, grid, one component per screen. CSS moved as is into `app/globals.css`. |
+| 7 | **Port the mockup** | **Shell done:** `Topbar` and the screen/grid/card CSS primitives live in `components/` and `app/globals.css`; Home's nav item is active, the other five are visible but disabled. Still to come: one component per screen, ported alongside each screen's cards. |
 | 8 | **Classifier** | `lib/classify.js`. Model first, keyword rules underneath, records which one answered. No extended thinking — it adds seconds to the one gesture you repeat all day. |
 | 9 | **Capture route** | Writes the capture, a memory entry, the destination record, the links and an event. |
 | 10 | **Capture bar + receipt** | Four states, browser speech recognition, and the receipt saying where it went and who decided. |

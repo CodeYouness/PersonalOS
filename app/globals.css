@@ -1,0 +1,239 @@
+/* ==========================================================================
+   DESIGN TOKENS
+   Ported from design/mockup.html. Every token carries its source so the
+   provenance stays traceable.
+   base   -> linear.app   dark shell, surface ladder, radii, spacing
+   status -> raycast      semantic quartet + the command-bar treatment
+   type   -> stripe       thin display weights, negative tracking, tnum
+   tone   -> notion       restraint plus one well-placed splash of joy
+
+   Only the shell (topbar, layout, screen/card/grid primitives) is ported so
+   far. Card-specific sections (Today, Session, Habits, ...) are ported when
+   each card is built, per docs/roadmap.md.
+   ========================================================================== */
+:root {
+  /* --- Surface ladder: hierarchy without shadows ------------------------- */
+  --canvas:            #010102; /* base: linear.app */
+  --surface-1:         #0f1011; /* base: linear.app */
+  --surface-2:         #141516; /* base: linear.app */
+  --surface-3:         #18191a; /* base: linear.app */
+  --surface-4:         #191a1b; /* base: linear.app */
+  --surface-elevated:  #101111; /* status: raycast (command bar) */
+
+  /* --- Hairlines: 1px borders do the work drop-shadows would ------------- */
+  --hairline:          #23252a; /* base: linear.app */
+  --hairline-strong:   #34343a; /* base: linear.app */
+  --hairline-tertiary: #3e3e44; /* base: linear.app */
+  --hairline-soft:     rgba(255,255,255,0.08); /* status: raycast */
+
+  /* --- Text ------------------------------------------------------------- */
+  --ink:               #f7f8f8; /* base: linear.app */
+  --ink-muted:         #d0d6e0; /* base: linear.app */
+  --ink-subtle:        #8a8f98; /* base: linear.app */
+  --ink-tertiary:      #62666d; /* base: linear.app */
+
+  /* --- The one chromatic accent. Focus rings and primary action only. ---- */
+  --primary:           #5e6ad2; /* base: linear.app */
+  --primary-hover:     #828fff; /* base: linear.app */
+  --primary-focus:     #5e69d1; /* base: linear.app */
+
+  /* --- Semantic state. Linear has no real one; Raycast's quartet fills it. */
+  --success:           #59d499; /* status: raycast */
+  --success-soft:      rgba(89,212,153,0.15);  /* status: raycast */
+  --danger:            #ff6161; /* status: raycast */
+  --danger-soft:       rgba(255,97,97,0.15);   /* status: raycast */
+  --warning:           #ffc533; /* status: raycast */
+  --warning-soft:      rgba(255,197,51,0.15);  /* status: raycast */
+  --info:              #57c1ff; /* status: raycast — informational only */
+  --info-soft:         rgba(87,193,255,0.15);  /* status: raycast */
+
+  /* --- Radii ------------------------------------------------------------ */
+  --r-xs:      4px;  /* base: linear.app */
+  --r-sm:      6px;  /* base: linear.app */
+  --r-md:      8px;  /* base: linear.app */
+  --r-lg:     12px;  /* base: linear.app */
+  --r-xl:     16px;  /* base: linear.app */
+  --r-command:16px;  /* status: raycast (command bar) */
+  --r-full: 9999px;  /* base: linear.app — avatars only, never buttons */
+
+  /* --- Spacing, 4px base ------------------------------------------------ */
+  --s-xxs:  4px; /* base: linear.app */
+  --s-xs:   8px; /* base: linear.app */
+  --s-sm:  12px; /* base: linear.app */
+  --s-md:  16px; /* base: linear.app */
+  --s-lg:  24px; /* base: linear.app */
+  --s-xl:  32px; /* base: linear.app */
+  --s-xxl: 48px; /* base: linear.app */
+
+  /* --- Layout ----------------------------------------------------------- */
+  --topbar-h:    56px;
+  --capture-h:  104px; /* room the fixed capture bar needs at the bottom */
+  --max-w:      1480px;
+
+  /* --- Type. No remote fonts: the file must render identically offline. -- */
+  --font-sans: -apple-system, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Stripe's signature: thin display weight, tracking that tightens as size
+     grows and relaxes to zero on body copy. */
+  --w-display: 300; /* type: stripe */
+  --w-body:    400; /* type: stripe */
+  --w-label:   500; /* type: stripe */
+}
+
+/* ==========================================================================
+   RESET & BASE
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+html { height: 100%; }
+body {
+  min-height: 100%;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: var(--w-body);
+  line-height: 1.5;
+  letter-spacing: -0.05px;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4 { margin: 0; font-weight: var(--w-display); }
+p { margin: 0; }
+ul { margin: 0; padding: 0; list-style: none; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+:focus-visible {
+  outline: 2px solid var(--primary-focus); /* the accent's main job */
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+/* Type scale — Stripe tracking curve on Linear's sizes */
+.display  { font-size: 40px; line-height: 1.1;  letter-spacing: -1.4px; font-weight: var(--w-display); }
+.headline { font-size: 28px; line-height: 1.15; letter-spacing: -0.9px; font-weight: var(--w-display); }
+.title    { font-size: 20px; line-height: 1.25; letter-spacing: -0.4px; font-weight: var(--w-display); }
+.subhead  { font-size: 17px; line-height: 1.4;  letter-spacing: -0.2px; font-weight: var(--w-display); }
+.body-sm  { font-size: 14px; line-height: 1.5;  letter-spacing: 0; }
+.caption  { font-size: 12px; line-height: 1.4;  letter-spacing: 0; color: var(--ink-subtle); }
+.eyebrow {
+  font-size: 11px; font-weight: var(--w-label);
+  letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--ink-tertiary);
+}
+
+/* Numbers hold still. Tabular figures plus a slightly tighter track, so a
+   column of amounts can be compared vertically without the digits dancing. */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.42px; /* type: stripe */
+  text-align: right;
+}
+
+/* Colour follows the metric, never the sign. A weight going down may be
+   exactly what you wanted. */
+.up   { color: var(--success); }
+.down { color: var(--danger); }
+.due  { color: var(--warning); }
+.flat { color: var(--ink-subtle); }
+
+/* ==========================================================================
+   TOPBAR
+   ========================================================================== */
+#topbar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; gap: var(--s-lg);
+  padding: 0 var(--s-lg);
+  height: var(--topbar-h);
+  background: rgba(1,1,2,0.82);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--hairline);
+}
+.brand { display: flex; align-items: center; gap: var(--s-xs); }
+.brand-mark { width: 18px; height: 18px; color: var(--primary); }
+.brand-name { font-size: 14px; font-weight: var(--w-label); letter-spacing: -0.2px; }
+.nav { display: flex; gap: var(--s-xxs); margin-left: var(--s-md); }
+.nav-item {
+  padding: 6px 12px; border-radius: var(--r-md);
+  font-size: 13px; color: var(--ink-subtle); white-space: nowrap;
+  transition: color .12s, background .12s;
+}
+.nav-item:hover { color: var(--ink-muted); background: var(--surface-1); }
+.nav-item[aria-current="page"] { color: var(--ink); background: var(--surface-2); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: var(--s-sm); }
+.log-toggle {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: var(--r-md);
+  border: 1px solid var(--hairline); background: var(--surface-1);
+  font-size: 12px; color: var(--ink-subtle);
+}
+.log-toggle:hover { color: var(--ink); border-color: var(--hairline-strong); }
+/* Screens not built yet (docs/roadmap.md): visible, not a dead link. */
+.nav-item:disabled,
+.log-toggle:disabled {
+  color: var(--ink-tertiary);
+}
+.nav-item:disabled:hover { background: none; }
+.log-toggle:disabled:hover { border-color: var(--hairline); }
+
+/* ==========================================================================
+   SCREENS & GRID
+   The dashboard is one screen, not a scrolling page: each screen declares its
+   own row heights and fills the viewport. Lists scroll inside their card
+   rather than pushing the layout down.
+   ========================================================================== */
+.screen { display: none; }
+.screen.is-active { display: block; }
+.screen-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--s-md);
+  max-width: var(--max-w); margin: 0 auto;
+  padding: var(--s-lg) var(--s-lg) var(--capture-h);
+  min-height: calc(100vh - var(--topbar-h));
+}
+#screen-home .screen-grid { grid-template-rows: auto minmax(280px, 1fr) minmax(240px, 1fr); }
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  padding: var(--s-lg);
+  min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.card-head {
+  display: flex; align-items: center; gap: var(--s-sm);
+  margin-bottom: var(--s-md); flex: none;
+}
+.card-head .eyebrow { margin-right: auto; }
+.card-body { flex: 1; min-height: 0; overflow: auto; }
+.card-body::-webkit-scrollbar { width: 8px; }
+.card-body::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: var(--r-xs); }
+
+.span-3 { grid-column: span 3; } .span-4 { grid-column: span 4; }
+.span-5 { grid-column: span 5; } .span-6 { grid-column: span 6; }
+.span-7 { grid-column: span 7; } .span-8 { grid-column: span 8; }
+.span-12 { grid-column: span 12; }
+
+.divider { height: 1px; background: var(--hairline); margin: var(--s-md) 0; flex: none; }
+
+/* Badges, buttons (beyond the topbar's own), and the period selector are
+   content a card renders, not shell chrome -- ported alongside the first
+   card that needs each one, not ahead of it. */
+
+/* ==========================================================================
+   RESPONSIVE — shell rules only; a card's own responsive tweaks are ported
+   with that card.
+   ========================================================================== */
+@media (max-width: 1200px) {
+  .span-3, .span-4, .span-5 { grid-column: span 6; }
+  .span-7, .span-8 { grid-column: span 12; }
+  #screen-home .screen-grid { grid-template-rows: none; }
+  .card-body { overflow: visible; }
+}
+@media (max-width: 760px) {
+  .screen-grid > * { grid-column: span 12 !important; }
+  .nav { overflow-x: auto; }
+}
