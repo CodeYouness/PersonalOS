@@ -36,8 +36,8 @@ hardest so each finished one is usable the same evening.
 | --- | --- | --- |
 | 6 | **Mockup, revised** | The design in `design/mockup.html` predates v2. Habits has its own screen and every aggregating card has a period selector; both now have a data model underneath. |
 | 7 | **Port the mockup** | **Shell done:** `Topbar` and the screen/grid/card CSS primitives live in `components/` and `app/globals.css`; Home's nav item is active, the other five are visible but disabled. Still to come: one component per screen, ported alongside each screen's cards. |
-| 8 | **Classifier** | `lib/classify.js`. Model first, keyword rules underneath, records which one answered. No extended thinking — it adds seconds to the one gesture you repeat all day. |
-| 9 | **Capture route** | Writes the capture, a memory entry, the destination record, the links and an event. |
+| 8 | **Classifier** | **Done.** `lib/classify.js`. Model first, keyword rules underneath, records which one answered. Rules reliably cover task/finance/nutrition/health/goals; people and memory have no reliable keyword (a "call/email" rule for people misfired on plain tasks) and fall back to task without a model. |
+| 9 | **Capture route** | **Done.** `app/api/capture/route.js`. Writes the capture, a memory entry, the links and an event; `task` and `goals` get a destination record, the other five file as capture + memory only until their card exists and a real minimal record is possible. |
 | 10 | **Capture bar + receipt** | Four states, browser speech recognition, and the receipt saying where it went and who decided. |
 | 11 | **Capture log drawer** | The long form of the receipt: recent captures with their route, undo, refile, delete. |
 | 12 | **Cards, one per commit** | Today, Session, Calendar, Habits, CRM, Nutrition, Health, Goals, Finance. |
