@@ -24,7 +24,7 @@ data with no key set; each variable switches on the feature next to it.
 | `npm run test:watch` | Vitest, watching |
 | `npm run verify` | All four, in order. **The gate.** |
 | `npm run check:secrets` | Fails if personal data or a credential is tracked |
-| `npm run data:reset` | Restore `data/personalos.json` from the seed |
+| `npm run data:reset` | Restore `data/personalos.json` from the seed, backing up whatever was there first |
 
 ## Types without TypeScript
 
