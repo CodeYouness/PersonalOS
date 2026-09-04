@@ -219,9 +219,57 @@ button:disabled { cursor: not-allowed; }
 
 .divider { height: 1px; background: var(--hairline); margin: var(--s-md) 0; flex: none; }
 
-/* Badges, buttons (beyond the topbar's own), and the period selector are
-   content a card renders, not shell chrome -- ported alongside the first
-   card that needs each one, not ahead of it. */
+/* Badges: soft fill at 15% alpha, solid text. Buttons and the period
+   selector are still content a card renders, not shell chrome -- ported
+   alongside the first card that needs each one, not ahead of it. */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: var(--r-xs);
+  font-size: 11px; font-weight: var(--w-label); letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.badge-hot   { background: var(--danger-soft);  color: var(--danger); }
+.badge-warm  { background: var(--warning-soft); color: var(--warning); }
+.badge-cold  { background: var(--surface-3);    color: var(--ink-subtle); }
+.dot { width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; flex: none; }
+
+/* ==========================================================================
+   HOME — card-today (full width, first: what today is about)
+   ========================================================================== */
+#card-today { flex-direction: row; align-items: stretch; gap: var(--s-xl); padding: var(--s-xl); }
+.today-focus { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.today-focus .focus-text {
+  font-size: 34px; line-height: 1.15; letter-spacing: -1.2px;
+  font-weight: var(--w-display); margin-top: var(--s-xs);
+  border-left: 2px solid var(--primary); /* the one splash of joy — tone: notion */
+  padding-left: var(--s-md);
+}
+.today-side {
+  flex: none; width: 260px; padding-left: var(--s-xl);
+  border-left: 1px solid var(--hairline);
+  display: flex; flex-direction: column; justify-content: center; gap: var(--s-xs);
+}
+.today-who { display: flex; align-items: center; gap: var(--s-sm); }
+.today-who .avatar-lg {
+  width: 38px; height: 38px; border-radius: var(--r-full);
+  background: var(--surface-3); border: 1px solid var(--hairline-tertiary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: var(--ink-muted);
+}
+
+/* ==========================================================================
+   HOME — card-session
+   ========================================================================== */
+.task-row {
+  display: flex; align-items: center; gap: var(--s-sm);
+  padding: var(--s-sm) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.task-row:last-child { border-bottom: none; }
+.task-rank { width: 18px; color: var(--ink-tertiary); font-family: var(--font-mono); font-size: 12px; }
+.task-main { min-width: 0; flex: 1; }
+.task-title { display: block; letter-spacing: -0.1px; }
+.task-person { color: var(--ink-subtle); font-size: 12px; }
 
 /* ==========================================================================
    RESPONSIVE — shell rules only; a card's own responsive tweaks are ported
@@ -236,4 +284,6 @@ button:disabled { cursor: not-allowed; }
 @media (max-width: 760px) {
   .screen-grid > * { grid-column: span 12 !important; }
   .nav { overflow-x: auto; }
+  #card-today { flex-direction: column; gap: var(--s-lg); }
+  .today-side { width: auto; padding-left: 0; padding-top: var(--s-lg); border-left: none; border-top: 1px solid var(--hairline); }
 }
