@@ -53,8 +53,13 @@ for (const file of tracked) {
   let size;
   try {
     size = statSync(file).size;
-  } catch {
-    problems.push('tracked but missing from the working tree: ' + file);
+  } catch (error) {
+    const code = error instanceof Error && 'code' in error ? error.code : undefined;
+    problems.push(
+      code === 'ENOENT'
+        ? 'tracked but missing from the working tree: ' + file
+        : 'could not check ' + file + ': ' + (error instanceof Error ? error.message : String(error))
+    );
     continue;
   }
   if (size > MAX_SCAN_BYTES) continue;
