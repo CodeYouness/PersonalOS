@@ -36,9 +36,11 @@ Two files, and the difference matters:
 | `data/seed.json` | The starting state. Versioned, demo content, never written to. |
 | `data/personalos.json` | Your life. Git-ignored, regenerated from the seed when missing. |
 
-Deleting the second one restores the first. That is the undo button, and
-`npm run data:reset` is the same thing as a command. Set `DATA_DIR` if you
-would rather keep your data outside the repository entirely.
+Deleting the second one restores the first -- a destructive factory reset
+back to the demo content, not an undo of your last change. `npm run
+data:reset` is the same thing as a command, and it backs up whatever was
+there first. Set `DATA_DIR` if you would rather keep your data outside the
+repository entirely.
 
 ## Commands
 

@@ -611,8 +611,8 @@ export function runAdapterContract(label, load) {
 
     describe('reset', () => {
       it('restores the seeded state', async () => {
-        // Deleting the working data is the undo button this whole design
-        // hangs on. If it stops working, nothing else warns you.
+        // Restoring from the seed is the destructive factory reset this
+        // whole design hangs on. If it stops working, nothing else warns you.
         const seededTasks = await store.getTasks();
         const seededFocus = (await store.getProfile()).focus;
 
