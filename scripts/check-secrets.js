@@ -49,7 +49,15 @@ for (const file of tracked) {
   }
 
   if (SKIP_CONTENT_SCAN.test(file)) continue;
-  if (statSync(file).size > MAX_SCAN_BYTES) continue;
+
+  let size;
+  try {
+    size = statSync(file).size;
+  } catch {
+    problems.push('tracked but missing from the working tree: ' + file);
+    continue;
+  }
+  if (size > MAX_SCAN_BYTES) continue;
 
   let content = '';
   try {
