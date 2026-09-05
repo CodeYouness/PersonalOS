@@ -145,6 +145,13 @@ See `docs/agents/issue-tracker.md`.
 The five canonical roles, each label string equal to its name.
 See `docs/agents/triage-labels.md`.
 
+### Ideas inbox
+
+Raw ideas before they've been grilled -- `.scratch/ideas.md`. Once an idea is
+grilled and scoped, it becomes a GitHub issue (or a foundation-v2 ticket on
+disk) and gets deleted from the inbox. Not a backlog: an idea left there past
+its grilling round gets grilled or thrown away.
+
 ### Domain docs
 
 Single-context. The glossary is `docs/domain.md` and the ADRs are in
