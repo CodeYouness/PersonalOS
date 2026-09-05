@@ -35,8 +35,13 @@ handler will surface to the user.
 fields)`: for every key in the patch, look up its validator in `fields` and
 run it, or throw naming the key as unknown. A `PATCH_FIELDS` map per entity
 family (`TASK_PATCH_FIELDS`, `PERSON_PATCH_FIELDS`, ... ten in all) lists
-exactly the fields that entity's `update*` may touch, each validated by the
-same function `create*` already uses for that field. Identity and timestamp
+exactly the fields that entity's `update*` may touch, each validated as
+strictly as `create*` validates it -- and, for a handful of fields `create*`
+never validated at all (`Goal.done`, `Goal.progress`, `Account.origin`,
+`Transaction.origin`, `Memory.confidence`), update is stricter than create,
+not aligned to it: there was nothing on the create side to align to, and
+leaving these unchecked would have kept exactly the hole this ticket exists
+to close. Identity and timestamp
 fields (`id`, `createdAt`, `updatedAt`, `source`, plus the day key that keys a
 daily log and the integration name that keys a sync state) are never in a
 `fields` map, so a patch naming them is rejected outright as unknown, before
@@ -56,17 +61,33 @@ shallowly -- is this an array, is this a plain object -- matching the depth
 `create` itself validates them to, not inventing a deeper schema `create`
 does not have either.
 
+A per-field validator cannot see a cross-field rule, and one existed:
+`createTransaction` refuses `kind: 'transfer'` without a `counterAccountId`
+("a transfer without its other side would be counted as a disappearance"),
+and the first cut of this ticket left `updateTransaction` able to patch
+`kind` to `'transfer'` on a transaction that had none -- caught in review,
+fixed by checking the resulting `kind`/`counterAccountId` together (whichever
+of each is in the patch, else the record's existing value) inside
+`updateTransaction`'s own `updateState` callback, where both are available.
+
 Left out on purpose: `upsertTransactionByOrigin`'s update-existing branch
 builds its patch from a fixed object literal, not a raw spread, so the
 unknown-field hole does not apply to it; validating the *types* of the
 fields it forwards from a sync source is a real gap but a different one, out
 of this ticket's scope.
 
-Tests: `tests/store/adapter-contract.js` gained 11 cases across the ten
-entity families -- one unknown-field rejection per family, plus a
-wrong-type-rejection and an unchanged-record-after-rejection case on Task,
-which exercises the shared mechanism directly. Each was watched failing
-against the pre-fix adapter (the promise resolved instead of rejecting)
-before the fix landed.
+Bullet 4 ("one create and one update per entity family") only strictly
+applies to seven of the ten: `Profile`, `DailyLog` and `SyncState` have no
+`create*` in the contract at all (there is nothing to create -- a profile
+always exists, a daily log or a sync state is born on first write). All ten
+still get an update-side unknown-field test; the three without a create
+counterpart just have no "symmetry" to make visible.
 
-`npm run verify` green on all four stages, 144 tests (11 new).
+Tests: `tests/store/adapter-contract.js` gained 12 cases across the ten
+entity families -- one unknown-field rejection per family, a
+wrong-type-rejection and an unchanged-record-after-rejection case on Task
+exercising the shared mechanism directly, and the transfer/counterAccountId
+case above. Each was watched failing against the pre-fix adapter (the
+promise resolved instead of rejecting) before its fix landed.
+
+`npm run verify` green on all four stages, 145 tests (12 new).

@@ -529,6 +529,19 @@ export function runAdapterContract(label, load) {
         ).rejects.toThrow();
       });
 
+      it('refuses to patch a transaction into a transfer with no other side', async () => {
+        // Same rule createTransaction enforces on the way in: a transfer
+        // without its other side would be counted as a disappearance.
+        const [account] = await store.getAccounts();
+        const transaction = await store.createTransaction({
+          date: '2026-04-02', amount: 500, kind: 'expense', accountId: account.id,
+        });
+
+        await expect(
+          store.updateTransaction(transaction.id, { kind: 'transfer' })
+        ).rejects.toThrow();
+      });
+
       it('keeps one snapshot per day', async () => {
         await store.recordSnapshot({ date: '2026-04-02', netWorth: 100000 });
         await store.recordSnapshot({ date: '2026-04-02', netWorth: 110000 });
