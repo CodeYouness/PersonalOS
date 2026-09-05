@@ -53,6 +53,11 @@ export function runAdapterContract(label, load) {
         expect(profile.focus).toBe('Rewrite the onboarding email');
         expect(profile.calorieTarget).toBeGreaterThan(0);
       });
+
+      it('rejects an unknown field in a patch', async () => {
+        const patch = /** @type {any} */ ({ nickname: 'Jay' });
+        await expect(store.updateProfile(patch)).rejects.toThrow();
+      });
     });
 
     describe('tasks', () => {
@@ -100,6 +105,22 @@ export function runAdapterContract(label, load) {
 
         expect(found).not.toBeNull();
         expect(found?.completedAt).toBeTruthy();
+      });
+
+      it('rejects an unknown field in a patch, leaving the record unchanged', async () => {
+        const created = await store.createTask({ title: 'Something' });
+
+        await expect(store.updateTask(created.id, { notAField: 'x' })).rejects.toThrow();
+
+        expect(await store.getTask(created.id)).toEqual(created);
+      });
+
+      it('rejects a wrongly typed value for a known field', async () => {
+        const created = await store.createTask({ title: 'Something' });
+
+        await expect(
+          store.updateTask(created.id, { title: { not: 'a string' } })
+        ).rejects.toThrow();
       });
 
       it('reports an unknown id instead of failing silently', async () => {
@@ -176,6 +197,14 @@ export function runAdapterContract(label, load) {
       it('refuses a person without a name', async () => {
         await expect(store.createPerson({ name: '' })).rejects.toThrow();
       });
+
+      it('rejects an unknown field in a patch', async () => {
+        const created = await store.createPerson({ name: 'Ana Duarte' });
+
+        await expect(
+          store.updatePerson(created.id, { favoriteColor: 'blue' })
+        ).rejects.toThrow();
+      });
     });
 
     describe('goals', () => {
@@ -198,6 +227,14 @@ export function runAdapterContract(label, load) {
 
         expect(project.kind).toBe('project');
         expect(await store.getLinks({ to: project.id, rel: 'belongs_to' })).toHaveLength(1);
+      });
+
+      it('rejects an unknown field in a patch', async () => {
+        const goal = await store.createGoal({ name: 'Ship it' });
+
+        await expect(
+          store.updateGoal(goal.id, { deadline: '2026-01-01' })
+        ).rejects.toThrow();
       });
     });
 
@@ -308,6 +345,22 @@ export function runAdapterContract(label, load) {
         expect(memory.validFrom).toBe('2026-01-01');
         expect(memory.validUntil).toBe('2026-06-30');
       });
+
+      it('rejects an unknown field in a memory patch', async () => {
+        const memory = await store.createMemoryEntry({ type: 'fact', content: 'Something true.' });
+
+        await expect(
+          store.updateMemoryEntry(memory.id, { verified: true })
+        ).rejects.toThrow();
+      });
+
+      it('rejects an unknown field in a journal patch', async () => {
+        const entry = await store.createJournalEntry({ date: '2026-04-02', text: 'Something.' });
+
+        await expect(
+          store.updateJournalEntry(entry.id, { mood: 'good' })
+        ).rejects.toThrow();
+      });
     });
 
     describe('events', () => {
@@ -370,6 +423,12 @@ export function runAdapterContract(label, load) {
 
         expect(logs.map((log) => log.date)).toEqual(['2026-04-01', '2026-04-02', '2026-04-03']);
         expect(logs[0].meals).toEqual([]);
+      });
+
+      it('rejects an unknown field in a patch', async () => {
+        await expect(
+          store.updateDailyLog('2026-04-02', { mood: 'good' })
+        ).rejects.toThrow();
       });
     });
 
@@ -451,6 +510,25 @@ export function runAdapterContract(label, load) {
         );
       });
 
+      it('rejects an unknown field in an account patch', async () => {
+        const [account] = await store.getAccounts();
+
+        await expect(
+          store.updateAccount(account.id, { interestRate: 0.02 })
+        ).rejects.toThrow();
+      });
+
+      it('rejects an unknown field in a transaction patch', async () => {
+        const [account] = await store.getAccounts();
+        const transaction = await store.createTransaction({
+          date: '2026-04-02', amount: 500, kind: 'expense', accountId: account.id,
+        });
+
+        await expect(
+          store.updateTransaction(transaction.id, { verified: true })
+        ).rejects.toThrow();
+      });
+
       it('keeps one snapshot per day', async () => {
         await store.recordSnapshot({ date: '2026-04-02', netWorth: 100000 });
         await store.recordSnapshot({ date: '2026-04-02', netWorth: 110000 });
@@ -474,6 +552,12 @@ export function runAdapterContract(label, load) {
         const scalable = states.find((state) => state.integration === 'scalable');
         expect(scalable?.status).toBe('ok');
         expect(scalable?.itemCount).toBe(12);
+      });
+
+      it('rejects an unknown field in a patch', async () => {
+        await expect(
+          store.updateSyncState('scalable', { note: 'hi' })
+        ).rejects.toThrow();
       });
     });
 
