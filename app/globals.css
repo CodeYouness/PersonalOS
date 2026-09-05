@@ -231,6 +231,9 @@ button:disabled { cursor: not-allowed; }
 .badge-hot   { background: var(--danger-soft);  color: var(--danger); }
 .badge-warm  { background: var(--warning-soft); color: var(--warning); }
 .badge-cold  { background: var(--surface-3);    color: var(--ink-subtle); }
+.badge-ok    { background: var(--success-soft); color: var(--success); }
+.badge-route-model { background: var(--surface-3);    color: var(--ink-subtle); }
+.badge-route-rules { background: var(--warning-soft); color: var(--warning); }
 .dot { width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; flex: none; }
 
 /* ==========================================================================
@@ -270,6 +273,65 @@ button:disabled { cursor: not-allowed; }
 .task-main { min-width: 0; flex: 1; }
 .task-title { display: block; letter-spacing: -0.1px; }
 .task-person { color: var(--ink-subtle); font-size: 12px; }
+
+/* ==========================================================================
+   CAPTURE BAR
+   Conceptually Raycast's command bar: one dominant element, heavily rounded,
+   sitting one step above the canvas. Ported minus the mic and its
+   `listening` state -- voice is out of scope this pass, text only -- plus a
+   new `error` state the mockup doesn't have, because an idealised comp has
+   no failure states and a capture that never lands must still say so.
+   ========================================================================== */
+#capture-bar {
+  position: fixed; left: 50%; bottom: var(--s-lg);
+  transform: translateX(-50%);
+  width: min(680px, calc(100vw - 48px));
+  z-index: 60;
+}
+.capture-shell {
+  display: flex; align-items: center; gap: var(--s-sm);
+  padding: 10px 16px;
+  background: var(--surface-elevated); /* status: raycast */
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-command);
+  transition: border-color .15s;
+}
+.capture-input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--ink); font: inherit; font-size: 15px;
+}
+.capture-input::placeholder { color: var(--ink-tertiary); }
+.capture-input:disabled { color: var(--ink-subtle); }
+.capture-status { display: none; align-items: center; gap: 6px; font-size: 12px; }
+
+#capture-bar[data-state="processing"] .capture-shell { border-color: var(--hairline-strong); }
+#capture-bar[data-state="processing"] .status-processing { display: flex; color: var(--ink-subtle); }
+.spinner {
+  width: 11px; height: 11px; border-radius: var(--r-full);
+  border: 1.5px solid var(--hairline-tertiary); border-top-color: var(--ink-subtle);
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#capture-bar[data-state="done"] .capture-shell { border-color: var(--success); }
+#capture-bar[data-state="done"] .status-done { display: flex; color: var(--success); }
+
+#capture-bar[data-state="error"] .capture-shell { border-color: var(--danger); }
+
+/* --- The receipt. Where did that sentence go, and who decided? ---------- */
+.receipt {
+  display: none;
+  margin-bottom: var(--s-xs);
+  padding: var(--s-sm) var(--s-md);
+  background: var(--surface-elevated);
+  border: 1px solid var(--success);
+  border-radius: var(--r-lg);
+}
+#capture-bar[data-state="done"] .receipt { display: block; }
+#capture-bar[data-state="error"] .receipt { display: block; border-color: var(--danger); }
+.receipt-line { display: flex; align-items: center; gap: var(--s-xs); }
+.receipt-what { flex: 1; min-width: 0; font-size: 13px; }
+.receipt-error { color: var(--danger); font-size: 13px; }
 
 /* ==========================================================================
    RESPONSIVE — shell rules only; a card's own responsive tweaks are ported

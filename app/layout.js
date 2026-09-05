@@ -1,3 +1,4 @@
+import CaptureBar from '@/components/CaptureBar.js';
 import Topbar from '@/components/Topbar.js';
 
 import './globals.css';
@@ -16,6 +17,7 @@ export default function RootLayout({ children }) {
       <body>
         <Topbar />
         {children}
+        <CaptureBar />
       </body>
     </html>
   );
