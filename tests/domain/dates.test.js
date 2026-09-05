@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   dayKeyRange,
@@ -116,24 +116,23 @@ describe('using dates.js from a client component', () => {
   // prove the module survives being imported from one.
   const shared = /** @type {any} */ (globalThis);
 
+  beforeEach(() => {
+    shared.window = {};
+    vi.resetModules();
+  });
+
   afterEach(() => {
     delete shared.window;
     vi.resetModules();
   });
 
   it('runs pure calendar arithmetic with no import of configuration', async () => {
-    shared.window = {};
-    vi.resetModules();
-
     const dates = await import('@/lib/domain/dates.js');
 
     expect(dates.shiftDayKey('2026-01-01', 1)).toBe('2026-01-02');
   });
 
   it('resolves a day key given an explicit timezone', async () => {
-    shared.window = {};
-    vi.resetModules();
-
     const { toDayKey: toDayKeyUnderBrowser } = await import('@/lib/domain/dates.js');
 
     expect(toDayKeyUnderBrowser(new Date('2026-06-15T22:30:00Z'), 'Europe/Rome')).toBe(
