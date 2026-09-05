@@ -6,6 +6,30 @@ import globals from "globals";
 // it was ever examined by eslint-config-next's React/a11y-focused rules.
 const LOGIC_LAYER = ["lib/**/*.js", "scripts/**/*.js", "tests/**/*.js"];
 
+// CLAUDE.md rule 1: lib/ runs under plain Node -- relative imports only, no
+// bundler alias. Scripts and one-off migrations depend on that.
+const NO_AT_ALIAS = {
+  group: ["@/**"],
+  message: "lib/ must run under plain Node: use a relative import, not the @/ alias.",
+};
+
+// docs/architecture.md: nothing outside the data layer imports a storage
+// adapter directly.
+const NO_ADAPTER_IMPORT = {
+  group: ["**/adapters/**"],
+  message:
+    "Only lib/store.js may import a storage adapter. Add a domain operation to lib/store.js instead.",
+};
+
+// ADR-0005: lib/domain/dates.js is the only place allowed to compute a day
+// key from an instant.
+const NO_ISO_SLICE = {
+  selector:
+    "CallExpression[callee.property.name='slice'][callee.object.type='CallExpression'][callee.object.callee.property.name='toISOString']",
+  message:
+    "Only lib/domain/dates.js may compute a day key from an instant. Call toDayKey() or today() instead (ADR-0005).",
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   // Override default ignores of eslint-config-next.
@@ -36,65 +60,47 @@ const eslintConfig = defineConfig([
 
   // Flat config replaces a rule's whole options when the same rule name
   // appears in a later matching block -- it does not merge them. So every
-  // restriction that can apply to the same file lives in one block per rule,
-  // and blocks are kept file-disjoint where the restrictions genuinely
-  // differ (tests/ needs the ADR-0005 one below but not the process.env one).
+  // restriction that can apply to the same file lives in one block per
+  // rule, and every block below is file-disjoint from any other block using
+  // the same rule name.
 
-  // CLAUDE.md: lib/ runs under plain Node, no bundler alias -- scripts and
-  // one-off migrations depend on that. docs/architecture.md: nothing outside
-  // the data layer imports a storage adapter directly.
+  // Most of lib/: no @/ alias, no reaching around the store for an adapter.
   {
     files: ["lib/**/*.js"],
     ignores: ["lib/store.js", "lib/adapters/**"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["@/**"],
-              message:
-                "lib/ must run under plain Node: use a relative import, not the @/ alias.",
-            },
-            {
-              group: ["**/adapters/**"],
-              message:
-                "Only lib/store.js may import a storage adapter. Add a domain operation to lib/store.js instead.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": ["error", { patterns: [NO_AT_ALIAS, NO_ADAPTER_IMPORT] }],
     },
   },
-
-  // Same adapter rule, for the parts of the app that aren't lib/ itself.
+  // lib/store.js and the adapters themselves are still lib/, and still must
+  // avoid the @/ alias -- the adapter-import rule obviously does not apply
+  // to their own files, so it is not repeated here.
   {
-    files: ["app/**/*.js", "components/**/*.js", "scripts/**/*.js"],
+    files: ["lib/store.js", "lib/adapters/**/*.js"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [NO_AT_ALIAS] }],
+    },
+  },
+  // The adapter-import rule outside lib/. tests/store/ is exempt: the
+  // adapter contract suite and the migration/reset-backup tests live there,
+  // and testing the data layer directly is not bypassing it.
+  {
+    files: ["app/**/*.js", "components/**/*.js", "scripts/**/*.js", "tests/**/*.js"],
     ignores: [
+      "tests/store/**",
       // Ticket 07 moves this through the store; tracked there, not here.
       "scripts/reset-data.js",
     ],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["**/adapters/**"],
-              message:
-                "Only lib/store.js may import a storage adapter. Add a domain operation to lib/store.js instead.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": ["error", { patterns: [NO_ADAPTER_IMPORT] }],
     },
   },
 
   // CLAUDE.md / lib/config/env.js: it is the only module allowed to read
-  // process.env. ADR-0005: lib/domain/dates.js is the only place allowed to
-  // compute a day key from an instant. Tests are exempt from the first --
-  // they set process.env directly to drive env.js through its own
-  // fallbacks, a different concern -- but not the second, below.
+  // process.env, dot or bracket notation. ADR-0005's day-key rule lives in
+  // the same block since both apply to the same files. Tests are exempt
+  // from the first -- they set process.env directly to drive env.js through
+  // its own fallbacks, a different concern -- but not the second, below.
   {
     files: ["app/**/*.js", "components/**/*.js", "lib/**/*.js", "scripts/**/*.js"],
     ignores: ["lib/config/env.js", "lib/domain/dates.js"],
@@ -102,31 +108,20 @@ const eslintConfig = defineConfig([
       "no-restricted-syntax": [
         "error",
         {
-          selector: "MemberExpression[object.name='process'][property.name='env']",
+          selector:
+            "MemberExpression[object.name='process'][property.name='env'], " +
+            "MemberExpression[object.name='process'][computed=true][property.value='env']",
           message:
             "Only lib/config/env.js may read process.env. Import { env } from lib/config/env.js instead.",
         },
-        {
-          selector:
-            "CallExpression[callee.property.name='slice'][callee.object.type='CallExpression'][callee.object.callee.property.name='toISOString']",
-          message:
-            "Only lib/domain/dates.js may compute a day key from an instant. Call toDayKey() or today() instead (ADR-0005).",
-        },
+        NO_ISO_SLICE,
       ],
     },
   },
   {
     files: ["tests/**/*.js"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector:
-            "CallExpression[callee.property.name='slice'][callee.object.type='CallExpression'][callee.object.callee.property.name='toISOString']",
-          message:
-            "Only lib/domain/dates.js may compute a day key from an instant. Call toDayKey() or today() instead (ADR-0005).",
-        },
-      ],
+      "no-restricted-syntax": ["error", NO_ISO_SLICE],
     },
   },
 ]);
