@@ -48,8 +48,9 @@ Not a large suite. A net under the things that lie silently when they break:
    on a machine that is not your laptop.
 3. **Classification** -- the rule fallback is deterministic and gets tested;
    so does rejecting a destination the model invented.
-4. **Route handlers** -- called as functions with a fake store. No HTTP server,
-   no real model calls.
+4. **Route handlers** -- called as functions against a real store pointed at
+   a sandboxed, throwaway data directory. No HTTP server, no real model
+   calls.
 
 Not tested: pixels, real model calls, coverage as a target.
 

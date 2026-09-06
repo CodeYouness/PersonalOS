@@ -41,7 +41,8 @@ storage on the local path · ESLint + Vitest. Node 22.
 ## Layout
 
 ```
-app/               routes and screens; the only place that may use @/
+app/               routes and screens; may use @/
+components/        UI components shared across screens; may use @/
 lib/store.js       the data layer facade -- the only import for data
 lib/adapters/      contract, JSON implementation, schema migrations
 lib/domain/        pure domain: dates, ids, refs, types
