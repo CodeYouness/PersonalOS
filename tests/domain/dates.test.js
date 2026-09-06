@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   dayKeyRange,
@@ -107,5 +107,70 @@ describe('dayKeyRange', () => {
 
   it('rejects a reversed range', () => {
     expect(() => dayKeyRange('2026-01-02', '2026-01-01')).toThrow();
+  });
+});
+
+describe('using dates.js from a client component', () => {
+  // A stubbed `window` reproduces the one condition lib/config/env.js checks
+  // for. Real browsers never run these tests; this is the cheapest way to
+  // prove the module survives being imported from one.
+  const shared = /** @type {any} */ (globalThis);
+
+  beforeEach(() => {
+    shared.window = {};
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    delete shared.window;
+    vi.resetModules();
+  });
+
+  it('runs pure calendar arithmetic with no import of configuration', async () => {
+    const dates = await import('@/lib/domain/dates.js');
+
+    expect(dates.shiftDayKey('2026-01-01', 1)).toBe('2026-01-02');
+  });
+
+  it('resolves a day key given an explicit timezone', async () => {
+    const { toDayKey: toDayKeyUnderBrowser } = await import('@/lib/domain/dates.js');
+
+    expect(toDayKeyUnderBrowser(new Date('2026-06-15T22:30:00Z'), 'Europe/Rome')).toBe(
+      '2026-06-16'
+    );
+  });
+});
+
+describe('the timezone default today() and toDayKey() fall back to', () => {
+  // Well-known symbol dates.js uses to receive the default from lib/config/env.js
+  // -- see the "why globalThis" rationale in ADR-0011. Cleared around every
+  // test here so none of them depend on run order.
+  const DEFAULT_TIMEZONE_KEY = Symbol.for('personalos.domain.dates.defaultTimezone');
+  const shared = /** @type {any} */ (globalThis);
+
+  afterEach(() => {
+    delete shared[DEFAULT_TIMEZONE_KEY];
+    vi.resetModules();
+    vi.useRealTimers();
+  });
+
+  it('throws a clear error rather than silently falling back to the machine zone', async () => {
+    delete shared[DEFAULT_TIMEZONE_KEY];
+    vi.resetModules();
+
+    const { today: freshToday } = await import('@/lib/domain/dates.js');
+
+    expect(() => freshToday()).toThrow(/timezone/i);
+  });
+
+  it('is set once lib/config/env.js has been imported', async () => {
+    vi.resetModules();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-15T22:30:00Z'));
+
+    await import('@/lib/config/env.js');
+    const { today: freshToday } = await import('@/lib/domain/dates.js');
+
+    expect(freshToday()).toBe('2026-06-16'); // Europe/Rome, the config default, is UTC+2 in June
   });
 });

@@ -28,11 +28,11 @@ consequence.
 | Data access | `lib/store.js` | the active adapter only |
 | Storage adapters | `lib/adapters/` | `lib/domain/`, `lib/config/` |
 | Derivations | `lib/domain/derive/` | `lib/domain/` only — pure functions |
-| Pure domain | `lib/domain/` | `lib/config/` (dates, for the timezone) |
+| Pure domain | `lib/domain/` | nothing |
 | Integrations | `lib/integrations/` | `lib/store.js`, `lib/domain/` |
-| Configuration | `lib/config/`, `personalos.config.js` | nothing |
+| Configuration | `lib/config/`, `personalos.config.js` | `lib/domain/` (dates, to inject the timezone) |
 
-Four rules hold this together, and each is enforceable rather than
+Five rules hold this together, and each is enforceable rather than
 aspirational.
 
 **Nothing reaches storage except through `lib/store.js`.** Not a component,
@@ -48,6 +48,13 @@ instead of reimplementing it.
 A card never computes "is this overdue" itself.
 
 **Integrations write; they are never called during a render** (ADR 0010).
+
+**`lib/domain/` never imports configuration** (ADR 0012). It must stay safe
+to import from a client component, and `lib/config/env.js` also carries
+secrets that must never reach a browser bundle. So the dependency runs the
+other way: `env.js` hands `lib/domain/dates.js` the configured timezone
+through a function call at import time, rather than `dates.js` importing
+`env.js` to read it.
 
 ## The graph
 
