@@ -84,5 +84,5 @@ and predate Foundation v2. Before pasting one, check:
 - Vocabularies come from `personalos.config.js`, never inline.
 - "Today" comes from `lib/domain/dates.js`; computed numbers come from
   `lib/domain/derive/`.
-- `lib/` uses relative imports; `app/` may use `@/`.
+- `lib/` uses relative imports; `app/` and `components/` may use `@/`.
 - One card, one commit, and `npm run verify` before calling it done.

@@ -71,7 +71,9 @@ Three needed a sentence-level fix:
   and `components/`") and the actual code (`components/TodayCard.js`,
   `CaptureBar.js`, `SessionCard.js` all use it). `components/` wasn't even
   listed. Added a `components/` row and dropped the exclusivity claim from
-  `app/`.
+  `app/`. Code review (Spec axis) caught a third document with the same
+  narrower claim that the first pass missed: `docs/roadmap.md`'s "`app/` may
+  use `@/`" line, fixed the same way.
 
 Also removed, as unrelated one-line housekeeping found while checking the
 test claim above: an untracked, byte-identical duplicate
