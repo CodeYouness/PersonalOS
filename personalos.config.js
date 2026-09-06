@@ -176,8 +176,10 @@ export const TRANSACTION_KINDS = Object.freeze(['income', 'expense', 'transfer']
 export const OBSERVATION_KINDS = Object.freeze(['balance', 'position']);
 
 /**
- * Numbers that are decisions, not accidents. Each one is a product choice
- * explained in docs/domain.md; none of them belongs inline in a component.
+ * Numbers that are decisions, not accidents, for cards and routes not built
+ * yet -- none of them belongs inline in a component once it exists. Not read
+ * by any code today: each is claimed by the feature named next to it, and
+ * stays here rather than being invented again when that feature lands.
  */
 export const limits = Object.freeze({
   /** Three is a decision, ten is a list. Shown by the Session card. */
@@ -190,8 +192,6 @@ export const limits = Object.freeze({
   calendarCacheMs: 5 * 60 * 1000,
   /** Nearest memory entries passed to the model when answering a question. */
   memorySearchResults: 20,
-  /** Classification is a short structured answer; it needs no room to think. */
-  classifyMaxTokens: 512,
   /**
    * Answers need headroom: the model emits reasoning blocks before the text,
    * and a low ceiling makes the endpoint return an empty string that looks
@@ -225,7 +225,7 @@ export const dashboard = Object.freeze({ screens: [] });
  * Fallback model name, used only when ANTHROPIC_MODEL is unset. Model names
  * change; the variable is the real control. See docs/development.md.
  */
-export const defaultModel = 'claude-sonnet-4-5';
+export const defaultModel = 'claude-sonnet-5';
 
 /** Fallback timezone, used only when USER_TIMEZONE is unset. */
 export const defaultTimezone = 'Europe/Rome';
