@@ -15,7 +15,7 @@ import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
  * Client component now that the captures toggle opens the capture log
  * drawer (roadmap item 11): the nav items stay disabled, but the drawer's
  * open/closed state has to live somewhere, and this is the component that
- * owns the toggle.
+ * owns the toggle -- and, since #21, the fetches behind Delete/Undo/Refile.
  *
  * Two elements from the mockup's topbar are still left out rather than shown
  * with fake data: the date caption (the Today card is about to show the real
@@ -24,6 +24,14 @@ import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
  */
 
 const COMING_SOON = ['CRM', 'Habits', 'Finances', 'Nutrition & Health', 'Review'];
+
+/** @returns {Promise<import('@/components/CaptureLogDrawer.js').CaptureLogRow[]>} */
+async function fetchCaptures() {
+  const response = await fetch('/api/captures');
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.message ?? 'Something went wrong');
+  return Array.isArray(body.captures) ? body.captures : [];
+}
 
 export default function Topbar() {
   const [isLogOpen, setLogOpen] = useState(false);
@@ -40,11 +48,9 @@ export default function Topbar() {
     let cancelled = false;
     (async () => {
       try {
-        const response = await fetch('/api/captures');
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.message ?? 'Something went wrong');
+        const rows = await fetchCaptures();
         if (cancelled) return;
-        setCaptures(Array.isArray(body.captures) ? body.captures : []);
+        setCaptures(rows);
         setLoadError(null);
       } catch (error) {
         if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Could not reach the server');
@@ -54,6 +60,42 @@ export default function Topbar() {
       cancelled = true;
     };
   }, [isLogOpen]);
+
+  /**
+   * Runs a correction (delete/undo/refile), then reloads the list so the
+   * drawer reflects whatever actually happened -- reconstructing the row
+   * locally would mean re-deriving `produced`/`locked`, which only the
+   * server can cheaply compute.
+   *
+   * @param {string} url
+   * @param {RequestInit} options
+   */
+  async function correct(url, options) {
+    try {
+      const response = await fetch(url, options);
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message ?? 'Something went wrong');
+      setCaptures(await fetchCaptures());
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Could not reach the server');
+    }
+  }
+
+  /** @param {string} id */
+  const handleDelete = (id) => correct('/api/captures/' + id, { method: 'DELETE' });
+  /** @param {string} id */
+  const handleUndo = (id) => correct('/api/captures/' + id + '/undo', { method: 'POST' });
+  /**
+   * @param {string} id
+   * @param {string} destination
+   */
+  const handleRefile = (id, destination) =>
+    correct('/api/captures/' + id, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ destination }),
+    });
 
   const rulesCount = captures?.filter((capture) => capture.route === 'rules').length ?? 0;
 
@@ -105,6 +147,9 @@ export default function Topbar() {
         onClose={() => setLogOpen(false)}
         captures={captures}
         error={loadError}
+        onDelete={handleDelete}
+        onUndo={handleUndo}
+        onRefile={handleRefile}
       />
     </>
   );

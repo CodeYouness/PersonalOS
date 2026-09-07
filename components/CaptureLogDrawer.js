@@ -13,17 +13,23 @@ import { formatTime } from '@/components/format.js';
 
 /**
  * The long form of the capture bar's receipt (roadmap item 11), ported from
- * design/mockup.html's `#capture-log`. Read-only this pass -- Undo, File
- * elsewhere and Delete arrive with the tickets that build them (#22, #23,
- * #21); `produced`/`locked` already come back from the API so those tickets
- * don't have to touch this route again.
+ * design/mockup.html's `#capture-log`. Delete lands with this pass (#21);
+ * Undo and File elsewhere follow in #22 and #23.
  *
  * Purely presentational: `Topbar` owns the fetch, since the same list also
  * feeds the toggle's rules-count badge whether or not the drawer is open.
  *
- * @param {{ isOpen: boolean, onClose: () => void, captures: CaptureLogRow[] | null, error: string | null }} props
+ * @param {{
+ *   isOpen: boolean,
+ *   onClose: () => void,
+ *   captures: CaptureLogRow[] | null,
+ *   error: string | null,
+ *   onDelete: (id: string) => void,
+ *   onUndo: (id: string) => void,
+ *   onRefile: (id: string, destination: string) => void,
+ * }} props
  */
-export default function CaptureLogDrawer({ isOpen, onClose, captures, error }) {
+export default function CaptureLogDrawer({ isOpen, onClose, captures, error, onDelete, onUndo, onRefile }) {
   return (
     <>
       <div className={'scrim' + (isOpen ? ' is-open' : '')} onClick={onClose} />
@@ -37,14 +43,24 @@ export default function CaptureLogDrawer({ isOpen, onClose, captures, error }) {
           </button>
         </div>
         <div className="log-body">
-          {error !== null ? (
-            <p className="receipt-error">Could not load recent captures: {error}</p>
-          ) : captures === null ? (
-            <p className="caption">Loading…</p>
+          {/* An action failure (a refused Undo, say) shows here without
+              hiding the list underneath it -- only a load failure, where
+              captures is still null, has nothing to show alongside it. */}
+          {error !== null && <p className="receipt-error">{error}</p>}
+          {captures === null ? (
+            error === null && <p className="caption">Loading…</p>
           ) : captures.length === 0 ? (
             <p className="caption">Nothing captured yet.</p>
           ) : (
-            captures.map((capture) => <LogItem key={capture.id} capture={capture} />)
+            captures.map((capture) => (
+              <LogItem
+                key={capture.id}
+                capture={capture}
+                onDelete={onDelete}
+                onUndo={onUndo}
+                onRefile={onRefile}
+              />
+            ))
           )}
         </div>
       </aside>
@@ -52,8 +68,15 @@ export default function CaptureLogDrawer({ isOpen, onClose, captures, error }) {
   );
 }
 
-/** @param {{ capture: CaptureLogRow }} props */
-function LogItem({ capture }) {
+/**
+ * @param {{
+ *   capture: CaptureLogRow,
+ *   onDelete: (id: string) => void,
+ *   onUndo: (id: string) => void,
+ *   onRefile: (id: string, destination: string) => void,
+ * }} props
+ */
+function LogItem({ capture, onDelete, onUndo, onRefile }) {
   return (
     <div className="log-item">
       <div className="log-top">
@@ -76,6 +99,22 @@ function LogItem({ capture }) {
           {capture.produced.title}
         </div>
       )}
+      <div className="log-actions">
+        <button
+          className="danger"
+          onClick={() => {
+            if (
+              window.confirm(
+                'Delete this capture? This removes it and everything it produced, and cannot be undone.'
+              )
+            ) {
+              onDelete(capture.id);
+            }
+          }}
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 }
