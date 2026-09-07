@@ -89,8 +89,38 @@ field exists because a silent fallback is a lie. Without it, an expired API
 key looks like a model that quietly got worse, and you would not find out for
 days.
 
+**`text` and `route` never change once written.** `text` is the sentence kept
+verbatim (rule 7); `route` is a historical fact about how the *original*
+destination was decided, not the current one. **`destination` can change** —
+see "Correcting a capture" below.
+
 **Journal is deliberately not a destination.** Writing a diary is not a
 sentence that got filed somewhere; it is its own act, with its own entity.
+
+### Correcting a capture
+
+Filing can be wrong, and the correction is a first-class action, not a silent
+edit:
+
+| Action | Removes | Survives |
+| --- | --- | --- |
+| **Undo** | the produced record (task/goal) and its `about` link | the capture and its memory entry — the fact you said it stays true |
+| **Refile** | same as Undo, then files into a new `destination` (a new record if that destination is `task`/`goals`) | the capture; `destination` is updated, `route` is not |
+| **Delete** | everything the capture produced — capture, memory entry, produced record, links | nothing |
+
+Undo and Refile only apply where there is a produced record to retract — today
+that is `task` and `goals`. The other five destinations file as capture +
+memory only, so there is nothing for either action beyond Delete.
+
+Both are refused once the produced record has been touched since creation
+(`completedAt` set, or `updatedAt !== createdAt`): the user's own work on that
+record outranks a correction made from the capture log. Delete carries no such
+guard — it is explicit and always available, which is also why it is the one
+action that asks for confirmation first.
+
+Each correction is its own event — `capture.undone`, `capture.refiled`,
+`capture.deleted` — so nothing about it is silent. See
+[ADR-0013](decisions/0013-a-capture-can-be-corrected-after-filing.md).
 
 ---
 

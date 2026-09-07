@@ -14,3 +14,8 @@ export function initials(name) {
     .slice(0, 2)
     .toUpperCase();
 }
+
+/** @param {string} isoInstant */
+export function formatTime(isoInstant) {
+  return new Date(isoInstant).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}

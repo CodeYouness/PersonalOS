@@ -169,6 +169,19 @@ button:disabled { cursor: not-allowed; }
   font-size: 12px; color: var(--ink-subtle);
 }
 .log-toggle:hover { color: var(--ink); border-color: var(--hairline-strong); }
+.log-toggle .count {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 1px 5px; border-radius: var(--r-xs);
+  background: var(--surface-3); color: var(--ink-muted);
+}
+.log-toggle .count.has-rules { background: var(--warning-soft); color: var(--warning); }
+.btn-ghost {
+  padding: 6px 12px; border-radius: var(--r-md);
+  border: 1px solid var(--hairline);
+  background: var(--surface-2); color: var(--ink-muted);
+  font-size: 13px; white-space: nowrap;
+}
+.btn-ghost:hover { border-color: var(--hairline-strong); color: var(--ink); }
 /* Screens not built yet (docs/roadmap.md): visible, not a dead link. */
 .nav-item:disabled,
 .log-toggle:disabled {
@@ -334,6 +347,39 @@ button:disabled { cursor: not-allowed; }
 .receipt-error { color: var(--danger); font-size: 13px; }
 
 /* ==========================================================================
+   CAPTURE LOG — the drawer that answers "where did everything go?" Undo,
+   File elsewhere and Delete land with the tickets that build them (roadmap
+   item 11's actions); this pass is read-only.
+   ========================================================================== */
+#capture-log {
+  position: fixed; top: var(--topbar-h); right: 0; bottom: 0;
+  width: 400px; max-width: 100vw; z-index: 55;
+  background: var(--surface-1);
+  border-left: 1px solid var(--hairline);
+  transform: translateX(100%);
+  transition: transform .18s ease;
+  display: flex; flex-direction: column;
+}
+#capture-log.is-open { transform: none; }
+.log-head {
+  display: flex; align-items: center; gap: var(--s-sm);
+  padding: var(--s-md) var(--s-lg);
+  border-bottom: 1px solid var(--hairline); flex: none;
+}
+.log-body { flex: 1; overflow: auto; padding: var(--s-md) var(--s-lg) var(--capture-h); }
+.log-item { padding: var(--s-sm) 0; border-bottom: 1px solid var(--hairline); }
+.log-item:last-child { border-bottom: none; }
+.log-top { display: flex; align-items: center; gap: var(--s-xs); }
+.log-time { font-family: var(--font-mono); font-size: 11px; color: var(--ink-tertiary); margin-left: auto; }
+.log-text { font-size: 13px; margin: 5px 0; line-height: 1.45; }
+.log-dest { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-subtle); }
+.scrim {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,0.5); display: none;
+}
+.scrim.is-open { display: block; }
+
+/* ==========================================================================
    RESPONSIVE — shell rules only; a card's own responsive tweaks are ported
    with that card.
    ========================================================================== */
@@ -348,4 +394,5 @@ button:disabled { cursor: not-allowed; }
   .nav { overflow-x: auto; }
   #card-today { flex-direction: column; gap: var(--s-lg); }
   .today-side { width: auto; padding-left: 0; padding-top: var(--s-lg); border-left: none; border-top: 1px solid var(--hairline); }
+  #capture-log { width: 100%; }
 }
