@@ -39,6 +39,7 @@ export default function Topbar() {
     /** @type {import('@/components/CaptureLogDrawer.js').CaptureLogRow[] | null} */ (null)
   );
   const [loadError, setLoadError] = useState(/** @type {string | null} */ (null));
+  const [isCorrecting, setIsCorrecting] = useState(false);
 
   // Loaded once on mount, not only on first open -- the toggle's rules-count
   // badge (below) is a health signal meant to be visible before the user
@@ -74,6 +75,8 @@ export default function Topbar() {
    * @param {RequestInit} options
    */
   async function correct(url, options) {
+    if (isCorrecting) return;
+    setIsCorrecting(true);
     let actionError = null;
     try {
       const response = await fetch(url, options);
@@ -88,6 +91,8 @@ export default function Topbar() {
       setLoadError(actionError);
     } catch (error) {
       setLoadError(actionError ?? (error instanceof Error ? error.message : 'Could not reach the server'));
+    } finally {
+      setIsCorrecting(false);
     }
   }
 
@@ -159,6 +164,7 @@ export default function Topbar() {
         onDelete={handleDelete}
         onUndo={handleUndo}
         onRefile={handleRefile}
+        isCorrecting={isCorrecting}
       />
     </>
   );
