@@ -19,3 +19,16 @@ export function initials(name) {
 export function formatTime(isoInstant) {
   return new Date(isoInstant).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
+
+/**
+ * A day key has no time and no zone (lib/domain/dates.js), so it is parsed
+ * as UTC midnight purely to hand a Date to Intl -- this is formatting, not a
+ * second "what day is it" computation.
+ *
+ * @param {string} dayKey
+ * @returns {Date}
+ */
+export function dayKeyToUtcDate(dayKey) {
+  const [year, month, day] = dayKey.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}

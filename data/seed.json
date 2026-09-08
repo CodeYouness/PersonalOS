@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -124,6 +124,92 @@
       "createdAt": "2026-01-02T09:00:00.000Z",
       "updatedAt": "2026-01-02T09:00:00.000Z",
       "source": "user"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "appointment_seed_1",
+      "title": "Deep work — pricing copy",
+      "date": "2026-09-08",
+      "startTime": "08:30",
+      "endTime": null,
+      "calendarLabel": "Personal",
+      "origin": null,
+      "createdAt": "2026-09-01T08:00:00.000Z",
+      "updatedAt": "2026-09-01T08:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "appointment_seed_2",
+      "title": "Nordis — quote walkthrough",
+      "date": "2026-09-08",
+      "startTime": "11:00",
+      "endTime": "11:30",
+      "calendarLabel": "Work",
+      "origin": null,
+      "createdAt": "2026-09-01T08:00:00.000Z",
+      "updatedAt": "2026-09-01T08:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "appointment_seed_3",
+      "title": "Helix Academy — syllabus call",
+      "date": "2026-09-08",
+      "startTime": "14:00",
+      "endTime": null,
+      "calendarLabel": "Work",
+      "origin": null,
+      "createdAt": "2026-09-01T08:00:00.000Z",
+      "updatedAt": "2026-09-01T08:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "appointment_seed_4",
+      "title": "Gym",
+      "date": "2026-09-08",
+      "startTime": "16:30",
+      "endTime": null,
+      "calendarLabel": "Personal",
+      "origin": null,
+      "createdAt": "2026-09-01T08:00:00.000Z",
+      "updatedAt": "2026-09-01T08:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "appointment_seed_5",
+      "title": "Team sync",
+      "date": "2026-09-09",
+      "startTime": "10:00",
+      "endTime": "10:30",
+      "calendarLabel": "Work",
+      "origin": null,
+      "createdAt": "2026-09-01T08:00:00.000Z",
+      "updatedAt": "2026-09-01T08:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "appointment_seed_6",
+      "title": "Coffee with Ana",
+      "date": "2026-09-11",
+      "startTime": "09:00",
+      "endTime": null,
+      "calendarLabel": "Personal",
+      "origin": null,
+      "createdAt": "2026-09-01T08:00:00.000Z",
+      "updatedAt": "2026-09-01T08:00:00.000Z",
+      "source": "seed"
+    },
+    {
+      "id": "appointment_seed_7",
+      "title": "Budget review",
+      "date": "2026-09-11",
+      "startTime": "15:00",
+      "endTime": null,
+      "calendarLabel": "Work",
+      "origin": null,
+      "createdAt": "2026-09-01T08:00:00.000Z",
+      "updatedAt": "2026-09-01T08:00:00.000Z",
+      "source": "seed"
     }
   ],
   "people": [
