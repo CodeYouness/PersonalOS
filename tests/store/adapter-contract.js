@@ -273,6 +273,20 @@ export function runAdapterContract(label, load) {
         expect(await store.getCapture(capture.id)).toEqual(capture);
         expect(await store.getCapture('capture_missing')).toBeNull();
       });
+
+      it('updates only the destination, and rejects any other field', async () => {
+        const capture = await store.createCapture({ text: 'first', destination: 'memory' });
+
+        const updated = await store.updateCapture(capture.id, { destination: 'nutrition' });
+        expect(updated.destination).toBe('nutrition');
+        // route describes how the ORIGINAL destination was decided and is
+        // never rewritten by a correction (ADR-0013).
+        expect(updated.route).toBe(capture.route);
+
+        await expect(
+          store.updateCapture(capture.id, /** @type {any} */ ({ text: 'rewritten' }))
+        ).rejects.toThrow();
+      });
     });
 
     describe('journal and memory', () => {
