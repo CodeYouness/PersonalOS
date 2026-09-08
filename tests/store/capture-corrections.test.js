@@ -57,9 +57,25 @@ describe('deleteCaptureCascade', () => {
     expect(links.some((link) => link.from === task.id || link.to === task.id)).toBe(false);
 
     const events = await store.getEvents({});
-    expect(events.some((event) => event.type === 'capture.deleted' && event.subject === capture.id)).toBe(
-      true
-    );
+    const event = events.find((entry) => entry.type === 'capture.deleted' && entry.subject === capture.id);
+    expect(event?.payload).toEqual({ text: 'Reply to Marta', destination: 'task' });
+  });
+
+  it('removes a produced goal the same way it removes a produced task', async () => {
+    const goal = await store.createGoal({ name: 'Ship the pricing page', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Ship the pricing page',
+      destination: 'goals',
+      route: 'model',
+    });
+    await store.createLink({ from: capture.id, to: goal.id, rel: 'about' });
+
+    await store.deleteCaptureCascade(capture.id);
+
+    expect(await store.getCapture(capture.id)).toBeNull();
+    expect(await store.getGoal(goal.id)).toBeNull();
+    const links = await store.getLinks({});
+    expect(links.some((link) => link.from === goal.id || link.to === goal.id)).toBe(false);
   });
 
   it('deletes a capture with no produced record just as well', async () => {

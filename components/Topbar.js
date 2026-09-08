@@ -65,20 +65,29 @@ export default function Topbar() {
    * Runs a correction (delete/undo/refile), then reloads the list so the
    * drawer reflects whatever actually happened -- reconstructing the row
    * locally would mean re-deriving `produced`/`locked`, which only the
-   * server can cheaply compute.
+   * server can cheaply compute. Always refreshes, win or lose: a failed
+   * write must never leave the screen telling a story that was never
+   * saved (CLAUDE.md) -- the action might have partially succeeded before
+   * failing.
    *
    * @param {string} url
    * @param {RequestInit} options
    */
   async function correct(url, options) {
+    let actionError = null;
     try {
       const response = await fetch(url, options);
       const body = await response.json();
       if (!response.ok) throw new Error(body.message ?? 'Something went wrong');
-      setCaptures(await fetchCaptures());
-      setLoadError(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Could not reach the server');
+      actionError = error instanceof Error ? error.message : 'Could not reach the server';
+    }
+
+    try {
+      setCaptures(await fetchCaptures());
+      setLoadError(actionError);
+    } catch (error) {
+      setLoadError(actionError ?? (error instanceof Error ? error.message : 'Could not reach the server'));
     }
   }
 
