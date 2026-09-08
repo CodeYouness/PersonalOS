@@ -50,6 +50,18 @@ function undo(id) {
   });
 }
 
+/** @param {string} id @param {string} destination */
+function patch(id, destination) {
+  return route.PATCH(
+    new Request('http://localhost/api/captures/' + id, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ destination }),
+    }),
+    { params: Promise.resolve({ id }) }
+  );
+}
+
 describe('DELETE /api/captures/[id]', () => {
   it('deletes the capture and everything it produced', async () => {
     const capture = await store.createCapture({ text: 'porridge', destination: 'memory' });
@@ -93,6 +105,26 @@ describe('POST /api/captures/[id]/undo', () => {
     const capture = await store.createCapture({ text: 'porridge', destination: 'nutrition' });
 
     const response = await undo(capture.id);
+    expect(response.status).toBe(400);
+  });
+});
+
+describe('PATCH /api/captures/[id]', () => {
+  it('refiles a capture to a new destination', async () => {
+    const capture = await store.createCapture({ text: 'porridge', destination: 'nutrition' });
+
+    const response = await patch(capture.id, 'health');
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect((await store.getCapture(capture.id))?.destination).toBe('health');
+  });
+
+  it('reports an error for an unknown destination', async () => {
+    const capture = await store.createCapture({ text: 'porridge', destination: 'nutrition' });
+
+    const response = await patch(capture.id, 'errands');
     expect(response.status).toBe(400);
   });
 });
