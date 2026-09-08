@@ -192,6 +192,8 @@ export const limits = Object.freeze({
   calendarCacheMs: 5 * 60 * 1000,
   /** Nearest memory entries passed to the model when answering a question. */
   memorySearchResults: 20,
+  /** How many recent captures the capture log drawer shows. */
+  captureLogCount: 20,
   /**
    * Answers need headroom: the model emits reasoning blocks before the text,
    * and a low ceiling makes the endpoint return an empty string that looks
