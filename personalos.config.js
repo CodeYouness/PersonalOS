@@ -124,6 +124,7 @@ export const EVENT_TYPES = Object.freeze([
   'task.created',
   'task.completed',
   'capture.filed',
+  'capture.deleted',
   'journal.written',
   'habit.ticked',
   'goal.created',

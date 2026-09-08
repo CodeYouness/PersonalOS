@@ -266,6 +266,13 @@ export function runAdapterContract(label, load) {
         expect(captures).toHaveLength(1);
         expect(captures[0].text).toBe('second');
       });
+
+      it('reads a single capture by id, or null', async () => {
+        const capture = await store.createCapture({ text: 'first', destination: 'memory' });
+
+        expect(await store.getCapture(capture.id)).toEqual(capture);
+        expect(await store.getCapture('capture_missing')).toBeNull();
+      });
     });
 
     describe('journal and memory', () => {
