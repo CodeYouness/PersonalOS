@@ -6,6 +6,7 @@ import {
   isDayKey,
   shiftDayKey,
   toDayKey,
+  weekDayKeys,
 } from '@/lib/domain/dates.js';
 
 describe('toDayKey', () => {
@@ -88,6 +89,34 @@ describe('dayKeysEndingAt', () => {
 
   it('rejects a non-positive count', () => {
     expect(() => dayKeysEndingAt(0, '2026-01-01')).toThrow();
+  });
+});
+
+describe('weekDayKeys', () => {
+  it('returns Monday through Sunday of the week containing the given day', () => {
+    // 2026-01-07 is a Wednesday.
+    expect(weekDayKeys('2026-01-07')).toEqual([
+      '2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08',
+      '2026-01-09', '2026-01-10', '2026-01-11',
+    ]);
+  });
+
+  it('treats Monday itself as the start of its own week', () => {
+    expect(weekDayKeys('2026-01-05').at(0)).toBe('2026-01-05');
+  });
+
+  it('treats Sunday as the end of its week, not the start of the next', () => {
+    expect(weekDayKeys('2026-01-11')).toEqual(weekDayKeys('2026-01-05'));
+  });
+
+  it('crosses a month boundary', () => {
+    // 2026-02-01 is a Sunday, closing the week that started 2026-01-26.
+    expect(weekDayKeys('2026-02-01').at(0)).toBe('2026-01-26');
+    expect(weekDayKeys('2026-02-01').at(-1)).toBe('2026-02-01');
+  });
+
+  it('rejects an invalid day key', () => {
+    expect(() => weekDayKeys('2026-02-30')).toThrow();
   });
 });
 

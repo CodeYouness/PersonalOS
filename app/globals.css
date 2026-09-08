@@ -288,6 +288,26 @@ button:disabled { cursor: not-allowed; }
 .task-person { color: var(--ink-subtle); font-size: 12px; }
 
 /* ==========================================================================
+   HOME — card-calendar
+   ========================================================================== */
+.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--s-xxs); margin-bottom: var(--s-md); flex: none; }
+.day { padding: var(--s-xs) 0; border-radius: var(--r-md); border: 1px solid transparent; text-align: center; text-decoration: none; color: inherit; display: block; }
+.day:hover { background: var(--surface-2); }
+.day.is-today { border-color: var(--hairline-strong); background: var(--surface-2); }
+.day.is-selected { background: var(--surface-3); border-color: var(--hairline-strong); }
+.day-name { font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-tertiary); }
+.day-num { font-size: 15px; font-variant-numeric: tabular-nums; }
+.day-dots { display: flex; gap: 2px; justify-content: center; height: 4px; margin-top: 3px; }
+.day-dots i { width: 3px; height: 3px; border-radius: var(--r-full); background: var(--ink-tertiary); }
+.event { display: flex; gap: var(--s-sm); padding: 6px 0; align-items: baseline; }
+.event-time { font-family: var(--font-mono); font-size: 12px; color: var(--ink-subtle); width: 44px; flex: none; }
+.event-title { font-size: 14px; }
+.event-cal { font-size: 11px; color: var(--ink-tertiary); }
+.now-line { display: flex; align-items: center; gap: var(--s-xs); margin: var(--s-xs) 0; }
+.now-line .rule { flex: 1; height: 1px; background: var(--warning); opacity: .5; }
+.now-line .label { font-family: var(--font-mono); font-size: 10px; color: var(--warning); }
+
+/* ==========================================================================
    CAPTURE BAR
    Conceptually Raycast's command bar: one dominant element, heavily rounded,
    sitting one step above the canvas. Ported minus the mic and its
