@@ -14,6 +14,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 let sandbox;
 /** @type {typeof import('@/app/api/captures/[id]/route.js')} */
 let route;
+/** @type {typeof import('@/app/api/captures/[id]/undo/route.js')} */
+let undoRoute;
 /** @type {typeof import('@/lib/store.js')} */
 let store;
 
@@ -22,6 +24,7 @@ beforeAll(async () => {
   await cp('data/seed.json', path.join(sandbox, 'seed.json'));
   process.env.DATA_DIR = sandbox;
   route = await import('@/app/api/captures/[id]/route.js');
+  undoRoute = await import('@/app/api/captures/[id]/undo/route.js');
   store = await import('@/lib/store.js');
 });
 
@@ -36,6 +39,13 @@ beforeEach(async () => {
 /** @param {string} id */
 function del(id) {
   return route.DELETE(new Request('http://localhost/api/captures/' + id, { method: 'DELETE' }), {
+    params: Promise.resolve({ id }),
+  });
+}
+
+/** @param {string} id */
+function undo(id) {
+  return undoRoute.POST(new Request('http://localhost/api/captures/' + id + '/undo', { method: 'POST' }), {
     params: Promise.resolve({ id }),
   });
 }
@@ -57,5 +67,32 @@ describe('DELETE /api/captures/[id]', () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.status).toBe('error');
+  });
+});
+
+describe('POST /api/captures/[id]/undo', () => {
+  it('removes the produced task and keeps the capture', async () => {
+    const task = await store.createTask({ title: 'Book the flights', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Book the flights',
+      destination: 'task',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+
+    const response = await undo(capture.id);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(await store.getTask(task.id)).toBeNull();
+    expect(await store.getCapture(capture.id)).not.toBeNull();
+  });
+
+  it('reports an error when there is nothing to undo', async () => {
+    const capture = await store.createCapture({ text: 'porridge', destination: 'nutrition' });
+
+    const response = await undo(capture.id);
+    expect(response.status).toBe(400);
   });
 });

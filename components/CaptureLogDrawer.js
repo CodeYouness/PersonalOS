@@ -27,9 +27,19 @@ import { formatTime } from '@/components/format.js';
  *   onDelete: (id: string) => void,
  *   onUndo: (id: string) => void,
  *   onRefile: (id: string, destination: string) => void,
+ *   isCorrecting: boolean,
  * }} props
  */
-export default function CaptureLogDrawer({ isOpen, onClose, captures, error, onDelete, onUndo, onRefile }) {
+export default function CaptureLogDrawer({
+  isOpen,
+  onClose,
+  captures,
+  error,
+  onDelete,
+  onUndo,
+  onRefile,
+  isCorrecting,
+}) {
   return (
     <>
       <div className={'scrim' + (isOpen ? ' is-open' : '')} onClick={onClose} />
@@ -59,6 +69,7 @@ export default function CaptureLogDrawer({ isOpen, onClose, captures, error, onD
                 onDelete={onDelete}
                 onUndo={onUndo}
                 onRefile={onRefile}
+                isCorrecting={isCorrecting}
               />
             ))
           )}
@@ -74,9 +85,10 @@ export default function CaptureLogDrawer({ isOpen, onClose, captures, error, onD
  *   onDelete: (id: string) => void,
  *   onUndo: (id: string) => void,
  *   onRefile: (id: string, destination: string) => void,
+ *   isCorrecting: boolean,
  * }} props
  */
-function LogItem({ capture, onDelete, onUndo, onRefile }) {
+function LogItem({ capture, onDelete, onUndo, onRefile, isCorrecting }) {
   return (
     <div className="log-item">
       <div className="log-top">
@@ -100,8 +112,14 @@ function LogItem({ capture, onDelete, onUndo, onRefile }) {
         </div>
       )}
       <div className="log-actions">
+        {capture.produced !== null && !capture.locked && (
+          <button disabled={isCorrecting} onClick={() => onUndo(capture.id)}>
+            Undo
+          </button>
+        )}
         <button
           className="danger"
+          disabled={isCorrecting}
           onClick={() => {
             if (
               window.confirm(

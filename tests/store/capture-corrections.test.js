@@ -95,3 +95,51 @@ describe('deleteCaptureCascade', () => {
     await expect(store.deleteCaptureCascade('capture_missing')).rejects.toThrow();
   });
 });
+
+describe('undoCaptureFiling', () => {
+  it('removes the produced task but keeps the capture and its memory entry', async () => {
+    const task = await store.createTask({ title: 'Book the flights', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Book the flights',
+      destination: 'task',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+    const memory = await store.createMemoryEntry({
+      content: 'Book the flights',
+      source: 'capture',
+      derivedFrom: capture.id,
+    });
+
+    await store.undoCaptureFiling(capture.id);
+
+    expect(await store.getTask(task.id)).toBeNull();
+    expect(await store.getCapture(capture.id)).not.toBeNull();
+    expect(await store.getMemoryEntries()).toContainEqual(expect.objectContaining({ id: memory.id }));
+
+    const events = await store.getEvents({});
+    expect(events.some((event) => event.type === 'capture.undone' && event.subject === capture.id)).toBe(
+      true
+    );
+  });
+
+  it('refuses once the produced task has been completed', async () => {
+    const task = await store.createTask({ title: 'Book the flights', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Book the flights',
+      destination: 'task',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+    await store.updateTask(task.id, { completedAt: new Date(0).toISOString() });
+
+    await expect(store.undoCaptureFiling(capture.id)).rejects.toThrow();
+    expect(await store.getTask(task.id)).not.toBeNull();
+  });
+
+  it('refuses a capture with nothing produced to undo', async () => {
+    const capture = await store.createCapture({ text: 'porridge', destination: 'nutrition' });
+
+    await expect(store.undoCaptureFiling(capture.id)).rejects.toThrow();
+  });
+});

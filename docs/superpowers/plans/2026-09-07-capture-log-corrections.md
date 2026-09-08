@@ -596,7 +596,7 @@ function LogItem({ capture, onDelete, onUndo, onRefile }) {
 ```
 
 (`onUndo` and `onRefile` are accepted now so the prop signature is settled,
-but nothing calls them yet — that lands in Task 8 and Task 11. ESLint's
+but nothing calls them yet — that lands in Task 6 and Task 9. ESLint's
 `no-unused-vars` does not flag an unused destructured function parameter
 that is merely not called inside the component body, only an unused
 *binding*; both are used as props passed to `LogItem`, so there is nothing
@@ -945,7 +945,7 @@ git commit -m "feat(store): undo a capture's filing (ticket #22)"
 
 **Interfaces:**
 - Consumes: `undoCaptureFiling(id)` from Task 4.
-- Produces: the undo endpoint Task 8's UI calls.
+- Produces: the undo endpoint Task 6's UI calls.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1104,6 +1104,18 @@ git commit -m "feat(app): show the Undo action in the capture log drawer (ticket
 
 ## Ticket #23 — Refile
 
+**Amendment (made during #22's finish, before this ticket started):**
+GitHub issue #23's own acceptance criteria say "File elsewhere lets the
+user choose any destination except the capture's current one" — read
+literally, that makes a capture undone from `task` unrefilable back to
+`task`; only Delete + re-capture would recover it. #22's final review
+caught this as a real dead end before #23 was built. Decision: refuse
+same-destination refile only while that destination still has a produced
+record; once nothing is produced there (right after Undo, or for one of
+the five destinations that never produce a record), refiling "back" to
+it is allowed and creates a fresh record. Tasks 7 and 9 below already
+reflect this — the code and tests are not the literal issue text.
+
 ### Task 7: Store — `updateCapture`, `refileCapture`, `capture.refiled`
 
 **Files:**
@@ -1238,11 +1250,7 @@ export const deleteCapture = adapter.deleteCapture;
 - [ ] **Step 8: Write the failing tests for `refileCapture`**
 
 In `tests/store/capture-corrections.test.js`, add a `describe` block after
-`undoCaptureFiling`'s. It needs `DESTINATIONS`:
-
-```js
-import { DESTINATIONS } from '../../personalos.config.js';
-```
+`undoCaptureFiling`'s. No new import is needed for this file.
 
 (add this import at the top of the file, alongside the other imports)
 
@@ -1304,10 +1312,44 @@ describe('refileCapture', () => {
     expect(await store.getGoal(goal.id)).not.toBeNull();
   });
 
-  it('refuses filing to the current destination', async () => {
+  it('refuses filing to the current destination while it still has a produced record', async () => {
+    const task = await store.createTask({ title: 'Book the flights', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Book the flights',
+      destination: 'task',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+
+    await expect(store.refileCapture(capture.id, 'task')).rejects.toThrow();
+    expect(await store.getTask(task.id)).not.toBeNull();
+  });
+
+  it('allows refiling back to the same destination once nothing is produced there', async () => {
+    const task = await store.createTask({ title: 'Book the flights', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Book the flights',
+      destination: 'task',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+    await store.undoCaptureFiling(capture.id);
+    expect(await store.getTask(task.id)).toBeNull();
+
+    const newRecordId = await store.refileCapture(capture.id, 'task');
+
+    const newTask = await store.getTask(/** @type {string} */ (newRecordId));
+    expect(newTask?.title).toBe('Book the flights');
+    expect((await store.getCapture(capture.id))?.destination).toBe('task');
+  });
+
+  it('allows refiling to the same no-record destination, as a true no-op', async () => {
     const capture = await store.createCapture({ text: 'porridge', destination: 'nutrition' });
 
-    await expect(store.refileCapture(capture.id, 'nutrition')).rejects.toThrow();
+    const newRecordId = await store.refileCapture(capture.id, 'nutrition');
+
+    expect(newRecordId).toBeNull();
+    expect((await store.getCapture(capture.id))?.destination).toBe('nutrition');
   });
 
   it('refuses an unknown destination without touching the existing record', async () => {
@@ -1321,10 +1363,6 @@ describe('refileCapture', () => {
 
     await expect(store.refileCapture(capture.id, 'errands')).rejects.toThrow();
     expect(await store.getTask(task.id)).not.toBeNull();
-  });
-
-  it('accepts every canonical destination other than the current one', () => {
-    expect(DESTINATIONS.length).toBeGreaterThan(1);
   });
 });
 ```
@@ -1354,11 +1392,19 @@ Then add, after `undoCaptureFiling`:
  * left untouched -- it describes how the *original* destination was
  * decided, and a correction does not rewrite history (ADR-0013).
  *
+ * Refiling to the capture's current destination is refused only while that
+ * destination still has a produced record: a true no-op refile buys
+ * nothing. Once Undo has retracted it -- or the destination never produced
+ * one -- "refiling back" is really just recreating what's missing, and
+ * refusing it unconditionally would make Delete-then-recapture the only
+ * way home. Discovered as a real dead end while reviewing #22, before #23
+ * (this function) was implemented.
+ *
  * Destination is validated before anything is retracted: a bad value must
  * fail before the old record is gone, not after.
  *
  * @param {string} id
- * @param {string} destination one of DESTINATIONS, and not the current one
+ * @param {string} destination one of DESTINATIONS
  * @returns {Promise<string | null>} the new produced record's id, or null
  */
 export async function refileCapture(id, destination) {
@@ -1368,11 +1414,11 @@ export async function refileCapture(id, destination) {
 
   const capture = await getCapture(id);
   if (capture === null) throw new Error('no capture with id ' + id);
-  if (destination === capture.destination) {
-    throw new Error('this capture is already filed at ' + destination);
-  }
 
   const record = await getCaptureProducedRecord(capture);
+  if (destination === capture.destination && record !== null) {
+    throw new Error('this capture is already filed at ' + destination);
+  }
   if (record !== null && isCaptureRecordLocked(record)) {
     throw new Error(
       'the produced record has been touched since it was created and can no longer be refiled'
@@ -1546,43 +1592,67 @@ git commit -m "feat(app): PATCH /api/captures/[id] to refile (ticket #23)"
 - Consumes: `onRefile` prop (already threaded since Task 3), `DESTINATIONS`
   from `personalos.config.js`.
 
+**Note:** tickets #21 and #22 already shipped and shape this file
+differently than earlier tasks in this plan assumed when they were
+originally written -- both action buttons now carry a shared
+`isCorrecting` prop (added in #22's final review fix, guarding against a
+double-click firing two corrections at once) and `disabled={isCorrecting}`.
+The select this task adds must follow that same pattern. Read the current
+file before editing rather than trusting line numbers from earlier tasks.
+
 - [ ] **Step 1: Import `DESTINATIONS` and add the select**
 
-In `components/CaptureLogDrawer.js`, add the import at the top:
+In `components/CaptureLogDrawer.js`, add the import at the top (the file
+docstring's "Undo and File elsewhere follow in #22 and #23" is also now
+stale -- update it to say Delete/Undo/Refile all exist):
 
 ```js
 import { DESTINATIONS } from '@/personalos.config.js';
 import { formatTime } from '@/components/format.js';
 ```
 
+```js
+/**
+ * The long form of the capture bar's receipt (roadmap item 11), ported from
+ * design/mockup.html's `#capture-log`. Delete, Undo and File elsewhere
+ * (#21-#23) are all wired up here now.
+```
+
 Then, inside `LogItem`'s `.log-actions` div, add the select between Undo
-and Delete:
+and Delete. The destination filter excludes the capture's current
+destination only while something is still produced there -- refiling
+"back" to it once nothing is (e.g. right after Undo) is allowed
+(`refileCapture` itself permits this; see Task 7):
 
 ```jsx
       <div className="log-actions">
         {capture.produced !== null && !capture.locked && (
-          <button onClick={() => onUndo(capture.id)}>Undo</button>
+          <button disabled={isCorrecting} onClick={() => onUndo(capture.id)}>
+            Undo
+          </button>
         )}
         {!capture.locked && (
           <select
             className="log-refile"
             value=""
+            disabled={isCorrecting}
             onChange={(event) => {
               if (event.target.value !== '') onRefile(capture.id, event.target.value);
             }}
           >
             <option value="">File elsewhere…</option>
-            {DESTINATIONS.filter((destination) => destination !== capture.destination).map(
-              (destination) => (
-                <option key={destination} value={destination}>
-                  {destination}
-                </option>
-              )
-            )}
+            {DESTINATIONS.filter(
+              (destination) => destination !== capture.destination || capture.produced === null
+            ).map((destination) => (
+              <option key={destination} value={destination}>
+                {destination}
+              </option>
+            ))}
           </select>
         )}
         <button
           className="danger"
+          disabled={isCorrecting}
 ```
 
 - [ ] **Step 2: Style the select to match the other actions**
