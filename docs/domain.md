@@ -108,9 +108,11 @@ edit:
 | **Refile** | same as Undo, then files into a new `destination` (a new record if that destination is `task`/`goals`) | the capture; `destination` is updated, `route` is not |
 | **Delete** | everything the capture produced — capture, memory entry, produced record, links | nothing |
 
-Undo and Refile only apply where there is a produced record to retract — today
-that is `task` and `goals`. The other five destinations file as capture +
-memory only, so there is nothing for either action beyond Delete.
+Undo only applies where there is a produced record to retract — today that
+is `task` and `goals`; the other five destinations have nothing for Undo
+to act on beyond Delete. Refile has no such restriction: it works from any
+destination, including the five that file as capture + memory only — there
+is simply nothing to retract before it creates the new record.
 
 Both are refused once the produced record has been touched since creation
 (`completedAt` set, or `updatedAt !== createdAt`): the user's own work on that
