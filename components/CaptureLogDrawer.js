@@ -100,6 +100,9 @@ function LogItem({ capture, onDelete, onUndo, onRefile }) {
         </div>
       )}
       <div className="log-actions">
+        {capture.produced !== null && !capture.locked && (
+          <button onClick={() => onUndo(capture.id)}>Undo</button>
+        )}
         <button
           className="danger"
           onClick={() => {
