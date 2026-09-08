@@ -143,3 +143,114 @@ describe('undoCaptureFiling', () => {
     await expect(store.undoCaptureFiling(capture.id)).rejects.toThrow();
   });
 });
+
+describe('refileCapture', () => {
+  it('retracts the old task and creates a new goal at the new destination', async () => {
+    const task = await store.createTask({ title: 'Ship the pricing page', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Ship the pricing page',
+      destination: 'task',
+      route: 'model',
+    });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+
+    const newRecordId = await store.refileCapture(capture.id, 'goals');
+
+    expect(await store.getTask(task.id)).toBeNull();
+    const goal = await store.getGoal(/** @type {string} */ (newRecordId));
+    expect(goal?.name).toBe('Ship the pricing page');
+    const aboutLinks = await store.getLinks({ from: capture.id, rel: 'about' });
+    expect(aboutLinks.map((link) => link.to)).toEqual([newRecordId]);
+
+    const refiled = await store.getCapture(capture.id);
+    expect(refiled?.destination).toBe('goals');
+    expect(refiled?.route).toBe('model');
+
+    const events = await store.getEvents({});
+    const event = events.find((entry) => entry.type === 'capture.refiled' && entry.subject === capture.id);
+    expect(event?.payload).toEqual({ from: 'task', to: 'goals' });
+  });
+
+  it('retracts a produced record without creating one for a no-record destination', async () => {
+    const task = await store.createTask({ title: 'Book the flights', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Book the flights',
+      destination: 'task',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+
+    const newRecordId = await store.refileCapture(capture.id, 'memory');
+
+    expect(newRecordId).toBeNull();
+    expect(await store.getTask(task.id)).toBeNull();
+    expect((await store.getCapture(capture.id))?.destination).toBe('memory');
+  });
+
+  it('refuses once the produced record has been touched', async () => {
+    const goal = await store.createGoal({ name: 'Finish the audit', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Finish the audit',
+      destination: 'goals',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: goal.id, rel: 'about' });
+    await store.updateGoal(goal.id, { done: true });
+
+    await expect(store.refileCapture(capture.id, 'task')).rejects.toThrow();
+    expect(await store.getGoal(goal.id)).not.toBeNull();
+  });
+
+  it('refuses filing to the current destination while it still has a produced record', async () => {
+    const task = await store.createTask({ title: 'Book the flights', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Book the flights',
+      destination: 'task',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+
+    await expect(store.refileCapture(capture.id, 'task')).rejects.toThrow();
+    expect(await store.getTask(task.id)).not.toBeNull();
+  });
+
+  it('allows refiling back to the same destination once nothing is produced there', async () => {
+    const task = await store.createTask({ title: 'Book the flights', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Book the flights',
+      destination: 'task',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+    await store.undoCaptureFiling(capture.id);
+    expect(await store.getTask(task.id)).toBeNull();
+
+    const newRecordId = await store.refileCapture(capture.id, 'task');
+
+    const newTask = await store.getTask(/** @type {string} */ (newRecordId));
+    expect(newTask?.title).toBe('Book the flights');
+    expect((await store.getCapture(capture.id))?.destination).toBe('task');
+  });
+
+  it('allows refiling to the same no-record destination, as a true no-op', async () => {
+    const capture = await store.createCapture({ text: 'porridge', destination: 'nutrition' });
+
+    const newRecordId = await store.refileCapture(capture.id, 'nutrition');
+
+    expect(newRecordId).toBeNull();
+    expect((await store.getCapture(capture.id))?.destination).toBe('nutrition');
+  });
+
+  it('refuses an unknown destination without touching the existing record', async () => {
+    const task = await store.createTask({ title: 'Book the flights', source: 'capture' });
+    const capture = await store.createCapture({
+      text: 'Book the flights',
+      destination: 'task',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+
+    await expect(store.refileCapture(capture.id, 'errands')).rejects.toThrow();
+    expect(await store.getTask(task.id)).not.toBeNull();
+  });
+});

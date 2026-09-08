@@ -377,6 +377,8 @@ button:disabled { cursor: not-allowed; }
 .log-actions button { font-size: 11px; padding: 3px 8px; border-radius: var(--r-xs); color: var(--ink-tertiary); border: 1px solid var(--hairline); background: none; }
 .log-actions button:hover { color: var(--ink); border-color: var(--hairline-strong); }
 .log-actions button.danger:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+.log-actions select.log-refile { font: inherit; font-size: 11px; padding: 3px 6px; border-radius: var(--r-xs); color: var(--ink-tertiary); border: 1px solid var(--hairline); background: var(--surface-1); }
+.log-actions select.log-refile:hover { color: var(--ink); border-color: var(--hairline-strong); }
 .scrim {
   position: fixed; inset: 0; z-index: 50;
   background: rgba(0,0,0,0.5); display: none;

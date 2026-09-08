@@ -52,5 +52,9 @@ instead.
   proposed, and that is fine: `route` still answers "how was it *first*
   decided", the corrected destination is simply the current truth.
 - The five destinations with no produced record (`people`, `finance`,
-  `nutrition`, `health`, `memory`) have nothing for Undo or Refile to retract
-  — those two actions are unavailable on those rows; Delete is not.
+  `nutrition`, `health`, `memory`) have nothing for Undo to retract, so Undo
+  is unavailable on those rows; Delete is not. Refile has no such
+  restriction — with nothing to retract, it simply creates a record at the
+  new destination if that destination is `task`/`goals`, which is how a
+  capture mis-filed to one of these five gets corrected without deleting and
+  re-saying it.
