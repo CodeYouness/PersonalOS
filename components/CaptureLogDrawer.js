@@ -1,3 +1,4 @@
+import { DESTINATIONS } from '@/personalos.config.js';
 import { formatTime } from '@/components/format.js';
 
 /**
@@ -13,8 +14,8 @@ import { formatTime } from '@/components/format.js';
 
 /**
  * The long form of the capture bar's receipt (roadmap item 11), ported from
- * design/mockup.html's `#capture-log`. Delete lands with this pass (#21);
- * Undo and File elsewhere follow in #22 and #23.
+ * design/mockup.html's `#capture-log`. Delete, Undo and File elsewhere
+ * (#21-#23) are all wired up here now.
  *
  * Purely presentational: `Topbar` owns the fetch, since the same list also
  * feeds the toggle's rules-count badge whether or not the drawer is open.
@@ -116,6 +117,25 @@ function LogItem({ capture, onDelete, onUndo, onRefile, isCorrecting }) {
           <button disabled={isCorrecting} onClick={() => onUndo(capture.id)}>
             Undo
           </button>
+        )}
+        {!capture.locked && (
+          <select
+            className="log-refile"
+            value=""
+            disabled={isCorrecting}
+            onChange={(event) => {
+              if (event.target.value !== '') onRefile(capture.id, event.target.value);
+            }}
+          >
+            <option value="">File elsewhere…</option>
+            {DESTINATIONS.filter(
+              (destination) => destination !== capture.destination || capture.produced === null
+            ).map((destination) => (
+              <option key={destination} value={destination}>
+                {destination}
+              </option>
+            ))}
+          </select>
         )}
         <button
           className="danger"
