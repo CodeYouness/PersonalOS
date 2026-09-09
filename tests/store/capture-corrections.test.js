@@ -78,6 +78,28 @@ describe('deleteCaptureCascade', () => {
     expect(links.some((link) => link.from === goal.id || link.to === goal.id)).toBe(false);
   });
 
+  it('removes a produced appointment the same way it removes a produced task', async () => {
+    const appointment = await store.createAppointment({
+      title: 'Riunione con Marco',
+      date: '2026-09-10',
+      startTime: '15:00',
+      source: 'capture',
+    });
+    const capture = await store.createCapture({
+      text: 'riunione con Marco giovedì alle 15',
+      destination: 'appointment',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: appointment.id, rel: 'about' });
+
+    await store.deleteCaptureCascade(capture.id);
+
+    expect(await store.getCapture(capture.id)).toBeNull();
+    expect(await store.getAppointment(appointment.id)).toBeNull();
+    const links = await store.getLinks({});
+    expect(links.some((link) => link.from === appointment.id || link.to === appointment.id)).toBe(false);
+  });
+
   it('deletes a capture with no produced record just as well', async () => {
     const capture = await store.createCapture({ text: 'porridge with berries', destination: 'nutrition' });
     await store.createMemoryEntry({
@@ -121,6 +143,26 @@ describe('undoCaptureFiling', () => {
     expect(events.some((event) => event.type === 'capture.undone' && event.subject === capture.id)).toBe(
       true
     );
+  });
+
+  it('removes a produced appointment the same way it removes a produced task', async () => {
+    const appointment = await store.createAppointment({
+      title: 'Riunione con Marco',
+      date: '2026-09-10',
+      startTime: '15:00',
+      source: 'capture',
+    });
+    const capture = await store.createCapture({
+      text: 'riunione con Marco giovedì alle 15',
+      destination: 'appointment',
+      route: 'rules',
+    });
+    await store.createLink({ from: capture.id, to: appointment.id, rel: 'about' });
+
+    await store.undoCaptureFiling(capture.id);
+
+    expect(await store.getAppointment(appointment.id)).toBeNull();
+    expect(await store.getCapture(capture.id)).not.toBeNull();
   });
 
   it('refuses once the produced task has been completed', async () => {

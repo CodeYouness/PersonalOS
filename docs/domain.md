@@ -80,9 +80,9 @@ nothing but a memory entry.
 `origin` is where it arrived from (`bar`, `telegram`). `source` is who created
 the record. They were one field in v1 and confusing everybody.
 
-`destination` is one of the seven in `DESTINATIONS`: `task`, `people`,
-`finance`, `nutrition`, `health`, `goals`, `memory`. Validated against that
-list, never trusted from the model.
+`destination` is one of the eight in `DESTINATIONS`: `task`, `people`,
+`finance`, `nutrition`, `health`, `goals`, `memory`, `appointment`. Validated
+against that list, never trusted from the model.
 
 `route` records **how** the destination was decided: `model` or `rules`. This
 field exists because a silent fallback is a lie. Without it, an expired API
@@ -104,15 +104,18 @@ edit:
 
 | Action | Removes | Survives |
 | --- | --- | --- |
-| **Undo** | the produced record (task/goal) and its `about` link | the capture and its memory entry — the fact you said it stays true |
+| **Undo** | the produced record (task/goal/appointment) and its `about` link | the capture and its memory entry — the fact you said it stays true |
 | **Refile** | same as Undo, then files into a new `destination` (a new record if that destination is `task`/`goals`) | the capture; `destination` is updated, `route` is not |
 | **Delete** | everything the capture produced — capture, memory entry, produced record, links | nothing |
 
 Undo only applies where there is a produced record to retract — today that
-is `task` and `goals`; the other five destinations have nothing for Undo
-to act on beyond Delete. Refile has no such restriction: it works from any
-destination, including the five that file as capture + memory only — there
-is simply nothing to retract before it creates the new record.
+is `task`, `goals` and `appointment`; the other four destinations have
+nothing for Undo to act on beyond Delete. Refile has no such restriction: it
+works from any destination, including the four that file as capture + memory
+only — there is simply nothing to retract before it creates the new record.
+Refiling *into* `appointment` is one of those: the drawer has no date/time
+input, so it only updates `destination` — same as refiling into any of the
+four, and unlike refiling into `task`/`goals`.
 
 Both are refused once the produced record has been touched since creation
 (`completedAt` set, or `updatedAt !== createdAt`): the user's own work on that
@@ -252,6 +255,18 @@ is set only by a sync — the same shape `Transaction` and `FinanceAccount`
 already carry, with `externalId` inside it (the iCal `UID`, plus the
 occurrence's `date` for a recurring series — the key a re-sync matches
 against), not a field of its own.
+
+**From a capture**, the classifier recognizes `appointment` only when the
+text carries an explicit date *and* an explicit time — one without the other
+falls through to whatever destination would otherwise have matched (usually
+`task`), same as any other capture that names no destination clearly. The
+rule-based fallback (no model configured) understands Italian only —
+weekday names, `oggi`/`domani`/`dopodomani`, and an `alle HH[:MM]` time; the
+model, when available, resolves the same in any language, given today's
+date. The capture route writes the `Appointment`, an `about` link back to
+the capture (the same shape `task`/`goals` get), an `appointment.created`
+event (`EVENT_TYPES`), and — when an existing `Person`'s name appears in the
+text — an `involves` link from the appointment to that person.
 
 **Ownership on re-sync**, extending the split ADR 0009 uses for imported
 transactions: `title`, `date`, `startTime`, `endTime` and `calendarLabel`

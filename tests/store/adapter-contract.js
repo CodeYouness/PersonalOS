@@ -154,6 +154,49 @@ export function runAdapterContract(label, load) {
           expect(appointment.startTime).toMatch(/^\d{2}:\d{2}$/);
         }
       });
+
+      it('creates an appointment with no end time by default', async () => {
+        const created = await store.createAppointment({
+          title: 'Riunione con Marco',
+          date: '2026-09-10',
+          startTime: '15:00',
+        });
+
+        expect(created.id).toMatch(/^appointment_/);
+        expect(created.endTime).toBeNull();
+        expect(created.origin).toBeNull();
+        expect(await store.getAppointment(created.id)).toEqual(created);
+      });
+
+      it('refuses a missing or malformed date or time', async () => {
+        await expect(
+          store.createAppointment({ title: 'x', date: 'thursday', startTime: '15:00' })
+        ).rejects.toThrow();
+        await expect(
+          store.createAppointment({ title: 'x', date: '2026-09-10', startTime: '3pm' })
+        ).rejects.toThrow();
+        await expect(store.createAppointment({ title: 'x', date: '2026-09-10' })).rejects.toThrow();
+      });
+
+      it('reports an unknown id instead of failing silently', async () => {
+        expect(await store.getAppointment('appointment_nope')).toBeNull();
+        await expect(store.deleteAppointment('appointment_nope')).rejects.toThrow();
+      });
+
+      it('takes its links with it when deleted', async () => {
+        const person = await store.createPerson({ name: 'Ana Duarte' });
+        const appointment = await store.createAppointment({
+          title: 'Temporary',
+          date: '2026-09-10',
+          startTime: '15:00',
+        });
+        await store.createLink({ from: appointment.id, to: person.id, rel: 'involves' });
+
+        await store.deleteAppointment(appointment.id);
+
+        expect(await store.getAppointment(appointment.id)).toBeNull();
+        expect(await store.getLinks({ from: appointment.id })).toHaveLength(0);
+      });
     });
 
     describe('links', () => {

@@ -39,6 +39,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Each is a full checkout of the repo (docs/workflow.md's one-worktree-
+    // per-ticket flow); without this, `eslint .` lints every ticket branch
+    // ever checked out here, not just the current tree.
+    ".worktrees/**",
   ]),
 
   // ADR-0001 keeps ESLint so a lint check exists at all; these are that
