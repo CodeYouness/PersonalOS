@@ -59,6 +59,7 @@ export const DESTINATIONS = Object.freeze([
   'health',
   'goals',
   'memory',
+  'appointment',
 ]);
 
 /**
@@ -135,6 +136,7 @@ export const EVENT_TYPES = Object.freeze([
   'memory.saved',
   'finance.synced',
   'integration.failed',
+  'appointment.created',
 ]);
 
 /**

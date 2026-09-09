@@ -69,7 +69,7 @@ never asks for links with rel `involves`.
 
 ## The adapter contract
 
-`lib/adapters/contract.js` lists the 52 operations an adapter must provide, in
+`lib/adapters/contract.js` lists the operations an adapter must provide, in
 the language of the domain. `tests/store/adapter-contract.js` is a suite
 parameterised by adapter: the JSON one runs it today, and a database one will
 run the same file. That is why the contract is a file and not a comment.
