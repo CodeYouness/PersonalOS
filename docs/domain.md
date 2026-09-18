@@ -356,12 +356,22 @@ progress should be derived instead.
 
 **Types** `check` (done or not) and `counter` (counted against a target).
 
-**Archiving keeps the history.** An archived habit stops appearing today and
-still shows in the days it was active. Nothing is deleted.
+**Is active over periods**, not flagged archived or not (ADR 0015). A period
+is a half-open day-key range, `{ from, to }`: active from `from` up to but
+not including `to`. Periods are ordered oldest first, non-overlapping, and
+only the last may be open (`to: null`). "Archived" is derived — no open
+period — the same shape `overdue` already takes. Archiving closes the
+current period at today; restoring opens a new one. The gap in between
+belongs to no period, so it never counts and is never mistaken for missed.
 
-The **streak** counts backwards over consecutive days with at least one habit
-completed. A day still in progress does not break it — breaking a streak at
-00:01 would be punishing someone for waking up.
+**Archiving keeps the history.** A habit counts, everywhere a habit number is
+computed, only on the days it was active: nothing before its first period,
+nothing in an archived-then-restored gap, everything else. Nothing is
+deleted.
+
+The **streak** counts backwards over consecutive days with at least one
+*active* habit completed. A day still in progress does not break it —
+breaking a streak at 00:01 would be punishing someone for waking up.
 
 ---
 
@@ -504,7 +514,8 @@ double counting.
 
 | Canonical | Derived (never stored) |
 | --- | --- |
-| profile, habit definitions, finance categories | overdue, days overdue |
+| profile, habit definitions (including periods) | overdue, days overdue |
+| finance categories | whether a habit is active/archived on a day |
 | task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates |
 | people | health averages, day totals |
 | goals | goal progress when metric-backed |

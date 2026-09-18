@@ -1,16 +1,39 @@
 import { describe, expect, it } from 'vitest';
 
-import { completionRatio, ratesByHabit, streak } from '@/lib/domain/derive/habits.js';
+import { completionRatio, isActiveOn, ratesByHabit, streak } from '@/lib/domain/derive/habits.js';
 import { averagesOverRecordedDays, caloriesFromMacros, dayTotals } from '@/lib/domain/derive/nutrition.js';
 
+const open = (/** @type {string} */ from) => [{ from, to: /** @type {string | null} */ (null) }];
+
 const habits = [
-  { id: 'habit_move', label: 'Move', type: 'check', target: null, archived: false },
-  { id: 'habit_water', label: 'Water', type: 'counter', target: 8, archived: false },
+  { id: 'habit_move', label: 'Move', type: 'check', target: null, periods: open('2026-01-01') },
+  { id: 'habit_water', label: 'Water', type: 'counter', target: 8, periods: open('2026-01-01') },
 ];
 
 /** @returns {any} */
 const log = (/** @type {any} */ date, /** @type {any} */ habitState, /** @type {any} */ meals = []) => ({
   date, habits: habitState, meals, measurements: [], notes: [],
+});
+
+describe('isActiveOn', () => {
+  it('is active from the period start onward when the period is still open', () => {
+    const habit = { periods: [{ from: '2026-01-05', to: null }] };
+    expect(isActiveOn(/** @type {any} */ (habit), '2026-01-04')).toBe(false);
+    expect(isActiveOn(/** @type {any} */ (habit), '2026-01-05')).toBe(true);
+    expect(isActiveOn(/** @type {any} */ (habit), '2026-06-01')).toBe(true);
+  });
+
+  it('is not active on or after a closed period\'s end', () => {
+    const habit = { periods: [{ from: '2026-01-01', to: '2026-01-10' }] };
+    expect(isActiveOn(/** @type {any} */ (habit), '2026-01-09')).toBe(true);
+    expect(isActiveOn(/** @type {any} */ (habit), '2026-01-10')).toBe(false);
+  });
+
+  it('is not active in the gap between an archived period and a restore', () => {
+    const habit = { periods: [{ from: '2026-01-01', to: '2026-01-05' }, { from: '2026-01-10', to: null }] };
+    expect(isActiveOn(/** @type {any} */ (habit), '2026-01-07')).toBe(false);
+    expect(isActiveOn(/** @type {any} */ (habit), '2026-01-10')).toBe(true);
+  });
 });
 
 describe('habit completion', () => {
@@ -24,10 +47,23 @@ describe('habit completion', () => {
       .toBe(1);
   });
 
-  it('ignores archived habits for today', () => {
-    const withArchived = [...habits, { id: 'habit_old', label: 'Old', type: 'check', target: null, archived: true }];
-    expect(completionRatio(/** @type {any} */ (withArchived), log('2026-01-05', { habit_move: true, habit_water: 8 })))
+  it('ignores a habit archived before that day, but not one archived after it', () => {
+    const archivedBefore = { id: 'habit_old', label: 'Old', type: 'check', target: null, periods: [{ from: '2026-01-01', to: '2026-01-04' }] };
+    const archivedAfter = { id: 'habit_new', label: 'New', type: 'check', target: null, periods: [{ from: '2026-01-01', to: '2026-01-06' }] };
+
+    const withArchivedBefore = [...habits, archivedBefore];
+    expect(completionRatio(/** @type {any} */ (withArchivedBefore), log('2026-01-05', { habit_move: true, habit_water: 8 })))
       .toBe(1);
+
+    const withArchivedAfter = [...habits, archivedAfter];
+    expect(completionRatio(/** @type {any} */ (withArchivedAfter), log('2026-01-05', { habit_move: true, habit_water: 8, habit_new: true })))
+      .toBeCloseTo(1);
+  });
+
+  it('counts nowhere before its first period', () => {
+    const notYetStarted = { id: 'habit_future', label: 'Future', type: 'check', target: null, periods: open('2026-02-01') };
+    expect(completionRatio(/** @type {any} */ ([notYetStarted]), log('2026-01-05', { habit_future: true })))
+      .toBe(0);
   });
 });
 
@@ -62,6 +98,16 @@ describe('streak', () => {
     expect(streak(/** @type {any} */ (habits), /** @type {any} */ (logs), '2026-01-05')).toBe(2);
   });
 
+  it('does not let a stale tick before a habit\'s period start extend the streak', () => {
+    const lateStarter = { id: 'habit_late', label: 'Late', type: 'check', target: null, periods: open('2026-01-04') };
+    const logs = [
+      log('2026-01-02', { habit_late: true }),
+      log('2026-01-03', { habit_late: true }),
+      log('2026-01-04', { habit_late: true }),
+    ];
+    expect(streak(/** @type {any} */ ([lateStarter]), /** @type {any} */ (logs), '2026-01-04')).toBe(1);
+  });
+
   it('rates each habit over recorded days only', () => {
     const logs = [
       log('2026-01-03', { habit_move: true, habit_water: 8 }),
@@ -71,6 +117,21 @@ describe('streak', () => {
     const rates = ratesByHabit(/** @type {any} */ (habits), /** @type {any} */ (logs));
     expect(rates.habit_move).toBeCloseTo(0.5);
     expect(rates.habit_water).toBeCloseTo(0.75);
+  });
+
+  it('ignores days in an archived-then-restored gap when rating a habit', () => {
+    const restarted = {
+      id: 'habit_restarted', label: 'Restarted', type: 'check', target: null,
+      periods: [{ from: '2026-01-01', to: '2026-01-03' }, { from: '2026-01-05', to: null }],
+    };
+    const logs = [
+      log('2026-01-02', { habit_restarted: true }),
+      log('2026-01-03', { habit_restarted: false }),
+      log('2026-01-04', { habit_restarted: false }),
+      log('2026-01-05', { habit_restarted: true }),
+    ];
+    const rates = ratesByHabit(/** @type {any} */ ([restarted]), /** @type {any} */ (logs));
+    expect(rates.habit_restarted).toBe(1);
   });
 });
 

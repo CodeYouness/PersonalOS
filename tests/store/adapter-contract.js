@@ -58,6 +58,59 @@ export function runAdapterContract(label, load) {
         const patch = /** @type {any} */ ({ nickname: 'Jay' });
         await expect(store.updateProfile(patch)).rejects.toThrow();
       });
+
+      it('accepts a well-formed habits patch', async () => {
+        const habits = /** @type {import('@/lib/domain/types.js').Habit[]} */ ([
+          { id: 'habit_x', label: 'Stretch', type: 'check', target: null, periods: [{ from: '2026-01-01', to: null }] },
+          { id: 'habit_y', label: 'Water', type: 'counter', target: 6, periods: [{ from: '2026-01-01', to: '2026-02-01' }] },
+        ]);
+        await store.updateProfile({ habits });
+        const profile = await store.getProfile();
+
+        expect(profile.habits).toEqual(habits);
+      });
+
+      it('rejects a habit with a type outside the closed vocabulary', async () => {
+        const habits = /** @type {any} */ ([
+          { id: 'habit_x', label: 'Stretch', type: 'bogus', target: null, periods: [{ from: '2026-01-01', to: null }] },
+        ]);
+        await expect(store.updateProfile({ habits })).rejects.toThrow();
+      });
+
+      it('rejects a check habit that carries a target', async () => {
+        const habits = /** @type {any} */ ([
+          { id: 'habit_x', label: 'Stretch', type: 'check', target: 5, periods: [{ from: '2026-01-01', to: null }] },
+        ]);
+        await expect(store.updateProfile({ habits })).rejects.toThrow();
+      });
+
+      it('rejects a counter habit without a valid target', async () => {
+        const habits = /** @type {any} */ ([
+          { id: 'habit_x', label: 'Water', type: 'counter', target: null, periods: [{ from: '2026-01-01', to: null }] },
+        ]);
+        await expect(store.updateProfile({ habits })).rejects.toThrow();
+      });
+
+      it('rejects a habit with an empty label', async () => {
+        const habits = /** @type {any} */ ([
+          { id: 'habit_x', label: '   ', type: 'check', target: null, periods: [{ from: '2026-01-01', to: null }] },
+        ]);
+        await expect(store.updateProfile({ habits })).rejects.toThrow();
+      });
+
+      it('rejects a habit with malformed periods', async () => {
+        const habits = /** @type {any} */ ([
+          { id: 'habit_x', label: 'Stretch', type: 'check', target: null, periods: [{ from: 'not-a-day', to: null }] },
+        ]);
+        await expect(store.updateProfile({ habits })).rejects.toThrow();
+      });
+
+      it('rejects a habit with no periods at all', async () => {
+        const habits = /** @type {any} */ ([
+          { id: 'habit_x', label: 'Stretch', type: 'check', target: null, periods: [] },
+        ]);
+        await expect(store.updateProfile({ habits })).rejects.toThrow();
+      });
     });
 
     describe('tasks', () => {
