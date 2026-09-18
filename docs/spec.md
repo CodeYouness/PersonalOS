@@ -79,14 +79,14 @@ its own; two quick taps on two habits never overwrite each other.
 
 **The past can be corrected, the future cannot.** Forgetting to tick yesterday
 is the common case. The home card only shows today; any day up to today is
-corrected from the history heatmap on the Habits screen. A day before a habit
-existed, or from the day it was archived, cannot be ticked.
+corrected from the history heatmap on the Habits screen. A day on which the
+habit was not active cannot be ticked.
 
-**A habit is active over a range of days**, from the day it was created up to,
-not including, the day it was archived. Every number -- completion, streak,
-rates, the heatmap -- counts a habit only on the days it was active, so
-archiving never rewrites the past. Nothing is deleted: a habit is archived and
-can be restored.
+**A habit is active over periods of days.** Creating it opens a period;
+archiving closes it, the archive day excluded; restoring opens a new one. Every
+number -- completion, streak, rates, the heatmap -- counts a habit only on the
+days it was active, so archiving never rewrites the past, and the days a
+habit spent archived stay out of it after a restore. Nothing is deleted.
 
 **What you can change from the screen:** add a habit (label, type, target),
 rename it, change a counter's target, archive or restore it, and move it up or
