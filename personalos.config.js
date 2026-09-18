@@ -137,6 +137,7 @@ export const EVENT_TYPES = Object.freeze([
   'finance.synced',
   'integration.failed',
   'appointment.created',
+  'appointment.synced',
 ]);
 
 /**
@@ -217,7 +218,7 @@ export const features = Object.freeze({
   telegramCapture: false,
   semanticMemory: false,
   morningBriefing: false,
-  integrations: false,
+  integrations: true,
 });
 
 /**
