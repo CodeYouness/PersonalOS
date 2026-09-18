@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { completionRatio, isActiveOn, ratesByHabit, streak } from '@/lib/domain/derive/habits.js';
+import { completionRatio, isActiveOn, justCompleted, ratesByHabit, streak } from '@/lib/domain/derive/habits.js';
 import { averagesOverRecordedDays, caloriesFromMacros, dayTotals } from '@/lib/domain/derive/nutrition.js';
 
 const open = (/** @type {string} */ from) => [{ from, to: /** @type {string | null} */ (null) }];
@@ -132,6 +132,36 @@ describe('streak', () => {
     ];
     const rates = ratesByHabit(/** @type {any} */ ([restarted]), /** @type {any} */ (logs));
     expect(rates.habit_restarted).toBe(1);
+  });
+});
+
+describe('justCompleted', () => {
+  const check = { id: 'habit_move', label: 'Move', type: 'check', target: null, periods: open('2026-01-01') };
+  const counter = { id: 'habit_water', label: 'Water', type: 'counter', target: 8, periods: open('2026-01-01') };
+
+  it('fires when a check flips from unset to true', () => {
+    expect(justCompleted(/** @type {any} */ (check), undefined, true)).toBe(true);
+  });
+
+  it('does not fire on untick', () => {
+    expect(justCompleted(/** @type {any} */ (check), true, false)).toBe(false);
+  });
+
+  it('does not fire twice for a check already true', () => {
+    expect(justCompleted(/** @type {any} */ (check), true, true)).toBe(false);
+  });
+
+  it('fires only when a counter reaches its target, not on an intermediate step', () => {
+    expect(justCompleted(/** @type {any} */ (counter), 3, 4)).toBe(false);
+    expect(justCompleted(/** @type {any} */ (counter), 7, 8)).toBe(true);
+  });
+
+  it('does not fire when a counter was already at or past target', () => {
+    expect(justCompleted(/** @type {any} */ (counter), 8, 9)).toBe(false);
+  });
+
+  it('does not fire on a decrement, even one that stays at or above target', () => {
+    expect(justCompleted(/** @type {any} */ (counter), 9, 8)).toBe(false);
   });
 });
 

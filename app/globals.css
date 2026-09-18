@@ -288,6 +288,44 @@ button:disabled { cursor: not-allowed; }
 .task-person { color: var(--ink-subtle); font-size: 12px; }
 
 /* ==========================================================================
+   HOME — card-habits
+   ========================================================================== */
+.ring-wrap { display: flex; align-items: center; gap: var(--s-lg); margin-bottom: var(--s-md); flex: none; }
+.ring { position: relative; width: 76px; height: 76px; flex: none; }
+.ring svg { transform: rotate(-90deg); }
+.ring-track { color: var(--surface-3); }
+.ring-progress { color: var(--success); }
+.ring-value {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; letter-spacing: -0.4px;
+  font-variant-numeric: tabular-nums;
+}
+.streak-num { font-size: 26px; letter-spacing: -0.8px; font-weight: var(--w-display); }
+.habit { display: flex; align-items: center; gap: var(--s-sm); padding: 7px 0; }
+.habit-box {
+  width: 16px; height: 16px; flex: none;
+  border: 1px solid var(--hairline-tertiary); border-radius: var(--r-xs);
+  display: flex; align-items: center; justify-content: center;
+  background: none; color: inherit;
+}
+.habit-box.is-done { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+.habit-label {
+  flex: 1; font-size: 14px; min-width: 0; text-align: left;
+  background: none; border: none; color: inherit; font: inherit; cursor: pointer;
+}
+.habit.is-done .habit-label { color: var(--ink-muted); }
+.habit-count { font-family: var(--font-mono); font-size: 12px; color: var(--ink-subtle); }
+.meter { width: 54px; height: 3px; border-radius: 2px; background: var(--surface-3); overflow: hidden; flex: none; }
+.meter > span { display: block; height: 100%; background: var(--ink-subtle); }
+.habit-minus {
+  width: 18px; height: 18px; flex: none; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-tertiary); background: none;
+}
+.habit-minus:hover { background: var(--surface-4); color: var(--ink-muted); }
+
+/* ==========================================================================
    HOME — card-calendar
    ========================================================================== */
 .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--s-xxs); margin-bottom: var(--s-md); flex: none; }
