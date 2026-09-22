@@ -8,7 +8,7 @@
  * about what it cannot reconstruct.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CURRENT_SCHEMA_VERSION, migrate, needsMigration, schemaVersionOf } from '@/lib/adapters/json/migrations.js';
 
@@ -131,7 +131,8 @@ describe('migration v1 to v2', () => {
     }
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.profile.baseCurrency).toBe('EUR');
-    expect(migrated.profile.habits[0].archived).toBe(false);
+    expect(migrated.profile.habits[0].archived).toBeUndefined();
+    expect(migrated.profile.habits[0].periods).toEqual([{ from: '2026-01-05', to: null }]);
   });
 
   it('keeps the daily logs untouched', () => {
@@ -212,5 +213,65 @@ describe('migration v3 to v4', () => {
     expect(appointment.title).toBe('Dentist');
     expect(appointment.date).toBe('2026-09-10');
     expect(appointment.startTime).toBe('15:00');
+  });
+});
+
+/** A minimal v4 document: three habits exercising each period-opening case. */
+function v4Document() {
+  return {
+    ...v3Document(),
+    schemaVersion: 4,
+    dailyLogs: {
+      '2026-01-04': { date: '2026-01-04', habits: { habit_move: true }, meals: [], measurements: [], notes: [] },
+      '2026-01-05': { date: '2026-01-05', habits: { habit_move: true, habit_water: 5 }, meals: [], measurements: [], notes: [] },
+    },
+    profile: {
+      ...v3Document().profile,
+      habits: [
+        { id: 'habit_move', label: 'Move', type: 'check', target: null, archived: false },
+        { id: 'habit_water', label: 'Water', type: 'counter', target: 8, archived: true },
+        { id: 'habit_new', label: 'New', type: 'check', target: null, archived: false },
+      ],
+    },
+  };
+}
+
+describe('migration v4 to v5', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-15T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('gives an active habit one open period from its first recorded day', () => {
+    const migrated = migrate(v4Document());
+    const move = migrated.profile.habits.find((/** @type {any} */ habit) => habit.id === 'habit_move');
+
+    expect(move.periods).toEqual([{ from: '2026-01-04', to: null }]);
+    expect(move.archived).toBeUndefined();
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('closes an archived habit\'s period at today, not at its first recorded day', () => {
+    const migrated = migrate(v4Document());
+    const water = migrated.profile.habits.find((/** @type {any} */ habit) => habit.id === 'habit_water');
+
+    expect(water.periods).toEqual([{ from: '2026-01-05', to: '2026-09-15' }]);
+  });
+
+  it('opens a never-recorded habit\'s period today', () => {
+    const migrated = migrate(v4Document());
+    const fresh = migrated.profile.habits.find((/** @type {any} */ habit) => habit.id === 'habit_new');
+
+    expect(fresh.periods).toEqual([{ from: '2026-09-15', to: null }]);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v4Document());
+    const twice = migrate(once);
+    expect(twice).toEqual(once);
   });
 });

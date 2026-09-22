@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -13,28 +13,28 @@
         "label": "Move for 30 minutes",
         "type": "check",
         "target": null,
-        "archived": false
+        "periods": [{ "from": "2026-01-04", "to": null }]
       },
       {
         "id": "habit_read",
         "label": "Read",
         "type": "check",
         "target": null,
-        "archived": false
+        "periods": [{ "from": "2026-01-04", "to": null }]
       },
       {
         "id": "habit_water",
         "label": "Glasses of water",
         "type": "counter",
         "target": 8,
-        "archived": false
+        "periods": [{ "from": "2026-01-04", "to": null }]
       },
       {
         "id": "habit_deep_work",
         "label": "Deep work blocks",
         "type": "counter",
         "target": 3,
-        "archived": false
+        "periods": [{ "from": "2026-01-04", "to": null }]
       }
     ],
     "financeCategories": [
