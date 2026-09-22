@@ -18,6 +18,8 @@ let route;
 let completeRoute;
 /** @type {typeof import('@/app/api/tasks/[id]/reopen/route.js')} */
 let reopenRoute;
+/** @type {typeof import('@/app/api/tasks/[id]/person/route.js')} */
+let personRoute;
 /** @type {typeof import('@/lib/store.js')} */
 let store;
 /** @type {typeof import('@/lib/domain/dates.js')} */
@@ -30,6 +32,7 @@ beforeAll(async () => {
   route = await import('@/app/api/tasks/[id]/route.js');
   completeRoute = await import('@/app/api/tasks/[id]/complete/route.js');
   reopenRoute = await import('@/app/api/tasks/[id]/reopen/route.js');
+  personRoute = await import('@/app/api/tasks/[id]/person/route.js');
   store = await import('@/lib/store.js');
   dates = await import('@/lib/domain/dates.js');
 });
@@ -69,6 +72,23 @@ function del(id) {
   return route.DELETE(new Request('http://localhost/api/tasks/' + id, { method: 'DELETE' }), {
     params: Promise.resolve({ id }),
   });
+}
+
+/** @param {string} id @param {unknown} body */
+function putPerson(id, body) {
+  return personRoute.PUT(
+    new Request('http://localhost/api/tasks/' + id + '/person', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+    { params: Promise.resolve({ id }) }
+  );
+}
+
+/** @param {string} id */
+async function involves(id) {
+  return (await store.getLinks({ from: id, rel: 'involves' })).map((link) => link.to);
 }
 
 /** @param {string} id */
@@ -199,5 +219,45 @@ describe('completing, reopening and deleting a task', () => {
     // The sentence you said is never lost: the capture and its memory stay.
     expect(await store.getCapture(capture.id)).not.toBeNull();
     expect(await store.getReferrers(capture.id, 'derived_from')).toHaveLength(1);
+  });
+});
+
+describe('PUT /api/tasks/[id]/person', () => {
+  // task_seed_1 involves Marta (person_seed_1) in the seed.
+  it('replaces the person a task involves', async () => {
+    const response = await putPerson(OVERDUE, { personId: 'person_seed_2' });
+
+    expect(response.status).toBe(200);
+    expect(await involves(OVERDUE)).toEqual(['person_seed_2']);
+  });
+
+  it('leaves the link alone when the same person is chosen again', async () => {
+    const [before] = await store.getLinks({ from: OVERDUE, rel: 'involves' });
+    expect((await putPerson(OVERDUE, { personId: 'person_seed_1' })).status).toBe(200);
+    expect(await store.getLinks({ from: OVERDUE, rel: 'involves' })).toEqual([before]);
+  });
+
+  it('clears it with null', async () => {
+    expect((await putPerson(OVERDUE, { personId: null })).status).toBe(200);
+    expect(await involves(OVERDUE)).toEqual([]);
+  });
+
+  it('never touches the task itself, so the capture it came from stays correctable', async () => {
+    const before = await store.getTask(OVERDUE);
+    await putPerson(OVERDUE, { personId: 'person_seed_2' });
+    expect((await store.getTask(OVERDUE))?.updatedAt).toBe(before?.updatedAt);
+  });
+
+  it.each([
+    ['an unknown person', { personId: 'person_missing' }],
+    ['a reference that is not a person', { personId: 'goal_seed_1' }],
+    ['no personId at all', {}],
+  ])('refuses %s, leaving the link as it was', async (_label, body) => {
+    expect((await putPerson(OVERDUE, body)).status).toBe(400);
+    expect(await involves(OVERDUE)).toEqual(['person_seed_1']);
+  });
+
+  it('answers 404 for a task that does not exist', async () => {
+    expect((await putPerson('task_missing', { personId: null })).status).toBe(404);
   });
 });

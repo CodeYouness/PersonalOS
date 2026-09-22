@@ -333,7 +333,15 @@ them into a shape that misrepresents them.
 
 **Created by you, never by a capture** (ADR 0018). A capture only links a
 person who already exists; a name it does not recognise links no one rather
-than becoming a person, so a misspelling never becomes a duplicate.
+than becoming a person, so a misspelling never becomes a duplicate. You add
+one from the CRM panel's Person field — "Add '<name>'" — with the name alone;
+organization, kind and note stay empty until you fill them.
+
+**A task involves at most one person.** Choosing a person replaces the
+`involves` link; clearing it removes the link. Neither touches the task, so
+neither locks the capture it came from — which also means an Undo or Refile
+of that capture takes the person you chose with it, and a Refile links
+whoever the sentence names.
 
 **Relations** tasks link to a person with `involves`. `getTasksForPerson()` in
 the store is the named operation for the grouping view, so no component ever

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 
+import CrmPersonField from '@/components/CrmPersonField.js';
 import { TEMPERATURES, URGENCY_BANDS } from '@/personalos.config.js';
 
 /**
@@ -30,14 +31,21 @@ import { TEMPERATURES, URGENCY_BANDS } from '@/personalos.config.js';
  * so a mis-click is undone where it was made (#54). Delete asks first, like
  * the capture log's Delete; the capture that produced the task survives.
  *
+ * The Person field picks one of your people, clears it, or -- for a name
+ * that is not there yet -- offers "Add '<name>'", which creates that person
+ * with the name alone and links them (#55). Only you ever create a person
+ * (ADR 0018); a capture only links one that exists.
+ *
  * Mounted with `key={task.id}`, so selecting another task starts clean.
  *
  * @param {{
  *   task: import('@/lib/domain/types.js').Task,
+ *   person: import('@/lib/domain/types.js').Person | null,
+ *   people: import('@/lib/domain/types.js').Person[],
  *   provenance: string,
  * }} props
  */
-export default function CrmDetail({ task, provenance }) {
+export default function CrmDetail({ task, person, people, provenance }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => editable(task));
   const [saved, setSaved] = useState(() => editable(task));
@@ -46,9 +54,16 @@ export default function CrmDetail({ task, provenance }) {
   const [needsResync, setNeedsResync] = useState(false);
   const [seenTask, setSeenTask] = useState(task);
   const [isCompleted, setIsCompleted] = useState(task.completedAt !== null);
-  // Complete, Reopen and Delete wait for each other: a Reopen racing the
-  // Complete it undoes would only be refused.
+  // Complete, Reopen, Delete and the person wait for each other: a Reopen
+  // racing the Complete it undoes would only be refused, and two person
+  // changes racing could leave the task involving both (see setTaskPerson).
   const [isActing, setIsActing] = useState(false);
+  // The person shown before the refresh confirms it; `undefined` means
+  // "whatever the page says" -- the `person` prop.
+  const [personShown, setPersonShown] = useState(
+    /** @type {import('@/components/CrmPersonField.js').ShownPerson | null | undefined} */ (undefined)
+  );
+  const [personQuery, setPersonQuery] = useState('');
   const [, startTransition] = useTransition();
   // Esc reverts a field and then blurs it; the blur must not save the value
   // Esc just threw away, which its handler would still see in `draft`.
@@ -61,6 +76,7 @@ export default function CrmDetail({ task, provenance }) {
   if (task !== seenTask) {
     setSeenTask(task);
     setIsCompleted(task.completedAt !== null);
+    setPersonShown(undefined);
     if (needsResync) {
       setDraft(editable(task));
       setSaved(editable(task));
@@ -139,6 +155,62 @@ export default function CrmDetail({ task, provenance }) {
     }
     setIsActing(false);
     startTransition(() => router.refresh());
+  }
+
+  /**
+   * Link an existing person, or clear the link with null.
+   *
+   * @param {import('@/lib/domain/types.js').Person | null} chosen
+   */
+  async function choosePerson(chosen) {
+    setIsActing(true);
+    setPersonQuery('');
+    setPersonShown(chosen);
+    setError(null);
+    try {
+      await linkPerson(chosen?.id ?? null);
+    } catch (caught) {
+      setError(messageOf(caught));
+      setPersonShown(undefined);
+    }
+    setIsActing(false);
+    startTransition(() => router.refresh());
+  }
+
+  /**
+   * "Add '<name>'": create the person with the name alone, then link them.
+   *
+   * @param {string} name
+   */
+  async function addPerson(name) {
+    setIsActing(true);
+    setPersonQuery('');
+    setPersonShown({ id: null, name, organization: '' });
+    setError(null);
+    try {
+      const { person: added } = await request('/api/people', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      await linkPerson(added.id);
+    } catch (caught) {
+      // If the person was created but not linked, they are not lost: typing
+      // the name again now offers them.
+      setError(messageOf(caught));
+      setPersonShown(undefined);
+    }
+    setIsActing(false);
+    startTransition(() => router.refresh());
+  }
+
+  /** @param {string | null} personId */
+  function linkPerson(personId) {
+    return request(taskUrl(task.id) + '/person', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ personId }),
+    });
   }
 
   /** @param {'title' | 'note'} field */
@@ -261,6 +333,16 @@ export default function CrmDetail({ task, provenance }) {
           </div>
         </div>
 
+        <CrmPersonField
+          current={personShown === undefined ? person : personShown}
+          people={people}
+          query={personQuery}
+          disabled={isActing}
+          onQuery={setPersonQuery}
+          onChoose={choosePerson}
+          onAdd={addPerson}
+        />
+
         <div className="field">
           <label className="caption" htmlFor="d-tag">Tags</label>
           <div className="detail-tags">
@@ -348,11 +430,12 @@ function taskUrl(id) {
 }
 
 /**
- * One write to the task routes. Throws with the server's own message when
- * it refuses, or a plain one when it cannot be reached.
+ * One write. Resolves to the server's JSON answer; throws with the server's
+ * own message when it refuses, or a plain one when it cannot be reached.
  *
  * @param {string} url
  * @param {RequestInit} init
+ * @returns {Promise<any>}
  */
 async function request(url, init) {
   let response;
@@ -361,10 +444,9 @@ async function request(url, init) {
   } catch {
     throw new Error('Could not reach the server');
   }
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    throw new Error(payload?.message ?? 'Something went wrong');
-  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.message ?? 'Something went wrong');
+  return payload;
 }
 
 /** @param {unknown} caught */
