@@ -11,6 +11,9 @@ import path from 'node:path';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+/** A Thursday, at an hour that stays the same calendar day in Europe/Rome. */
+const A_THURSDAY = new Date('2026-09-10T10:00:00Z');
+
 /** @type {string} */
 let sandbox;
 /** @type {typeof import('@/app/api/capture/route.js')} */
@@ -113,6 +116,44 @@ describe('POST /api/capture', () => {
     const capture = captures.find((entry) => entry.text === 'goal: ship the pricing page this week');
     const aboutLinks = await store.getLinks({ from: capture?.id, rel: 'about' });
     expect(aboutLinks.some((link) => link.to === body.recordId)).toBe(true);
+  });
+
+  it('files an appointment capture with the extracted date, time and event', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(A_THURSDAY);
+    const response = await post('riunione con Marco giovedì alle 15');
+    vi.useRealTimers();
+    const body = await response.json();
+
+    expect(body.destination).toBe('appointment');
+    expect(body.recordId).not.toBeNull();
+
+    const appointment = await store.getAppointment(body.recordId);
+    expect(appointment?.date).toBe('2026-09-10');
+    expect(appointment?.startTime).toBe('15:00');
+
+    const captures = await store.getCaptures();
+    const capture = captures.find((entry) => entry.text === 'riunione con Marco giovedì alle 15');
+    const aboutLinks = await store.getLinks({ from: capture?.id, rel: 'about' });
+    expect(aboutLinks.some((link) => link.to === body.recordId)).toBe(true);
+
+    const events = await store.getEvents({});
+    expect(
+      events.some((event) => event.type === 'appointment.created' && event.subject === body.recordId)
+    ).toBe(true);
+  });
+
+  it('links an appointment to an existing person named in the text', async () => {
+    const person = await store.createPerson({ name: 'Marco' });
+
+    vi.useFakeTimers();
+    vi.setSystemTime(A_THURSDAY);
+    const response = await post('riunione con Marco giovedì alle 15');
+    vi.useRealTimers();
+    const body = await response.json();
+
+    const involvesLinks = await store.getLinks({ from: body.recordId, rel: 'involves' });
+    expect(involvesLinks.some((link) => link.to === person.id)).toBe(true);
   });
 
   it('rejects empty text instead of filing nothing silently', async () => {

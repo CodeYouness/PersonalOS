@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 
 import { classify } from '@/lib/classify.js';
 import {
+  createAppointment,
   createCapture,
   createGoal,
   createLink,
   createMemoryEntry,
   createTask,
+  getPeople,
   recordEvent,
 } from '@/lib/store.js';
 
@@ -18,11 +20,11 @@ export const dynamic = 'force-dynamic';
  * destination record when there is one, the links between them, and an
  * event.
  *
- * Only the capture write is load-bearing. `task` and `goals` get a real
- * destination record; the other five file as capture + memory only, since a
- * fabricated transaction or person would be worse than none, and
- * `docs/domain.md` calls "nothing but a memory entry" a valid outcome, not a
- * shortfall. Everything after the capture is enrichment: if it fails
+ * Only the capture write is load-bearing. `task`, `goals` and `appointment`
+ * get a real destination record; the other four file as capture + memory
+ * only, since a fabricated transaction or person would be worse than none,
+ * and `docs/domain.md` calls "nothing but a memory entry" a valid outcome,
+ * not a shortfall. Everything after the capture is enrichment: if it fails
  * partway, the capture the user just said is still there, which is the
  * floor rule 2 sets -- "capture never fails; at worst it files badly".
  *
@@ -48,6 +50,24 @@ export async function POST(request) {
       const goal = await createGoal({ name: fields.title ?? text, source: 'capture' });
       recordId = goal.id;
       await createLink({ from: capture.id, to: goal.id, rel: 'about' });
+    } else if (destination === 'appointment') {
+      const appointment = await createAppointment({
+        title: fields.title ?? text,
+        date: fields.date,
+        startTime: fields.startTime,
+        endTime: fields.endTime ?? null,
+        source: 'capture',
+      });
+      recordId = appointment.id;
+      await createLink({ from: capture.id, to: appointment.id, rel: 'about' });
+      await recordEvent({ type: 'appointment.created', subject: appointment.id, source: 'capture' });
+
+      const person = (await getPeople()).find((candidate) =>
+        new RegExp('\\b' + escapeRegExp(candidate.name) + '\\b', 'i').test(text)
+      );
+      if (person) {
+        await createLink({ from: appointment.id, to: person.id, rel: 'involves' });
+      }
     }
 
     // createMemoryEntry links the memory back to the capture itself
@@ -67,4 +87,9 @@ export async function POST(request) {
   }
 
   return NextResponse.json({ destination, route, recordId });
+}
+
+/** @param {string} text */
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
