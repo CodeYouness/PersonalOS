@@ -54,6 +54,7 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 
 ## Existing work
 
-The nine foundation-v2 remediation tickets still live on disk at
-`.scratch/foundation-v2-remediation/issues/`, and `CLAUDE.md` points there.
-They predate this file. Read them from disk; open *new* issues on GitHub.
+The nine foundation-v2 remediation tickets live on disk at
+`.scratch/foundation-v2-remediation/issues/`. They predate this file and are
+all resolved -- read them from disk as history, and open *new* issues on
+GitHub.

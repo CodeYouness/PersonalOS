@@ -63,6 +63,48 @@ Rules that hold for all of them:
 - Colour carries meaning, never decoration -- and the metric decides the
   colour, not the sign. Weight going down may be exactly what you wanted.
 
+## Habits
+
+"Where am I today", answered twice: a compact card on the home screen, and a
+Habits screen for managing the list and reading the history.
+
+**Every active habit, every day.** A habit is daily by definition; there is no
+per-weekday schedule. The home card shows all of them, with today's completion
+as a ring and the streak beside it.
+
+**Ticking.** A `check` flips on a tap. A `counter` goes +1 on a tap, with a
+separate "−" once it is above zero. It may go past its target -- ten glasses
+out of eight is true -- and never below zero. Every tick saves one value, on
+its own; two quick taps on two habits never overwrite each other.
+
+**The past can be corrected, the future cannot.** Forgetting to tick yesterday
+is the common case. The home card only shows today; any day up to today is
+corrected from the history heatmap on the Habits screen. A day on which the
+habit was not active cannot be ticked.
+
+**A habit is active over periods of days.** Creating it opens a period;
+archiving closes it, the archive day excluded; restoring opens a new one. Every
+number -- completion, streak, rates, the heatmap -- counts a habit only on the
+days it was active, so archiving never rewrites the past, and the days a
+habit spent archived stay out of it after a restore. Nothing is deleted.
+
+**What you can change from the screen:** add a habit (label, type, target),
+rename it, change a counter's target, archive or restore it, and move it up or
+down. The type never changes after creation -- archive it and make a new one.
+
+**History** is the last 30 days: one row per habit, one cell per day, and the
+rate for that row. A day with nothing recorded for any habit is drawn as "not
+recorded", never as a failure. The summary above it gives completion, the
+current streak, perfect days and days recorded over the same 30 days.
+
+**The timeline hears about it once**: a `habit.ticked` event when a habit's day
+becomes complete, not on every tap and not on a correction downward. Creating,
+renaming and archiving a habit is configuration, not something that happened
+to you, and writes no event.
+
+Not yet: a period selector, the longest streak, per-habit streaks, ticking a
+habit from the capture bar, and linking a habit to a goal from the UI.
+
 ## Memory
 
 Everything that passes through leaves a trace. Questions are answered over that

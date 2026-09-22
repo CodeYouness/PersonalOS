@@ -118,14 +118,19 @@ before pushing. Git history does not forget.
 
 ## Picking this up cold
 
-Read `docs/handoff/2026-09-03-foundation-v2.md` before anything else. It says
-where the project is, which bug is currently able to lose data, and which
-findings from an old external review have already been fixed and must not be
-re-fixed.
+`docs/roadmap.md` says what exists and what comes next. `docs/decisions/` says
+why. The next free ADR number is **0015**.
 
-Open work lives in `.scratch/foundation-v2-remediation/issues/`, in order.
-Ticket 01 blocks the rest: until it lands, a green `npm run verify` on a
-developer machine does not prove the tests ran.
+Open work is GitHub issues on `CodeYouness/PersonalOS`. Read the open pull
+requests before you start: a feature ships as a stack of one-ticket branches,
+each based on the one before it, so the branch you need may already exist and
+the base you want may not be `main`.
+
+`docs/handoff/2026-09-03-foundation-v2.md` is history, not a to-do list. Every
+ticket it points at is resolved, including the data-loss bug it calls "the bug
+that matters" -- writes are serialised in process now (ADR-0011). Read it for
+one thing: the findings from an old external review that were already fixed
+and must not be re-fixed.
 
 ## Deeper
 
@@ -138,8 +143,8 @@ words mean) · `docs/development.md` (how to work here) ·
 ### Issue tracker
 
 Issues live as GitHub issues on `CodeYouness/PersonalOS`, via the `gh` CLI. The
-nine foundation-v2 tickets are the exception and stay on disk.
-See `docs/agents/issue-tracker.md`.
+nine foundation-v2 tickets are the exception: they stay on disk, and they are
+all closed. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
@@ -148,10 +153,11 @@ See `docs/agents/triage-labels.md`.
 
 ### Ideas inbox
 
-Raw ideas before they've been grilled -- `.scratch/ideas.md`. Once an idea is
-grilled and scoped, it becomes a GitHub issue (or a foundation-v2 ticket on
-disk) and gets deleted from the inbox. Not a backlog: an idea left there past
-its grilling round gets grilled or thrown away.
+Raw ideas before they've been grilled -- `.scratch/ideas.md`, git-ignored
+because this repository is public and an ungrilled idea is personal. Once an
+idea is grilled and scoped it becomes a GitHub issue and gets deleted from the
+inbox. Not a backlog: an idea left there past its grilling round gets grilled
+or thrown away.
 
 ### Domain docs
 
