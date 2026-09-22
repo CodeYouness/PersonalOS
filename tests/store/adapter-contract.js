@@ -143,6 +143,19 @@ export function runAdapterContract(label, load) {
       });
     });
 
+    describe('appointments', () => {
+      it('reads the seeded appointments', async () => {
+        const appointments = await store.getAppointments();
+
+        expect(Array.isArray(appointments)).toBe(true);
+        for (const appointment of appointments) {
+          expect(appointment.id).toMatch(/^appointment_/);
+          expect(appointment.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+          expect(appointment.startTime).toMatch(/^\d{2}:\d{2}$/);
+        }
+      });
+    });
+
     describe('links', () => {
       it('relates two entities and finds them from either end', async () => {
         const person = await store.createPerson({ name: 'Ana Duarte' });

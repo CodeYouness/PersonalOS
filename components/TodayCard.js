@@ -1,4 +1,4 @@
-import { initials } from '@/components/format.js';
+import { dayKeyToUtcDate, initials } from '@/components/format.js';
 import { today } from '@/lib/domain/dates.js';
 import { getProfile } from '@/lib/store.js';
 
@@ -40,20 +40,12 @@ export default async function TodayCard() {
   );
 }
 
-/**
- * A day key has no time and no zone (lib/domain/dates.js), so it is parsed
- * as UTC midnight purely to hand a Date to Intl -- this is formatting, not a
- * second "what day is it" computation.
- *
- * @param {string} dayKey
- */
+/** @param {string} dayKey */
 function formatDayKey(dayKey) {
-  const [year, month, day] = dayKey.split('-').map(Number);
-  const instant = new Date(Date.UTC(year, month - 1, day));
   return new Intl.DateTimeFormat('en-GB', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     timeZone: 'UTC',
-  }).format(instant);
+  }).format(dayKeyToUtcDate(dayKey));
 }

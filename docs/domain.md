@@ -228,6 +228,45 @@ shows.
 
 ---
 
+## Appointment
+
+**Is** a thing happening at a specific day and time, from a capture with an
+explicit date and time or from a synced external calendar. The Calendar card
+is a query over these.
+
+**Is not** a `Task`: a task is a commitment with a band, never a due date,
+because dated lists rot. An appointment is exactly a due date — that is what
+puts it on the calendar and not the task list. It is also not an `Event`: an
+event is a past-tense record of something that already happened, and an
+appointment is usually in the future.
+
+**Has** `title`, `date` (day key), `startTime`, `endTime?` — both `HH:MM`,
+24-hour, no timezone, the same posture `lib/domain/dates.js` takes with day
+keys — `calendarLabel` (free text, not a closed vocabulary: an external
+calendar's name is not ours to constrain), plus the four fields every
+canonical entity carries (`id`, `createdAt`, `updatedAt`, `source` — this
+last one the closed `SOURCE_KINDS` list, same as everywhere else, answering
+who created the record: `'capture'` for one filed from a capture,
+`'integration'` for one a sync wrote). `origin`, an `ExternalOrigin | null`,
+is set only by a sync — the same shape `Transaction` and `FinanceAccount`
+already carry, with `externalId` inside it (the iCal `UID`, plus the
+occurrence's `date` for a recurring series — the key a re-sync matches
+against), not a field of its own.
+
+**Ownership on re-sync**, extending the split ADR 0009 uses for imported
+transactions: `title`, `date`, `startTime`, `endTime` and `calendarLabel`
+belong to the source and are overwritten on every sync. A `note` and any
+`links` will belong to the user and never be touched by one, the same as a
+transaction's — that field lands with whichever ticket first gives an
+appointment a way to be annotated. See ADR 0014 for what happens when the
+source stops mentioning an appointment the user annotated.
+
+**All-day and multi-day events are out of scope.** Neither fits `date` +
+`startTime`; a sync skips them and logs what it dropped rather than forcing
+them into a shape that misrepresents them.
+
+---
+
 ## Person
 
 **Is** someone tasks can be owed to, with enough context to prepare a call.

@@ -38,6 +38,7 @@ export const ENTITY_TYPES = Object.freeze([
   'observation',
   'transaction',
   'snapshot',
+  'appointment',
 ]);
 
 /**

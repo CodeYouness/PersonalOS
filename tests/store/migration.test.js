@@ -139,3 +139,37 @@ describe('migration v1 to v2', () => {
     expect(migrated.dailyLogs['2026-01-05'].habits.habit_move).toBe(true);
   });
 });
+
+/** A minimal v2 document -- the shape toVersion2 above already produces. */
+function v2Document() {
+  return {
+    schemaVersion: 2,
+    profile: { name: 'Sam Rivers', baseCurrency: 'EUR', financeCategories: [], habits: [] },
+    tasks: [], people: [], goals: [], links: [], captures: [], memory: [],
+    journal: [], events: [], dailyLogs: {}, accounts: [], observations: [],
+    transactions: [], snapshots: [], syncStates: [],
+  };
+}
+
+describe('migration v2 to v3', () => {
+  it('introduces appointments empty rather than absent', () => {
+    const migrated = migrate(v2Document());
+
+    expect(Array.isArray(migrated.appointments)).toBe(true);
+    expect(migrated.appointments).toHaveLength(0);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v2Document());
+    const twice = migrate(once);
+    expect(twice).toEqual(once);
+  });
+
+  it('leaves every other collection untouched', () => {
+    const withData = { ...v2Document(), tasks: [{ id: 'task_1' }] };
+    const migrated = migrate(withData);
+
+    expect(migrated.tasks).toEqual([{ id: 'task_1' }]);
+  });
+});
