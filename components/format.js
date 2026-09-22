@@ -32,3 +32,14 @@ export function dayKeyToUtcDate(dayKey) {
   const [year, month, day] = dayKey.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day));
 }
+
+/**
+ * A 0..1 ratio as whole percent. One implementation, so the habits ring and
+ * a history row's rate can never round the same number differently.
+ *
+ * @param {number} ratio
+ * @returns {string}
+ */
+export function percent(ratio) {
+  return Math.round(ratio * 100) + '%';
+}

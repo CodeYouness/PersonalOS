@@ -68,6 +68,17 @@ describe('PUT /api/habits/log', () => {
     expect(log.habits).toEqual({ habit_move: true, habit_water: 3 });
   });
 
+  it('corrects a past day -- yesterday\'s check and a counter three days ago', async () => {
+    const yesterday = dates.shiftDayKey(dates.today(), -1);
+    const threeDaysAgo = dates.shiftDayKey(dates.today(), -3);
+
+    expect((await put({ date: yesterday, habitId: 'habit_move', value: true })).status).toBe(200);
+    expect((await put({ date: threeDaysAgo, habitId: 'habit_water', value: 6 })).status).toBe(200);
+
+    expect((await store.getDailyLog(yesterday)).habits.habit_move).toBe(true);
+    expect((await store.getDailyLog(threeDaysAgo)).habits.habit_water).toBe(6);
+  });
+
   it('reports an error for an unknown habit', async () => {
     const response = await put({ date: dates.today(), habitId: 'habit_nope', value: true });
     expect(response.status).toBe(400);

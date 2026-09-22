@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { percent } from '@/components/format.js';
 import HabitsList from '@/components/HabitsList.js';
 import { dayKeysEndingAt, today } from '@/lib/domain/dates.js';
 import { completionRatio, isActiveOn, streak } from '@/lib/domain/derive/habits.js';
@@ -65,7 +66,7 @@ export default async function HabitsCard() {
                 strokeDashoffset={offset}
               />
             </svg>
-            <div className="ring-value num">{Math.round(ratio * 100)}%</div>
+            <div className="ring-value num">{percent(ratio)}</div>
           </div>
           <div>
             <div className="streak-num num">{streakLabel}</div>

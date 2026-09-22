@@ -223,8 +223,8 @@ button:disabled { cursor: not-allowed; }
   min-height: calc(100vh - var(--topbar-h));
 }
 #screen-home .screen-grid { grid-template-rows: auto minmax(280px, 1fr) minmax(240px, 1fr); }
-/* One row while the summary strip (#40) and history heatmap (#39) are
-   still unbuilt; the mockup's `auto minmax(0, 1fr)` arrives with them. */
+/* One row while the summary strip (#40) is still unbuilt; the mockup's
+   `auto minmax(0, 1fr)` arrives with it. */
 #screen-habits .screen-grid { grid-template-rows: minmax(0, 1fr); }
 
 .card {
@@ -384,6 +384,48 @@ button:disabled { cursor: not-allowed; }
   padding: 0 0 var(--s-xs);
 }
 .archived-toggle:hover { color: var(--ink); }
+
+/* ==========================================================================
+   HABITS SCREEN — card-habits-history
+   The mockup's cells are decoration; here every one of them is a button that
+   corrects that day, so the shades hang off `data-v` and the legend reuses
+   the same swatches rather than restating the palette.
+   ========================================================================== */
+.heat-row { display: flex; align-items: center; gap: var(--s-sm); margin-bottom: var(--s-xs); }
+.heat-name { width: 150px; flex: none; font-size: 13px; color: var(--ink-muted); }
+.heat-name .type { font-size: 11px; color: var(--ink-tertiary); }
+.heat-note { margin-bottom: var(--s-md); }
+.heat-cells { display: flex; gap: 2px; flex: 1; min-width: 0; }
+/* The slot keeps a counter's cell its share of the row while anchoring its
+   popover; a check needs no slot, so cells size themselves either way. */
+.heat-slot { display: flex; position: relative; flex: 1; min-width: 0; }
+.heat-cell {
+  flex: 1; min-width: 0; height: 18px; padding: 0;
+  border: none; border-radius: 2px; background: var(--surface-2);
+}
+.heat-cell[data-v="inactive"] { background: none; }
+.heat-cell[data-v="unrecorded"] { background: none; border: 1px solid var(--hairline); }
+.heat-cell[data-v="low"]  { background: rgba(89,212,153,0.22); }
+.heat-cell[data-v="mid"]  { background: rgba(89,212,153,0.40); }
+.heat-cell[data-v="high"] { background: rgba(89,212,153,0.62); }
+.heat-cell[data-v="full"] { background: var(--success); }
+button.heat-cell:hover:not(:disabled) { box-shadow: 0 0 0 1px var(--hairline-strong); }
+button.heat-cell:focus-visible { outline: 2px solid var(--hairline-strong); outline-offset: 1px; }
+button.heat-cell:disabled { opacity: 0.45; }
+.heat-rate { width: 44px; flex: none; font-size: 13px; text-align: right; }
+.heat-legend { display: flex; align-items: center; gap: var(--s-xs); font-size: 11px; color: var(--ink-tertiary); }
+.heat-legend .heat-cell { width: 12px; height: 12px; flex: none; }
+.heat-pop {
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  z-index: 20; display: flex; align-items: center; gap: var(--s-xs);
+  padding: 4px 6px; white-space: nowrap;
+  background: var(--surface-2); border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-md); box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+}
+/* The popover would be clipped by a scrolling card body. A handful of habits
+   over thirty days does not need to scroll; a list long enough to overflow
+   this card would need the popover positioned against the viewport instead. */
+#card-habits-history .card-body { overflow: visible; }
 
 /* ==========================================================================
    HOME — card-calendar

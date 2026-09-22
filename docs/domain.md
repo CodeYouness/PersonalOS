@@ -525,7 +525,7 @@ double counting.
 | --- | --- |
 | profile, habit definitions (including periods) | overdue, days overdue |
 | finance categories | whether a habit is active/archived on a day |
-| task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates |
+| task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates, history heatmap cells |
 | people | health averages, day totals |
 | goals | goal progress when metric-backed |
 | journal entries | monthly spending, income by category |
