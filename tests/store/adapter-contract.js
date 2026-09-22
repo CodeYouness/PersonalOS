@@ -13,6 +13,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ADAPTER_METHODS } from '@/lib/adapters/contract.js';
 import { shiftDayKey, today } from '@/lib/domain/dates.js';
+import { isActiveOn } from '@/lib/domain/derive/habits.js';
 
 /**
  * @param {string} label
@@ -111,6 +112,104 @@ export function runAdapterContract(label, load) {
           { id: 'habit_x', label: 'Stretch', type: 'check', target: null, periods: [] },
         ]);
         await expect(store.updateProfile({ habits })).rejects.toThrow();
+      });
+    });
+
+    describe('habits', () => {
+      it('creates a habit with a server-assigned id and a period open at today', async () => {
+        const before = (await store.getProfile()).habits.length;
+        const habit = await store.createHabit({ label: 'Stretch before bed', type: 'check', target: null });
+
+        expect(habit.id.startsWith('habit_')).toBe(true);
+        expect(habit.periods).toEqual([{ from: today(), to: null }]);
+        expect((await store.getProfile()).habits).toHaveLength(before + 1);
+      });
+
+      it('creates a counter habit with its target', async () => {
+        const habit = await store.createHabit({ label: 'Pages read', type: 'counter', target: 20 });
+        expect(habit.target).toBe(20);
+      });
+
+      it('rejects a create with a bad label, type or target', async () => {
+        await expect(store.createHabit(/** @type {any} */ ({ label: '  ', type: 'check', target: null }))).rejects.toThrow();
+        await expect(store.createHabit(/** @type {any} */ ({ label: 'X', type: 'bogus', target: null }))).rejects.toThrow();
+        await expect(store.createHabit(/** @type {any} */ ({ label: 'X', type: 'counter', target: 0 }))).rejects.toThrow();
+        await expect(store.createHabit(/** @type {any} */ ({ label: 'X', type: 'check', target: 5 }))).rejects.toThrow();
+      });
+
+      it('renames a habit and changes a counter target', async () => {
+        await store.updateHabit('habit_move', { label: 'Move for 45 minutes' });
+        await store.updateHabit('habit_water', { target: 10 });
+
+        const habits = (await store.getProfile()).habits;
+        expect(habits.find((habit) => habit.id === 'habit_move')?.label).toBe('Move for 45 minutes');
+        expect(habits.find((habit) => habit.id === 'habit_water')?.target).toBe(10);
+      });
+
+      it('refuses to change a habit type', async () => {
+        await expect(store.updateHabit('habit_move', /** @type {any} */ ({ type: 'counter' }))).rejects.toThrow();
+      });
+
+      it('refuses a target on a check habit and an unknown id', async () => {
+        await expect(store.updateHabit('habit_move', { target: 4 })).rejects.toThrow();
+        await expect(store.updateHabit('habit_nope', { label: 'X' })).rejects.toThrow();
+      });
+
+      it('archiving closes the open period at today and restoring opens a new one', async () => {
+        const archived = await store.updateHabit('habit_move', { archived: true });
+        expect(archived.periods.at(-1)?.to).toBe(today());
+
+        const restored = await store.updateHabit('habit_move', { archived: false });
+        expect(restored.periods).toHaveLength(2);
+        expect(restored.periods.at(-1)).toEqual({ from: today(), to: null });
+      });
+
+      it('leaves the gap between an archive and a later restore inactive', async () => {
+        // Archiving and restoring on the same day would make a zero-width
+        // gap, which proves nothing. Only a day in between does.
+        const gapStart = shiftDayKey(today(), -10);
+        await store.updateProfile({
+          habits: [
+            {
+              id: 'habit_gap',
+              label: 'Gap',
+              type: 'check',
+              target: null,
+              periods: [{ from: shiftDayKey(today(), -30), to: gapStart }],
+            },
+          ],
+        });
+
+        const restored = await store.updateHabit('habit_gap', { archived: false });
+        expect(restored.periods).toHaveLength(2);
+        expect(isActiveOn(restored, shiftDayKey(today(), -20))).toBe(true);
+        expect(isActiveOn(restored, shiftDayKey(today(), -5))).toBe(false);
+        expect(isActiveOn(restored, today())).toBe(true);
+      });
+
+      it('archiving an archived habit and restoring an active one change nothing', async () => {
+        const archived = await store.updateHabit('habit_move', { archived: true });
+        expect(await store.updateHabit('habit_move', { archived: true })).toEqual(archived);
+
+        const active = await store.getProfile().then((p) => p.habits.find((h) => h.id === 'habit_read'));
+        expect(await store.updateHabit('habit_read', { archived: false })).toEqual(active);
+      });
+
+      it('reorders habits to an exact permutation of the existing ids', async () => {
+        const ids = (await store.getProfile()).habits.map((habit) => habit.id);
+        const reversed = [...ids].reverse();
+
+        const reordered = await store.reorderHabits(reversed);
+        expect(reordered.map((habit) => habit.id)).toEqual(reversed);
+        expect((await store.getProfile()).habits.map((habit) => habit.id)).toEqual(reversed);
+      });
+
+      it('rejects an order that is not a permutation of the existing ids', async () => {
+        const ids = (await store.getProfile()).habits.map((habit) => habit.id);
+        await expect(store.reorderHabits(ids.slice(1))).rejects.toThrow();
+        await expect(store.reorderHabits([...ids, 'habit_nope'])).rejects.toThrow();
+        await expect(store.reorderHabits([...ids.slice(1), ids[1]])).rejects.toThrow();
+        await expect(store.reorderHabits(/** @type {any} */ ('not-an-array'))).rejects.toThrow();
       });
     });
 

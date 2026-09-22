@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import HabitsList from '@/components/HabitsList.js';
 import { dayKeysEndingAt, today } from '@/lib/domain/dates.js';
 import { completionRatio, isActiveOn, streak } from '@/lib/domain/derive/habits.js';
@@ -12,8 +14,8 @@ const STREAK_WINDOW_DAYS = 365;
 
 /**
  * The compact Habits card, ported from design/mockup.html's `#card-habits`.
- * "Open" (to the full Habits screen) is left out: that screen is #38-40, not
- * built yet, and a button with nowhere to go would read as a bug.
+ * "Open" goes to the Habits screen, which #38 built; the summary strip and
+ * history heatmap on it are still #40 and #39.
  *
  * A server component for the same reason CalendarCard is one -- the ring,
  * streak and every habit's starting value are read once per request, no
@@ -41,6 +43,9 @@ export default async function HabitsCard() {
     <article id="card-habits" className="card span-4">
       <div className="card-head">
         <span className="eyebrow">Habits</span>
+        <Link className="btn-ghost" href="/habits">
+          Open
+        </Link>
       </div>
       <div className="card-body">
         <div className="ring-wrap">

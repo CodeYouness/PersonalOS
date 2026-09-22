@@ -88,8 +88,12 @@ throws if it is.
 
 - A **read** in a screen: server component or route handler calls
   `lib/store.js`, then a function from `derive/` if a number is involved.
-- A **write** from the UI: the screen updates optimistically, posts to its
-  route, the route calls the store. On failure it re-reads real state rather
+- A **write** from the UI: the screen posts to its route and the route calls
+  the store. A write that changes one value may update optimistically and
+  roll that value back on failure (`HabitsList`); a write that changes the
+  shape of a list -- its order, its membership -- posts first and re-renders
+  from what the server actually holds (`HabitsManager`), because there is no
+  single value to roll back. Either way a failure re-reads real state rather
   than leaving the screen telling a story that was never saved.
 - A **capture**: classify decides a destination; the same request writes the
   capture, a memory entry, the destination record, the links, and an event.
