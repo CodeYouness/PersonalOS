@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
@@ -7,15 +9,15 @@ import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
 /**
  * The shell's persistent top navigation, ported from design/mockup.html.
  *
- * Only Home has a screen behind it. The other five are shown, not hidden --
- * docs/roadmap.md says they're coming, and a nav item that vanished would
- * read as a bug, not as "not built yet". They render disabled instead of a
- * dead link.
+ * Home and Habits (#38) have screens behind them and are links. The other
+ * four are shown, not hidden -- docs/roadmap.md says they're coming, and a
+ * nav item that vanished would read as a bug, not as "not built yet". They
+ * render disabled instead of a dead link.
  *
- * Client component now that the captures toggle opens the capture log
- * drawer (roadmap item 11): the nav items stay disabled, but the drawer's
- * open/closed state has to live somewhere, and this is the component that
- * owns the toggle -- and, since #21, the fetches behind Delete/Undo/Refile.
+ * Client component because the captures toggle opens the capture log drawer
+ * (roadmap item 11) and this is where that open/closed state lives -- along
+ * with, since #21, the fetches behind Delete/Undo/Refile, and since #38 the
+ * `usePathname` that decides which nav item is the current one.
  *
  * Two elements from the mockup's topbar are still left out rather than shown
  * with fake data: the date caption (the Today card is about to show the real
@@ -23,7 +25,19 @@ import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
  * the (unset) command-palette shortcut.
  */
 
-const COMING_SOON = ['CRM', 'Habits', 'Finances', 'Nutrition & Health', 'Review'];
+/**
+ * The mockup's nav, in its order. A screen with an `href` is a link; one
+ * without is not built yet and renders disabled in place, so graduating a
+ * screen never shuffles the positions of the others.
+ */
+const SCREENS = [
+  { label: 'Home', href: '/' },
+  { label: 'CRM', href: null },
+  { label: 'Habits', href: '/habits' },
+  { label: 'Finances', href: null },
+  { label: 'Nutrition & Health', href: null },
+  { label: 'Review', href: null },
+];
 
 /** @returns {Promise<import('@/components/CaptureLogDrawer.js').CaptureLogRow[]>} */
 async function fetchCaptures() {
@@ -34,6 +48,7 @@ async function fetchCaptures() {
 }
 
 export default function Topbar() {
+  const pathname = usePathname();
   const [isLogOpen, setLogOpen] = useState(false);
   const [captures, setCaptures] = useState(
     /** @type {import('@/components/CaptureLogDrawer.js').CaptureLogRow[] | null} */ (null)
@@ -131,14 +146,22 @@ export default function Topbar() {
         </div>
 
         <nav className="nav">
-          <button className="nav-item" aria-current="page">
-            Home
-          </button>
-          {COMING_SOON.map((label) => (
-            <button key={label} className="nav-item" disabled title="Not built yet">
-              {label}
-            </button>
-          ))}
+          {SCREENS.map((screen) =>
+            screen.href === null ? (
+              <button key={screen.label} className="nav-item" disabled title="Not built yet">
+                {screen.label}
+              </button>
+            ) : (
+              <Link
+                key={screen.label}
+                href={screen.href}
+                className="nav-item"
+                aria-current={pathname === screen.href ? 'page' : undefined}
+              >
+                {screen.label}
+              </Link>
+            )
+          )}
         </nav>
 
         <div className="topbar-right">

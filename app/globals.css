@@ -159,6 +159,7 @@ button:disabled { cursor: not-allowed; }
   font-size: 13px; color: var(--ink-subtle); white-space: nowrap;
   transition: color .12s, background .12s;
 }
+.nav-item { text-decoration: none; }
 .nav-item:hover { color: var(--ink-muted); background: var(--surface-1); }
 .nav-item[aria-current="page"] { color: var(--ink); background: var(--surface-2); }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: var(--s-sm); }
@@ -177,11 +178,26 @@ button:disabled { cursor: not-allowed; }
 .log-toggle .count.has-rules { background: var(--warning-soft); color: var(--warning); }
 .btn-ghost {
   padding: 6px 12px; border-radius: var(--r-md);
+  text-decoration: none; /* a Link styled as a button (the Habits card's Open) */
   border: 1px solid var(--hairline);
   background: var(--surface-2); color: var(--ink-muted);
   font-size: 13px; white-space: nowrap;
 }
 .btn-ghost:hover { border-color: var(--hairline-strong); color: var(--ink); }
+.btn-primary {
+  padding: 8px 14px; border-radius: var(--r-md);
+  background: var(--primary); color: #fff;
+  font-size: 14px; font-weight: var(--w-label);
+}
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary:disabled { opacity: 0.5; }
+.input {
+  width: 100%; padding: 8px 12px;
+  background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  font: inherit; font-size: 14px;
+}
+.input:focus { border-color: var(--hairline-strong); outline: none; }
 /* Screens not built yet (docs/roadmap.md): visible, not a dead link. */
 .nav-item:disabled,
 .log-toggle:disabled {
@@ -207,6 +223,9 @@ button:disabled { cursor: not-allowed; }
   min-height: calc(100vh - var(--topbar-h));
 }
 #screen-home .screen-grid { grid-template-rows: auto minmax(280px, 1fr) minmax(240px, 1fr); }
+/* One row while the summary strip (#40) and history heatmap (#39) are
+   still unbuilt; the mockup's `auto minmax(0, 1fr)` arrives with them. */
+#screen-habits .screen-grid { grid-template-rows: minmax(0, 1fr); }
 
 .card {
   background: var(--surface-1);
@@ -324,6 +343,47 @@ button:disabled { cursor: not-allowed; }
   color: var(--ink-tertiary); background: none;
 }
 .habit-minus:hover { background: var(--surface-4); color: var(--ink-muted); }
+
+/* ==========================================================================
+   HABITS SCREEN — card-habits-manage
+   The mockup's drag grip is an up/down pair (#38): reordering is rare, and
+   drag-and-drop has no keyboard or touch story for a list this short.
+   ========================================================================== */
+.habit-manage {
+  display: flex; align-items: center; gap: var(--s-sm);
+  padding: var(--s-sm); margin-bottom: var(--s-xs);
+  background: var(--surface-2); border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+}
+.habit-manage .habit-name { flex: 1; font-size: 14px; min-width: 0; }
+.habit-manage .type { font-size: 11px; color: var(--ink-tertiary); }
+.habit-manage .actions { display: flex; gap: 4px; margin-left: auto; }
+.habit-manage .move { display: flex; flex-direction: column; gap: 1px; flex: none; }
+.habit-manage.is-archived .habit-name { color: var(--ink-subtle); }
+.habit-manage.is-editing { gap: var(--s-xs); }
+.icon-btn {
+  width: 26px; height: 26px; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-tertiary); background: none;
+  font-size: 12px; line-height: 1;
+}
+.icon-btn:hover:not(:disabled) { background: var(--surface-4); color: var(--ink-muted); }
+.icon-btn.danger:hover:not(:disabled) { background: var(--danger-soft); color: var(--danger); }
+.icon-btn:disabled { opacity: 0.35; }
+.habit-manage .move .icon-btn { height: 16px; }
+.add-habit {
+  display: flex; gap: var(--s-xs); align-items: center; margin-top: var(--s-sm);
+  padding-top: var(--s-sm); border-top: 1px solid var(--hairline);
+}
+.input-target { width: 72px; flex: none; text-align: right; }
+.manage-note { margin-top: var(--s-sm); }
+.caption.is-error { color: var(--danger); margin-bottom: var(--s-sm); }
+.archived { margin-top: var(--s-md); padding-top: var(--s-sm); border-top: 1px solid var(--hairline); }
+.archived-toggle {
+  background: none; color: var(--ink-subtle); font-size: 12px;
+  padding: 0 0 var(--s-xs);
+}
+.archived-toggle:hover { color: var(--ink); }
 
 /* ==========================================================================
    HOME — card-calendar

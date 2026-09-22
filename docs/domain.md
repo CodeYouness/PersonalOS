@@ -355,6 +355,15 @@ progress should be derived instead.
 **Is** something you do every day, configured in the profile, not in code.
 
 **Types** `check` (done or not) and `counter` (counted against a target).
+The type is chosen once and **never changes** (ADR 0016): a check's history
+is booleans and a counter's is numbers, so flipping it would not convert the
+days already logged, it would reinterpret them. Change what you track by
+archiving the old habit and adding a new one.
+
+**Is ordered by its place in the list.** `profile.habits` is an array and
+that array is the order — there is no `position` field the way a task has
+one (ADR 0016). Reordering sends the whole order, which must be an exact
+permutation of what the store holds.
 
 **Is active over periods**, not flagged archived or not (ADR 0015). A period
 is a half-open day-key range, `{ from, to }`: active from `from` up to but
