@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { classify } from '@/lib/classify.js';
+import { personNamedIn } from '@/lib/domain/people.js';
 import {
   createAppointment,
   createCapture,
@@ -62,9 +63,7 @@ export async function POST(request) {
       await createLink({ from: capture.id, to: appointment.id, rel: 'about' });
       await recordEvent({ type: 'appointment.created', subject: appointment.id, source: 'capture' });
 
-      const person = (await getPeople()).find((candidate) =>
-        new RegExp('\\b' + escapeRegExp(candidate.name) + '\\b', 'i').test(text)
-      );
+      const person = personNamedIn(text, await getPeople());
       if (person) {
         await createLink({ from: appointment.id, to: person.id, rel: 'involves' });
       }
@@ -87,9 +86,4 @@ export async function POST(request) {
   }
 
   return NextResponse.json({ destination, route, recordId });
-}
-
-/** @param {string} text */
-function escapeRegExp(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

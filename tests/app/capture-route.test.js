@@ -156,6 +156,19 @@ describe('POST /api/capture', () => {
     expect(involvesLinks.some((link) => link.to === person.id)).toBe(true);
   });
 
+  it('links an appointment to the one person whose first name the text uses', async () => {
+    const person = await store.createPerson({ name: 'Giulia Verdi' });
+
+    vi.useFakeTimers();
+    vi.setSystemTime(A_THURSDAY);
+    const response = await post('riunione con Giulia giovedì alle 15');
+    vi.useRealTimers();
+    const body = await response.json();
+
+    const involvesLinks = await store.getLinks({ from: body.recordId, rel: 'involves' });
+    expect(involvesLinks.map((link) => link.to)).toEqual([person.id]);
+  });
+
   it('rejects empty text instead of filing nothing silently', async () => {
     const response = await post('   ');
     expect(response.status).toBe(400);
