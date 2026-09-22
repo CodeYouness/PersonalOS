@@ -1,7 +1,9 @@
 import CrmBoard from '@/components/CrmBoard.js';
+import CrmDetail, { CrmDetailEmpty } from '@/components/CrmDetail.js';
+import { provenanceLabel } from '@/components/format.js';
 import { toDayKey, today } from '@/lib/domain/dates.js';
 import { boardColumns, ticketAge } from '@/lib/domain/derive/tasks.js';
-import { getPersonForTask, getTasks } from '@/lib/store.js';
+import { getPersonForTask, getProducingCapture, getTask, getTasks } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,8 +13,16 @@ export const dynamic = 'force-dynamic';
  * reads the tasks once per request and derives the columns and every
  * ticket's age here -- `todayKey` included, since lib/domain/dates.js has no
  * configured timezone in the browser (ADR 0012).
+ *
+ * `?task=<id>` selects a task and opens the detail panel (#53). An id that
+ * no longer exists -- deleted, undone from the capture log -- selects
+ * nothing rather than failing.
+ *
+ * @param {{ searchParams: Promise<{ task?: string | string[] }> }} props
  */
-export default async function CrmScreen() {
+export default async function CrmScreen({ searchParams }) {
+  const { task: taskParam } = await searchParams;
+  const selected = typeof taskParam === 'string' ? await getTask(taskParam) : null;
   const todayKey = today();
   const columns = boardColumns(await getTasks(), todayKey);
 
@@ -34,8 +44,25 @@ export default async function CrmScreen() {
   return (
     <section id="screen-crm" className="screen is-active">
       <div className="screen-grid">
-        <CrmBoard columns={tickets} />
+        <CrmBoard columns={tickets} selectedId={selected?.id ?? null} />
+        {selected === null ? (
+          <CrmDetailEmpty />
+        ) : (
+          <CrmDetail key={selected.id} task={selected} provenance={await provenanceFor(selected, todayKey)} />
+        )}
       </div>
     </section>
+  );
+}
+
+/**
+ * @param {import('@/lib/domain/types.js').Task} task
+ * @param {string} todayKey
+ */
+async function provenanceFor(task, todayKey) {
+  const capture = await getProducingCapture(task.id);
+  return provenanceLabel(
+    { createdDayKey: toDayKey(new Date(task.createdAt)), source: task.source, route: capture?.route ?? null },
+    todayKey
   );
 }
