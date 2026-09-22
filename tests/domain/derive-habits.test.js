@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { completionRatio, historyRows, isActiveOn, justCompleted, ratesByHabit, streak } from '@/lib/domain/derive/habits.js';
+import { completionRatio, historyRows, isActiveOn, justCompleted, ratesByHabit, streak, windowSummary } from '@/lib/domain/derive/habits.js';
 import { averagesOverRecordedDays, caloriesFromMacros, dayTotals } from '@/lib/domain/derive/nutrition.js';
 
 const open = (/** @type {string} */ from) => [{ from, to: /** @type {string | null} */ (null) }];
@@ -219,6 +219,79 @@ describe('history heatmap', () => {
   it('dates every cell, so a correction is tracked by habit and day', () => {
     const [row] = historyRows(/** @type {any} */ ([habits[0]]), /** @type {any} */ (windowLogs));
     expect(row.cells.map((cell) => cell.date)).toEqual(windowLogs.map((entry) => entry.date));
+  });
+});
+
+describe('windowSummary', () => {
+  it('reports zeroes, not a division by zero, when nothing was recorded', () => {
+    const summary = windowSummary(/** @type {any} */ (habits), /** @type {any} */ ([
+      log('2026-01-04', {}),
+      log('2026-01-05', {}),
+    ]));
+
+    expect(summary.recordedDays).toBe(0);
+    expect(summary.days).toBe(2);
+    expect(summary.completion).toBe(0);
+    expect(summary.perfectDays).toBe(0);
+  });
+
+  it('averages completion over recorded days only, and counts the window', () => {
+    // An unrecorded day is not a zero (docs/spec.md); counting it would let
+    // forgetting to tick look exactly like failing.
+    const summary = windowSummary(/** @type {any} */ (habits), /** @type {any} */ ([
+      log('2026-01-03', { habit_move: true, habit_water: 8 }),
+      log('2026-01-04', {}),
+      log('2026-01-05', { habit_move: false, habit_water: 4 }),
+    ]));
+
+    expect(summary.recordedDays).toBe(2);
+    expect(summary.days).toBe(3);
+    expect(summary.completion).toBeCloseTo(0.625);
+  });
+
+  it('counts a perfect day out of the recorded days', () => {
+    const summary = windowSummary(/** @type {any} */ (habits), /** @type {any} */ ([
+      log('2026-01-03', { habit_move: true, habit_water: 8 }),
+      log('2026-01-04', { habit_move: true, habit_water: 20 }),
+      log('2026-01-05', { habit_move: true, habit_water: 1 }),
+    ]));
+
+    // Over target is still one perfect day, never one and a quarter.
+    expect(summary.perfectDays).toBe(2);
+    expect(summary.recordedDays).toBe(3);
+  });
+
+  it('does not read a day no habit was active as a zero', () => {
+    // Archiving closes the period at today, so a habit ticked this morning
+    // and archived this afternoon leaves the day recorded with nothing
+    // active on it. Counting that as 0% would let archiving rewrite the
+    // past, which docs/spec.md says it never does -- and would disagree
+    // with the heatmap's own rate for the same window.
+    const archivedToday = [
+      { ...habits[0], periods: [{ from: '2026-01-01', to: '2026-01-05' }] },
+    ];
+    const summary = windowSummary(/** @type {any} */ (archivedToday), /** @type {any} */ ([
+      log('2026-01-04', { habit_move: true }),
+      log('2026-01-05', { habit_move: true }),
+    ]));
+
+    expect(summary.recordedDays).toBe(1);
+    expect(summary.completion).toBe(1);
+    expect(summary.perfectDays).toBe(1);
+  });
+
+  it('stops counting a habit archived mid-window, so the days after it stay perfect', () => {
+    const archivedMidWindow = [
+      habits[0],
+      { ...habits[1], periods: [{ from: '2026-01-01', to: '2026-01-05' }] },
+    ];
+    const summary = windowSummary(/** @type {any} */ (archivedMidWindow), /** @type {any} */ ([
+      log('2026-01-04', { habit_move: true, habit_water: 8 }),
+      log('2026-01-05', { habit_move: true }),
+    ]));
+
+    expect(summary.completion).toBe(1);
+    expect(summary.perfectDays).toBe(2);
   });
 });
 

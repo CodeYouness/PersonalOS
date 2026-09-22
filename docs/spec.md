@@ -94,8 +94,9 @@ down. The type never changes after creation -- archive it and make a new one.
 
 **History** is the last 30 days: one row per habit, one cell per day, and the
 rate for that row. A day with nothing recorded for any habit is drawn as "not
-recorded", never as a failure. The summary above it gives completion, the
-current streak, perfect days and days recorded over the same 30 days.
+recorded", never as a failure. The summary above it gives completion, perfect
+days and days recorded over the same 30 days -- and the current streak, which
+is the running one the home card shows, not a number cut down to the window.
 
 **The timeline hears about it once**: a `habit.ticked` event when a habit's day
 becomes complete, not on every tap and not on a correction downward. Creating,
