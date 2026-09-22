@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { completionRatio, isActiveOn, justCompleted, ratesByHabit, streak } from '@/lib/domain/derive/habits.js';
+import { completionRatio, historyRows, isActiveOn, justCompleted, ratesByHabit, streak } from '@/lib/domain/derive/habits.js';
 import { averagesOverRecordedDays, caloriesFromMacros, dayTotals } from '@/lib/domain/derive/nutrition.js';
 
 const open = (/** @type {string} */ from) => [{ from, to: /** @type {string | null} */ (null) }];
@@ -132,6 +132,93 @@ describe('streak', () => {
     ];
     const rates = ratesByHabit(/** @type {any} */ ([restarted]), /** @type {any} */ (logs));
     expect(rates.habit_restarted).toBe(1);
+  });
+});
+
+describe('history heatmap', () => {
+  /** Five days rather than thirty, so a whole row fits in one assertion. */
+  const windowLogs = [
+    log('2026-01-01', { habit_move: true, habit_water: 8 }),
+    log('2026-01-02', { habit_move: false, habit_water: 2 }),
+    log('2026-01-03', {}),
+    log('2026-01-04', { habit_move: true, habit_water: 4 }),
+    log('2026-01-05', { habit_move: true, habit_water: 7 }),
+  ];
+
+  const states = (/** @type {any} */ row) => row.cells.map((/** @type {any} */ cell) => cell.state);
+
+  it('gives a check only zero and full cells', () => {
+    const [row] = historyRows(/** @type {any} */ ([habits[0]]), /** @type {any} */ (windowLogs));
+    expect(states(row)).toEqual(['full', 'zero', 'unrecorded', 'full', 'full']);
+  });
+
+  it('grades a counter by how close it came to its target', () => {
+    const [row] = historyRows(/** @type {any} */ ([habits[1]]), /** @type {any} */ (windowLogs));
+    expect(states(row)).toEqual(['full', 'low', 'unrecorded', 'mid', 'high']);
+  });
+
+  it('closes each band at its own boundary', () => {
+    const thirds = { id: 'habit_thirds', label: 'Thirds', type: 'counter', target: 3, periods: open('2026-01-01') };
+    const logs = [
+      log('2026-01-01', { habit_thirds: 1 }),
+      log('2026-01-02', { habit_thirds: 2 }),
+      log('2026-01-03', { habit_thirds: 3 }),
+      log('2026-01-04', { habit_thirds: 0 }),
+    ];
+    const [row] = historyRows(/** @type {any} */ ([thirds]), /** @type {any} */ (logs));
+    expect(states(row)).toEqual(['low', 'mid', 'full', 'zero']);
+  });
+
+  it('has no cell on the days before a habit was created', () => {
+    const born = { id: 'habit_new', label: 'New', type: 'check', target: null, periods: open('2026-01-04') };
+    const [row] = historyRows(/** @type {any} */ ([born]), /** @type {any} */ (windowLogs));
+    expect(states(row)).toEqual(['inactive', 'inactive', 'inactive', 'zero', 'zero']);
+  });
+
+  it('has no cell while a habit was archived, and cells again after a restore', () => {
+    const restarted = {
+      id: 'habit_restarted', label: 'Restarted', type: 'check', target: null,
+      periods: [{ from: '2026-01-01', to: '2026-01-02' }, { from: '2026-01-05', to: null }],
+    };
+    const [row] = historyRows(/** @type {any} */ ([restarted]), /** @type {any} */ (windowLogs));
+    expect(states(row)).toEqual(['zero', 'inactive', 'inactive', 'inactive', 'zero']);
+  });
+
+  it('keeps an archived habit\'s row, labelled archived, when it was active in the window', () => {
+    const archived = {
+      id: 'habit_old', label: 'Old', type: 'check', target: null,
+      periods: [{ from: '2026-01-01', to: '2026-01-03' }],
+    };
+    const rows = historyRows(/** @type {any} */ ([...habits, archived]), /** @type {any} */ (windowLogs));
+
+    expect(rows.map((row) => row.habit.id)).toEqual(['habit_move', 'habit_water', 'habit_old']);
+    expect(rows.map((row) => row.archived)).toEqual([false, false, true]);
+  });
+
+  it('drops a habit that was active on no day of the window', () => {
+    const gone = {
+      id: 'habit_gone', label: 'Gone', type: 'check', target: null,
+      periods: [{ from: '2025-12-01', to: '2025-12-20' }],
+    };
+    expect(historyRows(/** @type {any} */ ([gone]), /** @type {any} */ (windowLogs))).toEqual([]);
+  });
+
+  it('carries the rate and the value a correction starts from', () => {
+    const [row] = historyRows(/** @type {any} */ ([habits[1]]), /** @type {any} */ (windowLogs));
+    // A counter's unrecorded day starts a correction from zero, not undefined.
+    expect(row.cells.map((cell) => cell.value)).toEqual([8, 2, 0, 4, 7]);
+    // Recorded days only: (8/8 + 2/8 + 4/8 + 7/8) / 4.
+    expect(row.rate).toBeCloseTo(0.65625);
+  });
+
+  it('starts a check\'s correction from a boolean', () => {
+    const [row] = historyRows(/** @type {any} */ ([habits[0]]), /** @type {any} */ (windowLogs));
+    expect(row.cells.map((cell) => cell.value)).toEqual([true, false, false, true, true]);
+  });
+
+  it('dates every cell, so a correction is tracked by habit and day', () => {
+    const [row] = historyRows(/** @type {any} */ ([habits[0]]), /** @type {any} */ (windowLogs));
+    expect(row.cells.map((cell) => cell.date)).toEqual(windowLogs.map((entry) => entry.date));
   });
 });
 

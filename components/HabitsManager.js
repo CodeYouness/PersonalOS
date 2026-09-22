@@ -112,7 +112,7 @@ export default function HabitsManager({ habits, todayKey }) {
   }
 
   return (
-    <article id="card-habits-manage" className="card span-12">
+    <article id="card-habits-manage" className="card span-5">
       <div className="card-head">
         <span className="eyebrow">Your habits</span>
         <span className="caption">{active.length} active</span>
