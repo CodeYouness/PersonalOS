@@ -246,15 +246,18 @@ appointment is usually in the future.
 **Has** `title`, `date` (day key), `startTime`, `endTime?` — both `HH:MM`,
 24-hour, no timezone, the same posture `lib/domain/dates.js` takes with day
 keys — `calendarLabel` (free text, not a closed vocabulary: an external
-calendar's name is not ours to constrain), plus the four fields every
-canonical entity carries (`id`, `createdAt`, `updatedAt`, `source` — this
-last one the closed `SOURCE_KINDS` list, same as everywhere else, answering
-who created the record: `'capture'` for one filed from a capture,
-`'integration'` for one a sync wrote). `origin`, an `ExternalOrigin | null`,
-is set only by a sync — the same shape `Transaction` and `FinanceAccount`
-already carry, with `externalId` inside it (the iCal `UID`, plus the
-occurrence's `date` for a recurring series — the key a re-sync matches
-against), not a field of its own.
+calendar's name is not ours to constrain), `note` (yours; a sync never sets
+it, the same posture a `Transaction`'s `note` takes), `confirmed` (a
+boolean, true unless a sync dropped the appointment from the source but kept
+it for its `note` or a link — see "Ownership on re-sync" below), plus the
+four fields every canonical entity carries (`id`, `createdAt`, `updatedAt`,
+`source` — this last one the closed `SOURCE_KINDS` list, same as everywhere
+else, answering who created the record: `'capture'` for one filed from a
+capture, `'integration'` for one a sync wrote). `origin`, an
+`ExternalOrigin | null`, is set only by a sync — the same shape `Transaction`
+and `FinanceAccount` already carry, with `externalId` inside it (the iCal
+`UID`, plus the occurrence's `date` for a recurring series — the key a
+re-sync matches against), not a field of its own.
 
 **From a capture**, the classifier recognizes `appointment` only when the
 text carries an explicit date *and* an explicit time — one without the other
@@ -268,13 +271,37 @@ the capture (the same shape `task`/`goals` get), an `appointment.created`
 event (`EVENT_TYPES`), and — when an existing `Person`'s name appears in the
 text — an `involves` link from the appointment to that person.
 
-**Ownership on re-sync**, extending the split ADR 0009 uses for imported
-transactions: `title`, `date`, `startTime`, `endTime` and `calendarLabel`
-belong to the source and are overwritten on every sync. A `note` and any
-`links` will belong to the user and never be touched by one, the same as a
-transaction's — that field lands with whichever ticket first gives an
-appointment a way to be annotated. See ADR 0014 for what happens when the
-source stops mentioning an appointment the user annotated.
+**From a sync**, `lib/integrations/google-calendar/` (kind `calendar` in
+`INTEGRATION_KINDS`) parses the account's iCal feed and expands recurring
+events over `limits.calendarWindowDays` (14 days from today). Only
+`npm run sync:calendar` calls it — never a request handler (ADR 0010) — and
+only that path ever reads `env.calendarIcalUrl`. An all-day or multi-day
+event is skipped and logged, never forced into `date` + `startTime`; a
+recurring event's occurrence gets its own `externalId`
+(`<UID>#<occurrence day key>`), matching ADR 0014's rule for a recurring
+series. Every run writes one `appointment.synced` event (`EVENT_TYPES`),
+`payload` carrying `written`/`skipped` counts — once per run, not once per
+record, the way a run reads as one line on the timeline rather than a burst
+matching however many appointments it touched. `SyncState`
+(`lib/store.js`'s `getSyncStates`/`updateSyncState`) is the complementary
+record: what the *last* run did, kept current rather than appended to.
+
+**Ownership on re-sync** (ADR 0014), extending the split ADR 0009 uses for
+imported transactions: `title`, `date`, `startTime`, `endTime` and
+`calendarLabel` belong to the source and are overwritten on every sync,
+through `upsertAppointmentByOrigin` — never a plain `updateAppointment` with
+a full row, the same rule ADR 0009 states for `upsertTransactionByOrigin`.
+`note` and any `links` belong to the user; `updateAppointment` is the only
+path that can touch them, and a sync never calls it for either. When a
+previously-synced appointment's `externalId` is absent from a fresh sync
+*and* its `date` falls inside the window this run actually asked the source
+about, it is deleted — unless it carries a `note` or a link, in which case
+`confirmed` is set to `false` instead and the record stays. A later sync
+that sees the same `externalId` again sets `confirmed` back to `true`,
+undoing the flag without ever touching the `note` or the links themselves.
+An appointment whose `date` has simply aged past the window, or sits beyond
+it, is left alone either way — this run never asked the source about it, so
+its absence proves nothing.
 
 **All-day and multi-day events are out of scope.** Neither fits `date` +
 `startTime`; a sync skips them and logs what it dropped rather than forcing

@@ -18,11 +18,13 @@
     "test:watch": "vitest",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "check:secrets": "node scripts/check-secrets.js",
-    "data:reset": "node scripts/reset-data.js"
+    "data:reset": "node scripts/reset-data.js",
+    "sync:calendar": "node scripts/sync-calendar.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
     "next": "16.3.4",
+    "node-ical": "^0.27.1",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

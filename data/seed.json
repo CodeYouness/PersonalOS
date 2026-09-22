@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -137,7 +137,9 @@
       "origin": null,
       "createdAt": "2026-09-01T08:00:00.000Z",
       "updatedAt": "2026-09-01T08:00:00.000Z",
-      "source": "seed"
+      "source": "seed",
+      "note": "",
+      "confirmed": true
     },
     {
       "id": "appointment_seed_2",
@@ -149,7 +151,9 @@
       "origin": null,
       "createdAt": "2026-09-01T08:00:00.000Z",
       "updatedAt": "2026-09-01T08:00:00.000Z",
-      "source": "seed"
+      "source": "seed",
+      "note": "",
+      "confirmed": true
     },
     {
       "id": "appointment_seed_3",
@@ -161,7 +165,9 @@
       "origin": null,
       "createdAt": "2026-09-01T08:00:00.000Z",
       "updatedAt": "2026-09-01T08:00:00.000Z",
-      "source": "seed"
+      "source": "seed",
+      "note": "",
+      "confirmed": true
     },
     {
       "id": "appointment_seed_4",
@@ -173,7 +179,9 @@
       "origin": null,
       "createdAt": "2026-09-01T08:00:00.000Z",
       "updatedAt": "2026-09-01T08:00:00.000Z",
-      "source": "seed"
+      "source": "seed",
+      "note": "",
+      "confirmed": true
     },
     {
       "id": "appointment_seed_5",
@@ -185,7 +193,9 @@
       "origin": null,
       "createdAt": "2026-09-01T08:00:00.000Z",
       "updatedAt": "2026-09-01T08:00:00.000Z",
-      "source": "seed"
+      "source": "seed",
+      "note": "",
+      "confirmed": true
     },
     {
       "id": "appointment_seed_6",
@@ -197,7 +207,9 @@
       "origin": null,
       "createdAt": "2026-09-01T08:00:00.000Z",
       "updatedAt": "2026-09-01T08:00:00.000Z",
-      "source": "seed"
+      "source": "seed",
+      "note": "",
+      "confirmed": true
     },
     {
       "id": "appointment_seed_7",
@@ -209,7 +221,9 @@
       "origin": null,
       "createdAt": "2026-09-01T08:00:00.000Z",
       "updatedAt": "2026-09-01T08:00:00.000Z",
-      "source": "seed"
+      "source": "seed",
+      "note": "",
+      "confirmed": true
     }
   ],
   "people": [

@@ -155,7 +155,7 @@ export function runAdapterContract(label, load) {
         }
       });
 
-      it('creates an appointment with no end time by default', async () => {
+      it('creates an appointment with no end time, an empty note and confirmed by default', async () => {
         const created = await store.createAppointment({
           title: 'Riunione con Marco',
           date: '2026-09-10',
@@ -165,7 +165,52 @@ export function runAdapterContract(label, load) {
         expect(created.id).toMatch(/^appointment_/);
         expect(created.endTime).toBeNull();
         expect(created.origin).toBeNull();
+        expect(created.note).toBe('');
+        expect(created.confirmed).toBe(true);
         expect(await store.getAppointment(created.id)).toEqual(created);
+      });
+
+      it('updates the note and confirmed flag, and rejects an unknown field', async () => {
+        const created = await store.createAppointment({
+          title: 'Riunione con Marco',
+          date: '2026-09-10',
+          startTime: '15:00',
+        });
+
+        const updated = await store.updateAppointment(created.id, {
+          note: 'bring the contract',
+          confirmed: false,
+        });
+
+        expect(updated.note).toBe('bring the contract');
+        expect(updated.confirmed).toBe(false);
+        // title/date/startTime are the source's to overwrite on a re-sync,
+        // never a hand patch -- upsertAppointmentByOrigin is the only path
+        // that touches them.
+        await expect(
+          store.updateAppointment(created.id, { title: 'Renamed' })
+        ).rejects.toThrow();
+      });
+
+      it('upserts a synced appointment without touching the note a user added', async () => {
+        const origin = {
+          source: 'google-calendar', externalId: 'evt-1', syncedAt: '2026-09-09T00:00:00.000Z',
+        };
+        const synced = await store.createAppointment({
+          title: 'Dentist', date: '2026-09-10', startTime: '15:00', origin, source: 'integration',
+        });
+        await store.updateAppointment(synced.id, { note: 'ask about the retainer' });
+
+        // The calendar moved the meeting by 30 minutes on the next sync.
+        const resynced = await store.upsertAppointmentByOrigin({
+          title: 'Dentist appointment', date: '2026-09-10', startTime: '15:30', origin,
+        });
+
+        expect(resynced.id).toBe(synced.id);
+        expect(resynced.startTime).toBe('15:30');
+        expect(resynced.title).toBe('Dentist appointment');
+        // THIS is the assertion the whole two-zone design (ADR 0014) exists for.
+        expect(resynced.note).toBe('ask about the retainer');
       });
 
       it('refuses a missing or malformed date or time', async () => {

@@ -1,6 +1,6 @@
 import { dayKeyToUtcDate } from '@/components/format.js';
 import { env } from '@/lib/config/env.js';
-import { today, weekDayKeys } from '@/lib/domain/dates.js';
+import { formatTimeInZone, today, weekDayKeys } from '@/lib/domain/dates.js';
 import { dayAgenda, weekDensity } from '@/lib/domain/derive/calendar.js';
 import { getAppointments } from '@/lib/store.js';
 
@@ -30,7 +30,7 @@ export default async function CalendarCard({ day }) {
   // A server component renders once per request (see TodayCard), so "now"
   // is a snapshot at render time, not a ticking clock -- and it only means
   // anything on today's own agenda.
-  const nowTime = selectedDay === todayKey ? currentTime(env.timezone) : null;
+  const nowTime = selectedDay === todayKey ? formatTimeInZone(new Date(), env.timezone) : null;
 
   return (
     <article id="card-calendar" className="card span-8">
@@ -107,19 +107,6 @@ function NowLine({ time }) {
       <span className="rule" />
     </div>
   );
-}
-
-/**
- * @param {string} timezone
- * @returns {string} HH:MM, 24-hour, in the given timezone
- */
-function currentTime(timezone) {
-  return new Intl.DateTimeFormat('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: timezone,
-  }).format(new Date());
 }
 
 /** @param {string[]} week Monday through Sunday day keys */

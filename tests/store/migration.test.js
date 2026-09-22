@@ -173,3 +173,44 @@ describe('migration v2 to v3', () => {
     expect(migrated.tasks).toEqual([{ id: 'task_1' }]);
   });
 });
+
+/** A minimal v3 document, with one pre-sync appointment shape. */
+function v3Document() {
+  return {
+    ...v2Document(),
+    schemaVersion: 3,
+    appointments: [
+      {
+        id: 'appointment_1', title: 'Dentist', date: '2026-09-10', startTime: '15:00',
+        endTime: null, calendarLabel: '', origin: null,
+        createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z', source: 'seed',
+      },
+    ],
+  };
+}
+
+describe('migration v3 to v4', () => {
+  it('gives every existing appointment an empty note and confirmed: true', () => {
+    const migrated = migrate(v3Document());
+    const appointment = migrated.appointments[0];
+
+    expect(appointment.note).toBe('');
+    expect(appointment.confirmed).toBe(true);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v3Document());
+    const twice = migrate(once);
+    expect(twice).toEqual(once);
+  });
+
+  it('leaves the appointment fields the source already owns untouched', () => {
+    const migrated = migrate(v3Document());
+    const appointment = migrated.appointments[0];
+
+    expect(appointment.title).toBe('Dentist');
+    expect(appointment.date).toBe('2026-09-10');
+    expect(appointment.startTime).toBe('15:00');
+  });
+});

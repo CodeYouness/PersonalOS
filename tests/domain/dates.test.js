@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   dayKeyRange,
   dayKeysEndingAt,
+  formatTimeInZone,
   isDayKey,
   shiftDayKey,
   toDayKey,
@@ -27,6 +28,22 @@ describe('toDayKey', () => {
     expect(toDayKey(instant, 'UTC')).toBe('2026-01-01');
     expect(toDayKey(instant, 'Europe/Rome')).toBe('2026-01-01');
     expect(toDayKey(instant, 'America/New_York')).toBe('2025-12-31');
+  });
+});
+
+describe('formatTimeInZone', () => {
+  it('resolves the wall-clock time in the requested zone, not the server zone', () => {
+    // 22:30 UTC is 00:30 the next day in Rome (UTC+2 in June) -- the same
+    // failure toDayKey() above exists to prevent, for the time half.
+    const instant = new Date('2026-06-15T22:30:00Z');
+
+    expect(formatTimeInZone(instant, 'Europe/Rome')).toBe('00:30');
+    expect(formatTimeInZone(instant, 'UTC')).toBe('22:30');
+    expect(formatTimeInZone(instant, 'America/New_York')).toBe('18:30');
+  });
+
+  it('pads a single-digit hour or minute', () => {
+    expect(formatTimeInZone(new Date('2026-01-01T05:03:00Z'), 'UTC')).toBe('05:03');
   });
 });
 
