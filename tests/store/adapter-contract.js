@@ -12,6 +12,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ADAPTER_METHODS } from '@/lib/adapters/contract.js';
+import { shiftDayKey, today } from '@/lib/domain/dates.js';
 
 /**
  * @param {string} label
@@ -604,6 +605,77 @@ export function runAdapterContract(label, load) {
         await expect(
           store.updateDailyLog('2026-04-02', { mood: 'good' })
         ).rejects.toThrow();
+      });
+    });
+
+    describe('logHabitValue', () => {
+      it("writes one value into the day's habits record", async () => {
+        const log = await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_move', value: true });
+        expect(log.habits).toEqual({ habit_move: true });
+        expect((await store.getDailyLog('2026-04-02')).habits).toEqual({ habit_move: true });
+      });
+
+      it('merges alongside another habit already logged that day, never overwriting it', async () => {
+        await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_move', value: true });
+        await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_water', value: 3 });
+
+        const log = await store.getDailyLog('2026-04-02');
+        expect(log.habits).toEqual({ habit_move: true, habit_water: 3 });
+      });
+
+      it('survives two concurrent writes on two different habits', async () => {
+        await Promise.all([
+          store.logHabitValue({ date: '2026-04-02', habitId: 'habit_move', value: true }),
+          store.logHabitValue({ date: '2026-04-02', habitId: 'habit_water', value: 5 }),
+        ]);
+
+        const log = await store.getDailyLog('2026-04-02');
+        expect(log.habits).toEqual({ habit_move: true, habit_water: 5 });
+      });
+
+      it('rejects an unknown habit', async () => {
+        await expect(
+          store.logHabitValue({ date: '2026-04-02', habitId: 'habit_nope', value: true })
+        ).rejects.toThrow();
+      });
+
+      it('rejects a wrong value type for the habit', async () => {
+        await expect(
+          store.logHabitValue(/** @type {any} */ ({ date: '2026-04-02', habitId: 'habit_move', value: 'yes' }))
+        ).rejects.toThrow();
+        await expect(
+          store.logHabitValue({ date: '2026-04-02', habitId: 'habit_water', value: true })
+        ).rejects.toThrow();
+        await expect(
+          store.logHabitValue({ date: '2026-04-02', habitId: 'habit_water', value: -1 })
+        ).rejects.toThrow();
+        await expect(
+          store.logHabitValue({ date: '2026-04-02', habitId: 'habit_water', value: 1.5 })
+        ).rejects.toThrow();
+      });
+
+      it('rejects a future day', async () => {
+        const tomorrow = shiftDayKey(today(), 1);
+        await expect(
+          store.logHabitValue({ date: tomorrow, habitId: 'habit_move', value: true })
+        ).rejects.toThrow();
+      });
+
+      it('rejects a day the habit was not active', async () => {
+        await expect(
+          store.logHabitValue({ date: '2020-01-01', habitId: 'habit_move', value: true })
+        ).rejects.toThrow();
+      });
+
+      it('records habit.ticked exactly on the transition to complete', async () => {
+        await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_water', value: 4 });
+        await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_water', value: 8 });
+        await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_water', value: 9 });
+        await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_water', value: 3 });
+
+        const events = await store.getEvents({});
+        const ticked = events.filter((event) => event.type === 'habit.ticked' && event.subject === 'habit_water');
+        expect(ticked).toHaveLength(1);
       });
     });
 
