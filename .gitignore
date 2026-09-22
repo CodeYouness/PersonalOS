@@ -67,3 +67,9 @@ next-env.d.ts
 /.claude/.proven-config-version
 /.worktrees/
 /.superpowers/
+/.playwright-mcp/
+/.swarm/
+/ruvector.db
+
+# Raw ideas before grilling. Personal; this repository is public.
+/.scratch/ideas.md
