@@ -30,8 +30,8 @@ decision becomes easy once that is settled.
 ## Capture
 
 Text arrives from the capture bar on the dashboard, by keyboard or by the
-browser's speech recognition. It is classified into one of seven destinations
--- task, people, finance, nutrition, health, goals, memory -- and produces a
+browser's speech recognition. It is classified into one of eight destinations
+-- task, people, finance, nutrition, health, goals, memory, appointment -- and produces a
 raw capture record, a memory entry, and whatever the destination owns.
 
 The classification is validated against the canonical list, and how it was
@@ -105,6 +105,41 @@ to you, and writes no event.
 
 Not yet: a period selector, the longest streak, per-habit streaks, ticking a
 habit from the capture bar, and linking a habit to a goal from the UI.
+
+## CRM
+
+"Who is waiting on me, and how urgently", answered on a CRM screen reached
+from the navigation. There is no CRM card on the home screen: the Session
+card already is the home view of tasks, and it stays read-only.
+
+**The board** shows every open task in four columns -- Overdue, Today, This
+week, Later -- most urgent first inside each. Overdue is something that
+happens to a `today` task whose day has passed; it is a column, never a band
+you choose. Each ticket shows who it involves, its temperature, its tags, and
+its age: days since it was created, the same meaning in every column. A
+completed task leaves the board.
+
+**By person** groups the same open tasks by who they are owed to, the person
+waiting hardest first, and the tasks nobody is linked to last.
+
+**The detail panel** opens on the task you select and edits what is yours:
+title, note, band, temperature, tags and the person. Choosing a band restarts
+its clock -- choosing Today on an overdue task means "yes, today, really" and
+takes it out of Overdue. Complete records it on the timeline and offers
+Reopen until the panel closes; Delete asks first, and a capture that produced
+the task keeps its sentence. The panel says where the task came from and how
+it was filed.
+
+**A person is added by you, never guessed.** The Person field picks from your
+people or adds a new one by name. A capture filed as `people` becomes a task
+linked to the person it names -- by full name, or by a first name only one
+person has -- and never creates a person, so a misspelling never becomes a
+duplicate.
+
+**Tasks are created by capture.** The screen has no form for a new one.
+
+Not yet: search, drag, editing a person's details, a CRM card on the home
+screen, and the mockup's "Blocked" section.
 
 ## Memory
 

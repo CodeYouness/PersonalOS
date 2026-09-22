@@ -119,7 +119,7 @@ before pushing. Git history does not forget.
 ## Picking this up cold
 
 `docs/roadmap.md` says what exists and what comes next. `docs/decisions/` says
-why. The next free ADR number is **0015**.
+why. The next free ADR number is **0018**.
 
 Open work is GitHub issues on `CodeYouness/PersonalOS`. Read the open pull
 requests before you start: a feature ships as a stack of one-ticket branches,
