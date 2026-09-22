@@ -42,6 +42,15 @@ export const ENTITY_TYPES = Object.freeze([
 ]);
 
 /**
+ * The destinations filed as a task. `people` differs from `task` in intent,
+ * not in kind: both are a commitment, linked to whoever the sentence names
+ * (docs/domain.md, "Task").
+ *
+ * @type {readonly string[]}
+ */
+export const TASK_DESTINATIONS = Object.freeze(['task', 'people']);
+
+/**
  * The capture destinations. Single source of truth: the classifier is
  * validated against this list, and a destination the model invents is
  * rejected rather than producing an orphan record.

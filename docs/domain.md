@@ -104,18 +104,18 @@ edit:
 
 | Action | Removes | Survives |
 | --- | --- | --- |
-| **Undo** | the produced record (task/goal/appointment) and its `about` link | the capture and its memory entry — the fact you said it stays true |
-| **Refile** | same as Undo, then files into a new `destination` (a new record if that destination is `task`/`goals`) | the capture; `destination` is updated, `route` is not |
+| **Undo** | the produced record (task/goal/appointment) and its links | the capture and its memory entry — the fact you said it stays true |
+| **Refile** | same as Undo, then files into a new `destination` (a new record if that destination is `task`/`people`/`goals`) | the capture; `destination` is updated, `route` is not |
 | **Delete** | everything the capture produced — capture, memory entry, produced record, links | nothing |
 
 Undo only applies where there is a produced record to retract — today that
-is `task`, `goals` and `appointment`; the other four destinations have
-nothing for Undo to act on beyond Delete. Refile has no such restriction: it
-works from any destination, including the four that file as capture + memory
-only — there is simply nothing to retract before it creates the new record.
-Refiling *into* `appointment` is one of those: the drawer has no date/time
-input, so it only updates `destination` — same as refiling into any of the
-four, and unlike refiling into `task`/`goals`.
+is `task`, `people`, `goals` and `appointment`; the other four destinations
+have nothing for Undo to act on beyond Delete. Refile has no such
+restriction: it works from any destination, including the four that file as
+capture + memory only — there is simply nothing to retract before it creates
+the new record. Refiling *into* `appointment` is one of those: the drawer has
+no date/time input, so it only updates `destination` — same as refiling into
+any of the four, and unlike refiling into `task`/`people`/`goals`.
 
 Both are refused once the produced record has been touched since creation
 (`completedAt` set, or `updatedAt !== createdAt`): the user's own work on that
@@ -197,8 +197,10 @@ Append-only. Nothing edits an event.
 **Is** a commitment, almost always owed to someone.
 
 **Is not** a calendar event, and not a diary entry. It is the single entity
-behind both the `task` and the `people` capture destinations: those differ in
-whether a person is linked, not in kind. There is no separate "CRM item".
+behind both the `task` and the `people` capture destinations: both file a
+task, linked with `involves` to the person the sentence names (see "Naming a
+person" under Person), and neither ever creates a person. There is no
+separate "CRM item".
 
 **Has** `title`, `note`, `band`, `bandSetOn`, `temperature`, `tags`,
 `position`, `completedAt`.
@@ -317,6 +319,10 @@ them into a shape that misrepresents them.
 **Is not** a contact book. No pipeline, no deal, no stage.
 
 **Has** `name`, `organization`, `kind`, `note`.
+
+**Created by you, never by a capture** (ADR 0018). A capture only links a
+person who already exists; a name it does not recognise links no one rather
+than becoming a person, so a misspelling never becomes a duplicate.
 
 **Relations** tasks link to a person with `involves`. `getTasksForPerson()` in
 the store is the named operation for the grouping view, so no component ever
@@ -567,7 +573,7 @@ Recorded rather than answered, so nobody silently invents an answer:
    default to `week`, and let the classifier return a period when it can tell.
 2. A capture filed as `health` needs a metric to land in. Weight is the
    obvious first one; the column gets built when the data exists, not before.
-3. Whether `people` should create a Person when the name is new, or only link
-   an existing one. Creating silently risks duplicates from spelling.
+3. **Answered (ADR 0018):** a capture never creates a Person; it only links
+   an existing one. Creating silently risked duplicates from spelling.
 4. Whether a capture filed as `finance` should create a Transaction. Today it
    becomes a note on the day and a memory entry, and never touches net worth.

@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
 
 import { classify } from '@/lib/classify.js';
-import { personNamedIn } from '@/lib/domain/people.js';
 import {
   createAppointment,
   createCapture,
   createGoal,
   createLink,
   createMemoryEntry,
-  createTask,
-  getPeople,
+  fileCaptureAsTask,
+  linkPersonNamedIn,
   recordEvent,
 } from '@/lib/store.js';
+import { TASK_DESTINATIONS } from '@/personalos.config.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,9 +21,10 @@ export const dynamic = 'force-dynamic';
  * destination record when there is one, the links between them, and an
  * event.
  *
- * Only the capture write is load-bearing. `task`, `goals` and `appointment`
- * get a real destination record; the other four file as capture + memory
- * only, since a fabricated transaction or person would be worse than none,
+ * Only the capture write is load-bearing. `task` and `people` file a task
+ * (linked to the person the sentence names), `goals` and `appointment` their
+ * own record; the other four file as capture + memory only, since a
+ * fabricated transaction or person would be worse than none,
  * and `docs/domain.md` calls "nothing but a memory entry" a valid outcome,
  * not a shortfall. Everything after the capture is enrichment: if it fails
  * partway, the capture the user just said is still there, which is the
@@ -43,10 +44,10 @@ export async function POST(request) {
 
   let recordId = null;
   try {
-    if (destination === 'task') {
-      const task = await createTask({ title: fields.title ?? text, source: 'capture' });
+    if (TASK_DESTINATIONS.includes(destination)) {
+      const task = await fileCaptureAsTask(capture, fields.title ?? text);
       recordId = task.id;
-      await createLink({ from: capture.id, to: task.id, rel: 'about' });
+      await linkPersonNamedIn(task.id, text);
     } else if (destination === 'goals') {
       const goal = await createGoal({ name: fields.title ?? text, source: 'capture' });
       recordId = goal.id;
@@ -63,10 +64,7 @@ export async function POST(request) {
       await createLink({ from: capture.id, to: appointment.id, rel: 'about' });
       await recordEvent({ type: 'appointment.created', subject: appointment.id, source: 'capture' });
 
-      const person = personNamedIn(text, await getPeople());
-      if (person) {
-        await createLink({ from: appointment.id, to: person.id, rel: 'involves' });
-      }
+      await linkPersonNamedIn(appointment.id, text);
     }
 
     // createMemoryEntry links the memory back to the capture itself
