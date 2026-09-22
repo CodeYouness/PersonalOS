@@ -4,6 +4,8 @@
  * rendering concern, not a rule about what a name means.
  */
 
+import { STREAK_WINDOW_DAYS } from '@/lib/domain/derive/habits.js';
+
 /** @param {string} name */
 export function initials(name) {
   return name
@@ -31,6 +33,18 @@ export function formatTime(isoInstant) {
 export function dayKeyToUtcDate(dayKey) {
   const [year, month, day] = dayKey.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day));
+}
+
+/**
+ * A streak as it is shown. The count can only ever look back over the window
+ * the logs were read for, so at the window's edge it says "365+" rather than
+ * claiming a number it cannot know.
+ *
+ * @param {number} days
+ * @returns {string}
+ */
+export function streakLabel(days) {
+  return days >= STREAK_WINDOW_DAYS ? STREAK_WINDOW_DAYS + '+' : String(days);
 }
 
 /**

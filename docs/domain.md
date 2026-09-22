@@ -380,7 +380,18 @@ deleted.
 
 The **streak** counts backwards over consecutive days with at least one
 *active* habit completed. A day still in progress does not break it —
-breaking a streak at 00:01 would be punishing someone for waking up.
+breaking a streak at 00:01 would be punishing someone for waking up. It
+is counted over the last 365 days, one window shared by every screen that
+shows it, so the home card and the Habits screen can never disagree — the
+Habits screen's thirty-day window does not cut it down (ADR 0017).
+
+The **thirty-day summary** on the Habits screen averages completion over the
+days that were *recorded*, and counts perfect days out of those same days —
+an unrecorded day is not a zero, and averaging one in would make a week you
+forgot to tick look like a week you failed. A day no habit was active on is
+left out for the same reason (ADR 0017). **Days recorded** is the honest
+denominator alongside it: how many of the thirty days there is anything to
+average at all.
 
 ---
 
@@ -525,7 +536,7 @@ double counting.
 | --- | --- |
 | profile, habit definitions (including periods) | overdue, days overdue |
 | finance categories | whether a habit is active/archived on a day |
-| task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates, history heatmap cells |
+| task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates, history heatmap cells, the thirty-day summary |
 | people | health averages, day totals |
 | goals | goal progress when metric-backed |
 | journal entries | monthly spending, income by category |

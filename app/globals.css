@@ -223,9 +223,9 @@ button:disabled { cursor: not-allowed; }
   min-height: calc(100vh - var(--topbar-h));
 }
 #screen-home .screen-grid { grid-template-rows: auto minmax(280px, 1fr) minmax(240px, 1fr); }
-/* One row while the summary strip (#40) is still unbuilt; the mockup's
-   `auto minmax(0, 1fr)` arrives with it. */
-#screen-habits .screen-grid { grid-template-rows: minmax(0, 1fr); }
+/* The summary strip takes the height it needs; the manage and history cards
+   share what is left. */
+#screen-habits .screen-grid { grid-template-rows: auto minmax(0, 1fr); }
 
 .card {
   background: var(--surface-1);
@@ -343,6 +343,19 @@ button:disabled { cursor: not-allowed; }
   color: var(--ink-tertiary); background: none;
 }
 .habit-minus:hover { background: var(--surface-4); color: var(--ink-muted); }
+
+/* ==========================================================================
+   HABITS SCREEN — card-habits-summary
+   A row of numbers, no selector: the window is fixed, so the stats wrap on a
+   narrow screen rather than scrolling sideways past the ones off the edge.
+   ========================================================================== */
+.stat-row { display: flex; gap: var(--s-xl); flex-wrap: wrap; }
+.stat .k { color: var(--ink-subtle); font-size: 12px; }
+.stat .v { font-size: 22px; letter-spacing: -0.6px; font-weight: var(--w-display); }
+/* The unit rides with the number rather than sitting on the baseline of a
+   22px figure. */
+.stat .v .caption { font-size: 12px; font-weight: var(--w-body); }
+.stat-note { margin: var(--s-md) 0 0; }
 
 /* ==========================================================================
    HABITS SCREEN — card-habits-manage
@@ -552,7 +565,8 @@ button.heat-cell:disabled { opacity: 0.45; }
 @media (max-width: 1200px) {
   .span-3, .span-4, .span-5 { grid-column: span 6; }
   .span-7, .span-8 { grid-column: span 12; }
-  #screen-home .screen-grid { grid-template-rows: none; }
+  #screen-home .screen-grid,
+  #screen-habits .screen-grid { grid-template-rows: none; }
   .card-body { overflow: visible; }
 }
 @media (max-width: 760px) {
