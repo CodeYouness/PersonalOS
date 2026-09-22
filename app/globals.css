@@ -478,6 +478,13 @@ button.heat-cell:disabled { opacity: 0.45; }
 }
 .badge-tag { background: var(--surface-3); color: var(--ink-subtle); font-weight: var(--w-body); }
 .ticket-age { font-family: var(--font-mono); font-size: 10px; color: var(--ink-tertiary); margin-left: auto; }
+.view-toggle { display: flex; gap: var(--s-xs); }
+.view-toggle [aria-current='page'] { color: var(--ink); border-color: var(--hairline-strong); background: var(--surface-4); }
+/* By person (#56): one section per person, tickets flowing in a grid. */
+#card-crm-board .card-body.is-grouped { overflow: auto; }
+.person-groups { display: flex; flex-direction: column; gap: var(--s-md); }
+.person-group .col-head .name { color: var(--ink-subtle); }
+.person-tickets { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 var(--s-sm); }
 
 /* ==========================================================================
    CRM SCREEN — card-crm-detail

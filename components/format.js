@@ -48,6 +48,16 @@ export function streakLabel(days) {
 }
 
 /**
+ * A person as the CRM names them: "Marta Oliveira — Nordis", or the name
+ * alone when there is no organization.
+ *
+ * @param {{ name: string, organization: string }} person
+ */
+export function personLabel(person) {
+  return person.organization ? person.name + ' — ' + person.organization : person.name;
+}
+
+/**
  * A task's age on a board ticket: "0d", "3d". Long form in `ageTitle`.
  *
  * @param {number} days

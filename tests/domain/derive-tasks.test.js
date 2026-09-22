@@ -7,6 +7,7 @@ import {
   displayBand,
   dueToday,
   isOverdue,
+  personGroups,
   sortByUrgency,
   ticketAge,
 } from '@/lib/domain/derive/tasks.js';
@@ -119,5 +120,45 @@ describe('the CRM board', () => {
     /** @param {Date} instant */
     const inRome = (instant) => toDayKey(instant, 'Europe/Rome');
     expect(ticketAge(task({ createdAt: '2026-01-07T10:00:00.000Z' }), '2026-01-05', inRome)).toBe(0);
+  });
+});
+
+describe('By person', () => {
+  const tasks = [
+    task({ id: 'task_tom_week', band: 'week' }),
+    task({ id: 'task_marta_hot', band: 'today', bandSetOn: '2026-01-05', temperature: 'hot' }),
+    // The most urgent task of all is owed to no one -- and No one still comes last.
+    task({ id: 'task_nobody', band: 'today', bandSetOn: '2025-12-01', temperature: 'hot' }),
+    task({ id: 'task_marta_later', band: 'later' }),
+    task({ id: 'task_tom_stale', band: 'today', bandSetOn: '2026-01-01' }),
+    task({ id: 'task_ann_done', band: 'today', completedAt: '2026-01-04T10:00:00.000Z' }),
+  ];
+  /** @type {Record<string, string>} */
+  const owedTo = {
+    task_tom_week: 'person_tom',
+    task_tom_stale: 'person_tom',
+    task_marta_hot: 'person_marta',
+    task_marta_later: 'person_marta',
+    task_ann_done: 'person_ann',
+  };
+  /** @param {string} id */
+  const personOf = (id) => owedTo[id] ?? null;
+
+  it('groups open tasks by person, whoever waits hardest first, no one last', () => {
+    const groups = personGroups(tasks, personOf, '2026-01-05');
+
+    expect(groups.map((group) => group.personId)).toEqual(['person_tom', 'person_marta', null]);
+    expect(groups[0].tasks.map((entry) => entry.id)).toEqual(['task_tom_stale', 'task_tom_week']);
+    expect(groups[1].tasks.map((entry) => entry.id)).toEqual(['task_marta_hot', 'task_marta_later']);
+    expect(groups[2].tasks.map((entry) => entry.id)).toEqual(['task_nobody']);
+  });
+
+  it('leaves out a person whose tasks are all completed, and an empty No one', () => {
+    const groups = personGroups(
+      tasks.filter((entry) => entry.id !== 'task_nobody'),
+      personOf,
+      '2026-01-05'
+    );
+    expect(groups.map((group) => group.personId)).toEqual(['person_tom', 'person_marta']);
   });
 });
