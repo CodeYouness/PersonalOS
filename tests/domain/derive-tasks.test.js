@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { dayKeyRange } from '@/lib/domain/dates.js';
-import { daysOverdue, displayBand, dueToday, isOverdue, sortByUrgency } from '@/lib/domain/derive/tasks.js';
+import { dayKeyRange, toDayKey } from '@/lib/domain/dates.js';
+import {
+  boardColumns,
+  daysOverdue,
+  displayBand,
+  dueToday,
+  isOverdue,
+  sortByUrgency,
+  ticketAge,
+} from '@/lib/domain/derive/tasks.js';
 
 /**
  * @param {Partial<import('@/lib/domain/types.js').Task>} overrides
@@ -73,5 +81,43 @@ describe('ordering', () => {
     );
 
     expect(due.map((entry) => entry.id)).toEqual(['task_c', 'task_b']);
+  });
+});
+
+describe('the CRM board', () => {
+  it('puts every open task in its display column, most urgent first', () => {
+    const columns = boardColumns(
+      [
+        task({ id: 'task_stale', band: 'today', bandSetOn: '2026-01-02' }),
+        task({ id: 'task_cold', band: 'today', bandSetOn: '2026-01-05', temperature: 'cold' }),
+        task({ id: 'task_hot', band: 'today', bandSetOn: '2026-01-05', temperature: 'hot' }),
+        task({ id: 'task_week', band: 'week' }),
+        task({ id: 'task_done', band: 'later', completedAt: '2026-01-04T10:00:00.000Z' }),
+      ],
+      '2026-01-05'
+    );
+
+    /** @param {{ id: string }[]} tasks */
+    const ids = (tasks) => tasks.map((entry) => entry.id);
+    expect(ids(columns.overdue)).toEqual(['task_stale']);
+    expect(ids(columns.today)).toEqual(['task_hot', 'task_cold']);
+    expect(ids(columns.week)).toEqual(['task_week']);
+    expect(ids(columns.later)).toEqual([]);
+  });
+
+  it('ages a ticket in whole days since the day it was created', () => {
+    /** @param {Date} instant */
+    const inRome = (instant) => toDayKey(instant, 'Europe/Rome');
+
+    expect(ticketAge(task({ createdAt: '2026-01-01T10:00:00.000Z' }), '2026-01-05', inRome)).toBe(4);
+    expect(ticketAge(task({ createdAt: '2026-01-05T10:00:00.000Z' }), '2026-01-05', inRome)).toBe(0);
+    // 23:30 UTC on the 4th is already the 5th in Rome: created today, not yesterday.
+    expect(ticketAge(task({ createdAt: '2026-01-04T23:30:00.000Z' }), '2026-01-05', inRome)).toBe(0);
+  });
+
+  it('never gives a negative age to a task stamped after today', () => {
+    /** @param {Date} instant */
+    const inRome = (instant) => toDayKey(instant, 'Europe/Rome');
+    expect(ticketAge(task({ createdAt: '2026-01-07T10:00:00.000Z' }), '2026-01-05', inRome)).toBe(0);
   });
 });

@@ -550,7 +550,7 @@ double counting.
 
 | Canonical | Derived (never stored) |
 | --- | --- |
-| profile, habit definitions (including periods) | overdue, days overdue |
+| profile, habit definitions (including periods) | overdue, days overdue, a task's age and board column |
 | finance categories | whether a habit is active/archived on a day |
 | task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates, history heatmap cells, the thirty-day summary |
 | people | health averages, day totals |
