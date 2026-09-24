@@ -48,6 +48,21 @@ export function streakLabel(days) {
 }
 
 /**
+ * A task's age on a board ticket: "0d", "3d". Long form in `ageTitle`.
+ *
+ * @param {number} days
+ */
+export function ageLabel(days) {
+  return days + 'd';
+}
+
+/** @param {number} days */
+export function ageTitle(days) {
+  if (days === 0) return 'Created today';
+  return 'Created ' + days + (days === 1 ? ' day' : ' days') + ' ago';
+}
+
+/**
  * A 0..1 ratio as whole percent. One implementation, so the habits ring and
  * a history row's rate can never round the same number differently.
  *

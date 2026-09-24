@@ -226,6 +226,7 @@ button:disabled { cursor: not-allowed; }
 /* The summary strip takes the height it needs; the manage and history cards
    share what is left. */
 #screen-habits .screen-grid { grid-template-rows: auto minmax(0, 1fr); }
+#screen-crm .screen-grid { grid-template-rows: minmax(0, 1fr); }
 
 .card {
   background: var(--surface-1);
@@ -441,6 +442,41 @@ button.heat-cell:disabled { opacity: 0.45; }
 #card-habits-history .card-body { overflow: visible; }
 
 /* ==========================================================================
+   CRM SCREEN — card-crm-board
+   Ported from the mockup's CRM section. The mockup's `cursor: grab` is gone:
+   there is no drag (docs/spec.md), and a grab cursor would promise one.
+   ========================================================================== */
+#card-crm-board .card-body { overflow: hidden; }
+.board { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-sm); height: 100%; min-height: 0; }
+.board > div { display: flex; flex-direction: column; min-height: 0; }
+.col-head {
+  display: flex; align-items: center; gap: var(--s-xs);
+  padding-bottom: var(--s-xs); margin-bottom: var(--s-xs);
+  border-bottom: 1px solid var(--hairline); flex: none;
+}
+.col-head .name { font-size: 12px; font-weight: var(--w-label); letter-spacing: 0.3px; text-transform: uppercase; }
+.col-head .count { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--ink-tertiary); }
+.col-overdue .name { color: var(--danger); }
+.col-today   .name { color: var(--warning); }
+.col-week    .name, .col-later .name { color: var(--ink-subtle); }
+.col-scroll { flex: 1; min-height: 0; overflow: auto; }
+.ticket {
+  background: var(--surface-2); border: 1px solid var(--hairline);
+  border-radius: var(--r-md); padding: var(--s-sm);
+  margin-bottom: var(--s-xs);
+}
+.ticket-title { font-size: 13px; line-height: 1.35; letter-spacing: -0.1px; }
+.ticket-meta { display: flex; align-items: center; gap: var(--s-xs); margin-top: var(--s-xs); flex-wrap: wrap; }
+.avatar {
+  width: 18px; height: 18px; border-radius: var(--r-full); flex: none;
+  background: var(--surface-4); border: 1px solid var(--hairline-tertiary);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; color: var(--ink-subtle); letter-spacing: 0;
+}
+.badge-tag { background: var(--surface-3); color: var(--ink-subtle); font-weight: var(--w-body); }
+.ticket-age { font-family: var(--font-mono); font-size: 10px; color: var(--ink-tertiary); margin-left: auto; }
+
+/* ==========================================================================
    HOME — card-calendar
    ========================================================================== */
 .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--s-xxs); margin-bottom: var(--s-md); flex: none; }
@@ -568,9 +604,11 @@ button.heat-cell:disabled { opacity: 0.45; }
   #screen-home .screen-grid,
   #screen-habits .screen-grid { grid-template-rows: none; }
   .card-body { overflow: visible; }
+  .board { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 760px) {
   .screen-grid > * { grid-column: span 12 !important; }
+  .board { grid-template-columns: 1fr; }
   .nav { overflow-x: auto; }
   #card-today { flex-direction: column; gap: var(--s-lg); }
   .today-side { width: auto; padding-left: 0; padding-top: var(--s-lg); border-left: none; border-top: 1px solid var(--hairline); }
