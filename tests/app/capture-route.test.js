@@ -183,6 +183,37 @@ describe('POST /api/capture', () => {
     expect(involvesLinks.map((link) => link.to)).toEqual([person.id]);
   });
 
+  it('files a nutrition capture as a meal named by its sentence, numbers unknown, at the capture’s time', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(A_THURSDAY);
+    const response = await post('had a carbonara for lunch');
+    vi.useRealTimers();
+    const body = await response.json();
+
+    expect(body.destination).toBe('nutrition');
+    expect(body.recordId).not.toBeNull();
+
+    // No model: the rules know it is a meal, not what is in it (ADR 0019).
+    const log = await store.getDailyLog('2026-09-10');
+    expect(log.meals).toEqual([
+      expect.objectContaining({
+        id: body.recordId,
+        name: 'had a carbonara for lunch',
+        time: '12:00',
+        calories: null,
+        protein: null,
+        carbs: null,
+        fat: null,
+        estimated: false,
+      }),
+    ]);
+
+    const captures = await store.getCaptures();
+    const capture = captures.find((entry) => entry.text === 'had a carbonara for lunch');
+    const aboutLinks = await store.getLinks({ from: capture?.id, rel: 'about' });
+    expect(aboutLinks.map((link) => link.to)).toEqual([body.recordId]);
+  });
+
   it('rejects empty text instead of filing nothing silently', async () => {
     const response = await post('   ');
     expect(response.status).toBe(400);
