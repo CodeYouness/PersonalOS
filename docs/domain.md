@@ -268,8 +268,9 @@ weekday names, `oggi`/`domani`/`dopodomani`, and an `alle HH[:MM]` time; the
 model, when available, resolves the same in any language, given today's
 date. The capture route writes the `Appointment`, an `about` link back to
 the capture (the same shape `task`/`goals` get), an `appointment.created`
-event (`EVENT_TYPES`), and — when an existing `Person`'s name appears in the
-text — an `involves` link from the appointment to that person.
+event (`EVENT_TYPES`), and — when the text names an existing `Person`, see
+"Naming a person" under Person — an `involves` link from the appointment to
+that person.
 
 **From a sync**, `lib/integrations/google-calendar/` (kind `calendar` in
 `INTEGRATION_KINDS`) parses the account's iCal feed and expands recurring
@@ -320,6 +321,15 @@ them into a shape that misrepresents them.
 **Relations** tasks link to a person with `involves`. `getTasksForPerson()` in
 the store is the named operation for the grouping view, so no component ever
 writes that join itself.
+
+**Naming a person.** A capture that links a person decides who the same way
+on every path: the person the sentence names most completely — the most of
+their name's leading words, as whole words and in any case. "Marco Rossi"
+beats "Marco"; a first name alone counts for anyone who has it. A tie links
+no one — a first name two people share, a one-word name that is also someone
+else's first name, two people named in full — because a guess must never tie
+a record to the wrong person. A name never matches inside another word
+("Ann" is not in "annual").
 
 ---
 
