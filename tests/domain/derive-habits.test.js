@@ -358,6 +358,29 @@ describe('nutrition', () => {
     expect(averages.recordedDays).toBe(2);
   });
 
+  it('totals only the meals with numbers, and says how many had none', () => {
+    // Unknown is not zero (ADR 0019): a meal said with no model counts
+    // towards "how many", never towards "how much".
+    const day = dayTotals(
+      /** @type {any} */ (log('2026-01-05', {}, [
+        { id: 'meal_1', time: '08:30', name: 'a', calories: 380, protein: 12, carbs: 62, fat: 9, estimated: true },
+        { id: 'meal_2', time: null, name: 'pizza', calories: null, protein: null, carbs: null, fat: null, estimated: false },
+      ]))
+    );
+    expect(day).toEqual({ calories: 380, protein: 12, carbs: 62, fat: 9, meals: 2, withoutNumbers: 1 });
+  });
+
+  it('skips unknown numbers in the averages, and a day with only an unknown meal is still recorded', () => {
+    const unknown = { id: 'm0', time: null, name: 'pizza', calories: null, protein: null, carbs: null, fat: null, estimated: false };
+    const logs = [
+      log('2026-01-03', {}, [{ id: 'm1', time: '08:00', name: 'a', calories: 2000, protein: 100, carbs: 200, fat: 60, estimated: false }]),
+      log('2026-01-04', {}, [unknown]),
+    ];
+
+    const averages = averagesOverRecordedDays(/** @type {any} */ (logs));
+    expect(averages).toEqual({ calories: 1000, protein: 50, carbs: 100, fat: 30, recordedDays: 2, withoutNumbers: 1 });
+  });
+
   it('returns zeroes and a zero count when nothing was recorded', () => {
     const averages = averagesOverRecordedDays(/** @type {any} */ ([log('2026-01-05', {}, [])]));
     expect(averages.recordedDays).toBe(0);

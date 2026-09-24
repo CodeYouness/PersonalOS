@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -464,7 +464,9 @@
           "protein": 12,
           "carbs": 62,
           "fat": 9,
-          "estimated": true
+          "estimated": true,
+          "createdAt": "2026-01-05T08:30:00.000Z",
+          "updatedAt": "2026-01-05T08:30:00.000Z"
         },
         {
           "id": "meal_seed_2",
@@ -474,7 +476,9 @@
           "protein": 48,
           "carbs": 78,
           "fat": 11,
-          "estimated": true
+          "estimated": true,
+          "createdAt": "2026-01-05T13:15:00.000Z",
+          "updatedAt": "2026-01-05T13:15:00.000Z"
         }
       ],
       "measurements": [
@@ -507,7 +511,9 @@
           "protein": 24,
           "carbs": 34,
           "fat": 20,
-          "estimated": false
+          "estimated": false,
+          "createdAt": "2026-01-04T09:00:00.000Z",
+          "updatedAt": "2026-01-04T09:00:00.000Z"
         }
       ],
       "measurements": [],
