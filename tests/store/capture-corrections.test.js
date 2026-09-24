@@ -10,8 +10,6 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { today } from '@/lib/domain/dates.js';
-
 /** @type {string} */
 let sandbox;
 /** @type {typeof import('@/lib/store.js')} */
@@ -308,19 +306,6 @@ describe('a capture that produced a meal', () => {
     return { capture, meal, memory };
   }
 
-  /**
-   * Edits a meal the only way the store allows before the meal route exists:
-   * rewriting its day. `updatedAt` moving is what "touched" means (ADR 0013).
-   *
-   * @param {import('@/lib/domain/types.js').Meal} meal
-   */
-  async function touch(meal) {
-    const day = await store.getDailyLog(today());
-    await store.updateDailyLog(day.date, {
-      meals: day.meals.map((entry) => (entry.id === meal.id ? { ...entry, name: 'carbonara', updatedAt: new Date(Date.now() + 1000).toISOString() } : entry)),
-    });
-  }
-
   it('Delete removes the meal with the capture', async () => {
     const { capture, meal } = await mealCapture();
 
@@ -365,7 +350,7 @@ describe('a capture that produced a meal', () => {
 
   it('Undo and Refile are refused once the meal has been touched', async () => {
     const { capture, meal } = await mealCapture();
-    await touch(meal);
+    await store.updateMeal(meal.id, { name: 'Carbonara' });
 
     await expect(store.undoCaptureFiling(capture.id)).rejects.toThrow(/touched/);
     await expect(store.refileCapture(capture.id, 'task')).rejects.toThrow(/touched/);
