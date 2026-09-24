@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { getTask, updateTask } from '@/lib/store.js';
+import { deleteTask, getTask, updateTask } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +49,31 @@ export async function PATCH(request, { params }) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[tasks] could not update task ' + id + ':', message);
+    return NextResponse.json({ status: 'error', message }, { status: 400 });
+  }
+}
+
+/**
+ * Delete a task (#54), after the panel has asked. Its links go with it -- an
+ * edge pointing at nothing is worse than no edge -- but a capture that
+ * produced it stays, and so does that capture's memory entry: the sentence
+ * you said is never lost (rule 7).
+ *
+ * @param {Request} _request
+ * @param {{ params: Promise<{ id: string }> }} context
+ */
+export async function DELETE(_request, { params }) {
+  const { id } = await params;
+  if ((await getTask(id)) === null) {
+    return NextResponse.json({ status: 'error', message: 'no task with id ' + id }, { status: 404 });
+  }
+
+  try {
+    await deleteTask(id);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[tasks] could not delete task ' + id + ':', message);
     return NextResponse.json({ status: 'error', message }, { status: 400 });
   }
 }

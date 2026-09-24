@@ -229,8 +229,14 @@ lowercased and each once, so "Billing" and "billing " are one tag.
 - Created in `today`, `week` or `later`. The store rejects `overdue` on
   create — being late is something that happens to a task, not a way to be
   born.
-- Completing sets `completedAt` and writes an Event. It does **not** delete:
-  the weekly review is made of exactly this material.
+- Completing sets `completedAt` and writes a `task.completed` Event, once.
+  It does **not** delete: the weekly review is made of exactly this
+  material.
+- Reopening clears `completedAt` and writes nothing: it corrects a
+  completion, it is not something that happened to you.
+- Deleting removes the task and its links, and nothing else — a capture
+  that produced it keeps its sentence and its memory entry, and with no
+  produced record left it can be refiled from the capture log again.
 
 `position` orders a task within its band and is what dragging sets. It is the
 third sort key, after band and temperature, for the three tasks the morning

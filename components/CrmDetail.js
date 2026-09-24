@@ -26,6 +26,10 @@ import { TEMPERATURES, URGENCY_BANDS } from '@/personalos.config.js';
  * and Esc reverts against it, not against the `task` prop, which only
  * catches up once the refresh after a write has landed.
  *
+ * Complete keeps the panel open, saying "Completed" with a Reopen beside it,
+ * so a mis-click is undone where it was made (#54). Delete asks first, like
+ * the capture log's Delete; the capture that produced the task survives.
+ *
  * Mounted with `key={task.id}`, so selecting another task starts clean.
  *
  * @param {{
@@ -41,6 +45,10 @@ export default function CrmDetail({ task, provenance }) {
   const [error, setError] = useState(/** @type {string | null} */ (null));
   const [needsResync, setNeedsResync] = useState(false);
   const [seenTask, setSeenTask] = useState(task);
+  const [isCompleted, setIsCompleted] = useState(task.completedAt !== null);
+  // Complete, Reopen and Delete wait for each other: a Reopen racing the
+  // Complete it undoes would only be refused.
+  const [isActing, setIsActing] = useState(false);
   const [, startTransition] = useTransition();
   // Esc reverts a field and then blurs it; the blur must not save the value
   // Esc just threw away, which its handler would still see in `draft`.
@@ -52,6 +60,7 @@ export default function CrmDetail({ task, provenance }) {
   // refreshed task arrives, rather than in an effect a render later.
   if (task !== seenTask) {
     setSeenTask(task);
+    setIsCompleted(task.completedAt !== null);
     if (needsResync) {
       setDraft(editable(task));
       setSaved(editable(task));
@@ -78,24 +87,57 @@ export default function CrmDetail({ task, provenance }) {
     setDraft((current) => ({ ...current, ...fields }));
     setError(null);
     try {
-      const response = await fetch('/api/tasks/' + encodeURIComponent(task.id), {
+      await request(taskUrl(task.id), {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(fields),
       });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        throw new Error(payload?.message ?? 'Something went wrong');
-      }
       setSaved((current) => ({ ...current, ...fields }));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not reach the server');
+      setError(messageOf(caught));
       // Back to what was last saved at once, then to what the store really
       // holds once the refresh lands -- even if that refresh fails too, the
       // screen is not left showing the value that was refused.
       setDraft(saved);
       setNeedsResync(true);
     }
+    startTransition(() => router.refresh());
+  }
+
+  /**
+   * Complete or reopen, shown at once. Nothing to fall back to locally: the
+   * refresh that follows, win or lose, brings the task's real state.
+   *
+   * @param {'complete' | 'reopen'} action
+   */
+  async function setCompletion(action) {
+    setIsActing(true);
+    setIsCompleted(action === 'complete');
+    setError(null);
+    try {
+      await request(taskUrl(task.id) + '/' + action, { method: 'POST' });
+    } catch (caught) {
+      setError(messageOf(caught));
+      setIsCompleted(task.completedAt !== null);
+    }
+    setIsActing(false);
+    startTransition(() => router.refresh());
+  }
+
+  async function remove() {
+    const confirmed = window.confirm(
+      'Delete this task? Its links go with it; the capture it came from stays. This cannot be undone.'
+    );
+    if (!confirmed) return;
+    setIsActing(true);
+    setError(null);
+    try {
+      await request(taskUrl(task.id), { method: 'DELETE' });
+      router.push('/crm', { scroll: false });
+    } catch (caught) {
+      setError(messageOf(caught));
+    }
+    setIsActing(false);
     startTransition(() => router.refresh());
   }
 
@@ -252,6 +294,34 @@ export default function CrmDetail({ task, provenance }) {
           </div>
         </div>
 
+        <div className="detail-actions">
+          {isCompleted ? (
+            <>
+              <span className="caption">Completed</span>
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={isActing}
+                onClick={() => setCompletion('reopen')}
+              >
+                Reopen
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={isActing}
+              onClick={() => setCompletion('complete')}
+            >
+              Complete
+            </button>
+          )}
+          <button type="button" className="btn-danger" disabled={isActing} onClick={remove}>
+            Delete
+          </button>
+        </div>
+
         <p className="caption provenance">{provenance}</p>
       </div>
     </aside>
@@ -270,6 +340,36 @@ export function CrmDetailEmpty() {
       </div>
     </aside>
   );
+}
+
+/** @param {string} id */
+function taskUrl(id) {
+  return '/api/tasks/' + encodeURIComponent(id);
+}
+
+/**
+ * One write to the task routes. Throws with the server's own message when
+ * it refuses, or a plain one when it cannot be reached.
+ *
+ * @param {string} url
+ * @param {RequestInit} init
+ */
+async function request(url, init) {
+  let response;
+  try {
+    response = await fetch(url, init);
+  } catch {
+    throw new Error('Could not reach the server');
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.message ?? 'Something went wrong');
+  }
+}
+
+/** @param {unknown} caught */
+function messageOf(caught) {
+  return caught instanceof Error ? caught.message : 'Something went wrong';
 }
 
 /** @param {string} word */
