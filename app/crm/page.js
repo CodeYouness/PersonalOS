@@ -3,7 +3,7 @@ import CrmDetail, { CrmDetailEmpty } from '@/components/CrmDetail.js';
 import { provenanceLabel } from '@/components/format.js';
 import { toDayKey, today } from '@/lib/domain/dates.js';
 import { boardColumns, ticketAge } from '@/lib/domain/derive/tasks.js';
-import { getPersonForTask, getProducingCapture, getTask, getTasks } from '@/lib/store.js';
+import { getPeople, getPersonForTask, getProducingCapture, getTask, getTasks } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +48,13 @@ export default async function CrmScreen({ searchParams }) {
         {selected === null ? (
           <CrmDetailEmpty />
         ) : (
-          <CrmDetail key={selected.id} task={selected} provenance={await provenanceFor(selected, todayKey)} />
+          <CrmDetail
+            key={selected.id}
+            task={selected}
+            person={await getPersonForTask(selected.id)}
+            people={await getPeople()}
+            provenance={await provenanceFor(selected, todayKey)}
+          />
         )}
       </div>
     </section>

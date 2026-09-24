@@ -498,6 +498,15 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .tag-remove { margin-left: 2px; color: var(--ink-tertiary); font-size: 12px; line-height: 1; }
 .tag-remove:hover { color: var(--ink); }
 .input-tag { width: 96px; padding: 2px 8px; font-size: 12px; }
+.person-current { display: flex; align-items: center; gap: 6px; font-size: 14px; margin-bottom: 6px; }
+.person-options {
+  margin-top: 4px; border: 1px solid var(--hairline); border-radius: var(--r-md);
+  background: var(--surface-2); overflow: hidden;
+}
+.person-options button {
+  display: block; width: 100%; text-align: left; padding: 6px 12px; font-size: 13px; color: var(--ink);
+}
+.person-options button:hover { background: var(--surface-3); }
 .detail-actions { display: flex; gap: var(--s-xs); align-items: center; margin-top: var(--s-lg); }
 .btn-danger {
   padding: 8px 14px; border-radius: var(--r-md);
