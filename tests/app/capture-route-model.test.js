@@ -113,7 +113,47 @@ describe('POST /api/capture with a model', () => {
   });
 });
 
+/** @param {string} id @param {string} destination */
+function refile(id, destination) {
+  return captureIdRoute.PATCH(
+    new Request('http://localhost/api/captures/' + id, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ destination }),
+    }),
+    { params: Promise.resolve({ id }) }
+  );
+}
+
 describe('Refile into nutrition with a model', () => {
+  it('reads "last night" from the day the sentence was said, not the day it is refiled', async () => {
+    vi.setSystemTime(new Date('2026-09-21T07:00:00Z'));
+    const capture = await store.createCapture({ text: 'last night I had pizza', destination: 'memory' });
+    vi.setSystemTime(NOON);
+    modelSays({ destination: 'nutrition', title: 'Pizza', calories: 900, date: '2026-09-20' });
+
+    const body = await (await refile(capture.id, 'nutrition')).json();
+
+    expect(mockCreate.mock.calls[0][0].system).toContain('2026-09-21');
+    expect((await store.getDailyLog('2026-09-20')).meals).toEqual([
+      expect.objectContaining({ id: body.recordId, name: 'Pizza', time: null }),
+    ]);
+  });
+
+  it('does not ask the model when the refile is refused', async () => {
+    const capture = await store.createCapture({ text: 'had a carbonara', destination: 'nutrition' });
+    const meal = await store.fileCaptureAsMeal(capture);
+    vi.setSystemTime(NOON.getTime() + 60_000);
+    await store.updateMeal(meal.id, { name: 'Carbonara' });
+
+    const response = await refile(capture.id, 'task');
+    expect(response.status).toBe(400);
+    const again = await refile(capture.id, 'nutrition');
+    expect(again.status).toBe(400);
+
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
   it('files an estimated meal', async () => {
     const capture = await store.createCapture({ text: 'had a carbonara for lunch', destination: 'memory' });
     modelSays({ destination: 'nutrition', title: 'Carbonara', calories: 720, protein: 28, carbs: 82, fat: 30 });

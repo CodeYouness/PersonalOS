@@ -704,6 +704,7 @@ export function runAdapterContract(label, load) {
         await expect(store.createMeal({ ...base, calories: -1 })).rejects.toThrow(/calories/);
         await expect(store.createMeal({ ...base, fat: 2.5 })).rejects.toThrow(/fat/);
         await expect(store.createMeal({ ...base, time: '1pm' })).rejects.toThrow(/time/);
+        await expect(store.createMeal({ ...base, time: '25:70' })).rejects.toThrow(/time/);
       });
 
       it('refuses anything that is not a day key', async () => {

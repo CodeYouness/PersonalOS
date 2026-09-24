@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 
 import { classify } from '@/lib/classify.js';
-import { deleteCaptureCascade, getCapture, refileCapture } from '@/lib/store.js';
+import { toDayKey } from '@/lib/domain/dates.js';
+import { deleteCaptureCascade, refileCapture } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,12 +40,12 @@ export async function PATCH(request, { params }) {
   const destination = typeof body?.destination === 'string' ? body.destination : '';
 
   try {
-    const capture = destination === 'nutrition' ? await getCapture(id) : null;
-    // ponytail: "last night" resolves against the day of the refile, not the
-    // day it was said; pass the capture's day to classify if old captures
-    // start getting refiled.
-    const meal = capture === null ? undefined : (await classify(capture.text, 'nutrition')).fields;
-    const recordId = await refileCapture(id, destination, meal);
+    const recordId = await refileCapture(id, destination, async (capture) => {
+      // Read from the day the sentence was said: "last night" means the
+      // night before it was said, not before the refile.
+      const { fields } = await classify(capture.text, 'nutrition', toDayKey(new Date(capture.createdAt)));
+      return fields;
+    });
     return NextResponse.json({ ok: true, recordId });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

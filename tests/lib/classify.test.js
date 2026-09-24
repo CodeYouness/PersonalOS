@@ -312,6 +312,16 @@ describe('classify (model path)', () => {
   });
 
   describe('a destination chosen up front', () => {
+    it('keeps the chosen destination when the model call fails', async () => {
+      process.env.ANTHROPIC_API_KEY = 'test-key';
+      mockCreate.mockRejectedValueOnce(new Error('network error'));
+      const { classify } = await import('@/lib/classify.js');
+
+      const result = await classify('pizza with Marta', 'nutrition');
+
+      expect(result).toEqual({ destination: 'nutrition', route: 'rules', fields: {} });
+    });
+
     it('skips classification: the rules would say task, the capture is still a meal', async () => {
       const { classify } = await import('@/lib/classify.js');
 
