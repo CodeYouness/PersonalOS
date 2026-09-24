@@ -6,6 +6,8 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import CrmPersonField from '@/components/CrmPersonField.js';
 import { TEMPERATURES, URGENCY_BANDS } from '@/personalos.config.js';
 
+/** @typedef {import('@/lib/domain/types.js').Task} Task */
+
 /**
  * The CRM detail panel, ported from design/mockup.html's `#card-crm-detail`:
  * the selected task's own fields, edited in place (#53).
@@ -43,9 +45,10 @@ import { TEMPERATURES, URGENCY_BANDS } from '@/personalos.config.js';
  *   person: import('@/lib/domain/types.js').Person | null,
  *   people: import('@/lib/domain/types.js').Person[],
  *   provenance: string,
- * }} props
+ *   closeHref: string,
+ * }} props `closeHref` is where closing goes -- the same view, no task
  */
-export default function CrmDetail({ task, person, people, provenance }) {
+export default function CrmDetail({ task, person, people, provenance, closeHref }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => editable(task));
   const [saved, setSaved] = useState(() => editable(task));
@@ -92,11 +95,11 @@ export default function CrmDetail({ task, person, people, provenance }) {
       // Esc inside a field reverts that field (handled on the field); only
       // an Esc from elsewhere closes the panel.
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      router.push('/crm', { scroll: false });
+      router.push(closeHref, { scroll: false });
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [router]);
+  }, [router, closeHref]);
 
   /** @param {Partial<ReturnType<typeof editable>>} fields */
   async function save(fields) {
@@ -149,7 +152,7 @@ export default function CrmDetail({ task, person, people, provenance }) {
     setError(null);
     try {
       await request(taskUrl(task.id), { method: 'DELETE' });
-      router.push('/crm', { scroll: false });
+      router.push(closeHref, { scroll: false });
     } catch (caught) {
       setError(messageOf(caught));
     }
@@ -260,7 +263,7 @@ export default function CrmDetail({ task, person, people, provenance }) {
           type="button"
           className="btn-ghost"
           aria-label="Esc: close the panel"
-          onClick={() => router.push('/crm', { scroll: false })}
+          onClick={() => router.push(closeHref, { scroll: false })}
         >
           Esc
         </button>
@@ -305,7 +308,7 @@ export default function CrmDetail({ task, person, people, provenance }) {
                 type="button"
                 className={'seg' + (draft.band === band ? ' is-on' : '')}
                 aria-pressed={draft.band === band}
-                onClick={() => save({ band: /** @type {import('@/lib/domain/types.js').Task['band']} */ (band) })}
+                onClick={() => save({ band: /** @type {Task['band']} */ (band) })}
               >
                 {capitalise(band)}
               </button>
@@ -324,7 +327,7 @@ export default function CrmDetail({ task, person, people, provenance }) {
                 aria-pressed={draft.temperature === temperature}
                 onClick={() => {
                   if (draft.temperature === temperature) return;
-                  save({ temperature: /** @type {import('@/lib/domain/types.js').Task['temperature']} */ (temperature) });
+                  save({ temperature: /** @type {Task['temperature']} */ (temperature) });
                 }}
               >
                 {capitalise(temperature)}

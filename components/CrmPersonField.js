@@ -1,3 +1,5 @@
+import { personLabel } from '@/components/format.js';
+
 /**
  * The CRM detail panel's Person field (#55): who the task is owed to, a way
  * to clear it, and a search over your people that ends in "Add '<name>'"
@@ -44,7 +46,7 @@ export default function CrmPersonField({ current, people, query, disabled, onQue
       <label className="caption" htmlFor="d-person">Person</label>
       {current !== null && (
         <div className="person-current">
-          <span>{current.organization ? current.name + ' — ' + current.organization : current.name}</span>
+          <span>{personLabel(current)}</span>
           <button
             type="button"
             className="tag-remove"
