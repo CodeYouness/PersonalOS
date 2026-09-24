@@ -45,6 +45,13 @@ function patch(id, body) {
   );
 }
 
+/** @param {string} id */
+function del(id) {
+  return route.DELETE(new Request('http://localhost/api/meals/' + id, { method: 'DELETE' }), {
+    params: Promise.resolve({ id }),
+  });
+}
+
 /** An estimated carbonara whose calories are not quite its macros, as a model's may be. */
 function carbonara() {
   return store.createMeal({
@@ -136,6 +143,28 @@ describe('PATCH /api/meals/[id]', () => {
 
   it('is a 404 for a meal that does not exist', async () => {
     const response = await patch('meal_missing', { calories: 100 });
+
+    expect(response.status).toBe(404);
+  });
+});
+
+describe('DELETE /api/meals/[id]', () => {
+  it('removes the meal, and the capture that produced it keeps its sentence and memory entry', async () => {
+    const capture = await store.createCapture({ text: 'had a carbonara for lunch', destination: 'nutrition' });
+    const meal = await store.fileCaptureAsMeal(capture);
+    const memory = await store.createMemoryEntry({ content: capture.text, source: 'capture', derivedFrom: capture.id });
+
+    const response = await del(meal.id);
+
+    expect(response.status).toBe(200);
+    expect(await store.getMeal(meal.id)).toBeNull();
+    expect(await store.getCapture(capture.id)).toMatchObject({ text: 'had a carbonara for lunch' });
+    expect(await store.getMemoryEntries()).toContainEqual(expect.objectContaining({ id: memory.id }));
+    expect(await store.getLinks({ from: capture.id, rel: 'about' })).toHaveLength(0);
+  });
+
+  it('is a 404 for a meal that does not exist', async () => {
+    const response = await del('meal_missing');
 
     expect(response.status).toBe(404);
   });

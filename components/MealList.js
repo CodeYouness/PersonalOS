@@ -45,7 +45,8 @@ export default function MealList({ meals }) {
  * a refused save goes back to what was saved, then to the meal as the store
  * holds it once the refresh lands.
  *
- * An empty number or time means unknown, never zero.
+ * An empty number or time means unknown, never zero. Delete asks first
+ * (#73), like the CRM panel's; the capture that produced the meal stays.
  *
  * @param {{ meal: Meal }} props
  */
@@ -55,6 +56,7 @@ function MealEditor({ meal }) {
   const [saved, setSaved] = useState(() => toDraft(meal));
   const [error, setError] = useState(/** @type {string | null} */ (null));
   const [needsResync, setNeedsResync] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [seenMeal, setSeenMeal] = useState(meal);
   const [, startTransition] = useTransition();
 
@@ -94,6 +96,28 @@ function MealEditor({ meal }) {
     startTransition(() => router.refresh());
   }
 
+  async function remove() {
+    const confirmed = window.confirm(
+      'Delete this meal? The capture it came from keeps its sentence. This cannot be undone.'
+    );
+    if (!confirmed) return;
+    setIsDeleting(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/meals/' + meal.id, { method: 'DELETE' }).catch(() => {
+        throw new Error('Could not reach the server');
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.message ?? 'Something went wrong');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Something went wrong');
+      setIsDeleting(false);
+    }
+    // Win or lose, the list is re-read: a deleted meal leaves it, a refused
+    // delete shows the meal as it really is.
+    startTransition(() => router.refresh());
+  }
+
   /**
    * @param {keyof ReturnType<typeof toDraft>} field
    * @param {string} label
@@ -130,6 +154,11 @@ function MealEditor({ meal }) {
         {input('fat', 'Fat g', number)}
       </div>
       {error && <p className="receipt-error">{error}</p>}
+      <div className="detail-actions">
+        <button type="button" className="btn-danger" disabled={isDeleting} onClick={remove}>
+          Delete
+        </button>
+      </div>
     </div>
   );
 }
