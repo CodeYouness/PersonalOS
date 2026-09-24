@@ -104,18 +104,20 @@ edit:
 
 | Action | Removes | Survives |
 | --- | --- | --- |
-| **Undo** | the produced record (task/goal/appointment) and its links | the capture and its memory entry — the fact you said it stays true |
-| **Refile** | same as Undo, then files into a new `destination` (a new record if that destination is `task`/`people`/`goals`) | the capture; `destination` is updated, `route` is not |
+| **Undo** | the produced record (task/goal/appointment/meal) and its links | the capture and its memory entry — the fact you said it stays true |
+| **Refile** | same as Undo, then files into a new `destination` (a new record if that destination is `task`/`people`/`goals`/`nutrition`) | the capture; `destination` is updated, `route` is not |
 | **Delete** | everything the capture produced — capture, memory entry, produced record, links | nothing |
 
 Undo only applies where there is a produced record to retract — today that
-is `task`, `people`, `goals` and `appointment`; the other four destinations
-have nothing for Undo to act on beyond Delete. Refile has no such
-restriction: it works from any destination, including the four that file as
+is `task`, `people`, `goals`, `appointment` and `nutrition`; the other three
+destinations have nothing for Undo to act on beyond Delete. Refile has no such
+restriction: it works from any destination, including the three that file as
 capture + memory only — there is simply nothing to retract before it creates
 the new record. Refiling *into* `appointment` is one of those: the drawer has
 no date/time input, so it only updates `destination` — same as refiling into
-any of the four, and unlike refiling into `task`/`people`/`goals`.
+any of the three, and unlike refiling into `task`/`people`/`goals`/`nutrition`.
+Refiling *into* `nutrition` files a meal, estimated when a model is
+available and by name only when not.
 
 Both are refused once the produced record has been touched since creation
 (`completedAt` set, or `updatedAt !== createdAt`): the user's own work on that
@@ -449,13 +451,41 @@ tell "you recorded nothing" apart from "outside the window".
 
 **Is** the meals of one day, inside that day's log.
 
-The four numbers are not independent: calories **are** the macros, at
-4 kcal/g protein, 4 carbs, 9 fat. Change a macro and calories recompute
-locally with the formula — where an exact formula exists, the formula beats
-the model every time. Change calories and the model redistributes the macros,
-because the formula alone has infinitely many solutions.
+A **Meal** belongs to the day it was eaten, not the day it was said: "last
+night I had pizza", said at nine in the morning, is yesterday's dinner. It
+arrives from a capture — the capture bar or the Nutrition card's own box,
+which is a capture already filed as `nutrition` — so the sentence behind it
+is never lost. One capture files one meal: "yogurt for breakfast and pasta
+for lunch", said once, is one meal; said twice, it is two.
 
-`estimated` marks a model guess and clears on any value corrected by hand.
+A meal's time is when it was eaten. Said with no time, a meal eaten now takes
+the moment it was said; a meal moved to another day with no time said has an
+**unknown** time, never an invented one.
+
+Calories are **normally** the macros, at 4 kcal/g protein, 4 carbs, 9 fat —
+normally, not always: alcohol carries about 7 kcal/g and is none of the
+three, so a beer's calories are more than its macros explain. Calories are
+therefore a number of their own. Change a macro and calories recompute
+locally with the formula — where an exact formula exists, the formula beats
+the model every time — but a model estimate is allowed to differ from it.
+Change calories and only calories change: the macros stay as they were.
+
+A meal's numbers can be **unknown**: said with no model available to
+estimate them, a meal is still filed, by name, with no numbers. Unknown is
+not zero — the same posture an account with no observation takes. A day's
+total and the averages count only meals with numbers, and say how many had
+none.
+
+`estimated` marks a model guess and clears on any value corrected by hand —
+filling in the numbers of a meal that had none is a correction too. Deleting a
+meal asks first, and the capture that produced it keeps its sentence.
+
+The Nutrition card is today. Past days, and correcting a meal on one, belong
+to Health.
+
+There are no macro targets: the day is measured against `calorieTarget`
+alone, and protein, carbs and fat are plain grams until you set a target for
+them.
 
 ---
 
