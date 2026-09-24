@@ -10,7 +10,7 @@ const meal = (id, time) => ({ id, time, createdAt: '2026-09-24T08:00:00.000Z' })
 
 describe('calorieStanding', () => {
   it('says nothing is recorded before the first meal, not "0 of 2,200"', () => {
-    expect(calorieStanding({ calories: 0, meals: 0 }, 2200)).toEqual({ kind: 'nothing' });
+    expect(calorieStanding({ calories: null, meals: 0 }, 2200)).toEqual({ kind: 'nothing' });
   });
 
   it('says how many calories are left under the target', () => {
@@ -25,8 +25,8 @@ describe('calorieStanding', () => {
     expect(calorieStanding({ calories: 2450, meals: 4 }, 2200)).toEqual({ kind: 'over', kcal: 250 });
   });
 
-  it('counts a day whose only meal has no numbers as recorded, with the whole target left', () => {
-    expect(calorieStanding({ calories: 0, meals: 1 }, 2200)).toEqual({ kind: 'left', kcal: 2200 });
+  it('says the total is unknown when meals were recorded but none has calories -- never "0 of 2,200"', () => {
+    expect(calorieStanding({ calories: null, meals: 1 }, 2200)).toEqual({ kind: 'unknown' });
   });
 });
 

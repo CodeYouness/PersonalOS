@@ -76,15 +76,11 @@ function MealEditor({ meal }) {
     if (draft[field] === saved[field]) return;
     setError(null);
     try {
-      const response = await fetch('/api/meals/' + meal.id, {
+      const payload = await request(meal.id, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ [field]: fromDraft(field, draft[field]) }),
-      }).catch(() => {
-        throw new Error('Could not reach the server');
       });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(payload?.message ?? 'Something went wrong');
       const stored = toDraft(payload.meal);
       setSaved(stored);
       setDraft((current) => ({ ...current, [field]: stored[field], calories: stored.calories }));
@@ -104,11 +100,7 @@ function MealEditor({ meal }) {
     setIsDeleting(true);
     setError(null);
     try {
-      const response = await fetch('/api/meals/' + meal.id, { method: 'DELETE' }).catch(() => {
-        throw new Error('Could not reach the server');
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(payload?.message ?? 'Something went wrong');
+      await request(meal.id, { method: 'DELETE' });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Something went wrong');
       setIsDeleting(false);
@@ -142,16 +134,16 @@ function MealEditor({ meal }) {
     );
   }
 
-  const number = { inputMode: /** @type {const} */ ('numeric'), placeholder: '—' };
+  const numberAttributes = { inputMode: /** @type {const} */ ('numeric'), placeholder: '—' };
   return (
     <div className="meal-editor">
       {input('name', 'Name')}
       <div className="meal-editor-numbers">
         {input('time', 'Time', { placeholder: 'HH:MM' })}
-        {input('calories', 'kcal', number)}
-        {input('protein', 'Protein g', number)}
-        {input('carbs', 'Carbs g', number)}
-        {input('fat', 'Fat g', number)}
+        {input('calories', 'kcal', numberAttributes)}
+        {input('protein', 'Protein g', numberAttributes)}
+        {input('carbs', 'Carbs g', numberAttributes)}
+        {input('fat', 'Fat g', numberAttributes)}
       </div>
       {error && <p className="receipt-error">{error}</p>}
       <div className="detail-actions">
@@ -161,6 +153,22 @@ function MealEditor({ meal }) {
       </div>
     </div>
   );
+}
+
+/**
+ * One call to the meal route: the saved payload, or an Error carrying the
+ * route's own message.
+ *
+ * @param {string} id
+ * @param {RequestInit} init
+ */
+async function request(id, init) {
+  const response = await fetch('/api/meals/' + id, init).catch(() => {
+    throw new Error('Could not reach the server');
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.message ?? 'Something went wrong');
+  return payload;
 }
 
 /** @param {Meal} meal */
