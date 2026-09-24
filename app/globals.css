@@ -617,6 +617,7 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .macro-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
 .macro-head .k { color: var(--ink-subtle); }
 .macro-head .v { font-variant-numeric: tabular-nums; color: var(--ink-muted); }
+.meal-box-status { min-height: 1.4em; margin: 4px 0 var(--s-xs); }
 .meal {
   display: flex; align-items: baseline; gap: var(--s-sm);
   padding: var(--s-xs) 0; border-bottom: 1px solid var(--hairline);

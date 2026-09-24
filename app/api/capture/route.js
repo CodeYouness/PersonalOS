@@ -12,7 +12,7 @@ import {
   linkPersonNamedIn,
   recordEvent,
 } from '@/lib/store.js';
-import { TASK_DESTINATIONS } from '@/personalos.config.js';
+import { DESTINATIONS, TASK_DESTINATIONS } from '@/personalos.config.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +40,15 @@ export async function POST(request) {
     return NextResponse.json({ error: 'text is required' }, { status: 400 });
   }
 
-  const { destination, route, fields } = await classify(text);
+  // The Nutrition card's box is the capture bar with the destination already
+  // chosen. Checked before anything is written: an unknown one is refused,
+  // never filed as a guess.
+  const chosen = body?.destination ?? undefined;
+  if (chosen !== undefined && !DESTINATIONS.includes(chosen)) {
+    return NextResponse.json({ error: 'destination must be one of ' + DESTINATIONS.join(', ') }, { status: 400 });
+  }
+
+  const { destination, route, fields } = await classify(text, chosen);
   const capture = await createCapture({ text, origin: 'bar', destination, route });
 
   let recordId = null;
