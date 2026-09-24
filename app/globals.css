@@ -461,10 +461,13 @@ button.heat-cell:disabled { opacity: 0.45; }
 .col-week    .name, .col-later .name { color: var(--ink-subtle); }
 .col-scroll { flex: 1; min-height: 0; overflow: auto; }
 .ticket {
+  display: block; color: inherit; text-decoration: none; /* each ticket is a link to ?task=<id> */
   background: var(--surface-2); border: 1px solid var(--hairline);
   border-radius: var(--r-md); padding: var(--s-sm);
   margin-bottom: var(--s-xs);
 }
+.ticket:hover { border-color: var(--hairline-strong); background: var(--surface-3); }
+.ticket.is-selected { border-color: var(--primary); }
 .ticket-title { font-size: 13px; line-height: 1.35; letter-spacing: -0.1px; }
 .ticket-meta { display: flex; align-items: center; gap: var(--s-xs); margin-top: var(--s-xs); flex-wrap: wrap; }
 .avatar {
@@ -475,6 +478,27 @@ button.heat-cell:disabled { opacity: 0.45; }
 }
 .badge-tag { background: var(--surface-3); color: var(--ink-subtle); font-weight: var(--w-body); }
 .ticket-age { font-family: var(--font-mono); font-size: 10px; color: var(--ink-tertiary); margin-left: auto; }
+
+/* ==========================================================================
+   CRM SCREEN — card-crm-detail
+   The mockup's "+ add" tag badge is a real input here, and each tag carries
+   its own remove button.
+   ========================================================================== */
+.field { margin-bottom: var(--s-md); }
+.field > .caption { display: block; margin-bottom: 5px; }
+textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
+.segmented { display: flex; gap: 4px; }
+.seg {
+  flex: 1; padding: 6px 0; text-align: center;
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  background: var(--surface-2); color: var(--ink-subtle); font-size: 12px;
+}
+.seg.is-on { background: var(--surface-4); color: var(--ink); border-color: var(--hairline-strong); }
+.detail-tags { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.tag-remove { margin-left: 2px; color: var(--ink-tertiary); font-size: 12px; line-height: 1; }
+.tag-remove:hover { color: var(--ink); }
+.input-tag { width: 96px; padding: 2px 8px; font-size: 12px; }
+.provenance { margin-top: var(--s-sm); }
 
 /* ==========================================================================
    HOME — card-calendar

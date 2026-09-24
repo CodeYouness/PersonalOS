@@ -72,3 +72,46 @@ export function ageTitle(days) {
 export function percent(ratio) {
   return Math.round(ratio * 100) + '%';
 }
+
+/**
+ * Who made a record, as the provenance line says it: every `SOURCE_KINDS`
+ * value but `capture`, which says more (see below).
+ *
+ * @type {Record<Exclude<import('@/lib/domain/types.js').Task['source'], 'capture'>, string>}
+ */
+const MADE_BY = {
+  user: 'by you',
+  seed: 'with the demo data',
+  journal: 'from the journal',
+  integration: 'by a sync',
+  derived: 'by PersonalOS',
+};
+
+/**
+ * Where a task came from and how it was filed -- the line at the foot of the
+ * CRM detail panel. "Created 4 Jan from a capture · filed by the model",
+ * "Created 4 Jan by you". The year is added only when it is not this one.
+ *
+ * @param {{
+ *   createdDayKey: string,
+ *   source: import('@/lib/domain/types.js').Task['source'],
+ *   route: 'model' | 'rules' | null,
+ * }} origin
+ *   `route` is the producing capture's, when a capture produced it
+ * @param {string} todayKey
+ * @returns {string}
+ */
+export function provenanceLabel({ createdDayKey, source, route }, todayKey) {
+  const sameYear = createdDayKey.slice(0, 4) === todayKey.slice(0, 4);
+  const day = dayKeyToUtcDate(createdDayKey).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: sameYear ? undefined : 'numeric',
+    timeZone: 'UTC',
+  });
+  if (source === 'capture') {
+    const filed = route === null ? '' : ' · filed by ' + (route === 'model' ? 'the model' : 'rules');
+    return 'Created ' + day + ' from a capture' + filed;
+  }
+  return 'Created ' + day + ' ' + MADE_BY[source];
+}

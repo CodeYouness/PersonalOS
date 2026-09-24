@@ -1,10 +1,14 @@
+import Link from 'next/link';
+
 import { ageLabel, ageTitle, initials } from '@/components/format.js';
 
 /**
  * The board of open tasks, ported from design/mockup.html's
  * `#card-crm-board`: four columns, a count on each, one ticket per task.
  * Everything on it is computed by the page (columns, ages, people), so this
- * only draws.
+ * only draws. A ticket is a link to `?task=<id>`: the selection lives in the
+ * URL, by id, so a reload keeps it and a capture landing a new task never
+ * moves it onto another one.
  *
  * Left out of the port on purpose (docs/spec.md): the Search button, and the
  * drag the mockup's grab cursor implied. By person arrives with its own
@@ -26,10 +30,15 @@ const COLUMNS = [
  * @property {number} age whole days since the task was created
  */
 
-/** @param {{ columns: Record<import('@/lib/domain/types.js').DisplayBand, BoardTicket[]> }} props */
-export default function CrmBoard({ columns }) {
+/**
+ * @param {{
+ *   columns: Record<import('@/lib/domain/types.js').DisplayBand, BoardTicket[]>,
+ *   selectedId: string | null,
+ * }} props
+ */
+export default function CrmBoard({ columns, selectedId }) {
   return (
-    <article id="card-crm-board" className="card span-12">
+    <article id="card-crm-board" className="card span-8">
       <div className="card-head">
         <span className="eyebrow">Board</span>
       </div>
@@ -43,7 +52,7 @@ export default function CrmBoard({ columns }) {
               </div>
               <div className="col-scroll">
                 {columns[band].map((ticket) => (
-                  <Ticket key={ticket.task.id} {...ticket} />
+                  <Ticket key={ticket.task.id} {...ticket} isSelected={ticket.task.id === selectedId} />
                 ))}
               </div>
             </div>
@@ -54,10 +63,15 @@ export default function CrmBoard({ columns }) {
   );
 }
 
-/** @param {BoardTicket} props */
-function Ticket({ task, person, age }) {
+/** @param {BoardTicket & { isSelected: boolean }} props */
+function Ticket({ task, person, age, isSelected }) {
   return (
-    <div className="ticket">
+    <Link
+      href={'/crm?task=' + encodeURIComponent(task.id)}
+      scroll={false}
+      className={'ticket' + (isSelected ? ' is-selected' : '')}
+      aria-current={isSelected ? 'true' : undefined}
+    >
       <div className="ticket-title">{task.title}</div>
       <div className="ticket-meta">
         {person !== null && (
@@ -75,6 +89,6 @@ function Ticket({ task, person, age }) {
           {ageLabel(age)}
         </span>
       </div>
-    </div>
+    </Link>
   );
 }

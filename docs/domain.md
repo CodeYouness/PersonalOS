@@ -216,9 +216,14 @@ isOverdue(task, today) = band === 'today' && bandSetOn < today && !completedAt
 ```
 
 `bandSetOn` is the day you chose the band, and it is what makes this work
-without introducing due dates. Moving a task to a band resets it, so dragging
-something out of the overdue column does not snap it straight back. Only
-`today` can go overdue: a `week` task never promised a day.
+without introducing due dates. Choosing a band resets it — even the band the
+task already has — so moving something out of the overdue column does not
+snap it straight back, and choosing `today` again for an overdue task
+recommits it: "yes, today, really". Only `today` can go overdue: a `week`
+task never promised a day.
+
+**Tags are yours**, free-form and never a closed vocabulary: stored trimmed,
+lowercased and each once, so "Billing" and "billing " are one tag.
 
 **Transitions**
 - Created in `today`, `week` or `later`. The store rejects `overdue` on
