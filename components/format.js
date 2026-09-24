@@ -73,6 +73,17 @@ export function ageTitle(days) {
 }
 
 /**
+ * A count as it is shown: "1,780". One fixed locale, so the server's render
+ * and the browser's never disagree about a separator.
+ *
+ * @param {number} value
+ * @returns {string}
+ */
+export function formatCount(value) {
+  return value.toLocaleString('en-GB');
+}
+
+/**
  * A 0..1 ratio as whole percent. One implementation, so the habits ring and
  * a history row's rate can never round the same number differently.
  *
