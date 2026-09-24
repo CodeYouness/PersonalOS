@@ -9,8 +9,10 @@ import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
 /**
  * The shell's persistent top navigation, ported from design/mockup.html.
  *
- * Home, CRM (#52) and Habits (#38) have screens behind them and are links.
- * The other three are shown, not hidden -- docs/roadmap.md says they're
+ * Home, CRM (#52), Habits (#38) and Nutrition (#69) have screens behind them
+ * and are links. The mockup's "Nutrition & Health" became Nutrition, after
+ * Habits, when its first card landed (docs/spec.md); Health joins that screen
+ * later. The other two are shown, not hidden -- docs/roadmap.md says they're
  * coming, and a nav item that vanished would read as a bug, not as "not
  * built yet". They render disabled instead of a dead link.
  *
@@ -26,16 +28,17 @@ import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
  */
 
 /**
- * The mockup's nav, in its order. A screen with an `href` is a link; one
- * without is not built yet and renders disabled in place, so graduating a
- * screen never shuffles the positions of the others.
+ * The mockup's nav, in its order but for Nutrition, which the spec places
+ * after Habits. A screen with an `href` is a link; one without is not built
+ * yet and renders disabled in place, so graduating a screen never shuffles
+ * the positions of the others.
  */
 const SCREENS = [
   { label: 'Home', href: '/' },
   { label: 'CRM', href: '/crm' },
   { label: 'Habits', href: '/habits' },
+  { label: 'Nutrition', href: '/nutrition' },
   { label: 'Finances', href: null },
-  { label: 'Nutrition & Health', href: null },
   { label: 'Review', href: null },
 ];
 

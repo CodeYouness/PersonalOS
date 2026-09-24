@@ -227,6 +227,7 @@ button:disabled { cursor: not-allowed; }
    share what is left. */
 #screen-habits .screen-grid { grid-template-rows: auto minmax(0, 1fr); }
 #screen-crm .screen-grid { grid-template-rows: minmax(0, 1fr); }
+#screen-nutrition .screen-grid { grid-template-rows: minmax(0, 1fr); }
 
 .card {
   background: var(--surface-1);
@@ -267,6 +268,7 @@ button:disabled { cursor: not-allowed; }
 .badge-ok    { background: var(--success-soft); color: var(--success); }
 .badge-route-model { background: var(--surface-3);    color: var(--ink-subtle); }
 .badge-route-rules { background: var(--warning-soft); color: var(--warning); }
+.badge-est   { background: var(--info-soft);    color: var(--info); }
 .dot { width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; flex: none; }
 
 /* ==========================================================================
@@ -601,6 +603,28 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .receipt-line { display: flex; align-items: center; gap: var(--s-xs); }
 .receipt-what { flex: 1; min-width: 0; font-size: 13px; }
 .receipt-error { color: var(--danger); font-size: 13px; }
+
+/* ==========================================================================
+   NUTRITION SCREEN — card-nutrition
+   Ported from the mockup's `#card-nutrition`, minus the macro bars and their
+   targets: there are no macro targets (docs/domain.md), and a bar needs one.
+   Past the calorie target the headline turns the warning colour, never red.
+   ========================================================================== */
+.nutrition-headline { display: flex; align-items: baseline; gap: var(--s-xs); flex-wrap: wrap; }
+.nutrition-over { color: var(--warning); }
+.nutrition-macros { margin-top: var(--s-lg); }
+.macro { margin-bottom: var(--s-sm); }
+.macro-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+.macro-head .k { color: var(--ink-subtle); }
+.macro-head .v { font-variant-numeric: tabular-nums; color: var(--ink-muted); }
+.meal {
+  display: flex; align-items: baseline; gap: var(--s-sm);
+  padding: var(--s-xs) 0; border-bottom: 1px solid var(--hairline);
+}
+.meal:last-child { border-bottom: none; }
+.meal-time { font-family: var(--font-mono); font-size: 12px; color: var(--ink-subtle); width: 42px; flex: none; }
+.meal-name { flex: 1; font-size: 14px; min-width: 0; }
+.meal-kcal { font-variant-numeric: tabular-nums; font-size: 14px; }
 
 /* ==========================================================================
    CAPTURE LOG — the drawer that answers "where did everything go?" Undo,
