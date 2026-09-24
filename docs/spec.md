@@ -131,10 +131,10 @@ the task keeps its sentence. The panel says where the task came from and how
 it was filed.
 
 **A person is added by you, never guessed.** The Person field picks from your
-people or adds a new one by name. A capture filed as `people` becomes a task
-linked to the person it names -- by full name, or by a first name only one
-person has -- and never creates a person, so a misspelling never becomes a
-duplicate.
+people or adds a new one by name. A capture filed as `task` or `people`
+becomes a task linked to the person it names -- whoever it names most
+completely, and no one on a tie -- and never creates a person, so a
+misspelling never becomes a duplicate.
 
 **Tasks are created by capture.** The screen has no form for a new one.
 

@@ -25,7 +25,7 @@ consequence.
 | Layer | Where | May depend on |
 | --- | --- | --- |
 | Screens and routes | `app/` | `lib/store.js`, `lib/domain/`, `lib/domain/derive/`, config |
-| Data access | `lib/store.js` | the active adapter only |
+| Data access | `lib/store.js` | the active adapter; `lib/domain/` and `personalos.config.js` for the operations that span entities (filing a capture, correcting one) |
 | Storage adapters | `lib/adapters/` | `lib/domain/`, `lib/config/` |
 | Derivations | `lib/domain/derive/` | `lib/domain/` only — pure functions |
 | Pure domain | `lib/domain/` | nothing |

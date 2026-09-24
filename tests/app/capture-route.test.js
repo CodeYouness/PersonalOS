@@ -81,6 +81,20 @@ describe('POST /api/capture', () => {
     );
   });
 
+  it('links a task capture to the person it names, and never creates one', async () => {
+    const giulia = await store.createPerson({ name: 'Giulia Verdi' });
+    const peopleBefore = (await store.getPeople()).length;
+
+    const body = await (await post('Reply to Giulia about the quote')).json();
+
+    expect(body.destination).toBe('task');
+    const involvesLinks = await store.getLinks({ from: body.recordId, rel: 'involves' });
+    expect(involvesLinks.map((link) => link.to)).toEqual([giulia.id]);
+
+    await post('Reply to Federico about the quote');
+    expect(await store.getPeople()).toHaveLength(peopleBefore);
+  });
+
   it('files a non-task capture with no destination record, not a fabricated one', async () => {
     const response = await post('paid 20 for coffee with the team');
     const body = await response.json();
@@ -187,6 +201,15 @@ describe('POST /api/capture', () => {
 
     const captures = await store.getCaptures();
     expect(captures.some((entry) => entry.text === 'Reply about the enrichment failure')).toBe(true);
+  });
+
+  it('keeps the filed task’s id when linking its person fails afterwards', async () => {
+    vi.spyOn(store, 'linkPersonNamedIn').mockRejectedValueOnce(new Error('disk full'));
+
+    const body = await (await post('Reply to Tom about the syllabus')).json();
+
+    expect(body.recordId).not.toBeNull();
+    expect(await store.getTask(body.recordId)).not.toBeNull();
   });
 
   afterEach(() => {
