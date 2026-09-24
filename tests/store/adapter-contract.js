@@ -685,6 +685,27 @@ export function runAdapterContract(label, load) {
         expect(log.meals).toHaveLength(1);
       });
 
+      it('adds a meal to its day, finds it by id, and deletes it', async () => {
+        const meal = await store.createMeal({ date: '2026-04-02', time: null, name: 'Pizza' });
+
+        expect(meal).toMatchObject({ name: 'Pizza', time: null, calories: null, fat: null, estimated: false });
+        expect(meal.updatedAt).toBe(meal.createdAt);
+        expect((await store.getDailyLog('2026-04-02')).meals).toEqual([meal]);
+        expect(await store.getMeal(meal.id)).toEqual(meal);
+
+        await store.deleteMeal(meal.id);
+        expect(await store.getMeal(meal.id)).toBeNull();
+        await expect(store.deleteMeal(meal.id)).rejects.toThrow();
+      });
+
+      it('refuses a meal on a future day, or with a number that is not a non-negative integer', async () => {
+        const base = { date: '2026-04-02', time: '12:30', name: 'Soup' };
+        await expect(store.createMeal({ ...base, date: '2999-01-01' })).rejects.toThrow(/future/);
+        await expect(store.createMeal({ ...base, calories: -1 })).rejects.toThrow(/calories/);
+        await expect(store.createMeal({ ...base, fat: 2.5 })).rejects.toThrow(/fat/);
+        await expect(store.createMeal({ ...base, time: '1pm' })).rejects.toThrow(/time/);
+      });
+
       it('refuses anything that is not a day key', async () => {
         await expect(store.getDailyLog('yesterday')).rejects.toThrow();
         await expect(store.getDailyLog('2026-02-30')).rejects.toThrow();
