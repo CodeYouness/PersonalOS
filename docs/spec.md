@@ -141,6 +141,44 @@ misspelling never becomes a duplicate.
 Not yet: search, drag, editing a person's details, a CRM card on the home
 screen, and the mockup's "Blocked" section.
 
+## Nutrition
+
+"How much have I eaten", answered on a Nutrition screen reached from the
+navigation. There is no Nutrition card on the home screen. The card shows
+today: calories against your target, protein, carbs and fat in grams, and
+the day's meals in the order they were eaten.
+
+**You say a meal, you do not fill one in.** A meal arrives from a capture --
+the capture bar, or the card's own "Describe a meal" box, which is a capture
+already filed as `nutrition`. One sentence is one meal. The model estimates
+its calories and macros, marks it estimated, and places it on the day and at
+the time it was eaten: "last night I had pizza", said in the morning, is
+yesterday's dinner.
+
+**Unknown is not zero.** With no model, a meal is still filed, by name, with
+no numbers -- and a number the model gets absurdly wrong becomes unknown
+rather than being believed. A meal moved to another day with no time said
+has no time rather than an invented one. The day's total counts only meals
+with numbers and says how many had none.
+
+**Calories are their own number.** Changing a macro recomputes calories at
+4/4/9 kcal per gram; changing calories changes only calories. A beer's
+calories are more than its macros explain, and that is not an error (ADR
+0019).
+
+**The headline** reads "1,780 of 2,200 kcal · 420 left"; past the target,
+"250 over", in the warning colour and never red; before any meal, "Nothing
+recorded today".
+
+**Correcting a meal.** Every field can be corrected on the card; any hand
+correction clears "estimated". Delete asks first, and the capture that
+produced the meal keeps its sentence. From the capture log, Undo removes the
+meal and Refile into `nutrition` files one -- both refused once the meal has
+been corrected by hand.
+
+Not yet: macro targets, past days (they belong to Health), several meals from
+one sentence, a Nutrition card on the home screen, and the glucose sensor.
+
 ## Memory
 
 Everything that passes through leaves a trace. Questions are answered over that
