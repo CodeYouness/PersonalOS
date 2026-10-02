@@ -10,6 +10,8 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { today } from '@/lib/domain/dates.js';
+
 /** @type {string} */
 let sandbox;
 /** @type {typeof import('@/lib/store.js')} */
@@ -180,7 +182,7 @@ describe('undoCaptureFiling', () => {
   });
 
   it('refuses a capture with nothing produced to undo', async () => {
-    const capture = await store.createCapture({ text: 'porridge', destination: 'nutrition' });
+    const capture = await store.createCapture({ text: 'slept eight hours', destination: 'health' });
 
     await expect(store.undoCaptureFiling(capture.id)).rejects.toThrow();
   });
@@ -275,12 +277,12 @@ describe('refileCapture', () => {
   });
 
   it('allows refiling to the same no-record destination, as a true no-op', async () => {
-    const capture = await store.createCapture({ text: 'porridge', destination: 'nutrition' });
+    const capture = await store.createCapture({ text: 'slept eight hours', destination: 'health' });
 
-    const newRecordId = await store.refileCapture(capture.id, 'nutrition');
+    const newRecordId = await store.refileCapture(capture.id, 'health');
 
     expect(newRecordId).toBeNull();
-    expect((await store.getCapture(capture.id))?.destination).toBe('nutrition');
+    expect((await store.getCapture(capture.id))?.destination).toBe('health');
   });
 
   it('refuses an unknown destination without touching the existing record', async () => {
@@ -294,5 +296,79 @@ describe('refileCapture', () => {
 
     await expect(store.refileCapture(capture.id, 'errands')).rejects.toThrow();
     expect(await store.getTask(task.id)).not.toBeNull();
+  });
+});
+
+describe('a capture that produced a meal', () => {
+  /** A nutrition capture filed the way the capture route files one. */
+  async function mealCapture() {
+    const capture = await store.createCapture({ text: 'had a carbonara for lunch', destination: 'nutrition' });
+    const meal = await store.fileCaptureAsMeal(capture, { name: capture.text });
+    const memory = await store.createMemoryEntry({ content: capture.text, source: 'capture', derivedFrom: capture.id });
+    return { capture, meal, memory };
+  }
+
+  /**
+   * Edits a meal the only way the store allows before the meal route exists:
+   * rewriting its day. `updatedAt` moving is what "touched" means (ADR 0013).
+   *
+   * @param {import('@/lib/domain/types.js').Meal} meal
+   */
+  async function touch(meal) {
+    const day = await store.getDailyLog(today());
+    await store.updateDailyLog(day.date, {
+      meals: day.meals.map((entry) => (entry.id === meal.id ? { ...entry, name: 'carbonara', updatedAt: new Date(Date.now() + 1000).toISOString() } : entry)),
+    });
+  }
+
+  it('Delete removes the meal with the capture', async () => {
+    const { capture, meal } = await mealCapture();
+
+    await store.deleteCaptureCascade(capture.id);
+
+    expect(await store.getMeal(meal.id)).toBeNull();
+    expect(await store.getCapture(capture.id)).toBeNull();
+  });
+
+  it('Undo removes the meal and keeps the capture and its memory entry', async () => {
+    const { capture, meal, memory } = await mealCapture();
+
+    await store.undoCaptureFiling(capture.id);
+
+    expect(await store.getMeal(meal.id)).toBeNull();
+    expect(await store.getCapture(capture.id)).not.toBeNull();
+    expect(await store.getMemoryEntries()).toContainEqual(expect.objectContaining({ id: memory.id }));
+    expect(await store.getLinks({ from: capture.id, rel: 'about' })).toHaveLength(0);
+  });
+
+  it('Refile out of nutrition removes the meal before filing the task', async () => {
+    const { capture, meal } = await mealCapture();
+
+    const taskId = await store.refileCapture(capture.id, 'task');
+
+    expect(await store.getMeal(meal.id)).toBeNull();
+    expect((await store.getTask(/** @type {string} */ (taskId)))?.title).toBe('had a carbonara for lunch');
+  });
+
+  it('Refile into nutrition files a meal by name, numbers unknown, on the day it was said', async () => {
+    const task = await store.createTask({ title: 'had a carbonara for lunch', source: 'capture' });
+    const capture = await store.createCapture({ text: 'had a carbonara for lunch', destination: 'task' });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+
+    const mealId = await store.refileCapture(capture.id, 'nutrition');
+
+    expect(await store.getTask(task.id)).toBeNull();
+    const meal = await store.getMeal(/** @type {string} */ (mealId));
+    expect(meal).toMatchObject({ name: 'had a carbonara for lunch', calories: null, protein: null, carbs: null, fat: null, estimated: false });
+    expect(await store.getLinks({ from: capture.id, rel: 'about' })).toEqual([expect.objectContaining({ to: mealId })]);
+  });
+
+  it('Undo and Refile are refused once the meal has been touched', async () => {
+    const { capture, meal } = await mealCapture();
+    await touch(meal);
+
+    await expect(store.undoCaptureFiling(capture.id)).rejects.toThrow(/touched/);
+    await expect(store.refileCapture(capture.id, 'task')).rejects.toThrow(/touched/);
+    expect(await store.getMeal(meal.id)).not.toBeNull();
   });
 });

@@ -7,6 +7,7 @@ import {
   createGoal,
   createLink,
   createMemoryEntry,
+  fileCaptureAsMeal,
   fileCaptureAsTask,
   linkPersonNamedIn,
   recordEvent,
@@ -22,8 +23,8 @@ export const dynamic = 'force-dynamic';
  * event.
  *
  * Only the capture write is load-bearing. `task` and `people` file a task
- * (linked to the person the sentence names), `goals` and `appointment` their
- * own record; the other four file as capture + memory only, since a
+ * (linked to the person the sentence names), `goals`, `appointment` and
+ * `nutrition` their own record; the other three file as capture + memory only, since a
  * fabricated transaction or person would be worse than none,
  * and `docs/domain.md` calls "nothing but a memory entry" a valid outcome,
  * not a shortfall. Everything after the capture is enrichment: if it fails
@@ -65,6 +66,9 @@ export async function POST(request) {
       await recordEvent({ type: 'appointment.created', subject: appointment.id, source: 'capture' });
 
       await linkPersonNamedIn(appointment.id, text);
+    } else if (destination === 'nutrition') {
+      const meal = await fileCaptureAsMeal(capture, { name: text });
+      recordId = meal.id;
     }
 
     // createMemoryEntry links the memory back to the capture itself
