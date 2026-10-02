@@ -275,3 +275,62 @@ describe('migration v4 to v5', () => {
     expect(twice).toEqual(once);
   });
 });
+
+/** A minimal v5 document: two days of meals in the pre-v6 shape. */
+function v5Document() {
+  return {
+    ...v4Document(),
+    schemaVersion: 5,
+    profile: { ...v4Document().profile, habits: [] },
+    dailyLogs: {
+      '2026-01-04': {
+        date: '2026-01-04', habits: {}, measurements: [], notes: [],
+        meals: [{ id: 'meal_1', time: '09:00', name: 'Eggs and toast', calories: 420, protein: 24, carbs: 34, fat: 20, estimated: false }],
+      },
+      '2026-01-05': {
+        date: '2026-01-05', habits: {}, measurements: [], notes: [],
+        meals: [
+          { id: 'meal_2', time: '08:30', name: 'Porridge', calories: 380, protein: 12, carbs: 62, fat: 9, estimated: true },
+          { id: 'meal_3', time: '13:15', name: 'Chicken and rice', calories: 640, protein: 48, carbs: 78, fat: 11, estimated: true },
+        ],
+      },
+    },
+  };
+}
+
+describe('migration v5 to v6', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-24T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('gives every meal createdAt = updatedAt = when the migration ran', () => {
+    const migrated = migrate(v5Document());
+    const meals = Object.values(migrated.dailyLogs).flatMap((/** @type {any} */ log) => log.meals);
+
+    expect(meals).toHaveLength(3);
+    for (const meal of meals) {
+      expect(meal.createdAt).toBe('2026-09-24T12:00:00.000Z');
+      expect(meal.updatedAt).toBe('2026-09-24T12:00:00.000Z');
+    }
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('changes nothing else about a meal', () => {
+    const migrated = migrate(v5Document());
+    const { createdAt, updatedAt, ...rest } = migrated.dailyLogs['2026-01-04'].meals[0];
+
+    expect(rest).toEqual({ id: 'meal_1', time: '09:00', name: 'Eggs and toast', calories: 420, protein: 24, carbs: 34, fat: 20, estimated: false });
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v5Document());
+    vi.setSystemTime(new Date('2026-09-25T12:00:00.000Z'));
+    const twice = migrate(once);
+    expect(twice).toEqual(once);
+  });
+});
