@@ -9,8 +9,8 @@ import { calorieStanding } from '@/lib/domain/derive/nutrition.js';
  * in grams, and the day's meals in the order they were eaten.
  *
  * Unknown is not zero (ADR 0019): a meal with no numbers shows "—" and is
- * left out of the totals, and the caption under the headline says how many
- * the totals could not include. No macro targets and no bars -- the day is
+ * left out of the totals, a total no meal knows is "—" too, and the caption
+ * under the headline says how many meals the totals could not fully include. No macro targets and no bars -- the day is
  * measured against `calorieTarget` alone (docs/domain.md).
  *
  * Presentational: the page derives the totals and the order on the server,
@@ -26,8 +26,6 @@ import { calorieStanding } from '@/lib/domain/derive/nutrition.js';
  */
 export default function NutritionCard({ meals, totals, target }) {
   const standing = calorieStanding(totals, target);
-  // Before the first meal the grams are not zero, they are nothing yet.
-  const recorded = standing.kind !== 'nothing';
 
   return (
     <article id="card-nutrition" className="card span-6">
@@ -40,27 +38,29 @@ export default function NutritionCard({ meals, totals, target }) {
           <p className="caption">Nothing recorded today</p>
         ) : (
           <div className="nutrition-headline">
-            <span className="display num">{formatCount(totals.calories)}</span>
+            <span className="display num">{totals.calories === null ? '—' : formatCount(totals.calories)}</span>
             <span className="caption">
-              of {formatCount(target)} kcal ·{' '}
-              {standing.kind === 'over' ? (
-                <span className="nutrition-over">{formatCount(standing.kcal)} over</span>
-              ) : (
-                formatCount(standing.kcal) + ' left'
+              of {formatCount(target)} kcal
+              {standing.kind === 'left' && ' · ' + formatCount(standing.kcal) + ' left'}
+              {standing.kind === 'over' && (
+                <>
+                  {' · '}
+                  <span className="nutrition-over">{formatCount(standing.kcal)} over</span>
+                </>
               )}
             </span>
           </div>
         )}
         {totals.withoutNumbers > 0 && (
           <p className="caption">
-            {totals.withoutNumbers} {totals.withoutNumbers === 1 ? 'meal' : 'meals'} without numbers
+            {formatCount(totals.withoutNumbers)} {totals.withoutNumbers === 1 ? 'meal' : 'meals'} missing numbers
           </p>
         )}
 
         <div className="nutrition-macros">
-          <Macro label="Protein" grams={recorded ? totals.protein : null} />
-          <Macro label="Carbs" grams={recorded ? totals.carbs : null} />
-          <Macro label="Fat" grams={recorded ? totals.fat : null} />
+          <Macro label="Protein" grams={totals.protein} />
+          <Macro label="Carbs" grams={totals.carbs} />
+          <Macro label="Fat" grams={totals.fat} />
         </div>
 
         <div className="divider" />

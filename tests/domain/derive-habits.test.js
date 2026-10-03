@@ -370,6 +370,26 @@ describe('nutrition', () => {
     expect(day).toEqual({ calories: 380, protein: 12, carbs: 62, fat: 9, meals: 2, withoutNumbers: 1 });
   });
 
+  it('counts a meal with any number unknown, so an incomplete macro total admits it', async () => {
+    const day = dayTotals(
+      /** @type {any} */ (log('2026-01-05', {}, [
+        { id: 'meal_1', time: '08:30', name: 'a', calories: 380, protein: 12, carbs: 62, fat: 9, estimated: true },
+        { id: 'meal_2', time: '20:00', name: 'beer', calories: 200, protein: null, carbs: null, fat: null, estimated: false },
+      ]))
+    );
+    expect(day).toEqual({ calories: 580, protein: 12, carbs: 62, fat: 9, meals: 2, withoutNumbers: 1 });
+  });
+
+  it('leaves a total unknown when no meal knows it, rather than calling it zero', () => {
+    const unknown = { id: 'm0', time: null, name: 'pizza', calories: null, protein: null, carbs: null, fat: null, estimated: false };
+    expect(dayTotals(/** @type {any} */ (log('2026-01-05', {}, [unknown])))).toEqual({
+      calories: null, protein: null, carbs: null, fat: null, meals: 1, withoutNumbers: 1,
+    });
+    expect(dayTotals(/** @type {any} */ (log('2026-01-05', {}, [])))).toEqual({
+      calories: null, protein: null, carbs: null, fat: null, meals: 0, withoutNumbers: 0,
+    });
+  });
+
   it('skips unknown numbers in the averages, and a day with only an unknown meal is still recorded', () => {
     const unknown = { id: 'm0', time: null, name: 'pizza', calories: null, protein: null, carbs: null, fat: null, estimated: false };
     const logs = [

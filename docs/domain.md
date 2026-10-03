@@ -469,6 +469,8 @@ therefore a number of their own. Change a macro and calories recompute
 locally with the formula — where an exact formula exists, the formula beats
 the model every time — but a model estimate is allowed to differ from it.
 Change calories and only calories change: the macros stay as they were.
+The formula needs all three macros: filling in one macro of a meal whose
+others are still unknown, or clearing one, leaves calories as they were.
 
 A meal's numbers can be **unknown**: said with no model available to
 estimate them, a meal is still filed, by name, with no numbers. Unknown is
