@@ -8,14 +8,16 @@
 /**
  * @param {string} text
  * @param {typeof fetch} [fetchImpl]
+ * @param {string} [destination] chosen up front, skipping classification --
+ *   the Nutrition card's box sends `nutrition`
  * @returns {Promise<import('./captureBarReducer.js').CaptureBarAction>}
  */
-export async function submitCapture(text, fetchImpl = fetch) {
+export async function submitCapture(text, fetchImpl = fetch, destination) {
   try {
     const response = await fetchImpl('/api/capture', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, destination }),
     });
     const body = await response.json();
     if (!response.ok) {

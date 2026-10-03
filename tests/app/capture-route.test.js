@@ -38,13 +38,16 @@ beforeEach(async () => {
   await store.resetToSeed();
 });
 
-/** @param {string} text */
-function post(text) {
+/**
+ * @param {string} text
+ * @param {string} [destination] chosen up front, as the Nutrition card's box does
+ */
+function post(text, destination) {
   return route.POST(
     new Request('http://localhost/api/capture', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, destination }),
     })
   );
 }
@@ -212,6 +215,25 @@ describe('POST /api/capture', () => {
     const capture = captures.find((entry) => entry.text === 'had a carbonara for lunch');
     const aboutLinks = await store.getLinks({ from: capture?.id, rel: 'about' });
     expect(aboutLinks.map((link) => link.to)).toEqual([body.recordId]);
+  });
+
+  it('files a meal when nutrition is chosen up front, even from a sentence the rules would file as a task', async () => {
+    const response = await post('pizza with Marta', 'nutrition');
+    const body = await response.json();
+
+    expect(body.destination).toBe('nutrition');
+    expect(await store.getMeal(body.recordId)).toMatchObject({ name: 'pizza with Marta', calories: null });
+
+    const capture = (await store.getCaptures()).find((entry) => entry.text === 'pizza with Marta');
+    expect(capture).toMatchObject({ destination: 'nutrition', origin: 'bar' });
+    expect(await store.getTasks()).not.toContainEqual(expect.objectContaining({ title: 'pizza with Marta' }));
+  });
+
+  it('rejects a destination chosen up front that is not one of the destinations', async () => {
+    const response = await post('pizza with Marta', 'snacks');
+
+    expect(response.status).toBe(400);
+    expect((await store.getCaptures()).some((entry) => entry.text === 'pizza with Marta')).toBe(false);
   });
 
   it('rejects empty text instead of filing nothing silently', async () => {

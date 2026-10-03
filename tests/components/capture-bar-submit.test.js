@@ -23,6 +23,17 @@ describe('submitCapture', () => {
     );
   });
 
+  it('sends a destination chosen up front', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(fakeResponse(200, { destination: 'nutrition', route: 'rules' }));
+
+    await submitCapture('pizza with Marta', fetchImpl, 'nutrition');
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      '/api/capture',
+      expect.objectContaining({ body: JSON.stringify({ text: 'pizza with Marta', destination: 'nutrition' }) })
+    );
+  });
+
   it('turns an error response into a requestFailed action', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(fakeResponse(400, { error: 'text is required' }));
 

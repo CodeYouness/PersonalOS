@@ -1,4 +1,5 @@
 import { formatCount } from '@/components/format.js';
+import MealBox from '@/components/MealBox.js';
 import { calorieStanding } from '@/lib/domain/derive/nutrition.js';
 
 /**
@@ -11,8 +12,9 @@ import { calorieStanding } from '@/lib/domain/derive/nutrition.js';
  * the totals could not include. No macro targets and no bars -- the day is
  * measured against `calorieTarget` alone (docs/domain.md).
  *
- * Presentational only: the page derives the totals and the order on the
- * server, the same split as HabitsSummary.
+ * Presentational: the page derives the totals and the order on the server,
+ * the same split as HabitsSummary. The one client island is MealBox, the
+ * "Describe a meal" box, which refreshes this card once a meal lands.
  *
  * @param {{
  *   meals: import('@/lib/domain/types.js').Meal[],
@@ -59,7 +61,8 @@ export default function NutritionCard({ meals, totals, target }) {
           <Macro label="Fat" grams={recorded ? totals.fat : null} />
         </div>
 
-        {meals.length > 0 && <div className="divider" />}
+        <div className="divider" />
+        <MealBox />
         {meals.map((meal) => (
           <div key={meal.id} className="meal">
             <span className="meal-time num">{meal.time ?? '—'}</span>
