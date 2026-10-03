@@ -1,5 +1,6 @@
 import { formatCount } from '@/components/format.js';
 import MealBox from '@/components/MealBox.js';
+import MealList from '@/components/MealList.js';
 import { calorieStanding } from '@/lib/domain/derive/nutrition.js';
 
 /**
@@ -13,8 +14,9 @@ import { calorieStanding } from '@/lib/domain/derive/nutrition.js';
  * measured against `calorieTarget` alone (docs/domain.md).
  *
  * Presentational: the page derives the totals and the order on the server,
- * the same split as HabitsSummary. The one client island is MealBox, the
- * "Describe a meal" box, which refreshes this card once a meal lands.
+ * the same split as HabitsSummary. The client islands are MealBox, the
+ * "Describe a meal" box, and MealList, where a meal is corrected in place;
+ * both refresh this card once a write lands.
  *
  * @param {{
  *   meals: import('@/lib/domain/types.js').Meal[],
@@ -63,15 +65,7 @@ export default function NutritionCard({ meals, totals, target }) {
 
         <div className="divider" />
         <MealBox />
-        {meals.map((meal) => (
-          <div key={meal.id} className="meal">
-            <span className="meal-time num">{meal.time ?? '—'}</span>
-            <span className="meal-name">
-              {meal.name} {meal.estimated && <span className="badge badge-est">est.</span>}
-            </span>
-            <span className="meal-kcal num">{meal.calories === null ? '—' : formatCount(meal.calories)}</span>
-          </div>
-        ))}
+        <MealList meals={meals} />
       </div>
     </article>
   );
