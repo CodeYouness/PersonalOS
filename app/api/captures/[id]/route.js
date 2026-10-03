@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { deleteCaptureCascade, refileCapture } from '@/lib/store.js';
+import { classify } from '@/lib/classify.js';
+import { deleteCaptureCascade, getCapture, refileCapture } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,10 @@ export async function DELETE(request, { params }) {
 }
 
 /**
+ * Refiling into `nutrition` asks the model to estimate the meal, the same
+ * extraction the capture route runs for a sentence already known to be one;
+ * without a model it is filed by name only (ADR 0019).
+ *
  * @param {Request} request
  * @param {{ params: Promise<{ id: string }> }} context
  */
@@ -34,7 +39,12 @@ export async function PATCH(request, { params }) {
   const destination = typeof body?.destination === 'string' ? body.destination : '';
 
   try {
-    const recordId = await refileCapture(id, destination);
+    const capture = destination === 'nutrition' ? await getCapture(id) : null;
+    // ponytail: "last night" resolves against the day of the refile, not the
+    // day it was said; pass the capture's day to classify if old captures
+    // start getting refiled.
+    const meal = capture === null ? undefined : (await classify(capture.text, 'nutrition')).fields;
+    const recordId = await refileCapture(id, destination, meal);
     return NextResponse.json({ ok: true, recordId });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

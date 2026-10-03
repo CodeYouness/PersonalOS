@@ -67,7 +67,7 @@ export async function POST(request) {
 
       await linkPersonNamedIn(appointment.id, text);
     } else if (destination === 'nutrition') {
-      const meal = await fileCaptureAsMeal(capture, { name: text });
+      const meal = await fileCaptureAsMeal(capture, fields);
       recordId = meal.id;
     }
 

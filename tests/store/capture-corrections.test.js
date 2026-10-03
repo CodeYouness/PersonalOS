@@ -303,7 +303,7 @@ describe('a capture that produced a meal', () => {
   /** A nutrition capture filed the way the capture route files one. */
   async function mealCapture() {
     const capture = await store.createCapture({ text: 'had a carbonara for lunch', destination: 'nutrition' });
-    const meal = await store.fileCaptureAsMeal(capture, { name: capture.text });
+    const meal = await store.fileCaptureAsMeal(capture);
     const memory = await store.createMemoryEntry({ content: capture.text, source: 'capture', derivedFrom: capture.id });
     return { capture, meal, memory };
   }
