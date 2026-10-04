@@ -179,6 +179,46 @@ been corrected by hand.
 Not yet: macro targets, past days (they belong to Health), several meals from
 one sentence, a Nutrition card on the home screen, and the glucose sensor.
 
+## Health
+
+"How is the month going", answered on the same screen as Nutrition, next to
+today's card -- the navigation entry reads "Nutrition & Health". The card
+looks back over a fixed rolling 30 days.
+
+**The averages** -- calories, protein, carbs and fat -- cover the 30 days
+before today. Today is still happening: a morning with only breakfast would
+drag the month down every day until dinner, so it is shown, not averaged.
+A day counts towards a number's average only when it has a meal with that
+number: a day with nothing recorded, or whose meals all lack calories, is a
+day you did not record, never a day you ate nothing. A caption says how many
+days were left out and how many meals had no numbers. Calories read "avg
+2,105 of 2,200 kcal", in the warning colour when over and never red.
+
+**The table** has one row per recorded day, newest first, today labelled
+"Today": kcal, protein, carbs, fat, the number of meals and the day's
+weight. A day's kcal over the target takes the warning colour; an unknown
+figure is "—". Days with nothing recorded are left out of the table rather
+than listed as empty. Expanding a day -- one at a time -- shows its meals
+with the same correction and delete as the Nutrition card, so a meal filed
+on an earlier day can be put right there.
+
+**Weight is said, like a meal.** "Weighed 74.6 this morning" in the capture
+bar is a `health` capture that files a weight. The model reads the number
+and the day it was taken; with no model, a number followed by "kg" is read
+onto today. Only 20 to 300 kg is believed: anything else files no weight,
+keeps the sentence, and the receipt says so. A health sentence with no
+weight in it is kept as a capture and a memory, as before. Several weights
+on one day are all kept and the day shows the last one said.
+
+The card shows the latest weight and its change since the first weight in
+the window, in a neutral colour: without a goal, nothing says whether down
+is good. A wrong weight is corrected from the capture log -- Undo removes
+it, Refile into `health` files one -- not on the card.
+
+Not yet: a period selector, a weight goal, any metric other than weight,
+editing a weight on the card, a Health card on the home screen, the glucose
+sensor and all-day wearables.
+
 ## Memory
 
 Everything that passes through leaves a trace. Questions are answered over that

@@ -104,20 +104,23 @@ edit:
 
 | Action | Removes | Survives |
 | --- | --- | --- |
-| **Undo** | the produced record (task/goal/appointment/meal) and its links | the capture and its memory entry — the fact you said it stays true |
-| **Refile** | same as Undo, then files into a new `destination` (a new record if that destination is `task`/`people`/`goals`/`nutrition`) | the capture; `destination` is updated, `route` is not |
+| **Undo** | the produced record (task/goal/appointment/meal/measurement) and its links | the capture and its memory entry — the fact you said it stays true |
+| **Refile** | same as Undo, then files into a new `destination` (a new record if that destination is `task`/`people`/`goals`/`nutrition`, or `health` when the sentence names a weight) | the capture; `destination` is updated, `route` is not |
 | **Delete** | everything the capture produced — capture, memory entry, produced record, links | nothing |
 
 Undo only applies where there is a produced record to retract — today that
-is `task`, `people`, `goals`, `appointment` and `nutrition`; the other three
-destinations have nothing for Undo to act on beyond Delete. Refile has no such
+is `task`, `people`, `goals`, `appointment` and `nutrition`, and `health`
+when it filed a weight; `finance` and `memory`, and a `health` capture with
+no weight, have nothing for Undo to act on beyond Delete. Refile has no such
 restriction: it works from any destination, including the three that file as
 capture + memory only — there is simply nothing to retract before it creates
 the new record. Refiling *into* `appointment` is one of those: the drawer has
 no date/time input, so it only updates `destination` — same as refiling into
 any of the three, and unlike refiling into `task`/`people`/`goals`/`nutrition`.
 Refiling *into* `nutrition` files a meal, estimated when a model is
-available and by name only when not.
+available and by name only when not. Refiling *into* `health` files a weight
+when the sentence names one, and nothing beyond `destination` when it does
+not.
 
 Both are refused once the produced record has been touched since creation
 (`completedAt` set, or `updatedAt !== createdAt`): the user's own work on that
@@ -483,7 +486,7 @@ filling in the numbers of a meal that had none is a correction too. Deleting a
 meal asks first, and the capture that produced it keeps its sentence.
 
 The Nutrition card is today. Past days, and correcting a meal on one, belong
-to Health.
+to Health, on the same screen.
 
 There are no macro targets: the day is measured against `calorieTarget`
 alone, and protein, carbs and fat are plain grams until you set a target for
@@ -493,13 +496,46 @@ them.
 
 ## Health
 
-**Is** the last N daily logs, aggregated. Almost entirely a view.
+**Is** the last `healthWindowDays` (30) daily logs, aggregated, plus the
+measurements in them. Almost entirely a view.
 
 **Averages divide by recorded days only.** A day with no meals is a day you
 did not record, not a day you did not eat. Counting it as zero would make
 every skipped day flatter your deficit, and the card would congratulate you
-for the days you ignored it. The functions return `recordedDays` so the number
-carries its own reliability.
+for the days you ignored it. The same holds per number: a day whose meals
+all lack calories is not recorded for calories, though it may be for a
+macro one of them has. The functions return how many days each number
+counted, so the figure carries its own reliability.
+
+**Today is not averaged.** It is shown in the table, labelled, but the
+averages cover the window's days before today: an unfinished day would pull
+the month down every morning. See
+[ADR-0020](decisions/0020-health-averages-only-finished-recorded-days.md).
+
+### Measurement
+
+**Is** one number you reported about yourself, inside the log of the day it
+was taken. **Has** `metric`, `value`, `unit`, `recordedAt`, `createdAt`,
+`updatedAt`.
+
+`metric` is a closed vocabulary, `measurementMetrics` in
+`personalos.config.js`. Today it holds only `weight`, in `kg`. A metric is
+added there when there is a sentence or a source that produces it, not
+before.
+
+A weight arrives from a `health` capture that names one -- by the model, or
+with no model by a number followed by "kg" -- and belongs to the day it was
+taken, like a meal: "weighed 74.2 yesterday" is yesterday's. `recordedAt` is
+when it was said for today's weight, and unknown (`null`) for one moved to
+another day; the day is the log it sits in. Only 20 to 300 kg is believed;
+a number outside that is dropped and the sentence is kept.
+
+Several weights on one day are all kept; the day's weight is the one filed
+last. The trend is the latest weight minus the first in the window, shown in
+a neutral colour: without a goal, nothing says which way is good.
+
+A weight is corrected from the capture log, not edited: Undo removes it,
+Refile into `health` files one.
 
 ---
 
@@ -622,8 +658,8 @@ Recorded rather than answered, so nobody silently invents an answer:
 
 1. A capture filed as `goals` — week or month horizon? Current intent:
    default to `week`, and let the classifier return a period when it can tell.
-2. A capture filed as `health` needs a metric to land in. Weight is the
-   obvious first one; the column gets built when the data exists, not before.
+2. **Answered (ADR 0020):** a capture filed as `health` lands in a weight
+   when it names one; weight is the first, and so far only, metric.
 3. **Answered (ADR 0018):** a capture never creates a Person; it only links
    an existing one. Creating silently risked duplicates from spelling.
 4. Whether a capture filed as `finance` should create a Transaction. Today it
