@@ -518,7 +518,7 @@ the month down every morning. See
 was taken. **Has** `metric`, `value`, `unit`, `recordedAt`, `createdAt`,
 `updatedAt`.
 
-`metric` is a closed vocabulary, `measurementMetrics` in
+`metric` is a closed vocabulary, `MEASUREMENT_METRICS` in
 `personalos.config.js`. Today it holds only `weight`, in `kg`. A metric is
 added there when there is a sentence or a source that produces it, not
 before.

@@ -334,3 +334,57 @@ describe('migration v5 to v6', () => {
     expect(twice).toEqual(once);
   });
 });
+
+/** A minimal v6 document: one day with two weights in the pre-v7 shape. */
+function v6Document() {
+  return {
+    ...v5Document(),
+    schemaVersion: 6,
+    dailyLogs: {
+      '2026-01-05': {
+        date: '2026-01-05', habits: {}, meals: [], notes: [],
+        measurements: [
+          { id: 'measurement_1', metric: 'weight', value: 74.6, unit: 'kg', recordedAt: '2026-01-05T07:05:00.000Z' },
+          { id: 'measurement_2', metric: 'weight', value: 74.4, unit: 'kg', recordedAt: '2026-01-05T21:00:00.000Z' },
+        ],
+      },
+    },
+  };
+}
+
+describe('migration v6 to v7', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-04T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('gives every measurement createdAt = updatedAt = when the migration ran', () => {
+    const migrated = migrate(v6Document());
+    const measurements = migrated.dailyLogs['2026-01-05'].measurements;
+
+    expect(measurements).toHaveLength(2);
+    for (const measurement of measurements) {
+      expect(measurement.createdAt).toBe('2026-10-04T12:00:00.000Z');
+      expect(measurement.updatedAt).toBe('2026-10-04T12:00:00.000Z');
+    }
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('changes nothing else about a measurement', () => {
+    const migrated = migrate(v6Document());
+    const { createdAt, updatedAt, ...rest } = migrated.dailyLogs['2026-01-05'].measurements[0];
+
+    expect(rest).toEqual({ id: 'measurement_1', metric: 'weight', value: 74.6, unit: 'kg', recordedAt: '2026-01-05T07:05:00.000Z' });
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v6Document());
+    vi.setSystemTime(new Date('2026-10-05T12:00:00.000Z'));
+    const twice = migrate(once);
+    expect(twice).toEqual(once);
+  });
+});
