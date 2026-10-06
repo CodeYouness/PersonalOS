@@ -31,6 +31,7 @@ export default async function NutritionScreen() {
           // Today is shown in the table but never averaged (ADR 0020).
           averages={averagesOverRecordedDays(logs.slice(0, -1))}
           rows={healthRows(logs)}
+          mealsByDay={Object.fromEntries(logs.map((log) => [log.date, mealsInOrder(log.meals)]))}
           weight={weightTrend(logs)}
           target={profile.calorieTarget}
           windowDays={windowDays}

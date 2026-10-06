@@ -652,6 +652,14 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 #card-health th.num, #card-health td.num { text-align: right; font-variant-numeric: tabular-nums; }
 #card-health td { padding: var(--s-xs) var(--s-sm); font-size: 13px; border-bottom: 1px solid var(--hairline); }
 #card-health tbody tr:last-child td { border-bottom: none; }
+#card-health tr.is-open td { border-bottom: none; }
+#card-health .row-expand td { background: var(--surface-2); padding-top: 0; }
+#card-health .row-expand .meal:hover, #card-health .row-expand .meal.is-selected { background: var(--surface-3); }
+.health-day {
+  padding: 0; border: none; background: none; color: inherit; font: inherit; cursor: pointer;
+  text-decoration: underline dotted var(--ink-tertiary); text-underline-offset: 3px;
+}
+.health-day[aria-expanded="true"] { text-decoration-color: var(--ink-subtle); }
 
 /* ==========================================================================
    CAPTURE LOG — the drawer that answers "where did everything go?" Undo,
