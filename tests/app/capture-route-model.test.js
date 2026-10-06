@@ -75,6 +75,26 @@ async function post(text) {
 }
 
 describe('POST /api/capture with a model', () => {
+  it('files a weight the model read on yesterday, with no time', async () => {
+    modelSays({ destination: 'health', weight: 74.2, date: '2026-09-23' });
+
+    const body = await post('mi sono pesato ieri, settantaquattro e due');
+
+    expect(body).toMatchObject({ destination: 'health', route: 'model' });
+    expect((await store.getDailyLog('2026-09-23')).measurements).toEqual([
+      expect.objectContaining({ id: body.recordId, metric: 'weight', value: 74.2, recordedAt: null }),
+    ]);
+  });
+
+  it('files a weight today at the moment it was said when the model places it nowhere else', async () => {
+    modelSays({ destination: 'health', weight: 74.6 });
+
+    const body = await post('settantaquattro e sei stamattina');
+
+    expect(await store.getMeasurement(body.recordId)).toMatchObject({ value: 74.6, recordedAt: NOON.toISOString() });
+    expect((await store.getDailyLog('2026-09-24')).measurements.map((m) => m.id)).toContain(body.recordId);
+  });
+
   it('files an estimated meal with numbers, today, at the moment it was said', async () => {
     modelSays({ destination: 'nutrition', title: 'Carbonara', calories: 720, protein: 28, carbs: 82, fat: 30 });
 
@@ -124,6 +144,20 @@ function refile(id, destination) {
     { params: Promise.resolve({ id }) }
   );
 }
+
+describe('Refile into health with a model', () => {
+  it('files the weight the model reads, on the day it places it', async () => {
+    const capture = await store.createCapture({ text: 'ieri settantaquattro e due', destination: 'memory' });
+    modelSays({ destination: 'health', weight: 74.2, date: '2026-09-23' });
+
+    const body = await (await refile(capture.id, 'health')).json();
+
+    expect(mockCreate.mock.calls[0][0].tools[0].input_schema.properties.destination.enum).toEqual(['health']);
+    expect((await store.getDailyLog('2026-09-23')).measurements).toEqual([
+      expect.objectContaining({ id: body.recordId, value: 74.2, recordedAt: null }),
+    ]);
+  });
+});
 
 describe('Refile into nutrition with a model', () => {
   it('reads "last night" from the day the sentence was said, not the day it is refiled', async () => {

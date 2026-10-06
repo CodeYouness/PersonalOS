@@ -321,6 +321,51 @@ describe('classify (model path)', () => {
     });
   });
 
+  describe('a weight', () => {
+    // Thursday 24 September 2026, noon in Rome.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-09-24T10:00:00Z'));
+      process.env.ANTHROPIC_API_KEY = 'test-key';
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** @param {Record<string, unknown>} input @param {string} [text] */
+    async function classifyWeight(input, text = 'mi sono pesato ieri, settantaquattro e due') {
+      mockCreate.mockResolvedValueOnce({ content: [{ type: 'tool_use', input: { destination: 'health', ...input } }] });
+      const { classify } = await import('@/lib/classify.js');
+      return classify(text);
+    }
+
+    it('extracts the weight and the day it was taken', async () => {
+      const result = await classifyWeight({ weight: 74.2, date: '2026-09-23' });
+
+      expect(result).toEqual({ destination: 'health', route: 'model', fields: { weight: 74.2, date: '2026-09-23' } });
+    });
+
+    it('drops a weight out of range, and a day outside the week before', async () => {
+      expect((await classifyWeight({ weight: 742 })).fields.weight).toBeNull();
+      expect((await classifyWeight({ weight: '74' })).fields.weight).toBeNull();
+      expect((await classifyWeight({ weight: 74, date: '2026-09-16' })).fields.date).toBeNull();
+    });
+
+    it('falls back to the rule\'s reading when the model gives no weight', async () => {
+      const result = await classifyWeight({}, 'weighed 74,6kg');
+
+      expect(result.fields).toEqual({ weight: 74.6, date: null });
+    });
+
+    it('falls back to the rules when the model call fails', async () => {
+      mockCreate.mockRejectedValueOnce(new Error('network error'));
+      const { classify } = await import('@/lib/classify.js');
+
+      expect(await classify('weighed 74.6 kg')).toEqual({ destination: 'health', route: 'rules', fields: { weight: 74.6 } });
+    });
+  });
+
   describe('a destination chosen up front', () => {
     it('keeps the chosen destination when the model call fails', async () => {
       process.env.ANTHROPIC_API_KEY = 'test-key';
