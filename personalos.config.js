@@ -171,6 +171,12 @@ export const HABIT_TYPES = Object.freeze(['check', 'counter']);
 export const GOAL_KINDS = Object.freeze(['objective', 'project']);
 
 /**
+ * The period a goal was promised for -- a label, never an expiry. In this
+ * order on the Goals card and screen.
+ */
+export const GOAL_HORIZONS = Object.freeze(['week', 'month', 'open']);
+
+/**
  * What a finance account is. Net worth is cash + investment + asset - liability.
  *
  * @type {readonly string[]}
