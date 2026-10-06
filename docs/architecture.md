@@ -79,7 +79,9 @@ run the same file. That is why the contract is a file and not a comment.
 The document carries `schemaVersion`. `lib/adapters/json/migrations.js` is a
 pure function from an old shape to the current one — pure so it can be tested
 without a disk, idempotent because every read of an old file calls it. The
-caller copies the file aside before rewriting it.
+caller copies the file aside before rewriting it. The one input beyond the
+document is the configured timezone: v8 resolves `horizonSetOn` to the
+user's day (ADR 0021), so a test sets it with `setDefaultTimezone`.
 
 The seed is versioned with the code and must never be behind it; `readSeed`
 throws if it is.

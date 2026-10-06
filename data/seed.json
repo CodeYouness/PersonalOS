@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -254,6 +254,7 @@
       "name": "Close the Nordis contract",
       "kind": "objective",
       "horizon": "week",
+      "horizonSetOn": "2026-01-02",
       "done": false,
       "progress": null,
       "targetDate": null,
@@ -266,6 +267,7 @@
       "name": "Three deep work mornings",
       "kind": "objective",
       "horizon": "week",
+      "horizonSetOn": "2026-01-02",
       "done": false,
       "progress": {
         "current": 1,
@@ -281,6 +283,7 @@
       "name": "Publish the case study",
       "kind": "project",
       "horizon": "month",
+      "horizonSetOn": "2026-01-01",
       "done": false,
       "progress": null,
       "targetDate": "2026-01-31",
