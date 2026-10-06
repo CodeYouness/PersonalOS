@@ -84,6 +84,37 @@ export function formatCount(value) {
 }
 
 /**
+ * A weight as a scale shows it: always one decimal, "75.0" -- so a column of
+ * weights lines up.
+ *
+ * @param {number} kg
+ * @returns {string}
+ */
+export function formatWeight(kg) {
+  return kg.toLocaleString('en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+/**
+ * A change as it is shown: "+0.4", "−1.2", "0" -- signed, with a real minus.
+ *
+ * @param {number} value
+ * @returns {string}
+ */
+export function formatChange(value) {
+  return value.toLocaleString('en-GB', { signDisplay: 'exceptZero' }).replace('-', '−');
+}
+
+/**
+ * A day in a table row: "Mon 5 Jan".
+ *
+ * @param {string} dayKey
+ * @returns {string}
+ */
+export function dayLabel(dayKey) {
+  return dayKeyToUtcDate(dayKey).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+/**
  * A 0..1 ratio as whole percent. One implementation, so the habits ring and
  * a history row's rate can never round the same number differently.
  *

@@ -390,20 +390,23 @@ describe('nutrition', () => {
     });
   });
 
-  it('skips unknown numbers in the averages, and a day with only an unknown meal is still recorded', () => {
+  it('counts a day towards a number only when one of its meals knows it (ADR 0020)', () => {
+    // A day whose meals all lack calories is still a recorded day, but adding
+    // it as 0 kcal would pull the average down -- unknown is not zero.
     const unknown = { id: 'm0', time: null, name: 'pizza', calories: null, protein: null, carbs: null, fat: null, estimated: false };
+    const beer = { id: 'm3', time: '20:00', name: 'beer', calories: null, protein: 2, carbs: 13, fat: 0, estimated: true };
     const logs = [
       log('2026-01-03', {}, [{ id: 'm1', time: '08:00', name: 'a', calories: 2000, protein: 100, carbs: 200, fat: 60, estimated: false }]),
       log('2026-01-04', {}, [unknown]),
+      log('2026-01-05', {}, [beer]),
     ];
 
     const averages = averagesOverRecordedDays(/** @type {any} */ (logs));
-    expect(averages).toEqual({ calories: 1000, protein: 50, carbs: 100, fat: 30, recordedDays: 2, withoutNumbers: 1 });
+    expect(averages).toEqual({ calories: 2000, protein: 51, carbs: 107, fat: 30, recordedDays: 3, withoutNumbers: 2 });
   });
 
-  it('returns zeroes and a zero count when nothing was recorded', () => {
+  it('leaves every average unknown when nothing was recorded, rather than calling it zero', () => {
     const averages = averagesOverRecordedDays(/** @type {any} */ ([log('2026-01-05', {}, [])]));
-    expect(averages.recordedDays).toBe(0);
-    expect(averages.calories).toBe(0);
+    expect(averages).toEqual({ calories: null, protein: null, carbs: null, fat: null, recordedDays: 0, withoutNumbers: 0 });
   });
 });

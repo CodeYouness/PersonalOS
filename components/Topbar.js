@@ -37,7 +37,7 @@ const SCREENS = [
   { label: 'Home', href: '/' },
   { label: 'CRM', href: '/crm' },
   { label: 'Habits', href: '/habits' },
-  { label: 'Nutrition', href: '/nutrition' },
+  { label: 'Nutrition & Health', href: '/nutrition' },
   { label: 'Finances', href: null },
   { label: 'Review', href: null },
 ];

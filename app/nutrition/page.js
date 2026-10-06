@@ -1,23 +1,41 @@
+import HealthCard from '@/components/HealthCard.js';
 import NutritionCard from '@/components/NutritionCard.js';
-import { today } from '@/lib/domain/dates.js';
-import { dayTotals, mealsInOrder } from '@/lib/domain/derive/nutrition.js';
-import { getDailyLog, getProfile } from '@/lib/store.js';
+import { shiftDayKey, today } from '@/lib/domain/dates.js';
+import { healthRows, weightTrend } from '@/lib/domain/derive/health.js';
+import { averagesOverRecordedDays, dayTotals, mealsInOrder } from '@/lib/domain/derive/nutrition.js';
+import { getDailyLogs, getProfile } from '@/lib/store.js';
+import { limits } from '@/personalos.config.js';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * The Nutrition screen, ported from design/mockup.html's `#screen-nutrition`:
- * one card, for today. It reads the last saved day and never calls the model
- * -- a meal is estimated when it is said, not when it is looked at. Past days
- * belong to Health (docs/spec.md).
+ * The Nutrition & Health screen, ported from design/mockup.html's
+ * `#screen-nutrition`: today's card, and the Health card for the
+ * `healthWindowDays` before it. It reads the saved days and never calls the
+ * model -- a meal is estimated when it is said, not when it is looked at.
  */
 export default async function NutritionScreen() {
-  const [profile, log] = await Promise.all([getProfile(), getDailyLog(today())]);
+  const todayKey = today();
+  const windowDays = limits.healthWindowDays;
+  const [profile, logs] = await Promise.all([
+    getProfile(),
+    getDailyLogs(shiftDayKey(todayKey, -windowDays), todayKey),
+  ]);
+  const todayLog = logs[logs.length - 1];
 
   return (
     <section id="screen-nutrition" className="screen is-active">
       <div className="screen-grid">
-        <NutritionCard meals={mealsInOrder(log.meals)} totals={dayTotals(log)} target={profile.calorieTarget} />
+        <NutritionCard meals={mealsInOrder(todayLog.meals)} totals={dayTotals(todayLog)} target={profile.calorieTarget} />
+        <HealthCard
+          // Today is shown in the table but never averaged (ADR 0020).
+          averages={averagesOverRecordedDays(logs.slice(0, -1))}
+          rows={healthRows(logs)}
+          weight={weightTrend(logs)}
+          target={profile.calorieTarget}
+          windowDays={windowDays}
+          todayKey={todayKey}
+        />
       </div>
     </section>
   );
