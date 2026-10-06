@@ -357,3 +357,57 @@ describe('a capture that produced a meal', () => {
     expect(await store.getMeal(meal.id)).not.toBeNull();
   });
 });
+
+describe('a capture that produced a weight', () => {
+  /** A health capture filed the way the capture route files one. */
+  async function weightCapture() {
+    const capture = await store.createCapture({ text: 'weighed 74.6 kg', destination: 'health' });
+    const weight = /** @type {import('@/lib/domain/types.js').Measurement} */ (await store.fileCaptureAsWeight(capture, { weight: 74.6 }));
+    const memory = await store.createMemoryEntry({ content: capture.text, source: 'capture', derivedFrom: capture.id });
+    return { capture, weight, memory };
+  }
+
+  it('files nothing when the classifier read no weight', async () => {
+    const capture = await store.createCapture({ text: 'headache today', destination: 'health' });
+
+    expect(await store.fileCaptureAsWeight(capture, { weight: null })).toBeNull();
+    expect(await store.getLinks({ from: capture.id, rel: 'about' })).toHaveLength(0);
+  });
+
+  it('Undo removes the weight and keeps the capture and its memory entry', async () => {
+    const { capture, weight, memory } = await weightCapture();
+
+    await store.undoCaptureFiling(capture.id);
+
+    expect(await store.getMeasurement(weight.id)).toBeNull();
+    expect(await store.getCapture(capture.id)).not.toBeNull();
+    expect(await store.getMemoryEntries()).toContainEqual(expect.objectContaining({ id: memory.id }));
+  });
+
+  it('Refile out of health removes the weight before filing the task', async () => {
+    const { capture, weight } = await weightCapture();
+
+    const taskId = await store.refileCapture(capture.id, 'task');
+
+    expect(await store.getMeasurement(weight.id)).toBeNull();
+    expect((await store.getTask(/** @type {string} */ (taskId)))?.title).toBe('weighed 74.6 kg');
+  });
+
+  it('Refile into health files the weight the sentence names', async () => {
+    const task = await store.createTask({ title: 'weighed 74.6 kg', source: 'capture' });
+    const capture = await store.createCapture({ text: 'weighed 74.6 kg', destination: 'task' });
+    await store.createLink({ from: capture.id, to: task.id, rel: 'about' });
+
+    const weightId = await store.refileCapture(capture.id, 'health', async () => ({ weight: 74.6 }));
+
+    expect(await store.getTask(task.id)).toBeNull();
+    expect(await store.getMeasurement(/** @type {string} */ (weightId))).toMatchObject({ metric: 'weight', value: 74.6 });
+  });
+
+  it('Refile into health without a weight files nothing but still moves the capture', async () => {
+    const capture = await store.createCapture({ text: 'headache today', destination: 'memory' });
+
+    expect(await store.refileCapture(capture.id, 'health')).toBeNull();
+    expect((await store.getCapture(capture.id))?.destination).toBe('health');
+  });
+});

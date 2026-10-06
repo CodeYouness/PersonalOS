@@ -51,7 +51,9 @@ export default function CaptureBar() {
           <div className="receipt-line">
             <span className="badge badge-ok">{state.receipt.destination}</span>
             <span className={'badge badge-route-' + state.receipt.route}>{state.receipt.route}</span>
-            <span className="receipt-what">Filed &ldquo;{state.text}&rdquo;</span>
+            <span className="receipt-what">
+              Filed &ldquo;{state.text}&rdquo;{state.receipt.note && ' · ' + state.receipt.note}
+            </span>
           </div>
         )}
         {state.status === 'error' && <p className="receipt-error">{state.error}</p>}

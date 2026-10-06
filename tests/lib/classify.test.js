@@ -28,13 +28,23 @@ describe('classifyWithRules', () => {
     ['spent 340 on the accountant', 'finance'],
     ['€45 for the workshop', 'finance'],
     ['ate a chicken sandwich for lunch', 'nutrition'],
-    ['workout at the gym this morning', 'health'],
   ])('routes %j to %s', (text, destination) => {
     expect(classifyModule.classifyWithRules(text)).toEqual({
       destination,
       route: 'rules',
       fields: {},
     });
+  });
+
+  it.each([
+    ['weighed 74.6 kg this morning', 74.6],
+    ['peso 74,6kg', 74.6],
+    ['74kg oggi', 74],
+    ['workout at the gym this morning', null],
+    ['weighed 746 kg', null],
+    ['weighed 9 kg', null],
+  ])('routes %j to health with weight %j', (text, weight) => {
+    expect(classifyModule.classifyWithRules(text)).toEqual({ destination: 'health', route: 'rules', fields: { weight } });
   });
 
   it('routes a goal, with the text as its name', () => {

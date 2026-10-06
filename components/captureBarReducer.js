@@ -16,12 +16,12 @@
  * @typedef {object} CaptureBarState
  * @property {'idle' | 'processing' | 'done' | 'error'} status
  * @property {string} text
- * @property {{ destination: string, route: string } | null} receipt
+ * @property {{ destination: string, route: string, note?: string } | null} receipt
  * @property {string | null} error
  *
  * @typedef {
  *   | { type: 'submit', text: string }
- *   | { type: 'receiptReceived', receipt: { destination: string, route: string } }
+ *   | { type: 'receiptReceived', receipt: { destination: string, route: string, note?: string } }
  *   | { type: 'requestFailed', error: string }
  *   | { type: 'dismiss' }
  * } CaptureBarAction

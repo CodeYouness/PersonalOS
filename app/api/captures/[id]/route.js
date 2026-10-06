@@ -27,9 +27,10 @@ export async function DELETE(request, { params }) {
 }
 
 /**
- * Refiling into `nutrition` asks the model to estimate the meal, the same
- * extraction the capture route runs for a sentence already known to be one;
- * without a model it is filed by name only (ADR 0019).
+ * Refiling into `nutrition` or `health` reads the sentence again for that
+ * destination -- the meal's estimate, or a weight -- the same extraction the
+ * capture route runs; without a model a meal is filed by name only (ADR
+ * 0019) and a weight only when the rule can read it (ADR 0020).
  *
  * @param {Request} request
  * @param {{ params: Promise<{ id: string }> }} context
@@ -40,10 +41,10 @@ export async function PATCH(request, { params }) {
   const destination = typeof body?.destination === 'string' ? body.destination : '';
 
   try {
-    const recordId = await refileCapture(id, destination, async (capture) => {
+    const recordId = await refileCapture(id, destination, async (capture, chosen) => {
       // Read from the day the sentence was said: "last night" means the
       // night before it was said, not before the refile.
-      const { fields } = await classify(capture.text, 'nutrition', toDayKey(new Date(capture.createdAt)));
+      const { fields } = await classify(capture.text, chosen, toDayKey(new Date(capture.createdAt)));
       return fields;
     });
     return NextResponse.json({ ok: true, recordId });
