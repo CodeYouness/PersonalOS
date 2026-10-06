@@ -707,6 +707,29 @@ export function runAdapterContract(label, load) {
         await expect(store.createMeal({ ...base, time: '25:70' })).rejects.toThrow(/time/);
       });
 
+      it('adds a measurement to its day, finds it by id, and deletes it with its links', async () => {
+        const weight = await store.createMeasurement({ date: '2026-04-02', metric: 'weight', value: 74.6, recordedAt: null });
+
+        expect(weight).toMatchObject({ metric: 'weight', value: 74.6, unit: 'kg', recordedAt: null });
+        expect(weight.updatedAt).toBe(weight.createdAt);
+        expect((await store.getDailyLog('2026-04-02')).measurements).toEqual([weight]);
+        expect(await store.getMeasurement(weight.id)).toEqual(weight);
+
+        await store.createLink({ from: 'capture_seed_1', to: weight.id, rel: 'about' });
+        await store.deleteMeasurement(weight.id);
+        expect(await store.getMeasurement(weight.id)).toBeNull();
+        expect(await store.getLinks({ to: weight.id })).toHaveLength(0);
+        await expect(store.deleteMeasurement(weight.id)).rejects.toThrow();
+      });
+
+      it('refuses a measurement of an unknown metric, a non-positive value, or a future day', async () => {
+        const base = { date: '2026-04-02', metric: 'weight', value: 74.6, recordedAt: null };
+        await expect(store.createMeasurement({ ...base, metric: 'mood' })).rejects.toThrow(/metric/);
+        await expect(store.createMeasurement({ ...base, value: 0 })).rejects.toThrow(/value/);
+        await expect(store.createMeasurement({ ...base, value: '74' })).rejects.toThrow(/value/);
+        await expect(store.createMeasurement({ ...base, date: '2999-01-01' })).rejects.toThrow(/future/);
+      });
+
       it('refuses anything that is not a day key', async () => {
         await expect(store.getDailyLog('yesterday')).rejects.toThrow();
         await expect(store.getDailyLog('2026-02-30')).rejects.toThrow();

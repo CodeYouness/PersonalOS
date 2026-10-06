@@ -192,6 +192,15 @@ export const TRANSACTION_KINDS = Object.freeze(['income', 'expense', 'transfer']
 export const OBSERVATION_KINDS = Object.freeze(['balance', 'position']);
 
 /**
+ * What a measurement may measure, and the one unit it is stored in. Closed:
+ * a metric is added here when a sentence or a source produces it, not before
+ * (ADR 0020). The unit is not the caller's to choose -- a weight is kg.
+ *
+ * @type {Readonly<Record<string, string>>}
+ */
+export const MEASUREMENT_METRICS = Object.freeze({ weight: 'kg' });
+
+/**
  * Numbers that are decisions, not accidents, for cards and routes not built
  * yet -- none of them belongs inline in a component once it exists. Not read
  * by any code today: each is claimed by the feature named next to it, and

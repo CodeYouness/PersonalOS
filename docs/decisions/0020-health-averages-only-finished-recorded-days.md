@@ -38,7 +38,7 @@ believed; anything else files nothing and keeps the sentence. Moved to an
 earlier day with no time said, a weight has `recordedAt: null` -- no time is
 invented, as for a meal.
 
-`metric` becomes a closed vocabulary, `measurementMetrics`, holding only
+`metric` becomes a closed vocabulary, `MEASUREMENT_METRICS`, holding only
 `weight`. A measurement is now a record a capture produces, so it gains
 `createdAt` and `updatedAt` (backfilled by the v6 -> v7 migration), and
 `health` joins the destinations Undo can act on when it filed a weight --
