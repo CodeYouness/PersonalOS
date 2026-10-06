@@ -1,4 +1,5 @@
 import { dayLabel, formatChange, formatCount, formatWeight } from '@/components/format.js';
+import HealthTable from '@/components/HealthTable.js';
 
 /**
  * The Health card, ported from design/mockup.html's `#card-health`: how the
@@ -11,18 +12,20 @@ import { dayLabel, formatChange, formatCount, formatWeight } from '@/components/
  * take the warning colour, never red; the weight change stays neutral --
  * without a goal nothing says which way is good.
  *
- * Presentational: the page derives every number on the server.
+ * Presentational: the page derives every number on the server. The client
+ * island is HealthTable, where a day opens to correct its meals.
  *
  * @param {{
- *   averages: ReturnType<typeof import('@/lib/domain/derive/nutrition.js').averagesOverRecordedDays>,
+ *   averages: ReturnType<typeof import('@/lib/domain/derive/health.js').healthAverages>,
  *   rows: ReturnType<typeof import('@/lib/domain/derive/health.js').healthRows>,
+ *   mealsByDay: Record<string, import('@/lib/domain/types.js').Meal[]>,
  *   weight: ReturnType<typeof import('@/lib/domain/derive/health.js').weightTrend>,
  *   target: number,
  *   windowDays: number,
  *   todayKey: string,
  * }} props
  */
-export default function HealthCard({ averages, rows, weight, target, windowDays, todayKey }) {
+export default function HealthCard({ averages, rows, mealsByDay, weight, target, windowDays, todayKey }) {
   const leftOut = windowDays - averages.recordedDays;
   const over = averages.calories !== null && averages.calories > target;
 
@@ -40,10 +43,10 @@ export default function HealthCard({ averages, rows, weight, target, windowDays,
           <span className="caption">avg of {formatCount(target)} kcal</span>
         </div>
         <p className="caption health-caption">
-          {averages.recordedDays === 0
-            ? 'No day recorded before today'
-            : 'Average over ' + averages.recordedDays + (averages.recordedDays === 1 ? ' recorded day' : ' recorded days')}
-          {leftOut > 0 && ' · ' + leftOut + (leftOut === 1 ? ' day' : ' days') + ' with nothing recorded left out, not counted as zero'}
+          {averages.days.calories === 0
+            ? 'No day with calories before today'
+            : 'Average over ' + days(averages.days.calories) + ' with calories'}
+          {leftOut > 0 && ' · ' + days(leftOut) + ' without meals left out, not counted as zero'}
           {averages.withoutNumbers > 0 &&
             ' · ' + averages.withoutNumbers + (averages.withoutNumbers === 1 ? ' meal' : ' meals') + ' missing numbers'}
         </p>
@@ -69,34 +72,7 @@ export default function HealthCard({ averages, rows, weight, target, windowDays,
         {rows.length === 0 ? (
           <p className="caption">Nothing recorded in the last {windowDays} days</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Day</th>
-                <th className="num">kcal</th>
-                <th className="num">P</th>
-                <th className="num">C</th>
-                <th className="num">F</th>
-                <th className="num">Meals</th>
-                <th className="num">kg</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.date}>
-                  <td>{row.date === todayKey ? 'Today' : dayLabel(row.date)}</td>
-                  <td className={'num' + (row.calories !== null && row.calories > target ? ' nutrition-over' : '')}>
-                    {known(row.calories)}
-                  </td>
-                  <td className="num">{known(row.protein)}</td>
-                  <td className="num">{known(row.carbs)}</td>
-                  <td className="num">{known(row.fat)}</td>
-                  <td className="num">{formatCount(row.meals)}</td>
-                  <td className="num">{row.weight === null ? '—' : formatWeight(row.weight)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <HealthTable rows={rows} mealsByDay={mealsByDay} target={target} todayKey={todayKey} />
         )}
       </div>
     </article>
@@ -116,7 +92,7 @@ function Average({ label, value, unit }) {
   );
 }
 
-/** @param {number | null} value */
-function known(value) {
-  return value === null ? '—' : formatCount(value);
+/** @param {number} count */
+function days(count) {
+  return formatCount(count) + (count === 1 ? ' day' : ' days');
 }

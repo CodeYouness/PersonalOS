@@ -402,11 +402,19 @@ describe('nutrition', () => {
     ];
 
     const averages = averagesOverRecordedDays(/** @type {any} */ (logs));
-    expect(averages).toEqual({ calories: 2000, protein: 51, carbs: 107, fat: 30, recordedDays: 3, withoutNumbers: 2 });
+    expect(averages).toEqual({
+      calories: 2000, protein: 51, carbs: 107, fat: 30,
+      days: { calories: 1, protein: 2, carbs: 2, fat: 2 },
+      recordedDays: 3, withoutNumbers: 2,
+    });
   });
 
   it('leaves every average unknown when nothing was recorded, rather than calling it zero', () => {
     const averages = averagesOverRecordedDays(/** @type {any} */ ([log('2026-01-05', {}, [])]));
-    expect(averages).toEqual({ calories: null, protein: null, carbs: null, fat: null, recordedDays: 0, withoutNumbers: 0 });
+    expect(averages).toEqual({
+      calories: null, protein: null, carbs: null, fat: null,
+      days: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+      recordedDays: 0, withoutNumbers: 0,
+    });
   });
 });

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { formatWeight } from '@/components/format.js';
 import { limits } from '@/personalos.config.js';
 import { getCaptureProducedRecord, getCaptures, isCaptureRecordLocked } from '@/lib/store.js';
 
@@ -50,5 +51,5 @@ async function enrichCapture(capture) {
 function producedTitle(record) {
   if ('title' in record) return record.title;
   if ('name' in record) return record.name;
-  return String(record.value) + ' ' + record.unit;
+  return formatWeight(record.value) + ' ' + record.unit;
 }

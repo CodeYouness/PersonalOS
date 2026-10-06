@@ -236,8 +236,7 @@ describe('POST /api/capture', () => {
     vi.useRealTimers();
     const body = await response.json();
 
-    expect(body).toMatchObject({ destination: 'health', route: 'rules' });
-    expect(body.note).toBeUndefined();
+    expect(body).toMatchObject({ destination: 'health', route: 'rules', note: '74.6 kg' });
     const log = await store.getDailyLog('2026-09-10');
     expect(log.measurements).toEqual([
       expect.objectContaining({ id: body.recordId, metric: 'weight', value: 74.6, unit: 'kg', recordedAt: A_THURSDAY.toISOString() }),
