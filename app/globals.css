@@ -635,6 +635,25 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .meal-kcal { font-variant-numeric: tabular-nums; font-size: 14px; }
 
 /* ==========================================================================
+   HEALTH — card-health, next to card-nutrition. Ported from the mockup's
+   `#card-health` and its table styles; no period selector yet (docs/spec.md).
+   ========================================================================== */
+.health-caption { margin: 4px 0 var(--s-md); }
+.avg-strip { display: flex; gap: var(--s-lg); flex-wrap: wrap; margin-bottom: var(--s-md); flex: none; }
+.avg .k { font-size: 11px; color: var(--ink-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
+.avg .v { font-size: 19px; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; font-weight: var(--w-display); }
+#card-health table { width: 100%; border-collapse: collapse; }
+#card-health th {
+  text-align: left; padding: var(--s-xs) var(--s-sm);
+  font-size: 11px; font-weight: var(--w-label); letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--ink-tertiary);
+  border-bottom: 1px solid var(--hairline);
+}
+#card-health th.num, #card-health td.num { text-align: right; font-variant-numeric: tabular-nums; }
+#card-health td { padding: var(--s-xs) var(--s-sm); font-size: 13px; border-bottom: 1px solid var(--hairline); }
+#card-health tbody tr:last-child td { border-bottom: none; }
+
+/* ==========================================================================
    CAPTURE LOG — the drawer that answers "where did everything go?" Undo,
    File elsewhere and Delete land with the tickets that build them (roadmap
    item 11's actions); this pass is read-only.
