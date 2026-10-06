@@ -1,8 +1,8 @@
 import HealthCard from '@/components/HealthCard.js';
 import NutritionCard from '@/components/NutritionCard.js';
 import { shiftDayKey, today } from '@/lib/domain/dates.js';
-import { healthRows, weightTrend } from '@/lib/domain/derive/health.js';
-import { averagesOverRecordedDays, dayTotals, mealsInOrder } from '@/lib/domain/derive/nutrition.js';
+import { healthAverages, healthRows, weightTrend } from '@/lib/domain/derive/health.js';
+import { dayTotals, mealsInOrder } from '@/lib/domain/derive/nutrition.js';
 import { getDailyLogs, getProfile } from '@/lib/store.js';
 import { limits } from '@/personalos.config.js';
 
@@ -28,10 +28,9 @@ export default async function NutritionScreen() {
       <div className="screen-grid">
         <NutritionCard meals={mealsInOrder(todayLog.meals)} totals={dayTotals(todayLog)} target={profile.calorieTarget} />
         <HealthCard
-          // Today is shown in the table but never averaged (ADR 0020).
-          averages={averagesOverRecordedDays(logs.slice(0, -1))}
+          averages={healthAverages(logs, todayKey)}
           rows={healthRows(logs)}
-          mealsByDay={Object.fromEntries(logs.map((log) => [log.date, mealsInOrder(log.meals)]))}
+          mealsByDay={Object.fromEntries(logs.filter((log) => log.meals.length > 0).map((log) => [log.date, mealsInOrder(log.meals)]))}
           weight={weightTrend(logs)}
           target={profile.calorieTarget}
           windowDays={windowDays}

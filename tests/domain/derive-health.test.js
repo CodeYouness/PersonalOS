@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { dayWeight, healthRows, weightTrend } from '@/lib/domain/derive/health.js';
+import { dayWeight, healthAverages, healthRows, weightTrend } from '@/lib/domain/derive/health.js';
 
 /**
  * @param {string} date
@@ -52,5 +52,12 @@ describe('health', () => {
   it('has no change with one weight, and no trend with none', () => {
     expect(weightTrend([log('2026-10-03', { weights: [[74.6, '2026-10-03T07:00:00Z']] })])).toEqual({ latest: 74.6, change: null, since: '2026-10-03' });
     expect(weightTrend([log('2026-10-03', { meals: [meal] })])).toBeNull();
+  });
+
+  it('averages the days before today, never today, which is still being eaten (ADR 0020)', () => {
+    const big = { ...meal, calories: 3000 };
+    const averages = healthAverages([log('2026-10-05', { meals: [meal] }), log('2026-10-06', { meals: [big] })], '2026-10-06');
+
+    expect(averages).toMatchObject({ calories: 500, recordedDays: 1 });
   });
 });

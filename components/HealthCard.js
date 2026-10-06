@@ -16,7 +16,7 @@ import HealthTable from '@/components/HealthTable.js';
  * island is HealthTable, where a day opens to correct its meals.
  *
  * @param {{
- *   averages: ReturnType<typeof import('@/lib/domain/derive/nutrition.js').averagesOverRecordedDays>,
+ *   averages: ReturnType<typeof import('@/lib/domain/derive/health.js').healthAverages>,
  *   rows: ReturnType<typeof import('@/lib/domain/derive/health.js').healthRows>,
  *   mealsByDay: Record<string, import('@/lib/domain/types.js').Meal[]>,
  *   weight: ReturnType<typeof import('@/lib/domain/derive/health.js').weightTrend>,
@@ -43,10 +43,10 @@ export default function HealthCard({ averages, rows, mealsByDay, weight, target,
           <span className="caption">avg of {formatCount(target)} kcal</span>
         </div>
         <p className="caption health-caption">
-          {averages.recordedDays === 0
-            ? 'No day recorded before today'
-            : 'Average over ' + averages.recordedDays + (averages.recordedDays === 1 ? ' recorded day' : ' recorded days')}
-          {leftOut > 0 && ' · ' + leftOut + (leftOut === 1 ? ' day' : ' days') + ' with nothing recorded left out, not counted as zero'}
+          {averages.days.calories === 0
+            ? 'No day with calories before today'
+            : 'Average over ' + days(averages.days.calories) + ' with calories'}
+          {leftOut > 0 && ' · ' + days(leftOut) + ' without meals left out, not counted as zero'}
           {averages.withoutNumbers > 0 &&
             ' · ' + averages.withoutNumbers + (averages.withoutNumbers === 1 ? ' meal' : ' meals') + ' missing numbers'}
         </p>
@@ -90,4 +90,9 @@ function Average({ label, value, unit }) {
       </div>
     </div>
   );
+}
+
+/** @param {number} count */
+function days(count) {
+  return formatCount(count) + (count === 1 ? ' day' : ' days');
 }

@@ -728,6 +728,7 @@ export function runAdapterContract(label, load) {
         await expect(store.createMeasurement({ ...base, value: 0 })).rejects.toThrow(/value/);
         await expect(store.createMeasurement({ ...base, value: '74' })).rejects.toThrow(/value/);
         await expect(store.createMeasurement({ ...base, date: '2999-01-01' })).rejects.toThrow(/future/);
+        await expect(store.createMeasurement({ ...base, recordedAt: 'this morning' })).rejects.toThrow(/recordedAt/);
       });
 
       it('refuses anything that is not a day key', async () => {

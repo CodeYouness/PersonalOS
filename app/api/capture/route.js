@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { formatWeight } from '@/components/format.js';
 import { classify } from '@/lib/classify.js';
 import {
   createAppointment,
@@ -54,6 +55,8 @@ export async function POST(request) {
   const capture = await createCapture({ text, origin: 'bar', destination, route });
 
   let recordId = null;
+  /** @type {string | undefined} what the receipt adds: the weight filed, or that none was */
+  let note;
   try {
     if (TASK_DESTINATIONS.includes(destination)) {
       const task = await fileCaptureAsTask(capture, fields.title ?? text);
@@ -80,7 +83,9 @@ export async function POST(request) {
       const meal = await fileCaptureAsMeal(capture, fields);
       recordId = meal.id;
     } else if (destination === 'health') {
-      recordId = (await fileCaptureAsWeight(capture, fields))?.id ?? null;
+      const weight = await fileCaptureAsWeight(capture, fields);
+      recordId = weight?.id ?? null;
+      note = weight === null ? 'no weight filed' : formatWeight(weight.value) + ' ' + weight.unit;
     }
 
     // createMemoryEntry links the memory back to the capture itself
@@ -101,6 +106,5 @@ export async function POST(request) {
 
   // A health sentence with no weight to believe -- none said, or one nobody
   // weighs -- is kept, and the receipt says so instead of implying a number.
-  const note = destination === 'health' && recordId === null ? 'no weight filed' : undefined;
   return NextResponse.json({ destination, route, recordId, note });
 }

@@ -43,6 +43,8 @@ describe('classifyWithRules', () => {
     ['workout at the gym this morning', null],
     ['weighed 746 kg', null],
     ['weighed 9 kg', null],
+    ['weighed 1074 kg', null],
+    ['weighed 7.46.2 kg', null],
   ])('routes %j to health with weight %j', (text, weight) => {
     expect(classifyModule.classifyWithRules(text)).toEqual({ destination: 'health', route: 'rules', fields: { weight } });
   });
@@ -352,10 +354,12 @@ describe('classify (model path)', () => {
       expect((await classifyWeight({ weight: 74, date: '2026-09-16' })).fields.date).toBeNull();
     });
 
-    it('falls back to the rule\'s reading when the model gives no weight', async () => {
-      const result = await classifyWeight({}, 'weighed 74,6kg');
+    it('files no weight when the model, having read the sentence, gives none', async () => {
+      // "benched 100kg" names a kg that is not a body weight: once the model
+      // has read the sentence, the rule does not get to overrule it.
+      const result = await classifyWeight({}, 'benched 100kg at the gym');
 
-      expect(result.fields).toEqual({ weight: 74.6, date: null });
+      expect(result.fields).toEqual({ weight: null, date: null });
     });
 
     it('falls back to the rules when the model call fails', async () => {
