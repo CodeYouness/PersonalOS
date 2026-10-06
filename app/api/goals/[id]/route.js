@@ -13,8 +13,8 @@ const EDITABLE = ['name', 'kind', 'horizon', 'targetDate', 'progress'];
 /**
  * Correct a goal. Any subset of the editable fields; the store validates
  * each value. A different horizon restarts the goal's age, the same one
- * does not (ADR 0021). Correcting is not something that happened to you,
- * so no event is written.
+ * does not (ADR 0021). The store refuses a done goal: it is reopened first.
+ * Correcting is not something that happened to you, so no event is written.
  *
  * @param {Request} request
  * @param {{ params: Promise<{ id: string }> }} context
@@ -41,8 +41,7 @@ export async function PATCH(request, { params }) {
   }
 
   try {
-    const goal = await updateGoal(id, body);
-    return NextResponse.json({ ok: true, goal });
+    return NextResponse.json({ ok: true, goal: await updateGoal(id, body) });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[goals] could not update goal ' + id + ':', message);

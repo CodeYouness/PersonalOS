@@ -24,6 +24,10 @@ const HORIZON_LABELS = { week: 'Week', month: 'Month', open: 'Open' };
  * sent at all. Progress saves when focus leaves the pair of numbers, so
  * typing the target after the current is one edit, not a refused one.
  *
+ * Done keeps the panel open, saying "Done" with a Reopen beside it, so a
+ * mis-click is undone where it was made (#99). A done goal's fields are
+ * locked until it is reopened: what you closed stays as you closed it.
+ *
  * Mounted with `key={goal.id}`, so selecting another goal starts clean.
  *
  * @param {{ goal: Goal }} props
@@ -35,6 +39,10 @@ export default function GoalDetail({ goal }) {
   const [error, setError] = useState(/** @type {string | null} */ (null));
   const [needsResync, setNeedsResync] = useState(false);
   const [seenGoal, setSeenGoal] = useState(goal);
+  const [isDone, setIsDone] = useState(goal.done);
+  // Done and Reopen wait for each other: a Reopen racing the Done it undoes
+  // would only be refused.
+  const [isActing, setIsActing] = useState(false);
   const [, startTransition] = useTransition();
   // Esc reverts a field and then blurs it; the blur must not save the value
   // Esc just threw away.
@@ -44,6 +52,7 @@ export default function GoalDetail({ goal }) {
   // then are the fields reset to it.
   if (goal !== seenGoal) {
     setSeenGoal(goal);
+    setIsDone(goal.done);
     if (needsResync) {
       setDraft(editable(goal));
       setSaved(editable(goal));
@@ -82,6 +91,26 @@ export default function GoalDetail({ goal }) {
       setDraft(saved);
       setNeedsResync(true);
     }
+    startTransition(() => router.refresh());
+  }
+
+  /**
+   * Done or Reopen, shown at once. The refresh that follows, win or lose,
+   * brings the goal's real state.
+   *
+   * @param {'complete' | 'reopen'} action
+   */
+  async function setDone(action) {
+    setIsActing(true);
+    setIsDone(action === 'complete');
+    setError(null);
+    try {
+      await request(goalUrl(goal.id) + '/' + action, { method: 'POST' });
+    } catch (caught) {
+      setError(messageOf(caught));
+      setIsDone(goal.done);
+    }
+    setIsActing(false);
     startTransition(() => router.refresh());
   }
 
@@ -161,6 +190,7 @@ export default function GoalDetail({ goal }) {
           </p>
         )}
 
+        <fieldset className="goal-fields" disabled={isDone}>
         <div className="field">
           <label className="caption" htmlFor="g-name">Name</label>
           <input
@@ -242,7 +272,6 @@ export default function GoalDetail({ goal }) {
               aria-label="Progress so far"
               className="input input-count num"
               inputMode="numeric"
-              placeholder="0"
               value={draft.current}
               onChange={(event) => setDraft((current) => ({ ...current, current: event.target.value }))}
               onKeyDown={(event) => onFieldKey(event, () => setDraft((current) => ({ ...current, current: saved.current, target: saved.target })))}
@@ -252,7 +281,6 @@ export default function GoalDetail({ goal }) {
               aria-label="Progress target"
               className="input input-count num"
               inputMode="numeric"
-              placeholder="3"
               value={draft.target}
               onChange={(event) => setDraft((current) => ({ ...current, target: event.target.value }))}
               onKeyDown={(event) => onFieldKey(event, () => setDraft((current) => ({ ...current, current: saved.current, target: saved.target })))}
@@ -263,6 +291,22 @@ export default function GoalDetail({ goal }) {
               </button>
             )}
           </div>
+        </div>
+        </fieldset>
+
+        <div className="detail-actions">
+          {isDone ? (
+            <>
+              <span className="caption">Done</span>
+              <button type="button" className="btn-ghost" disabled={isActing} onClick={() => setDone('reopen')}>
+                Reopen
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn-primary" disabled={isActing} onClick={() => setDone('complete')}>
+              Done
+            </button>
+          )}
         </div>
       </div>
     </aside>
@@ -284,7 +328,7 @@ export function GoalDetailEmpty() {
 }
 
 /** @param {string} id */
-function goalUrl(id) {
+export function goalUrl(id) {
   return '/api/goals/' + encodeURIComponent(id);
 }
 
@@ -301,7 +345,7 @@ function toNumber(text) {
  * @param {RequestInit} init
  * @returns {Promise<any>}
  */
-async function request(url, init) {
+export async function request(url, init) {
   let response;
   try {
     response = await fetch(url, init);
@@ -314,7 +358,7 @@ async function request(url, init) {
 }
 
 /** @param {unknown} caught */
-function messageOf(caught) {
+export function messageOf(caught) {
   return caught instanceof Error ? caught.message : 'Something went wrong';
 }
 
