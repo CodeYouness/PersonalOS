@@ -229,6 +229,36 @@ describe('POST /api/capture', () => {
     expect(await store.getTasks()).not.toContainEqual(expect.objectContaining({ title: 'pizza with Marta' }));
   });
 
+  it('files a health capture that names a weight as a weight on the day, at the capture’s instant', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(A_THURSDAY);
+    const response = await post('weighed 74,6kg this morning');
+    vi.useRealTimers();
+    const body = await response.json();
+
+    expect(body).toMatchObject({ destination: 'health', route: 'rules' });
+    expect(body.note).toBeUndefined();
+    const log = await store.getDailyLog('2026-09-10');
+    expect(log.measurements).toEqual([
+      expect.objectContaining({ id: body.recordId, metric: 'weight', value: 74.6, unit: 'kg', recordedAt: A_THURSDAY.toISOString() }),
+    ]);
+    const capture = (await store.getCaptures()).find((entry) => entry.text === 'weighed 74,6kg this morning');
+    expect((await store.getLinks({ from: capture?.id, rel: 'about' })).map((link) => link.to)).toEqual([body.recordId]);
+  });
+
+  it.each([
+    ['weighed 746 kg'],
+    ['workout at the gym this morning'],
+  ])('keeps %j as capture and memory only, and says no weight was filed', async (text) => {
+    const response = await post(text);
+    const body = await response.json();
+
+    expect(body).toMatchObject({ destination: 'health', recordId: null, note: 'no weight filed' });
+    const capture = (await store.getCaptures()).find((entry) => entry.text === text);
+    expect(await store.getLinks({ from: capture?.id, rel: 'about' })).toHaveLength(0);
+    expect((await store.getMemoryEntries()).some((entry) => entry.content === text)).toBe(true);
+  });
+
   it('rejects a destination chosen up front that is not one of the destinations', async () => {
     const response = await post('pizza with Marta', 'snacks');
 

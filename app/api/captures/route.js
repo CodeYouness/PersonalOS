@@ -35,7 +35,20 @@ async function enrichCapture(capture) {
     destination: capture.destination,
     route: capture.route,
     createdAt: capture.createdAt,
-    produced: record && { id: record.id, title: 'title' in record ? record.title : record.name },
+    produced: record && { id: record.id, title: producedTitle(record) },
     locked: record !== null && isCaptureRecordLocked(record),
   };
+}
+
+/**
+ * What the drawer calls the record: a task's or appointment's title, a goal's
+ * or meal's name, a weight's value and unit.
+ *
+ * @param {NonNullable<Awaited<ReturnType<typeof getCaptureProducedRecord>>>} record
+ * @returns {string}
+ */
+function producedTitle(record) {
+  if ('title' in record) return record.title;
+  if ('name' in record) return record.name;
+  return String(record.value) + ' ' + record.unit;
 }

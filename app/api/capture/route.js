@@ -9,6 +9,7 @@ import {
   createMemoryEntry,
   fileCaptureAsMeal,
   fileCaptureAsTask,
+  fileCaptureAsWeight,
   linkPersonNamedIn,
   recordEvent,
 } from '@/lib/store.js';
@@ -24,7 +25,8 @@ export const dynamic = 'force-dynamic';
  *
  * Only the capture write is load-bearing. `task` and `people` file a task
  * (linked to the person the sentence names), `goals`, `appointment` and
- * `nutrition` their own record; the other three file as capture + memory only, since a
+ * `nutrition` their own record, `health` a weight when the sentence names
+ * one; `finance` and `memory` file as capture + memory only, since a
  * fabricated transaction or person would be worse than none,
  * and `docs/domain.md` calls "nothing but a memory entry" a valid outcome,
  * not a shortfall. Everything after the capture is enrichment: if it fails
@@ -77,6 +79,8 @@ export async function POST(request) {
     } else if (destination === 'nutrition') {
       const meal = await fileCaptureAsMeal(capture, fields);
       recordId = meal.id;
+    } else if (destination === 'health') {
+      recordId = (await fileCaptureAsWeight(capture, fields))?.id ?? null;
     }
 
     // createMemoryEntry links the memory back to the capture itself
@@ -95,5 +99,8 @@ export async function POST(request) {
     console.error('[capture] filed the capture but enrichment failed:', error);
   }
 
-  return NextResponse.json({ destination, route, recordId });
+  // A health sentence with no weight to believe -- none said, or one nobody
+  // weighs -- is kept, and the receipt says so instead of implying a number.
+  const note = destination === 'health' && recordId === null ? 'no weight filed' : undefined;
+  return NextResponse.json({ destination, route, recordId, note });
 }
