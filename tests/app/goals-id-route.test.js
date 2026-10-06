@@ -54,6 +54,13 @@ function patch(id, body) {
   );
 }
 
+/** @param {string} id */
+function del(id) {
+  return route.DELETE(new Request('http://localhost/api/goals/' + id, { method: 'DELETE' }), {
+    params: Promise.resolve({ id }),
+  });
+}
+
 /**
  * @param {{ POST: (request: Request, context: { params: Promise<{ id: string }> }) => Promise<Response> }} handler
  * @param {string} id
@@ -200,5 +207,31 @@ describe('closing and reopening a goal', () => {
   it('answers 404 for a goal that does not exist', async () => {
     expect((await post(completeRoute, 'goal_missing')).status).toBe(404);
     expect((await post(reopenRoute, 'goal_missing')).status).toBe(404);
+  });
+});
+
+describe('DELETE /api/goals/[id]', () => {
+  it('removes the goal and its links, and keeps the capture and its memory entry', async () => {
+    const capture = await store.createCapture({ text: 'launch the course', destination: 'goals', route: 'rules' });
+    const goal = await store.createGoal({ name: capture.text, kind: 'project', source: 'capture' });
+    await store.createLink({ from: capture.id, to: goal.id, rel: 'about' });
+    const memory = await store.createMemoryEntry({ content: capture.text, source: 'capture', derivedFrom: capture.id });
+    const task = await store.createTask({ title: 'Record module 1' });
+    await store.createLink({ from: task.id, to: goal.id, rel: 'belongs_to' });
+
+    const response = await del(goal.id);
+
+    expect(response.status).toBe(200);
+    expect(await store.getGoal(goal.id)).toBeNull();
+    expect(await store.getLinks({ to: goal.id })).toHaveLength(0);
+    expect(await store.getLinks({ from: goal.id })).toHaveLength(0);
+    // The sentence is never lost (rule 7), and neither is the task.
+    expect(await store.getCapture(capture.id)).not.toBeNull();
+    expect(await store.getMemoryEntries()).toContainEqual(expect.objectContaining({ id: memory.id }));
+    expect(await store.getTask(task.id)).not.toBeNull();
+  });
+
+  it('answers 404 for a goal that does not exist', async () => {
+    expect((await del('goal_missing')).status).toBe(404);
   });
 });

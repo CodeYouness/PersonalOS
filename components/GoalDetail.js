@@ -27,6 +27,8 @@ const HORIZON_LABELS = { week: 'Week', month: 'Month', open: 'Open' };
  * Done keeps the panel open, saying "Done" with a Reopen beside it, so a
  * mis-click is undone where it was made (#99). A done goal's fields are
  * locked until it is reopened: what you closed stays as you closed it.
+ * Delete asks first and closes the panel (#100); the capture that produced
+ * the goal survives.
  *
  * Mounted with `key={goal.id}`, so selecting another goal starts clean.
  *
@@ -109,6 +111,23 @@ export default function GoalDetail({ goal }) {
     } catch (caught) {
       setError(messageOf(caught));
       setIsDone(goal.done);
+    }
+    setIsActing(false);
+    startTransition(() => router.refresh());
+  }
+
+  async function remove() {
+    const confirmed = window.confirm(
+      'Delete this goal? Its links go with it; the capture it came from stays. This cannot be undone.'
+    );
+    if (!confirmed) return;
+    setIsActing(true);
+    setError(null);
+    try {
+      await request(goalUrl(goal.id), { method: 'DELETE' });
+      router.push(goalsHref(), { scroll: false });
+    } catch (caught) {
+      setError(messageOf(caught));
     }
     setIsActing(false);
     startTransition(() => router.refresh());
@@ -307,6 +326,9 @@ export default function GoalDetail({ goal }) {
               Done
             </button>
           )}
+          <button type="button" className="btn-danger" disabled={isActing} onClick={remove}>
+            Delete
+          </button>
         </div>
       </div>
     </aside>
