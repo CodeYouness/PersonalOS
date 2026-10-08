@@ -11,6 +11,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CURRENT_SCHEMA_VERSION, migrate, needsMigration, schemaVersionOf } from '@/lib/adapters/json/migrations.js';
+import { setDefaultTimezone } from '@/lib/domain/dates.js';
+
+// v8 resolves a day in the user's timezone, which the server gets from
+// lib/config/env.js. Pinned here so the result does not depend on the
+// machine's USER_TIMEZONE.
+setDefaultTimezone('Europe/Rome');
 
 /** A minimal but representative v1 document. */
 function v1Document() {
@@ -386,5 +392,44 @@ describe('migration v6 to v7', () => {
     vi.setSystemTime(new Date('2026-10-05T12:00:00.000Z'));
     const twice = migrate(once);
     expect(twice).toEqual(once);
+  });
+});
+
+/** A minimal v7 document: three goals in the pre-v8 shape. */
+function v7Document() {
+  /** @param {string} id @param {string} createdAt */
+  const goal = (id, createdAt) => ({
+    id, name: 'Goal ' + id, kind: 'objective', horizon: 'week', done: false, progress: null,
+    targetDate: null, createdAt, updatedAt: createdAt, source: 'user',
+  });
+  return {
+    ...v6Document(),
+    schemaVersion: 7,
+    goals: [
+      goal('goal_1', '2026-01-02T09:00:00.000Z'),
+      // Late in the UTC evening: already the next day in Rome (UTC+1 in winter).
+      goal('goal_2', '2026-01-04T23:30:00.000Z'),
+    ],
+  };
+}
+
+describe('migration v7 to v8', () => {
+  it('backfills horizonSetOn from createdAt, on the local day', () => {
+    const migrated = migrate(v7Document());
+
+    expect(migrated.goals.map((/** @type {any} */ goal) => goal.horizonSetOn)).toEqual(['2026-01-02', '2026-01-05']);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('changes nothing else about a goal', () => {
+    const migrated = migrate(v7Document());
+    const { horizonSetOn, ...rest } = migrated.goals[0];
+
+    expect(rest).toEqual(v7Document().goals[0]);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v7Document());
+    expect(migrate(once)).toEqual(once);
   });
 });

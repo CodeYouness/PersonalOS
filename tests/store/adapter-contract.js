@@ -483,6 +483,25 @@ export function runAdapterContract(label, load) {
         expect(await store.getLinks({ to: project.id, rel: 'belongs_to' })).toHaveLength(1);
       });
 
+      it('sets horizonSetOn to today when a goal is made', async () => {
+        const goal = await store.createGoal({ name: 'Ship it', horizon: 'month' });
+
+        expect(goal.horizonSetOn).toBe(today());
+      });
+
+      it('restarts horizonSetOn when the horizon changes, and only then', async () => {
+        // Changing the horizon is making the promise again (ADR 0021);
+        // choosing the one it already has is not.
+        const same = await store.updateGoal('goal_seed_1', { horizon: 'week' });
+        expect(same.horizonSetOn).toBe('2026-01-02');
+
+        const renamed = await store.updateGoal('goal_seed_1', { name: 'Close Nordis' });
+        expect(renamed.horizonSetOn).toBe('2026-01-02');
+
+        const changed = await store.updateGoal('goal_seed_1', { horizon: 'month' });
+        expect(changed.horizonSetOn).toBe(today());
+      });
+
       it('rejects an unknown field in a patch', async () => {
         const goal = await store.createGoal({ name: 'Ship it' });
 

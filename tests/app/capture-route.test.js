@@ -20,6 +20,8 @@ let sandbox;
 let route;
 /** @type {typeof import('@/lib/store.js')} */
 let store;
+/** @type {typeof import('@/lib/domain/dates.js')} */
+let dates;
 
 beforeAll(async () => {
   sandbox = await mkdtemp(path.join(tmpdir(), 'personalos-capture-'));
@@ -28,6 +30,7 @@ beforeAll(async () => {
   delete process.env.ANTHROPIC_API_KEY;
   route = await import('@/app/api/capture/route.js');
   store = await import('@/lib/store.js');
+  dates = await import('@/lib/domain/dates.js');
 });
 
 afterAll(async () => {
@@ -128,6 +131,9 @@ describe('POST /api/capture', () => {
     const goals = await store.getGoals();
     const goal = goals.find((entry) => entry.id === body.recordId);
     expect(goal?.name).toBe('goal: ship the pricing page this week');
+    // Its age counts from today (ADR 0021).
+    expect(goal?.horizon).toBe('week');
+    expect(goal?.horizonSetOn).toBe(dates.today());
 
     const captures = await store.getCaptures();
     const capture = captures.find((entry) => entry.text === 'goal: ship the pricing page this week');
