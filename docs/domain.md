@@ -383,6 +383,9 @@ Slipped.
 **Has** `name`, `kind`, `horizon`, `horizonSetOn`, `done`, `progress`,
 `targetDate`.
 
+`horizon` is a closed vocabulary, `GOAL_HORIZONS` in `personalos.config.js`:
+`week`, `month`, `open`, in that order on the Goals card and screen.
+
 `horizonSetOn` is the day you chose the horizon: set when the goal is made,
 reset when you change its horizon to a different one. Changing the horizon
 is making the promise again, so its age starts over (ADR 0021).

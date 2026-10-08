@@ -228,6 +228,7 @@ button:disabled { cursor: not-allowed; }
 #screen-habits .screen-grid { grid-template-rows: auto minmax(0, 1fr); }
 #screen-crm .screen-grid { grid-template-rows: minmax(0, 1fr); }
 #screen-nutrition .screen-grid { grid-template-rows: minmax(0, 1fr); }
+#screen-goals .screen-grid { grid-template-rows: minmax(0, 1fr); }
 
 .card {
   background: var(--surface-1);
@@ -524,6 +525,22 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 }
 .btn-danger:hover { background: var(--danger-soft); }
 .provenance { margin-top: var(--s-sm); }
+
+/* ==========================================================================
+   GOALS — the open goals, on the home card and the Goals screen (#96)
+   ========================================================================== */
+.goal-groups { display: flex; flex-direction: column; gap: var(--s-md); }
+.goal-groups .col-head .name { color: var(--ink-subtle); }
+.goal-row {
+  display: flex; align-items: baseline; gap: var(--s-sm);
+  padding: var(--s-xs) var(--s-xs); margin: 0 calc(-1 * var(--s-xs));
+  border-radius: var(--r-md); color: inherit; text-decoration: none;
+}
+.goal-row:hover { background: var(--surface-2); }
+.goal-row.is-selected { background: var(--surface-3); }
+.goal-name { flex: 1; min-width: 0; font-size: 14px; letter-spacing: -0.1px; }
+.goal-name .badge { margin-left: var(--s-xs); vertical-align: 1px; }
+.goal-meta { display: flex; align-items: baseline; gap: var(--s-sm); flex: none; font-size: 12px; color: var(--ink-subtle); }
 
 /* ==========================================================================
    HOME — card-calendar

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { dayLabel, formatChange, formatWeight, provenanceLabel } from '@/components/format.js';
+import { dayLabel, formatChange, formatWeight, ordinal, provenanceLabel, slippedLabel } from '@/components/format.js';
 
 describe('provenanceLabel', () => {
   it('names the capture and who filed it', () => {
@@ -32,5 +32,20 @@ describe('health formatting', () => {
     expect(formatChange(0.4)).toBe('+0.4');
     expect(formatChange(0)).toBe('0');
     expect(dayLabel('2026-01-05')).toBe('Mon 5 Jan');
+  });
+});
+
+describe('ordinal', () => {
+  it('says the English ordinal of a count', () => {
+    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111].map(ordinal)).toEqual([
+      '1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '23rd', '101st', '111th',
+    ]);
+  });
+});
+
+describe('slippedLabel', () => {
+  it('names the period a slipped goal is in', () => {
+    expect(slippedLabel(2, 'week')).toBe('2nd week');
+    expect(slippedLabel(3, 'month')).toBe('3rd month');
   });
 });

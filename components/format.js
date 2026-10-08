@@ -114,6 +114,31 @@ export function dayLabel(dayKey) {
   return dayKeyToUtcDate(dayKey).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
+const ORDINAL_RULES = new Intl.PluralRules('en-GB', { type: 'ordinal' });
+/** @type {Record<string, string>} */
+const ORDINAL_SUFFIX = { one: 'st', two: 'nd', few: 'rd', other: 'th' };
+
+/**
+ * A count as an English ordinal: "2nd", "11th", "21st".
+ *
+ * @param {number} count
+ * @returns {string}
+ */
+export function ordinal(count) {
+  return count + ORDINAL_SUFFIX[ORDINAL_RULES.select(count)];
+}
+
+/**
+ * The period a slipped goal is in: "2nd week", "3rd month" (ADR 0021).
+ *
+ * @param {number} period from lib/domain/derive/goals.js's slippedPeriod
+ * @param {'week' | 'month'} horizon
+ * @returns {string}
+ */
+export function slippedLabel(period, horizon) {
+  return ordinal(period) + ' ' + horizon;
+}
+
 /**
  * A 0..1 ratio as whole percent. One implementation, so the habits ring and
  * a history row's rate can never round the same number differently.
