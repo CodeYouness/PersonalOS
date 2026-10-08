@@ -81,7 +81,9 @@ docs/              architecture, domain, development, roadmap, decisions
 npm run verify     # lint + typecheck + test + build
 ```
 
-Then check the behaviour in the browser and read `git diff`. For a bug, write
+Then check the behaviour in the browser on `npm run dev:sandbox` -- never
+plain `dev`, which migrates and writes the user's data -- and read
+`git diff`. For a bug, write
 the failing test first, watch it fail, then fix it -- otherwise "it works" is
 an opinion.
 
