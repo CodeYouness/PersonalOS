@@ -67,13 +67,11 @@ docs/              architecture, domain, development, roadmap, decisions
   links belong to the user and survive a re-import.
 - Validate at the boundary. Model output, request bodies and env values are
   untrusted until checked.
-- Never an empty `catch`. On a failed write, re-read the real state instead of
-  leaving the screen telling a story that was never saved.
-- Data routes declare `export const dynamic = 'force-dynamic'`.
-- Track a selection by id, never by index in a list. A capture can insert a row
-  while a detail panel is open.
-- Numbers: right-aligned, tabular figures, formatting in one module.
 - Do not edit `data/personalos.json` or `.env.local` -- they are the user's.
+
+The judgement calls a review checks -- where a refusal lives, selection by
+id, re-reading after a failed write, how numbers look -- are in
+`CODING_STANDARDS.md`. The mechanical rules fail `npm run verify`.
 
 ## Before you say it is done
 

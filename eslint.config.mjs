@@ -128,6 +128,15 @@ const eslintConfig = defineConfig([
       "no-restricted-syntax": ["error", NO_ISO_SLICE],
     },
   },
+
+  // CLAUDE.md: never an empty catch -- a swallowed error is a failed write
+  // the screen never hears about.
+  {
+    files: ["**/*.js", "**/*.mjs"],
+    rules: {
+      "no-empty": "error",
+    },
+  },
 ]);
 
 export default eslintConfig;
