@@ -14,6 +14,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 let sandbox;
 /** @type {typeof import('@/app/api/goals/[id]/route.js')} */
 let route;
+/** @type {typeof import('@/app/api/goals/[id]/complete/route.js')} */
+let completeRoute;
+/** @type {typeof import('@/app/api/goals/[id]/reopen/route.js')} */
+let reopenRoute;
 /** @type {typeof import('@/lib/store.js')} */
 let store;
 /** @type {typeof import('@/lib/domain/dates.js')} */
@@ -24,6 +28,8 @@ beforeAll(async () => {
   await cp('data/seed.json', path.join(sandbox, 'seed.json'));
   process.env.DATA_DIR = sandbox;
   route = await import('@/app/api/goals/[id]/route.js');
+  completeRoute = await import('@/app/api/goals/[id]/complete/route.js');
+  reopenRoute = await import('@/app/api/goals/[id]/reopen/route.js');
   store = await import('@/lib/store.js');
   dates = await import('@/lib/domain/dates.js');
 });
@@ -46,6 +52,21 @@ function patch(id, body) {
     }),
     { params: Promise.resolve({ id }) }
   );
+}
+
+/**
+ * @param {{ POST: (request: Request, context: { params: Promise<{ id: string }> }) => Promise<Response> }} handler
+ * @param {string} id
+ */
+function post(handler, id) {
+  return handler.POST(new Request('http://localhost/api/goals/' + id, { method: 'POST' }), {
+    params: Promise.resolve({ id }),
+  });
+}
+
+/** @param {string} id */
+async function completedEvents(id) {
+  return (await store.getEvents({})).filter((event) => event.type === 'goal.completed' && event.subject === id);
 }
 
 /** The seed's week goal, its horizon set on 2026-01-02. */
@@ -136,5 +157,48 @@ describe('PATCH /api/goals/[id]', () => {
     const before = (await store.getEvents({})).length;
     await patch(WEEK_GOAL, { name: 'Sign the Nordis contract' });
     expect(await store.getEvents({})).toHaveLength(before);
+  });
+});
+
+describe('closing and reopening a goal', () => {
+  it('closes a goal once, on the timeline', async () => {
+    const response = await post(completeRoute, WEEK_GOAL);
+
+    expect(response.status).toBe(200);
+    expect((await store.getGoal(WEEK_GOAL))?.done).toBe(true);
+    expect(await completedEvents(WEEK_GOAL)).toHaveLength(1);
+
+    expect((await post(completeRoute, WEEK_GOAL)).status).toBe(400);
+    expect(await completedEvents(WEEK_GOAL)).toHaveLength(1);
+  });
+
+  it('reopens a done goal without writing an event', async () => {
+    await post(completeRoute, WEEK_GOAL);
+    const eventsBefore = (await store.getEvents({})).length;
+
+    const response = await post(reopenRoute, WEEK_GOAL);
+
+    expect(response.status).toBe(200);
+    expect((await store.getGoal(WEEK_GOAL))?.done).toBe(false);
+    expect(await store.getEvents({})).toHaveLength(eventsBefore);
+  });
+
+  it('refuses to reopen a goal that is open', async () => {
+    expect((await post(reopenRoute, WEEK_GOAL)).status).toBe(400);
+  });
+
+  it('refuses to edit a done goal until it is reopened', async () => {
+    await post(completeRoute, WEEK_GOAL);
+    const before = await store.getGoal(WEEK_GOAL);
+
+    const response = await patch(WEEK_GOAL, { name: 'Sign the Nordis contract' });
+
+    expect(response.status).toBe(400);
+    expect(await store.getGoal(WEEK_GOAL)).toEqual(before);
+  });
+
+  it('answers 404 for a goal that does not exist', async () => {
+    expect((await post(completeRoute, 'goal_missing')).status).toBe(404);
+    expect((await post(reopenRoute, 'goal_missing')).status).toBe(404);
   });
 });

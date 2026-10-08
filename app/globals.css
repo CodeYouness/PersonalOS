@@ -544,6 +544,16 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .goal-inline { display: flex; align-items: center; gap: var(--s-xs); }
 .goal-inline .input[type='date'] { flex: 1; color-scheme: dark; }
 .input-count { width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+.goal-fields { border: none; padding: 0; margin: 0; min-width: 0; }
+.goal-fields:disabled { opacity: 0.5; }
+.goal-done { margin-top: var(--s-md); }
+.goal-done summary { cursor: pointer; list-style: none; }
+.goal-done summary::-webkit-details-marker { display: none; }
+.goal-done summary .name { color: var(--ink-subtle); }
+.goal-done summary .name::before { content: '▸ '; }
+.goal-done[open] summary .name::before { content: '▾ '; }
+.goal-done .goal-name { color: var(--ink-subtle); text-decoration: none; }
+.goal-done .goal-name:hover { color: var(--ink); }
 
 /* ==========================================================================
    HOME — card-calendar

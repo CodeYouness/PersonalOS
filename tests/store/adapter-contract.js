@@ -502,6 +502,15 @@ export function runAdapterContract(label, load) {
         expect(changed.horizonSetOn).toBe(today());
       });
 
+      it('refuses to edit a done goal until it is reopened', async () => {
+        // What you closed stays as you closed it; only `done` itself moves.
+        await store.updateGoal('goal_seed_1', { done: true });
+
+        await expect(store.updateGoal('goal_seed_1', { name: 'Close Nordis' })).rejects.toThrow(/reopen/);
+        expect((await store.updateGoal('goal_seed_1', { done: false })).done).toBe(false);
+        expect((await store.updateGoal('goal_seed_1', { name: 'Close Nordis' })).name).toBe('Close Nordis');
+      });
+
       it('rejects an unknown field in a patch', async () => {
         const goal = await store.createGoal({ name: 'Ship it' });
 
