@@ -1,7 +1,8 @@
+import GoalDetail, { GoalDetailEmpty } from '@/components/GoalDetail.js';
 import GoalList from '@/components/GoalList.js';
 import { today } from '@/lib/domain/dates.js';
 import { goalBoard } from '@/lib/domain/derive/goals.js';
-import { getGoals } from '@/lib/store.js';
+import { getGoal, getGoals } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,8 +11,16 @@ export const dynamic = 'force-dynamic';
  * saved goals once per request and renders them through the same
  * derivation as the home card -- `todayKey` included, since
  * lib/domain/dates.js has no configured timezone in the browser.
+ *
+ * `?goal=<id>` selects a goal and opens the panel (#98), by id so a capture
+ * landing a new goal never moves the selection. An id that no longer exists
+ * selects nothing rather than failing.
+ *
+ * @param {{ searchParams: Promise<{ goal?: string | string[] }> }} props
  */
-export default async function GoalsScreen() {
+export default async function GoalsScreen({ searchParams }) {
+  const { goal: goalParam } = await searchParams;
+  const selected = typeof goalParam === 'string' ? await getGoal(goalParam) : null;
   const { groups } = goalBoard(await getGoals(), today());
 
   return (
@@ -22,9 +31,10 @@ export default async function GoalsScreen() {
             <span className="eyebrow">Goals</span>
           </div>
           <div className="card-body">
-            <GoalList groups={groups} />
+            <GoalList groups={groups} selectedId={selected?.id ?? null} />
           </div>
         </article>
+        {selected === null ? <GoalDetailEmpty /> : <GoalDetail key={selected.id} goal={selected} />}
       </div>
     </section>
   );
