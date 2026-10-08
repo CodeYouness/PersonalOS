@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { getGoal, updateGoal } from '@/lib/store.js';
+import { deleteGoal, getGoal, updateGoal } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +45,31 @@ export async function PATCH(request, { params }) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[goals] could not update goal ' + id + ':', message);
+    return NextResponse.json({ status: 'error', message }, { status: 400 });
+  }
+}
+
+/**
+ * Delete a goal (#100), after the panel has asked. Its links go with it --
+ * an edge pointing at nothing is worse than no edge -- but a capture that
+ * produced it stays, and so does that capture's memory entry: the sentence
+ * you said is never lost (rule 7).
+ *
+ * @param {Request} _request
+ * @param {{ params: Promise<{ id: string }> }} context
+ */
+export async function DELETE(_request, { params }) {
+  const { id } = await params;
+  if ((await getGoal(id)) === null) {
+    return NextResponse.json({ status: 'error', message: 'no goal with id ' + id }, { status: 404 });
+  }
+
+  try {
+    await deleteGoal(id);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[goals] could not delete goal ' + id + ':', message);
     return NextResponse.json({ status: 'error', message }, { status: 400 });
   }
 }
