@@ -16,7 +16,7 @@ idea
  |
  v  tests
  |
- v  review -- read the diff as if someone else wrote it
+ v  review -- read the diff as if someone else wrote it, against CODING_STANDARDS.md
  |
  v  documentation and ADR
  |
