@@ -376,17 +376,42 @@ never look. The damage is worse than a bug because it does not look like one:
 it looks like a fresh start.
 
 **Rule: goals never reset on their own.** You close them or you remove them.
-There is no calendar logic anywhere near them, and there must not be.
-`horizon` is a label you chose, never an expiry.
+No calendar logic ever acts on a goal, and none must. `horizon` is a label
+you chose, never an expiry. The calendar may only *describe* a goal — see
+Slipped.
 
-**Has** `name`, `kind`, `horizon`, `done`, `progress`, `targetDate`.
+**Has** `name`, `kind`, `horizon`, `horizonSetOn`, `done`, `progress`,
+`targetDate`.
+
+`horizonSetOn` is the day you chose the horizon: set when the goal is made,
+reset when you change its horizon to a different one. Changing the horizon
+is making the promise again, so its age starts over (ADR 0021).
+
+A goal made from a capture gets the horizon `week`; you change it on the
+Goals screen. The classifier does not read a horizon from the sentence.
+
+**Slipped** — an open goal past the calendar period its horizon named: a
+`week` goal from the Monday-to-Sunday week after the one in `horizonSetOn`,
+a `month` goal from the next calendar month. Shown as the period it is in
+("2nd week", "3rd month"); an `open` goal never slips. Derived, never stored,
+and it changes nothing about the goal. Not the same as a task's `overdue`,
+which applies only to the `today` band and counts days.
+
+A `targetDate` in the past is shown in the warning style and changes nothing
+either.
+
+**Done** closes a goal and the timeline hears it once, as `goal.completed`.
+**Reopen** puts it back and writes no event — a correction, not something
+that happened, as for a task. A done goal is reopened before it is edited.
 
 `kind: 'project'` is how a goal becomes a container for other work, with tasks
 linked by `belongs_to`. Deliberately not a separate entity: a project is an
 objective with children, and a second collection would earn nothing.
 
-`progress` is a manual fallback. When a goal is linked to something countable,
-progress should be derived instead.
+`progress` is a manual fallback: whole numbers, `target` at least 1,
+`current` at least 0 and allowed past the target. Reaching the target does
+not close the goal — you do. When a goal is linked to something countable,
+progress should be derived instead; nothing links one yet.
 
 ---
 
@@ -641,7 +666,7 @@ double counting.
 | finance categories | whether a habit is active/archived on a day |
 | task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates, history heatmap cells, the thirty-day summary |
 | people | health averages, day totals |
-| goals | goal progress when metric-backed |
+| goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
 | journal entries | monthly spending, income by category |
 | memory entries | current net worth |
 | captures | days until deadline |
@@ -656,8 +681,8 @@ double counting.
 
 Recorded rather than answered, so nobody silently invents an answer:
 
-1. A capture filed as `goals` — week or month horizon? Current intent:
-   default to `week`, and let the classifier return a period when it can tell.
+1. **Answered (ADR 0021):** a capture filed as `goals` gets the horizon
+   `week`, changed on the Goals screen; the classifier does not read one.
 2. **Answered (ADR 0020):** a capture filed as `health` lands in a weight
    when it names one; weight is the first, and so far only, metric.
 3. **Answered (ADR 0018):** a capture never creates a Person; it only links

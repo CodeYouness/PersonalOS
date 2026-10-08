@@ -219,6 +219,34 @@ Not yet: a period selector, a weight goal, any metric other than weight,
 editing a weight on the card, a Health card on the home screen, the glucose
 sensor and all-day wearables.
 
+## Goals
+
+"What did I promise myself", on the home screen and on its own screen,
+`/goals`, next to CRM in the navigation. A goal arrives the way everything
+does: said in the capture bar, filed as `goals`, with the horizon `week`.
+
+**The home card** is read-only. It lists the open goals grouped This week /
+This month / Open; within a group, the nearest target date first, goals
+with no target date after them, and the oldest first among equals. A row
+shows the name, a mark when it is a project, the progress ("1 / 3") and the
+target date when there are any, and -- when the goal has slipped -- the
+period it is in: "2nd week", "3rd month". A target date already passed is
+in the warning colour. Nothing about a goal changes because time passed; it
+leaves the card only when you close it or delete it. Open goes to the
+screen; a row opens that goal there.
+
+**The screen** has the same groups. Selecting a goal opens a panel to
+correct its name, kind, horizon, target date and progress, close it as
+Done, or delete it after a confirmation. Changing the horizon is promising
+it again: its age starts over. Progress is typed, whole numbers, and
+reaching the target does not close the goal. Done goals sit in a collapsed
+group at the bottom, newest first, each with Reopen; a done goal is
+reopened before it is edited.
+
+Not yet: adding a goal anywhere but the capture bar, progress derived from
+linked tasks or habits, linking a task to a goal, and the Review screen's
+"Closed" and "Slipped".
+
 ## Memory
 
 Everything that passes through leaves a trace. Questions are answered over that
