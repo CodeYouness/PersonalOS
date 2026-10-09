@@ -31,9 +31,10 @@ storage on the local path · ESLint + Vitest. Node 22.
    `USER_TIMEZONE`. Never `new Date().toISOString().slice(0, 10)`.
 5. **Relations live in `links`, never as a field on an entity.** A task has no
    `personId`. Ask the store: `getTasksForPerson()`.
-6. **Do not store what can be derived.** `overdue`, streaks, totals and net
-   worth are computed in `lib/domain/derive/`. The one exception is the net
-   worth snapshot, and it has an ADR explaining why.
+6. **Do not store what can be derived.** `overdue`, streaks, totals, net
+   worth and its history are computed in `lib/domain/derive/`. The one
+   exception is the net worth snapshot, and it is not written until exchange
+   rates exist (ADR 0022).
 7. **The original is never lost.** A capture keeps its sentence; a journal
    entry keeps its text after a memory is extracted from it. A memory that was
    extracted must be able to say what from.
@@ -119,7 +120,7 @@ before pushing. Git history does not forget.
 ## Picking this up cold
 
 `docs/roadmap.md` says what exists and what comes next. `docs/decisions/` says
-why. The next free ADR number is **0022**.
+why. The next free ADR number is **0023**.
 
 Open work is GitHub issues on `CodeYouness/PersonalOS`. Read the open pull
 requests before you start: a feature ships as a stack of one-ticket branches,

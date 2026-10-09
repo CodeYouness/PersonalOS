@@ -712,14 +712,20 @@ not belong in the same file. ADR 0009.
 
 **Is** net worth on a date, with the components and the FX rates used.
 
-**Is derived, and yet stored** — the single documented exception to rule 2.
-The reason is that this is a history you cannot recompute: yesterday's market
-value is gone tomorrow. Recomputing the series would quietly rewrite your past
-every time you looked at it. The rates are stored with the snapshot for the
-same reason. ADR 0008.
+**Is not written.** The monthly history and the 30-day and 1-year changes are
+derived from the balances, trades and prices, which in one currency all still
+exist (ADR 0022). The entity stays in the model for the day exchange rates
+arrive: then a snapshot fixes the rates a past month was converted at, and
+ADR 0008's exception applies to it again.
 
-One snapshot per day: a second run the same day corrects the point rather than
-adding a second one to the series.
+### The history
+
+Month-end net worth for every month from the first balance or trade to today,
+and its change from the month before -- derived, never stored (ADR 0022). An
+archived account counts on every day before it was archived; a value stays
+flat between two balances or prices; a holding starts at its first trade. An
+account's **30-day change** is its value today minus its value 30 days ago,
+blank when it had none then: a missing past is not a change from zero.
 
 ### Categories are yours
 
@@ -755,12 +761,12 @@ double counting.
 | people | health averages, day totals |
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
 | journal entries | monthly spending, income by category |
-| memory entries | current net worth, a holding's units held and value |
+| memory entries | current net worth, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
 | daily logs (ticks, meals, measurements) | |
 | finance accounts (including valuation and archivedOn), observations, trades, prices, transactions | |
-| **net worth snapshots** — the one exception, see above | |
+| **net worth snapshots** — the one exception, not written in one currency (ADR 0022) | |
 
 ---
 

@@ -106,7 +106,7 @@ export default function FinanceAccountDetail({ account, balances, trades, prices
   }
 
   return (
-    <aside id="card-finance-account" className="card span-5">
+    <aside id="card-finance-account" className="card">
       <div className="card-head">
         <span className="eyebrow">{KIND_LABELS[account.kind]}</span>
         <button
@@ -232,7 +232,7 @@ export function FinanceAccountEmpty() {
   }
 
   return (
-    <aside id="card-finance-account" className="card span-5">
+    <aside id="card-finance-account" className="card">
       <div className="card-head">
         <span className="eyebrow">Account</span>
       </div>

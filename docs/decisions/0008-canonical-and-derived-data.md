@@ -43,6 +43,12 @@ at it. The FX rates used are stored inside the snapshot for the same reason.
 That is the shape of a valid exception: not "it would be faster", but "the
 inputs no longer exist".
 
+**Narrowed by [0022](0022-net-worth-history-is-derived.md).** In one
+currency the inputs of the history -- observations, trades and prices -- all
+still exist, so the history is derived and no snapshot is written. The
+exception stands for the day exchange rates arrive: then the rates a past
+month was converted at are what would be gone.
+
 ## Consequences
 
 - The board can show an overdue column while the data never says a task is
