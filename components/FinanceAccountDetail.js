@@ -22,6 +22,11 @@ const KIND_CHOICES = { cash: 'Cash', investment: 'Investment', asset: 'Asset', l
  * amount owed. Every write posts first and then re-reads the screen, win or
  * lose, so the table and net worth show what was really saved.
  *
+ * The rest of an account's life is here too (#115): the name saves when you
+ * leave it; a balance is corrected or deleted on its row; Archive takes a
+ * closed account out of the table, keeping its balances, and Restore puts it
+ * back; Delete asks first and removes the account with its balances.
+ *
  * Mounted with `key={account.id}`, so selecting another account starts clean.
  *
  * @param {{ account: FinanceAccount, balances: FinanceObservation[], todayKey: string }} props
@@ -32,6 +37,8 @@ export default function FinanceAccountDetail({ account, balances, todayKey }) {
   const [date, setDate] = useState(todayKey);
   const [error, setError] = useState(/** @type {string | null} */ (null));
   const [isSaving, setIsSaving] = useState(false);
+  const [name, setName] = useState(account.name);
+  const [editingId, setEditingId] = useState(/** @type {string | null} */ (null));
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -46,6 +53,56 @@ export default function FinanceAccountDetail({ account, balances, todayKey }) {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [router]);
 
+  /**
+   * One write, then a re-read of the screen whatever the answer: the panel
+   * never keeps showing a story that was not saved.
+   *
+   * @param {string} url
+   * @param {RequestInit} init
+   * @returns {Promise<boolean>} whether it was saved
+   */
+  async function write(url, init) {
+    setIsSaving(true);
+    setError(null);
+    let saved = true;
+    try {
+      await request(url, init);
+    } catch (caught) {
+      setError(messageOf(caught));
+      saved = false;
+    }
+    setIsSaving(false);
+    startTransition(() => router.refresh());
+    return saved;
+  }
+
+  /** @param {string} url @param {Record<string, unknown>} body */
+  const patch = (url, body) =>
+    write(url, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+  async function commitName() {
+    const trimmed = name.trim();
+    if (trimmed === '' || trimmed === account.name) {
+      setName(account.name);
+      return;
+    }
+    if (!(await patch(accountUrl(account.id), { name: trimmed }))) setName(account.name);
+  }
+
+  async function removeAccount() {
+    const confirmed = window.confirm(
+      'Delete ' + account.name + ' with all its balances? This cannot be undone. To keep its past, archive it instead.'
+    );
+    if (!confirmed) return;
+    if (await write(accountUrl(account.id), { method: 'DELETE' })) router.push(financesHref(), { scroll: false });
+  }
+
+  /** @param {FinanceObservation} balance */
+  async function removeBalance(balance) {
+    if (!window.confirm('Delete the balance of ' + shortDate(balance.date, todayKey) + '?')) return;
+    await write(balanceUrl(balance.id), { method: 'DELETE' });
+  }
+
   /** @param {import('react').FormEvent} event */
   async function recordBalance(event) {
     event.preventDefault();
@@ -54,20 +111,12 @@ export default function FinanceAccountDetail({ account, balances, todayKey }) {
       setError('Enter an amount like 1,234.56');
       return;
     }
-    setIsSaving(true);
-    setError(null);
-    try {
-      await request(accountUrl(account.id) + '/observations', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ amount: minor, date }),
-      });
-      setAmount('');
-    } catch (caught) {
-      setError(messageOf(caught));
-    }
-    setIsSaving(false);
-    startTransition(() => router.refresh());
+    const saved = await write(accountUrl(account.id) + '/observations', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ amount: minor, date }),
+    });
+    if (saved) setAmount('');
   }
 
   return (
@@ -84,7 +133,28 @@ export default function FinanceAccountDetail({ account, balances, todayKey }) {
         </button>
       </div>
       <div className="card-body">
-        <h2 className="subhead finance-account-name">{account.name}</h2>
+        <div className="field">
+          <label className="caption" htmlFor="f-account-name">Name</label>
+          <input
+            id="f-account-name"
+            className="input"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            onBlur={commitName}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+              if (event.key === 'Escape') {
+                setName(account.name);
+                event.currentTarget.blur();
+              }
+            }}
+          />
+        </div>
+        {account.archivedOn !== null && (
+          <p className="caption finance-hint">
+            Archived on {shortDate(account.archivedOn, todayKey)}. It still counts in the history before that day.
+          </p>
+        )}
         {error !== null && (
           <p className="caption is-error" role="alert">
             {error}
@@ -130,18 +200,65 @@ export default function FinanceAccountDetail({ account, balances, todayKey }) {
               <tr>
                 <th>Date</th>
                 <th className="num">{account.kind === 'liability' ? 'Owed' : 'Balance'}</th>
+                <th />
               </tr>
             </thead>
             <tbody>
-              {balances.map((balance) => (
-                <tr key={balance.id}>
-                  <td className="num finance-date">{shortDate(balance.date, todayKey)}</td>
-                  <td className="num">{formatMoney(balance.amount, { cents: true })}</td>
-                </tr>
-              ))}
+              {balances.map((balance) =>
+                balance.id === editingId ? (
+                  <BalanceEditor
+                    key={balance.id}
+                    balance={balance}
+                    todayKey={todayKey}
+                    isSaving={isSaving}
+                    onCancel={() => setEditingId(null)}
+                    onSave={async (body) => {
+                      if (await patch(balanceUrl(balance.id), body)) setEditingId(null);
+                    }}
+                  />
+                ) : (
+                  <tr key={balance.id}>
+                    <td className="num finance-date">{shortDate(balance.date, todayKey)}</td>
+                    <td className="num">{formatMoney(balance.amount, { cents: true })}</td>
+                    <td className="finance-row-actions">
+                      <button type="button" className="btn-ghost" disabled={isSaving} onClick={() => setEditingId(balance.id)}>
+                        Edit
+                      </button>
+                      <button type="button" className="btn-ghost" disabled={isSaving} onClick={() => removeBalance(balance)}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
         )}
+
+        <div className="detail-actions">
+          {account.archivedOn === null ? (
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={isSaving}
+              onClick={() => patch(accountUrl(account.id), { archived: true })}
+            >
+              Archive
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={isSaving}
+              onClick={() => patch(accountUrl(account.id), { archived: false })}
+            >
+              Restore
+            </button>
+          )}
+          <button type="button" className="btn-danger" disabled={isSaving} onClick={removeAccount}>
+            Delete
+          </button>
+        </div>
       </div>
     </aside>
   );
@@ -218,6 +335,69 @@ export function FinanceAccountEmpty() {
       </div>
     </aside>
   );
+}
+
+/**
+ * A balance's row while it is being corrected: amount and date in place,
+ * saved together.
+ *
+ * @param {{
+ *   balance: FinanceObservation,
+ *   todayKey: string,
+ *   isSaving: boolean,
+ *   onSave: (body: { amount: number, date: string }) => void,
+ *   onCancel: () => void,
+ * }} props
+ */
+function BalanceEditor({ balance, todayKey, isSaving, onSave, onCancel }) {
+  const [amount, setAmount] = useState(formatMoney(balance.amount, { cents: true }));
+  const [date, setDate] = useState(balance.date);
+  const parsed = parseMoney(amount);
+
+  return (
+    <tr className="finance-editing">
+      <td>
+        <input
+          aria-label="Date"
+          type="date"
+          className="input"
+          value={date}
+          max={todayKey}
+          onChange={(event) => setDate(event.target.value)}
+        />
+      </td>
+      <td>
+        <input
+          aria-label="Amount"
+          className="input num"
+          inputMode="decimal"
+          value={amount}
+          onChange={(event) => setAmount(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') onCancel();
+          }}
+        />
+      </td>
+      <td className="finance-row-actions">
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={isSaving || parsed === null}
+          onClick={() => parsed !== null && onSave({ amount: parsed, date })}
+        >
+          Save
+        </button>
+        <button type="button" className="btn-ghost" onClick={onCancel}>
+          Cancel
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+/** @param {string} id */
+function balanceUrl(id) {
+  return '/api/observations/' + encodeURIComponent(id);
 }
 
 /** @param {string} id */

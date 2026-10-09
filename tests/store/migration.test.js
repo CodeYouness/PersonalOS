@@ -477,11 +477,57 @@ describe('migration v8 to v9', () => {
     const { amount, ...rest } = migrated.observations[1];
     const { amount: _old, ...restBefore } = before.observations[1];
     expect(rest).toEqual(restBefore);
-    expect(migrated.accounts).toEqual(before.accounts);
+    expect(migrated.accounts.map((/** @type {any} */ a) => [a.id, a.kind])).toEqual(
+      before.accounts.map((a) => [a.id, a.kind])
+    );
   });
 
   it('is idempotent', () => {
     const once = migrate(v8Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});
+
+/** A minimal v9 document: one open account and one archived the old way. */
+function v9Document() {
+  const v8 = v8Document();
+  return {
+    ...v8,
+    schemaVersion: 9,
+    accounts: [v8.accounts[0], { ...v8.accounts[1], archived: true }],
+  };
+}
+
+describe('migration v9 to v10', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // 23:30 UTC: already the next day in Rome.
+    vi.setSystemTime(new Date('2026-04-01T23:30:00.000Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('turns archived into the day it was archived on, today for an archived one', () => {
+    const migrated = migrate(v9Document());
+
+    expect(migrated.accounts.map((/** @type {any} */ a) => a.archivedOn)).toEqual([null, '2026-04-02']);
+    expect(migrated.accounts.every((/** @type {any} */ a) => !('archived' in a))).toBe(true);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('changes nothing else about an account, and no other row', () => {
+    const before = v9Document();
+    const migrated = migrate(before);
+    const { archivedOn, ...rest } = migrated.accounts[0];
+    const { archived, ...restBefore } = before.accounts[0];
+
+    expect(rest).toEqual(restBefore);
+    expect(migrated.observations).toEqual(before.observations);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v9Document());
     expect(migrate(once)).toEqual(once);
   });
 });

@@ -16,6 +16,10 @@ let sandbox;
 let accountsRoute;
 /** @type {typeof import('@/app/api/accounts/[id]/observations/route.js')} */
 let observationsRoute;
+/** @type {typeof import('@/app/api/accounts/[id]/route.js')} */
+let accountRoute;
+/** @type {typeof import('@/app/api/observations/[id]/route.js')} */
+let observationRoute;
 /** @type {typeof import('@/lib/store.js')} */
 let store;
 /** @type {typeof import('@/lib/domain/dates.js')} */
@@ -27,6 +31,8 @@ beforeAll(async () => {
   process.env.DATA_DIR = sandbox;
   accountsRoute = await import('@/app/api/accounts/route.js');
   observationsRoute = await import('@/app/api/accounts/[id]/observations/route.js');
+  accountRoute = await import('@/app/api/accounts/[id]/route.js');
+  observationRoute = await import('@/app/api/observations/[id]/route.js');
   store = await import('@/lib/store.js');
   dates = await import('@/lib/domain/dates.js');
 });
@@ -56,7 +62,26 @@ function recordBalance(id, body) {
   });
 }
 
+/**
+ * @param {{ PATCH: Function, DELETE: Function }} handler
+ * @param {string} url
+ * @param {string} id
+ * @param {unknown} [body] PATCH with this body; DELETE without one
+ * @returns {Promise<Response>}
+ */
+function send(handler, url, id, body) {
+  const context = { params: Promise.resolve({ id }) };
+  if (body === undefined) return handler.DELETE(new Request(url + id, { method: 'DELETE' }), context);
+  return handler.PATCH(new Request(url + id, { ...json(body), method: 'PATCH' }), context);
+}
+
+/** @param {string} id @param {unknown} [body] */
+const account = (id, body) => send(accountRoute, 'http://localhost/api/accounts/', id, body);
+/** @param {string} id @param {unknown} [body] */
+const balance = (id, body) => send(observationRoute, 'http://localhost/api/observations/', id, body);
+
 const CAR_LOAN = 'account_seed_carloan';
+const CAR_LOAN_BALANCE = 'observation_seed_4';
 const CURRENT = 'account_seed_current';
 
 describe('POST /api/accounts', () => {
@@ -138,5 +163,109 @@ describe('POST /api/accounts/[id]/observations', () => {
     const response = await recordBalance('account_nope', { amount: 100, date: '2026-04-02' });
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('PATCH /api/accounts/[id]', () => {
+  it('renames an account', async () => {
+    const response = await account(CAR_LOAN, { name: 'Car loan (Santander)' });
+
+    expect(response.status).toBe(200);
+    expect((await store.getAccount(CAR_LOAN))?.name).toBe('Car loan (Santander)');
+  });
+
+  it('archives an account: it keeps its balances and leaves the table', async () => {
+    const before = await store.getObservations({ accountId: CAR_LOAN });
+
+    const response = await account(CAR_LOAN, { archived: true });
+
+    expect(response.status).toBe(200);
+    expect((await store.getAccount(CAR_LOAN))?.archivedOn).toBe(dates.today());
+    expect(await store.getObservations({ accountId: CAR_LOAN })).toEqual(before);
+  });
+
+  it.each([
+    ['a blank name', { name: '' }],
+    ['a field it does not edit', { kind: 'cash' }],
+    ['an edit that changes nothing', {}],
+  ])('refuses %s', async (_label, body) => {
+    const before = await store.getAccount(CAR_LOAN);
+
+    const response = await account(CAR_LOAN, body);
+
+    expect(response.status).toBe(400);
+    expect(await store.getAccount(CAR_LOAN)).toEqual(before);
+  });
+
+  it('answers 404 for an account that does not exist', async () => {
+    expect((await account('account_nope', { name: 'x' })).status).toBe(404);
+  });
+});
+
+describe('DELETE /api/accounts/[id]', () => {
+  it('removes the account with its balances and links', async () => {
+    const [task] = await store.getTasks();
+    await store.createLink({ from: task.id, to: CAR_LOAN, rel: 'about' });
+
+    const response = await account(CAR_LOAN);
+
+    expect(response.status).toBe(200);
+    expect(await store.getAccount(CAR_LOAN)).toBeNull();
+    expect(await store.getObservations({ accountId: CAR_LOAN })).toEqual([]);
+    expect(await store.getLinks({ to: CAR_LOAN })).toEqual([]);
+  });
+
+  it('refuses an account that transactions belong to, and keeps it', async () => {
+    const response = await account(CURRENT);
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toMatch(/archive/);
+    expect(await store.getAccount(CURRENT)).not.toBeNull();
+  });
+
+  it('answers 404 for an account that does not exist', async () => {
+    expect((await account('account_nope')).status).toBe(404);
+  });
+});
+
+describe('PATCH /api/observations/[id]', () => {
+  it('corrects a balance\'s amount and date', async () => {
+    const response = await balance(CAR_LOAN_BALANCE, { amount: 700000, date: '2026-01-04' });
+
+    expect(response.status).toBe(200);
+    const [stored] = await store.getObservations({ accountId: CAR_LOAN });
+    expect(stored).toMatchObject({ amount: 700000, date: '2026-01-04' });
+  });
+
+  it.each([
+    ['a debt corrected to a negative amount', { amount: -700000 }],
+    ['a fraction of a cent', { amount: 1.5 }],
+    ['a move to another account', { accountId: CURRENT }],
+    ['an edit that changes nothing', {}],
+  ])('refuses %s', async (_label, body) => {
+    const before = await store.getObservations({});
+
+    const response = await balance(CAR_LOAN_BALANCE, body);
+
+    expect(response.status).toBe(400);
+    expect(await store.getObservations({})).toEqual(before);
+  });
+
+  it('answers 404 for a balance that does not exist', async () => {
+    expect((await balance('observation_nope', { amount: 1 })).status).toBe(404);
+  });
+});
+
+describe('DELETE /api/observations/[id]', () => {
+  it('deletes a balance; the account goes back to unknown', async () => {
+    const response = await balance(CAR_LOAN_BALANCE);
+
+    expect(response.status).toBe(200);
+    expect(await store.getObservations({ accountId: CAR_LOAN })).toEqual([]);
+    expect(await store.getAccount(CAR_LOAN)).not.toBeNull();
+  });
+
+  it('answers 404 for a balance that does not exist', async () => {
+    expect((await balance('observation_nope')).status).toBe(404);
   });
 });

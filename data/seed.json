@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -532,7 +532,7 @@
       "kind": "cash",
       "currency": "EUR",
       "origin": null,
-      "archived": false,
+      "archivedOn": null,
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-05T06:00:00.000Z",
       "source": "seed"
@@ -543,7 +543,7 @@
       "kind": "cash",
       "currency": "EUR",
       "origin": null,
-      "archived": false,
+      "archivedOn": null,
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-05T06:00:00.000Z",
       "source": "seed"
@@ -559,7 +559,7 @@
         "syncedAt": "2026-01-05T06:00:00.000Z",
         "sourceUpdatedAt": null
       },
-      "archived": false,
+      "archivedOn": null,
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-05T06:00:00.000Z",
       "source": "seed"
@@ -570,7 +570,7 @@
       "kind": "liability",
       "currency": "EUR",
       "origin": null,
-      "archived": false,
+      "archivedOn": null,
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-05T06:00:00.000Z",
       "source": "seed"
