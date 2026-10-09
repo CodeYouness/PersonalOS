@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  accountValueOn,
   allocation,
   financeOverview,
-  accountValueOn,
+  firstDayUnitsGoNegative,
   netWorthOn,
   periodTotals,
   totalsByCategory,
@@ -11,7 +12,7 @@ import {
 
 /** @returns {any} */
 const account = (/** @type {any} */ o) => ({
-  id: 'account_x', name: 'a', kind: 'cash', currency: 'EUR', origin: null, archivedOn: null,
+  id: 'account_x', name: 'a', kind: 'cash', currency: 'EUR', origin: null, archivedOn: null, valuation: 'balance',
   createdAt: '', updatedAt: '', source: 'user', ...o,
 });
 
@@ -20,6 +21,15 @@ const observation = (/** @type {any} */ o) => ({
   id: 'observation_x', accountId: 'account_x', kind: 'balance', amount: 0, currency: 'EUR',
   date: '2026-01-05', observedAt: '', origin: null, createdAt: '', updatedAt: '', source: 'user', ...o,
 });
+
+/** @returns {any} */
+const trade = (/** @type {any} */ o) => ({
+  id: 'trade_x', accountId: 'account_etf', date: '2026-01-02', direction: 'buy', units: 0, price: 0,
+  fee: 0, currency: 'EUR', createdAt: '', updatedAt: '', source: 'user', ...o,
+});
+
+/** One unit, in the 10^-8 units a trade counts in. */
+const UNIT = 100_000_000;
 
 /** @returns {any} */
 const transaction = (/** @type {any} */ o) => ({
@@ -44,7 +54,7 @@ describe('net worth comes from observations, not from transactions', () => {
       observation({ accountId: 'account_loan', amount: 715000 }),
     ];
 
-    const result = netWorthOn({ accounts, observations }, '2026-01-05');
+    const result = netWorthOn({ accounts, observations, trades: [] }, '2026-01-05');
     expect(result.netWorth).toBe(1000000 + 5000000 + 20000000 - 715000);
     expect(result.liabilities).toBe(715000);
   });
@@ -59,7 +69,7 @@ describe('net worth comes from observations, not from transactions', () => {
       observation({ accountId: 'account_savings', amount: 200000 }),
     ];
 
-    const result = netWorthOn({ accounts, observations }, '2026-01-05');
+    const result = netWorthOn({ accounts, observations, trades: [] }, '2026-01-05');
     expect(result.cash).toBe(150000);
     expect(result.netWorth).toBe(150000);
   });
@@ -71,7 +81,7 @@ describe('net worth comes from observations, not from transactions', () => {
       observation({ id: 'observation_future', amount: 999, date: '2026-02-01' }),
     ];
 
-    const value = accountValueOn(account({}), { accounts: [account({})], observations }, '2026-01-05');
+    const value = accountValueOn(account({}), { accounts: [account({})], observations, trades: [] }, '2026-01-05');
     expect(value).toEqual({ amount: 200, date: '2026-01-03' });
   });
 
@@ -81,7 +91,7 @@ describe('net worth comes from observations, not from transactions', () => {
     const accounts = [account({ id: 'account_cash' }), account({ id: 'account_pension', kind: 'investment' })];
     const observations = [observation({ accountId: 'account_cash', amount: 500000 })];
 
-    const result = netWorthOn({ accounts, observations }, '2026-01-05');
+    const result = netWorthOn({ accounts, observations, trades: [] }, '2026-01-05');
     expect(result.netWorth).toBe(500000);
     expect(result.unmeasuredAccounts).toBe(1);
   });
@@ -155,7 +165,7 @@ describe('the finance overview the screen renders from', () => {
   ];
 
   it('adds up the components from the latest value on or before today', () => {
-    const overview = financeOverview({ accounts, observations }, '2026-04-10');
+    const overview = financeOverview({ accounts, observations, trades: [] }, '2026-04-10');
 
     expect(overview.cash).toBe(120000);
     expect(overview.invested).toBe(0);
@@ -165,7 +175,7 @@ describe('the finance overview the screen renders from', () => {
   });
 
   it('lists each active account with its value and the date of that value', () => {
-    const overview = financeOverview({ accounts, observations }, '2026-04-10');
+    const overview = financeOverview({ accounts, observations, trades: [] }, '2026-04-10');
 
     expect(overview.accounts.map(({ account: a, value, valueDate }) => [a.id, value, valueDate])).toEqual([
       ['account_current', 120000, '2026-04-01'],
@@ -176,7 +186,7 @@ describe('the finance overview the screen renders from', () => {
   });
 
   it('counts an account with no value as unmeasured, never as zero', () => {
-    const overview = financeOverview({ accounts, observations }, '2026-04-10');
+    const overview = financeOverview({ accounts, observations, trades: [] }, '2026-04-10');
 
     expect(overview.unmeasuredAccounts).toBe(1);
     expect(overview.accounts.find((row) => row.account.id === 'account_pension')?.value).toBeNull();
@@ -184,12 +194,12 @@ describe('the finance overview the screen renders from', () => {
 
   it('counts an archived account on the days before it was archived, and not after', () => {
     // Closing a loan must not raise last year's net worth.
-    expect(netWorthOn({ accounts, observations }, '2026-03-31').cash).toBe(100000 + 50000);
-    expect(netWorthOn({ accounts, observations }, '2026-04-01').cash).toBe(120000);
+    expect(netWorthOn({ accounts, observations, trades: [] }, '2026-03-31').cash).toBe(100000 + 50000);
+    expect(netWorthOn({ accounts, observations, trades: [] }, '2026-04-01').cash).toBe(120000);
   });
 
   it('leaves archived accounts out of the table and of net worth', () => {
-    const overview = financeOverview({ accounts, observations }, '2026-04-10');
+    const overview = financeOverview({ accounts, observations, trades: [] }, '2026-04-10');
 
     expect(overview.accounts.map((row) => row.account.id)).not.toContain('account_closed');
     expect(overview.cash).toBe(120000);
@@ -211,5 +221,75 @@ describe('the allocation bar', () => {
   it('gives an overdrawn cash balance no width, and is empty when there is nothing', () => {
     expect(allocation({ cash: -10000, invested: 10000, otherAssets: 0, liabilities: 0 })[0].share).toBe(0);
     expect(allocation({ cash: 0, invested: 0, otherAssets: 0, liabilities: 0 }).every((s) => s.share === 0)).toBe(true);
+  });
+});
+
+describe('a holding is valued by units', () => {
+  const etf = account({ id: 'account_etf', kind: 'investment', valuation: 'units' });
+  const trades = [
+    trade({ id: 'trade_1', date: '2026-01-02', direction: 'buy', units: 10 * UNIT, price: 10000, fee: 100 }),
+    trade({ id: 'trade_2', date: '2026-02-02', direction: 'buy', units: 5.5 * UNIT, price: 10450 }),
+    trade({ id: 'trade_3', date: '2026-03-02', direction: 'sell', units: 3 * UNIT, price: 11000, fee: 50 }),
+  ];
+  /** @param {any[]} t @param {string} date */
+  const valueOn = (t, date) => accountValueOn(etf, { accounts: [etf], observations: [], trades: t }, date);
+
+  it('is the units held times the price of the latest trade, dated by that trade', () => {
+    expect(valueOn(trades, '2026-01-15')).toEqual({ amount: 100000, date: '2026-01-02' });
+    expect(valueOn(trades, '2026-02-15')).toEqual({ amount: 161975, date: '2026-02-02' });
+  });
+
+  it('holds fewer units from the day of a sell', () => {
+    expect(valueOn(trades, '2026-03-01')).toEqual({ amount: 161975, date: '2026-02-02' });
+    expect(valueOn(trades, '2026-03-02')).toEqual({ amount: 137500, date: '2026-03-02' });
+  });
+
+  it('is unknown before the first trade', () => {
+    expect(valueOn(trades, '2026-01-01')).toBeNull();
+    expect(valueOn([], '2026-04-01')).toBeNull();
+  });
+
+  it('never counts the fee in what the holding is worth', () => {
+    const noFees = trades.map((t) => ({ ...t, fee: 0 }));
+    expect(valueOn(noFees, '2026-03-10')).toEqual(valueOn(trades, '2026-03-10'));
+  });
+
+  it('rounds half up to the cent once per holding, not once per trade', () => {
+    const thirds = [1, 2, 3].map((n) =>
+      trade({ id: 'trade_' + n, date: '2026-01-0' + n, units: 33_333_333, price: 1001 })
+    );
+    // 0.99999999 units at 10.01 is 1000.99998999 cents: 1001, where rounding
+    // each trade's 333.666... first would have made 1002.
+    expect(valueOn(thirds, '2026-01-05')?.amount).toBe(1001);
+    expect(valueOn([trade({ units: UNIT / 2, price: 1 })], '2026-01-05')?.amount).toBe(1);
+  });
+
+  it('counts in net worth as invested, and ignores any balance', () => {
+    const worth = netWorthOn(
+      { accounts: [etf], observations: [observation({ accountId: 'account_etf', amount: 999 })], trades },
+      '2026-03-10'
+    );
+    expect(worth.invested).toBe(137500);
+  });
+});
+
+describe('the units a holding has can never go below zero', () => {
+  it('finds the first day a sell takes more than is held', () => {
+    expect(
+      firstDayUnitsGoNegative([
+        trade({ date: '2026-01-02', direction: 'buy', units: 10 }),
+        trade({ date: '2026-02-02', direction: 'sell', units: 4 }),
+        trade({ date: '2026-03-02', direction: 'sell', units: 7 }),
+      ])
+    ).toBe('2026-03-02');
+  });
+
+  it('settles a day as a whole, so a sell and a buy on one day are fine', () => {
+    expect(
+      firstDayUnitsGoNegative([
+        trade({ date: '2026-01-02', direction: 'sell', units: 5 }),
+        trade({ date: '2026-01-02', direction: 'buy', units: 5 }),
+      ])
+    ).toBeNull();
   });
 });

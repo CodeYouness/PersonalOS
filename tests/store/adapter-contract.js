@@ -971,6 +971,86 @@ export function runAdapterContract(label, load) {
         expect(await store.getAccount(transaction.accountId)).not.toBeNull();
       });
 
+      it('lets an investment choose its valuation and every other kind be valued by balance', async () => {
+        const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+        const pension = await store.createAccount({ name: 'Pension', kind: 'investment' });
+        expect(etf.valuation).toBe('units');
+        expect(pension.valuation).toBe('balance');
+
+        await expect(store.createAccount({ name: 'Wallet', kind: 'cash', valuation: 'units' })).rejects.toThrow(/only an investment/);
+        await expect(store.createAccount({ name: 'Gold', kind: 'investment', valuation: 'ounces' })).rejects.toThrow();
+      });
+
+      it('fixes the valuation once the account has data', async () => {
+        const fresh = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+        expect((await store.updateAccount(fresh.id, { valuation: 'balance' })).valuation).toBe('balance');
+
+        const used = await store.createAccount({ name: 'Pension', kind: 'investment' });
+        await store.recordObservation({ accountId: used.id, kind: 'balance', amount: 100, date: '2026-04-02' });
+        await expect(store.updateAccount(used.id, { valuation: 'units' })).rejects.toThrow(/valuation/);
+
+        const traded = await store.createAccount({ name: 'ETF 2', kind: 'investment', valuation: 'units' });
+        await store.createTrade({ accountId: traded.id, date: '2026-04-02', direction: 'buy', units: 100000000, price: 100 });
+        await expect(store.updateAccount(traded.id, { valuation: 'balance' })).rejects.toThrow(/valuation/);
+      });
+
+      it('records a buy and a sell on a holding, in integer units and cents', async () => {
+        const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+
+        const buy = await store.createTrade({
+          accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1050000000, price: 10450, fee: 100,
+        });
+        await store.createTrade({ accountId: etf.id, date: '2026-05-02', direction: 'sell', units: 50000000, price: 11000 });
+
+        expect(buy).toMatchObject({ units: 1050000000, price: 10450, fee: 100, currency: 'EUR', source: 'user' });
+        const trades = await store.getTrades({ accountId: etf.id });
+        expect(trades.map((t) => [t.direction, t.fee])).toEqual([['buy', 100], ['sell', 0]]);
+
+        for (const bad of [
+          { units: 1.5 }, { units: 0 }, { price: 10.5 }, { price: -1 }, { fee: -1 }, { direction: 'short' },
+          { currency: 'USD' }, { date: '2026-02-30' },
+        ]) {
+          await expect(
+            store.createTrade({ accountId: etf.id, date: '2026-06-02', direction: 'buy', units: 1, price: 1, ...bad })
+          ).rejects.toThrow();
+        }
+      });
+
+      it('never gives an account two answers to what it is worth', async () => {
+        const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+        const [cash] = await store.getAccounts();
+
+        await expect(
+          store.recordObservation({ accountId: etf.id, kind: 'balance', amount: 100, date: '2026-04-02' })
+        ).rejects.toThrow(/units/);
+        await expect(
+          store.createTrade({ accountId: cash.id, date: '2026-04-02', direction: 'buy', units: 1, price: 1 })
+        ).rejects.toThrow(/units/);
+      });
+
+      it('refuses a sell that would take the units below zero on any day', async () => {
+        const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+        await store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 });
+
+        await expect(
+          store.createTrade({ accountId: etf.id, date: '2026-05-02', direction: 'sell', units: 1001, price: 1 })
+        ).rejects.toThrow(/below zero/);
+        // Before the buy there was nothing to sell.
+        await expect(
+          store.createTrade({ accountId: etf.id, date: '2026-04-01', direction: 'sell', units: 1, price: 1 })
+        ).rejects.toThrow(/below zero/);
+        expect(await store.getTrades({ accountId: etf.id })).toHaveLength(1);
+      });
+
+      it('deletes a holding with its trades', async () => {
+        const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+        await store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 });
+
+        await store.deleteAccount(etf.id);
+
+        expect(await store.getTrades({ accountId: etf.id })).toEqual([]);
+      });
+
       it('records an overdraft as a negative cash balance', async () => {
         const cash = (await store.getAccounts()).find((account) => account.kind === 'cash');
         if (cash === undefined) throw new Error('the seed has no cash account');

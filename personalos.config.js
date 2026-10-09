@@ -36,6 +36,8 @@ export const ENTITY_TYPES = Object.freeze([
   'measurement',
   'account',
   'observation',
+  'trade',
+  'price',
   'transaction',
   'snapshot',
   'appointment',
@@ -193,6 +195,20 @@ export const ACCOUNT_KINDS = Object.freeze(['cash', 'investment', 'asset', 'liab
  * @type {readonly string[]}
  */
 export const TRANSACTION_KINDS = Object.freeze(['income', 'expense', 'transfer']);
+
+/**
+ * How an account is valued (#116). `balance`: you record what it is worth on
+ * a date -- cash, a pension fund, a property, a debt. `units`: a holding such
+ * as an ETF, valued by the units its trades leave you holding times the
+ * latest price. Only an investment chooses; every other kind is `balance`,
+ * and the choice is fixed once the account has data.
+ *
+ * @type {readonly string[]}
+ */
+export const ACCOUNT_VALUATIONS = Object.freeze(['balance', 'units']);
+
+/** Which way a trade moves units: in, or out. */
+export const TRADE_DIRECTIONS = Object.freeze(['buy', 'sell']);
 
 /**
  * The currencies money may be recorded in. EUR only, until exchange rates

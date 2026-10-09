@@ -273,3 +273,35 @@ export function parseMoney(text) {
   const minor = Number(euros) * 100 + Number(fraction.padEnd(2, '0'));
   return sign === '-' ? -minor : minor;
 }
+
+/** One unit, in the 10^-8 units a trade counts in. */
+const UNIT_DIGITS = 8;
+
+/**
+ * A number of units as typed -- "10.5", "0.00000001" -- read into the
+ * integer count of 10^-8 units a trade stores. Exact: the digits are taken
+ * as text, never through a float. Null when it is not a positive amount of
+ * units with at most eight decimals.
+ *
+ * @param {string} text
+ * @returns {number | null}
+ */
+export function parseUnits(text) {
+  const match = /^(\d+)(?:\.(\d{1,8}))?$/.exec(text.replace(/[\s,]/g, ''));
+  if (match === null) return null;
+  const [, whole, fraction = ''] = match;
+  return Number(whole) * 10 ** UNIT_DIGITS + Number(fraction.padEnd(UNIT_DIGITS, '0'));
+}
+
+/**
+ * A count of 10^-8 units as a person reads it: "10.5", "1,000",
+ * "0.00000001" -- only the decimals it has.
+ *
+ * @param {number} units
+ * @returns {string}
+ */
+export function formatUnits(units) {
+  const whole = formatCount(Math.floor(units / 10 ** UNIT_DIGITS));
+  const fraction = String(units % 10 ** UNIT_DIGITS).padStart(UNIT_DIGITS, '0').replace(/0+$/, '');
+  return fraction === '' ? whole : whole + '.' + fraction;
+}

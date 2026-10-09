@@ -2,7 +2,7 @@ import FinanceAccountDetail, { FinanceAccountEmpty } from '@/components/FinanceA
 import FinanceBreakdown from '@/components/FinanceBreakdown.js';
 import { today } from '@/lib/domain/dates.js';
 import { financeOverview } from '@/lib/domain/derive/finance.js';
-import { getAccount, getAccounts, getObservations } from '@/lib/store.js';
+import { getAccount, getAccounts, getObservations, getTrades } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,18 +21,18 @@ export const dynamic = 'force-dynamic';
 export default async function FinancesScreen({ searchParams }) {
   const { account: accountParam } = await searchParams;
   const todayKey = today();
-  const [accounts, observations, selected] = await Promise.all([
+  const [accounts, observations, trades, selected] = await Promise.all([
     getAccounts(),
     getObservations({}),
+    getTrades(),
     typeof accountParam === 'string' ? getAccount(accountParam) : null,
   ]);
-  const overview = financeOverview({ accounts, observations }, todayKey);
-  const balances =
+  const overview = financeOverview({ accounts, observations, trades }, todayKey);
+  /** @type {<T extends { accountId: string, date: string }>(rows: T[]) => T[]} */
+  const ofSelected = (rows) =>
     selected === null
       ? []
-      : observations
-          .filter((observation) => observation.accountId === selected.id)
-          .sort((a, b) => b.date.localeCompare(a.date));
+      : rows.filter((row) => row.accountId === selected.id).sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <section id="screen-finances" className="screen is-active">
@@ -46,7 +46,13 @@ export default async function FinancesScreen({ searchParams }) {
         {selected === null ? (
           <FinanceAccountEmpty />
         ) : (
-          <FinanceAccountDetail key={selected.id} account={selected} balances={balances} todayKey={todayKey} />
+          <FinanceAccountDetail
+            key={selected.id}
+            account={selected}
+            balances={ofSelected(observations)}
+            trades={ofSelected(trades)}
+            todayKey={todayKey}
+          />
         )}
       </div>
     </section>

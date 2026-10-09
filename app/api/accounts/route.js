@@ -5,9 +5,10 @@ import { createAccount } from '@/lib/store.js';
 export const dynamic = 'force-dynamic';
 
 /**
- * Add an account (#114) from the Finances screen: a name and a kind. The
- * store refuses a blank name, a kind outside ACCOUNT_KINDS and any currency
- * but EUR; nothing else is taken from the body. It has no value until a
+ * Add an account (#114) from the Finances screen: a name and a kind, and
+ * for an investment how it is valued (#116). The store refuses a blank name,
+ * a kind outside ACCOUNT_KINDS, units on anything but an investment and any
+ * currency but EUR; nothing else is taken from the body. It has no value until a
  * balance is recorded -- unknown, never zero.
  *
  * @param {Request} request
@@ -19,7 +20,13 @@ export async function POST(request) {
   }
 
   try {
-    const account = await createAccount({ name: body.name, kind: body.kind, currency: body.currency, source: 'user' });
+    const account = await createAccount({
+      name: body.name,
+      kind: body.kind,
+      valuation: body.valuation,
+      currency: body.currency,
+      source: 'user',
+    });
     return NextResponse.json({ ok: true, account });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

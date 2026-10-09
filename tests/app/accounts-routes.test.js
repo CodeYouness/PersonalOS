@@ -20,6 +20,8 @@ let observationsRoute;
 let accountRoute;
 /** @type {typeof import('@/app/api/observations/[id]/route.js')} */
 let observationRoute;
+/** @type {typeof import('@/app/api/accounts/[id]/trades/route.js')} */
+let tradesRoute;
 /** @type {typeof import('@/lib/store.js')} */
 let store;
 /** @type {typeof import('@/lib/domain/dates.js')} */
@@ -33,6 +35,7 @@ beforeAll(async () => {
   observationsRoute = await import('@/app/api/accounts/[id]/observations/route.js');
   accountRoute = await import('@/app/api/accounts/[id]/route.js');
   observationRoute = await import('@/app/api/observations/[id]/route.js');
+  tradesRoute = await import('@/app/api/accounts/[id]/trades/route.js');
   store = await import('@/lib/store.js');
   dates = await import('@/lib/domain/dates.js');
 });
@@ -80,6 +83,15 @@ const account = (id, body) => send(accountRoute, 'http://localhost/api/accounts/
 /** @param {string} id @param {unknown} [body] */
 const balance = (id, body) => send(observationRoute, 'http://localhost/api/observations/', id, body);
 
+/** @param {string} id @param {unknown} body */
+function recordTrade(id, body) {
+  return tradesRoute.POST(new Request('http://localhost/api/accounts/' + id + '/trades', json(body)), {
+    params: Promise.resolve({ id }),
+  });
+}
+
+const UNIT = 100_000_000;
+const ETF = 'account_seed_etf';
 const CAR_LOAN = 'account_seed_carloan';
 const CAR_LOAN_BALANCE = 'observation_seed_4';
 const CURRENT = 'account_seed_current';
@@ -267,5 +279,80 @@ describe('DELETE /api/observations/[id]', () => {
 
   it('answers 404 for a balance that does not exist', async () => {
     expect((await balance('observation_nope')).status).toBe(404);
+  });
+});
+
+describe('holdings', () => {
+  it('adds an investment valued by units', async () => {
+    const response = await addAccount({ name: 'Bitcoin', kind: 'investment', valuation: 'units' });
+    const { account: created } = await response.json();
+
+    expect(response.status).toBe(200);
+    expect((await store.getAccount(created.id))?.valuation).toBe('units');
+  });
+
+  it('refuses units on an account that is not an investment', async () => {
+    const response = await addAccount({ name: 'Wallet', kind: 'cash', valuation: 'units' });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('records a buy with its date, units, price per unit and fee', async () => {
+    const response = await recordTrade(ETF, {
+      date: '2026-02-02', direction: 'buy', units: 2.5 * UNIT, price: 11050, fee: 100,
+    });
+
+    expect(response.status).toBe(200);
+    const trades = await store.getTrades({ accountId: ETF });
+    expect(trades.find((t) => t.date === '2026-02-02')).toMatchObject({
+      direction: 'buy', units: 2.5 * UNIT, price: 11050, fee: 100, currency: 'EUR', source: 'user',
+    });
+  });
+
+  it('records a sell, and refuses one that would take the units below zero', async () => {
+    expect((await recordTrade(ETF, { date: '2026-02-02', direction: 'sell', units: 5 * UNIT, price: 11000 })).status).toBe(200);
+
+    const before = await store.getTrades({ accountId: ETF });
+    const response = await recordTrade(ETF, { date: '2026-02-03', direction: 'sell', units: 21 * UNIT, price: 11000 });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toMatch(/below zero/);
+    expect(await store.getTrades({ accountId: ETF })).toEqual(before);
+  });
+
+  it('refuses a balance on a holding and a trade on an account valued by balance', async () => {
+    expect((await recordBalance(ETF, { amount: 100, date: '2026-02-02' })).status).toBe(400);
+    expect((await recordTrade(CURRENT, { date: '2026-02-02', direction: 'buy', units: UNIT, price: 1 })).status).toBe(400);
+  });
+
+  it.each([
+    ['a currency other than EUR', { currency: 'USD' }],
+    ['a fraction of a 10^-8 unit', { units: 0.5 }],
+    ['a fraction of a cent', { price: 10.5 }],
+    ['a field it does not take', { accountId: CURRENT }],
+  ])('refuses a trade with %s', async (_label, extra) => {
+    const response = await recordTrade(ETF, { date: '2026-02-02', direction: 'buy', units: UNIT, price: 100, ...extra });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('answers 404 for a trade on an account that does not exist', async () => {
+    expect((await recordTrade('account_nope', { date: '2026-02-02', direction: 'buy', units: 1, price: 1 })).status).toBe(404);
+  });
+
+  it('changes the valuation of an account with no data, and refuses it once there is some', async () => {
+    const { account: fresh } = await (await addAccount({ name: 'Pension', kind: 'investment' })).json();
+
+    expect((await account(fresh.id, { valuation: 'units' })).status).toBe(200);
+    expect((await store.getAccount(fresh.id))?.valuation).toBe('units');
+
+    const response = await account(ETF, { valuation: 'balance' });
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toMatch(/valuation/);
+  });
+
+  it('deletes a holding with its trades', async () => {
+    expect((await account(ETF)).status).toBe(200);
+    expect(await store.getTrades({ accountId: ETF })).toEqual([]);
   });
 });
