@@ -11,7 +11,7 @@ import {
 
 /** @returns {any} */
 const account = (/** @type {any} */ o) => ({
-  id: 'account_x', name: 'a', kind: 'cash', currency: 'EUR', origin: null, archived: false,
+  id: 'account_x', name: 'a', kind: 'cash', currency: 'EUR', origin: null, archivedOn: null,
   createdAt: '', updatedAt: '', source: 'user', ...o,
 });
 
@@ -142,7 +142,7 @@ describe('the finance overview the screen renders from', () => {
     account({ id: 'account_pension', name: 'Pension', kind: 'investment' }),
     account({ id: 'account_flat', name: 'Flat', kind: 'asset' }),
     account({ id: 'account_loan', name: 'Loan', kind: 'liability' }),
-    account({ id: 'account_closed', name: 'Closed', kind: 'cash', archived: true }),
+    account({ id: 'account_closed', name: 'Closed', kind: 'cash', archivedOn: '2026-04-01' }),
   ];
   const observations = [
     observation({ id: 'observation_1', accountId: 'account_current', amount: 100000, date: '2026-03-01' }),
@@ -180,6 +180,12 @@ describe('the finance overview the screen renders from', () => {
 
     expect(overview.unmeasuredAccounts).toBe(1);
     expect(overview.accounts.find((row) => row.account.id === 'account_pension')?.value).toBeNull();
+  });
+
+  it('counts an archived account on the days before it was archived, and not after', () => {
+    // Closing a loan must not raise last year's net worth.
+    expect(netWorthOn({ accounts, observations }, '2026-03-31').cash).toBe(100000 + 50000);
+    expect(netWorthOn({ accounts, observations }, '2026-04-01').cash).toBe(120000);
   });
 
   it('leaves archived accounts out of the table and of net worth', () => {

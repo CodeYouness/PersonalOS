@@ -720,6 +720,9 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .finance-entry { display: flex; gap: var(--s-sm); align-items: flex-end; flex-wrap: wrap; }
 .finance-entry .field { margin-bottom: 0; flex: 1; min-width: 120px; }
 .finance-date { text-align: left !important; }
+.finance-row-actions { text-align: right; white-space: nowrap; width: 1%; }
+.finance-row-actions .btn-ghost, .finance-row-actions .btn-primary { margin-left: 4px; }
+.finance-editing .input { padding-top: 4px; padding-bottom: 4px; }
 
 /* ==========================================================================
    CAPTURE LOG — the drawer that answers "where did everything go?" Undo,

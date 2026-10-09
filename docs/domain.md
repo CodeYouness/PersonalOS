@@ -588,6 +588,18 @@ for the other.
 **Is** where money sits. `kind` is `cash`, `investment`, `asset` or
 `liability`, and net worth is `cash + investment + asset − liability`.
 
+**Archiving is a day.** An account you closed is archived: `archivedOn` is
+the day, and it leaves the account table and today's net worth while keeping
+its balances. It still counts on every earlier day it had a value, so closing
+a loan never raises last year's net worth. Restoring clears the day. Like a
+habit's periods (ADR 0015), the day is what keeps archiving from rewriting the
+past; a flag could not say which days the account was open.
+
+**Deleting is for a mistake.** It removes the account with its balances and
+every link to them, after a confirmation. An account that transactions belong
+to cannot be deleted -- money that moved is never lost -- and is archived
+instead.
+
 **Everything is EUR.** An account, a balance -- and every other amount in
 finance -- in any other currency is refused at the store
 (`FINANCE_CURRENCIES` in `personalos.config.js`), until exchange rates exist:
@@ -599,6 +611,10 @@ euros and dollars must never be added as if they were the same.
 
 **Has** `accountId`, `kind` (`balance` or `position`), `amount`, `currency`,
 `date`, `observedAt`, `origin`.
+
+A balance can be corrected (amount and date) or deleted; the history follows,
+because it is derived from the balances. With no balance left, the account is
+unknown again.
 
 An account with no observation is **unknown**, never zero. Treating it as zero
 would quietly understate the position and nothing would say so.

@@ -907,6 +907,70 @@ export function runAdapterContract(label, load) {
         await expect(store.updateAccount(account.id, { currency: 'USD' })).rejects.toThrow(/currency/);
       });
 
+      it('archives an account on a day, and restores it', async () => {
+        const account = await store.createAccount({ name: 'Old loan', kind: 'liability' });
+
+        const archived = await store.updateAccount(account.id, { archived: true });
+        expect(archived.archivedOn).toBe(today());
+        // Asking again changes nothing: the day it was closed stays.
+        expect((await store.updateAccount(account.id, { archived: true })).archivedOn).toBe(today());
+
+        expect((await store.updateAccount(account.id, { archived: false })).archivedOn).toBeNull();
+        await expect(store.updateAccount(account.id, { archivedOn: '2026-01-01' })).rejects.toThrow();
+      });
+
+      it('corrects a balance, keeping the sign rule', async () => {
+        const liability = await store.createAccount({ name: 'Loan', kind: 'liability' });
+        const balance = await store.recordObservation({
+          accountId: liability.id, kind: 'balance', amount: 500000, date: '2026-04-02',
+        });
+
+        const corrected = await store.updateObservation(balance.id, { amount: 450000, date: '2026-04-01' });
+        expect(corrected).toMatchObject({ amount: 450000, date: '2026-04-01', accountId: liability.id });
+
+        await expect(store.updateObservation(balance.id, { amount: -1 })).rejects.toThrow(/positive amount owed/);
+        await expect(store.updateObservation(balance.id, { accountId: 'account_seed_current' })).rejects.toThrow();
+        await expect(store.updateObservation(balance.id, { currency: 'USD' })).rejects.toThrow();
+        expect((await store.getObservations({ accountId: liability.id }))[0].amount).toBe(450000);
+      });
+
+      it('deletes a balance and the links to it', async () => {
+        const [account] = await store.getAccounts();
+        const balance = await store.recordObservation({
+          accountId: account.id, kind: 'balance', amount: 1, date: '2026-04-02',
+        });
+        const [task] = await store.getTasks();
+        await store.createLink({ from: task.id, to: balance.id, rel: 'about' });
+
+        await store.deleteObservation(balance.id);
+
+        expect((await store.getObservations({})).some((row) => row.id === balance.id)).toBe(false);
+        expect(await store.getLinks({ to: balance.id })).toEqual([]);
+        await expect(store.deleteObservation(balance.id)).rejects.toThrow();
+      });
+
+      it('deletes an account with its balances and links', async () => {
+        const account = await store.createAccount({ name: 'Mistake', kind: 'cash' });
+        await store.recordObservation({ accountId: account.id, kind: 'balance', amount: 1, date: '2026-04-02' });
+        const [task] = await store.getTasks();
+        await store.createLink({ from: task.id, to: account.id, rel: 'about' });
+
+        await store.deleteAccount(account.id);
+
+        expect(await store.getAccount(account.id)).toBeNull();
+        expect(await store.getObservations({ accountId: account.id })).toEqual([]);
+        expect(await store.getLinks({ to: account.id })).toEqual([]);
+      });
+
+      it('refuses to delete an account that transactions belong to', async () => {
+        // A transaction is money that moved; deleting its account would
+        // leave it pointing at nothing. Archive it instead.
+        const [transaction] = await store.getTransactions();
+
+        await expect(store.deleteAccount(transaction.accountId)).rejects.toThrow(/archive/);
+        expect(await store.getAccount(transaction.accountId)).not.toBeNull();
+      });
+
       it('records an overdraft as a negative cash balance', async () => {
         const cash = (await store.getAccounts()).find((account) => account.kind === 'cash');
         if (cash === undefined) throw new Error('the seed has no cash account');
