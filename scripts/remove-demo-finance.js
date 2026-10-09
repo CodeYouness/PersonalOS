@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Removes the seed's demo finance rows -- its accounts, their balances and
- * transactions, its snapshot -- from your data file, so your own accounts do
+ * Removes the seed's demo finance rows -- its accounts, their balances, trades
+ * and transactions, its snapshot -- from your data file, so your own accounts do
  * not sit next to invented ones (#112). Finance categories and everything
  * that is not finance stay.
  *

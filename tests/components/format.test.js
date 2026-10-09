@@ -6,9 +6,11 @@ import {
   formatEuro,
   formatMoney,
   formatMoneyChange,
+  formatUnits,
   formatWeight,
   ordinal,
   parseMoney,
+  parseUnits,
   provenanceLabel,
   shortDate,
   slippedLabel,
@@ -111,5 +113,27 @@ describe('parseMoney', () => {
     expect(parseMoney('1.234')).toBeNull();
     expect(parseMoney('1.2.3')).toBeNull();
     expect(parseMoney('-')).toBeNull();
+  });
+});
+
+describe('units', () => {
+  it('reads units to eight decimals, exactly', () => {
+    expect(parseUnits('10.5')).toBe(1050000000);
+    expect(parseUnits('0.00000001')).toBe(1);
+    expect(parseUnits('1,000')).toBe(100000000000);
+    expect(parseUnits('3')).toBe(300000000);
+  });
+
+  it('refuses what is not a number of units', () => {
+    expect(parseUnits('0.000000001')).toBeNull();
+    expect(parseUnits('-1')).toBeNull();
+    expect(parseUnits('')).toBeNull();
+    expect(parseUnits('ten')).toBeNull();
+  });
+
+  it('shows units with only the decimals they have', () => {
+    expect(formatUnits(1050000000)).toBe('10.5');
+    expect(formatUnits(1)).toBe('0.00000001');
+    expect(formatUnits(100000000000)).toBe('1,000');
   });
 });

@@ -6,9 +6,10 @@ export const dynamic = 'force-dynamic';
 
 /**
  * What the account panel changes (#115): its name, and whether it is
- * archived -- a request the store turns into the day it was archived on.
+ * archived -- a request the store turns into the day it was archived on --
+ * and how it is valued, which the store refuses once it has data (#116).
  */
-const EDITABLE = ['name', 'archived'];
+const EDITABLE = ['name', 'archived', 'valuation'];
 
 /**
  * Rename or archive an account. An archived account leaves the table and

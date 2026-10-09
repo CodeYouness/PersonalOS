@@ -519,7 +519,7 @@ describe('migration v9 to v10', () => {
   it('changes nothing else about an account, and no other row', () => {
     const before = v9Document();
     const migrated = migrate(before);
-    const { archivedOn, ...rest } = migrated.accounts[0];
+    const { archivedOn, valuation, ...rest } = migrated.accounts[0];
     const { archived, ...restBefore } = before.accounts[0];
 
     expect(rest).toEqual(restBefore);
@@ -528,6 +528,45 @@ describe('migration v9 to v10', () => {
 
   it('is idempotent', () => {
     const once = migrate(v9Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});
+
+/** A minimal v10 document: accounts with no valuation, no trades or prices. */
+function v10Document() {
+  const v9 = v9Document();
+  return {
+    ...v9,
+    schemaVersion: 10,
+    accounts: v9.accounts.map(({ archived, ...account }) => ({ ...account, archivedOn: null })),
+  };
+}
+
+describe('migration v10 to v11', () => {
+  it('values every existing account by balance', () => {
+    const migrated = migrate(v10Document());
+
+    expect(migrated.accounts.map((/** @type {any} */ a) => a.valuation)).toEqual(['balance', 'balance']);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('introduces trades and prices empty rather than absent', () => {
+    const migrated = migrate(v10Document());
+
+    expect(migrated.trades).toEqual([]);
+    expect(migrated.prices).toEqual([]);
+  });
+
+  it('changes nothing else', () => {
+    const before = v10Document();
+    const migrated = migrate(before);
+
+    expect(migrated.accounts.map((/** @type {any} */ { valuation, ...rest }) => rest)).toEqual(before.accounts);
+    expect(migrated.observations).toEqual(before.observations);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v10Document());
     expect(migrate(once)).toEqual(once);
   });
 });

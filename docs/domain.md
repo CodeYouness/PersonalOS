@@ -588,6 +588,23 @@ for the other.
 **Is** where money sits. `kind` is `cash`, `investment`, `asset` or
 `liability`, and net worth is `cash + investment + asset − liability`.
 
+**Valuation** says how an account is worth what it is worth, chosen when it
+is created (`ACCOUNT_VALUATIONS`):
+
+- **`balance`** -- cash, a pension fund, a property, a debt: you record what
+  it is worth on a date (a FinanceObservation).
+- **`units`** -- a **holding**, such as an ETF or a crypto asset: you record
+  **Trades**, and its value on a date is the units held then times the latest
+  price on or before it, rounded half up to the cent once for the holding.
+  Derived, never stored. Before its first trade it is unknown.
+
+Only an investment chooses; cash, an asset and a debt are always `balance`.
+The choice is fixed once the account has a balance, a trade or a price, so
+its history never changes meaning underneath it -- and so is its kind, which
+decides what the sign of a balance means. An account has one answer to
+what it is worth: a balance on a `units` account and a trade on a `balance`
+account are both refused.
+
 **Archiving is a day.** An account you closed is archived: `archivedOn` is
 the day, and it leaves the account table and today's net worth while keeping
 its balances. It still counts on every earlier day it had a value, so closing
@@ -625,6 +642,24 @@ it lowers net worth. A liability observation is the **positive amount owed** --
 written the way you would say it -- and is subtracted; a negative one is
 refused, so a sign typo cannot turn a debt into an asset. A provision you owe,
 such as tax set aside, is a liability.
+
+### Trade
+
+**Is** a buy or a sell on a holding.
+
+**Has** `accountId` (an account valued by units), `date`, `direction` (`buy`
+or `sell`, `TRADE_DIRECTIONS`), `units`, `price`, `fee`, `currency`.
+
+`units` is an integer count of 10^-8 units, so a fraction of an ETF or of a
+coin is exact; `price` (per whole unit) and `fee` are integer minor units. A
+trade's price counts as the holding's price on its date, so a monthly
+purchase keeps the holding current with no extra typing. A fee is what you
+paid, never what the holding is worth. A trade that would leave the holding
+with fewer than zero units on any day is refused; a day is settled whole.
+
+**A Trade is not a Transaction.** It changes what you hold, not money in or
+out. The cash that paid for a buy -- a transfer from a cash account, never
+spending -- belongs to the transactions piece.
 
 ### Transaction
 
@@ -699,11 +734,11 @@ double counting.
 | people | health averages, day totals |
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
 | journal entries | monthly spending, income by category |
-| memory entries | current net worth |
+| memory entries | current net worth, a holding's units held and value |
 | captures | days until deadline |
 | links, events | |
 | daily logs (ticks, meals, measurements) | |
-| finance accounts, observations, transactions | |
+| finance accounts (including valuation and archivedOn), observations, trades, transactions | |
 | **net worth snapshots** — the one exception, see above | |
 
 ---

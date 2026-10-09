@@ -1,6 +1,6 @@
 /**
  * `npm run data:remove-demo-finance` (#112): the seed's demo accounts,
- * balances, transactions and snapshot leave a real data file, after a
+ * balances, trades, transactions and snapshot leave a real data file, after a
  * backup, and nothing of yours goes with them.
  */
 
@@ -57,7 +57,10 @@ describe('removeDemoFinance', () => {
     expect(await store.getObservations({})).toEqual([]);
     expect(await store.getTransactions()).toEqual([]);
     expect(await store.getSnapshots()).toEqual([]);
-    expect(removed).toEqual({ accounts: 4, observations: 4, transactions: 5, snapshots: 1, links: 0 });
+    expect(await store.getTrades()).toEqual([]);
+    expect(removed).toEqual({
+      accounts: 5, observations: 4, trades: 3, prices: 0, transactions: 5, snapshots: 1, links: 0,
+    });
   });
 
   it('keeps your own accounts and balances, and the links to them', async () => {
@@ -112,7 +115,9 @@ describe('removeDemoFinance', () => {
 
     const { removed } = await store.removeDemoFinance();
 
-    expect(removed).toEqual({ accounts: 0, observations: 0, transactions: 0, snapshots: 0, links: 0 });
+    expect(removed).toEqual({
+      accounts: 0, observations: 0, trades: 0, prices: 0, transactions: 0, snapshots: 0, links: 0,
+    });
     expect(await store.getAccounts()).toEqual(accounts);
     expect(await store.getObservations({})).toEqual(observations);
   });

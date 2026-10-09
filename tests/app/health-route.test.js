@@ -28,13 +28,14 @@ afterAll(async () => {
 });
 
 describe('GET /api/health', () => {
-  it('reports the seed net worth the seed snapshot records', async () => {
-    // The seed snapshot's number, from before the sign of an observation
-    // meant anything (#120): writing the car loan as the positive amount
-    // owed must not change it.
+  it('reports the seed net worth: its balances and its holding', async () => {
+    // The balances are the seed snapshot's 80,390.00, from before the sign
+    // of an observation meant anything (#120): writing the car loan as the
+    // positive amount owed must not change it. The World ETF holding (#116)
+    // adds 25 units at its last trade's 108.20.
     const body = await (await route.GET()).json();
 
     expect(body.status).toBe('ok');
-    expect(body.derived.netWorthMinorUnits).toBe(8039000);
+    expect(body.derived.netWorthMinorUnits).toBe(8039000 + 270500);
   });
 });
