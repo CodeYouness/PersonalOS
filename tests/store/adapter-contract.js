@@ -879,6 +879,30 @@ export function runAdapterContract(label, load) {
         ).rejects.toThrow();
       });
 
+      it('records a liability as the positive amount owed and refuses a negative one', async () => {
+        const liability = (await store.getAccounts()).find((account) => account.kind === 'liability');
+        if (liability === undefined) throw new Error('the seed has no liability account');
+
+        // A sign typo must not turn a debt into an asset.
+        await expect(
+          store.recordObservation({ accountId: liability.id, kind: 'balance', amount: -500000, date: '2026-04-02' })
+        ).rejects.toThrow(/positive amount owed/);
+        const owed = await store.recordObservation({
+          accountId: liability.id, kind: 'balance', amount: 500000, date: '2026-04-02',
+        });
+        expect(owed.amount).toBe(500000);
+      });
+
+      it('records an overdraft as a negative cash balance', async () => {
+        const cash = (await store.getAccounts()).find((account) => account.kind === 'cash');
+        if (cash === undefined) throw new Error('the seed has no cash account');
+
+        const overdraft = await store.recordObservation({
+          accountId: cash.id, kind: 'balance', amount: -50000, date: '2026-04-02',
+        });
+        expect(overdraft.amount).toBe(-50000);
+      });
+
       it('requires the other side of a transfer', async () => {
         const [account] = await store.getAccounts();
 

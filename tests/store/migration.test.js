@@ -433,3 +433,55 @@ describe('migration v7 to v8', () => {
     expect(migrate(once)).toEqual(once);
   });
 });
+
+/** A minimal v8 document: a liability recorded the old way, negative. */
+function v8Document() {
+  /** @param {string} id @param {string} accountId @param {number} amount */
+  const observation = (id, accountId, amount) => ({
+    id, accountId, kind: 'balance', amount, currency: 'EUR', date: '2026-01-05',
+    observedAt: '2026-01-05T06:00:00.000Z', origin: null,
+    createdAt: '2026-01-05T06:00:00.000Z', updatedAt: '2026-01-05T06:00:00.000Z', source: 'user',
+  });
+  /** @param {string} id @param {string} kind */
+  const account = (id, kind) => ({
+    id, name: id, kind, currency: 'EUR', origin: null, archived: false,
+    createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', source: 'user',
+  });
+  return {
+    ...v7Document(),
+    schemaVersion: 8,
+    accounts: [account('account_current', 'cash'), account('account_loan', 'liability')],
+    observations: [
+      observation('observation_overdraft', 'account_current', -50000),
+      observation('observation_loan_old', 'account_loan', -715000),
+      observation('observation_loan_new', 'account_loan', 700000),
+    ],
+  };
+}
+
+describe('migration v8 to v9', () => {
+  it('turns a negative liability observation into the positive amount owed', () => {
+    const migrated = migrate(v8Document());
+
+    const loan = migrated.observations.filter((/** @type {any} */ o) => o.accountId === 'account_loan');
+    expect(loan.map((/** @type {any} */ o) => o.amount)).toEqual([715000, 700000]);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('leaves an overdraft negative and every other row unchanged', () => {
+    const before = v8Document();
+    const migrated = migrate(before);
+
+    expect(migrated.observations[0]).toEqual(before.observations[0]);
+    expect(migrated.observations[2]).toEqual(before.observations[2]);
+    const { amount, ...rest } = migrated.observations[1];
+    const { amount: _old, ...restBefore } = before.observations[1];
+    expect(rest).toEqual(restBefore);
+    expect(migrated.accounts).toEqual(before.accounts);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v8Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});
