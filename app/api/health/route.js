@@ -4,7 +4,7 @@ import { env } from '@/lib/config/env.js';
 import { netWorthOn } from '@/lib/domain/derive/finance.js';
 import { today } from '@/lib/domain/dates.js';
 import { dueToday } from '@/lib/domain/derive/tasks.js';
-import { getAccounts, getLinks, getObservations, getProfile, getTasks, getTrades, storageName } from '@/lib/store.js';
+import { getAccounts, getLinks, getObservations, getPrices, getProfile, getTasks, getTrades, storageName } from '@/lib/store.js';
 
 /**
  * Routes that serve data are never cached. Next caches aggressively by
@@ -24,16 +24,17 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const todayKey = today();
-    const [profile, tasks, accounts, observations, trades, links] = await Promise.all([
+    const [profile, tasks, accounts, observations, trades, prices, links] = await Promise.all([
       getProfile(),
       getTasks(),
       getAccounts(),
       getObservations({}),
       getTrades(),
+      getPrices(),
       getLinks({}),
     ]);
 
-    const worth = netWorthOn({ accounts, observations, trades }, todayKey);
+    const worth = netWorthOn({ accounts, observations, trades, prices }, todayKey);
 
     return NextResponse.json({
       status: 'ok',

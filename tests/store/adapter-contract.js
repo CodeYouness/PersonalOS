@@ -1053,12 +1053,72 @@ export function runAdapterContract(label, load) {
         expect(await store.getTrades({ accountId: etf.id })).toHaveLength(1);
       });
 
-      it('deletes a holding with its trades', async () => {
+      it('deletes a holding with its trades and prices', async () => {
         const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
         await store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 });
+        await store.recordPrice({ accountId: etf.id, date: '2026-05-02', price: 2 });
 
         await store.deleteAccount(etf.id);
 
+        expect(await store.getTrades({ accountId: etf.id })).toEqual([]);
+        expect(await store.getPrices({ accountId: etf.id })).toEqual([]);
+      });
+
+      it('records a price on a holding, one per day', async () => {
+        const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+
+        const first = await store.recordPrice({ accountId: etf.id, date: '2026-05-02', price: 11500 });
+        const again = await store.recordPrice({ accountId: etf.id, date: '2026-05-02', price: 11600 });
+
+        expect(first).toMatchObject({ price: 11500, currency: 'EUR', source: 'user' });
+        // A second price for the same day corrects it rather than adding one.
+        expect(again.id).toBe(first.id);
+        expect((await store.getPrices({ accountId: etf.id })).map((p) => p.price)).toEqual([11600]);
+
+        const [cash] = await store.getAccounts();
+        await expect(store.recordPrice({ accountId: cash.id, date: '2026-05-02', price: 1 })).rejects.toThrow(/units/);
+        for (const bad of [{ price: 1.5 }, { price: -1 }, { currency: 'USD' }, { date: '2026-02-30' }]) {
+          await expect(store.recordPrice({ accountId: etf.id, date: '2026-05-03', price: 1, ...bad })).rejects.toThrow();
+        }
+      });
+
+      it('corrects and deletes a price', async () => {
+        const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+        const price = await store.recordPrice({ accountId: etf.id, date: '2026-05-02', price: 11500 });
+
+        expect(await store.updatePrice(price.id, { price: 11400, date: '2026-05-01' })).toMatchObject({
+          price: 11400, date: '2026-05-01',
+        });
+        await expect(store.updatePrice(price.id, { accountId: 'account_seed_current' })).rejects.toThrow();
+
+        await store.deletePrice(price.id);
+        expect(await store.getPrices({ accountId: etf.id })).toEqual([]);
+      });
+
+      it('refuses moving a price onto a day that already has one', async () => {
+        const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+        await store.recordPrice({ accountId: etf.id, date: '2026-05-01', price: 1 });
+        const other = await store.recordPrice({ accountId: etf.id, date: '2026-05-02', price: 2 });
+
+        await expect(store.updatePrice(other.id, { date: '2026-05-01' })).rejects.toThrow(/already/);
+      });
+
+      it('corrects and deletes a trade, never leaving the units below zero', async () => {
+        const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+        const buy = await store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 });
+        const sell = await store.createTrade({ accountId: etf.id, date: '2026-05-02', direction: 'sell', units: 600, price: 2 });
+
+        expect(await store.updateTrade(sell.id, { units: 500, fee: 10 })).toMatchObject({ units: 500, fee: 10 });
+
+        // The later sell depends on the buy: reducing it, moving it after the
+        // sell, or deleting it would leave the holding below zero.
+        await expect(store.updateTrade(buy.id, { units: 400 })).rejects.toThrow(/below zero/);
+        await expect(store.updateTrade(buy.id, { date: '2026-06-01' })).rejects.toThrow(/below zero/);
+        await expect(store.deleteTrade(buy.id)).rejects.toThrow(/below zero/);
+        await expect(store.updateTrade(buy.id, { accountId: 'account_seed_current' })).rejects.toThrow();
+
+        await store.deleteTrade(sell.id);
+        await store.deleteTrade(buy.id);
         expect(await store.getTrades({ accountId: etf.id })).toEqual([]);
       });
 

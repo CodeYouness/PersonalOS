@@ -722,6 +722,7 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .finance-entry .field { margin-bottom: 0; flex: 1; min-width: 120px; }
 .finance-date { text-align: left !important; }
 .finance-direction { margin-bottom: var(--s-sm); }
+.finance-prices { margin-top: var(--s-md); }
 .finance-entry + .finance-entry { margin-top: var(--s-sm); }
 .finance-row-actions { text-align: right; white-space: nowrap; width: 1%; }
 .finance-row-actions .btn-ghost, .finance-row-actions .btn-primary { margin-left: 4px; }
