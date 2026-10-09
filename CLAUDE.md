@@ -52,6 +52,7 @@ lib/integrations/  contract + registry; no concrete integration yet
 lib/config/        the only module that reads process.env
 personalos.config.js  closed vocabularies and product configuration
 data/seed.json     demo starting state, versioned, never written to
+design/mockup.html the mockup every screen and card is ported from
 docs/              architecture, domain, development, roadmap, decisions
 ```
 

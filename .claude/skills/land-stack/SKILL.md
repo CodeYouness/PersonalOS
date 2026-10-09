@@ -19,19 +19,38 @@ Auto mode refuses a merge it cannot match to an allow rule. The rules in
 `$(...)`, no `&&` chain, no wrapper script around `gh`. Write each PR body
 to a file and pass `--body-file`; pass `--repo CodeYouness/PersonalOS`.
 
+## Before landing: fixing a lower link
+
+A review finding that belongs to a lower ticket is committed on that
+ticket's branch, and the links above it are moved onto it. Name the old
+head of the fixed branch as the `--onto` base, so only the commits above it
+are replayed:
+
+```
+git rebase --update-refs --onto <fixed-branch> <its-old-head> <top-branch>
+```
+
+Without `--onto`, a plain rebase replays every commit below the fix again
+too, and conflicts on files they already share. Done when
+`git log --oneline main..<top-branch>` shows each ticket's commits once, in
+order, and `npm run verify` passes on every branch.
+
 ## Steps
 
 1. **Record the anchors.** For every PR in the stack, bottom first, write
    down `number headRefName headRefOid` (`gh pr view <n> --json ...`). The
    **anchor** is that head SHA; branches vanish as the stack lands, the
    anchors do not. Write each anchor commit's body to a scratch file
-   (`git log -1 --format=%b <anchor>`). Done when every PR has an anchor
-   and a body file.
+   (`git log -1 --format=%b <anchor>`). A PR that carries a review fix has
+   more than one commit: its subject and body are its **first** commit's,
+   with an `Also: <subject>` line per later commit, so the squash names the
+   ticket and not the fix. Done when every PR has an anchor, a subject and
+   a body file.
 
 2. **Land one link**, for the parent at the bottom and its child:
    1. Parent is `CLEAN`, and its head has the anchor's tree:
       `git diff --quiet origin/<parent-branch> <anchor>`.
-   2. Squash it with the anchor's own subject plus the PR number:
+   2. Squash it with that subject plus the PR number:
       `gh pr merge <n> --squash --subject "<anchor subject> (#<n>)" --body-file <file>`.
       Never `--delete-branch`.
    3. Retarget the child: `gh pr edit <child> --base main`.
@@ -52,8 +71,13 @@ to a file and pass `--body-file`; pass `--repo CodeYouness/PersonalOS`.
 3. **Prove the whole stack**: `git diff --quiet origin/main <top anchor>`.
    Main must be byte-identical to the top of the stack.
 
-4. **Close out**: the ticket issues close through their PRs; close the
-   parent spec issue as completed with a comment naming the PRs. Remove
+4. **Close out**: the ticket issues close through their PRs. Close the
+   parent spec issue as completed, with a comment naming the PRs, in two
+   plain commands (`gh issue close` has no `--comment-file`):
+   `gh issue comment <n> --repo CodeYouness/PersonalOS --body-file <file>`, then
+   `gh issue close <n> --repo CodeYouness/PersonalOS --reason completed`.
+   Read each command's whole output: a failure piped through `tail` looks
+   like success. Remove
    the repair worktree, fast-forward local `main`, delete the local
    branches.
 

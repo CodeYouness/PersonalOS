@@ -18,6 +18,10 @@ const FORBIDDEN_PATHS = [
   { pattern: /^PersonalOS\.md$/, reason: 'third-party reference material' },
   { pattern: /\.pem$/, reason: 'private key' },
   { pattern: /^data\/finance\//, reason: 'personal spreadsheet export' },
+  // The repository lives in iCloud, which writes "route 2.js" beside a file
+  // a fast branch switch rewrote. A stale copy shipped is a route or a test
+  // nobody reviewed.
+  { pattern: /(^|\/)[^/]* \d+(\.[^/]+)?$/, reason: 'sync conflict copy ("name 2.js")' },
 ];
 
 /** Credential signatures, matched against tracked text files. */
