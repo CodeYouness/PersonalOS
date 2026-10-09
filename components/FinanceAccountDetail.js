@@ -8,7 +8,7 @@ import { financesHref, KIND_LABELS } from '@/components/FinanceBreakdown.js';
 import FinanceHoldings from '@/components/FinanceHoldings.js';
 import { shortDate } from '@/components/format.js';
 import { messageOf, request } from '@/components/request.js';
-import { ACCOUNT_KINDS } from '@/personalos.config.js';
+import { ACCOUNT_KINDS, ACCOUNT_VALUATIONS } from '@/personalos.config.js';
 
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
 /** @typedef {import('@/lib/domain/types.js').FinanceObservation} FinanceObservation */
@@ -259,13 +259,13 @@ export function FinanceAccountEmpty() {
             <div className="field">
               <span className="caption">Valued by</span>
               <div className="segmented" role="group" aria-label="Valued by">
-                {/** @type {const} */ (['balance', 'units']).map((choice) => (
+                {ACCOUNT_VALUATIONS.map((choice) => (
                   <button
                     key={choice}
                     type="button"
                     className={'seg' + (valuation === choice ? ' is-on' : '')}
                     aria-pressed={valuation === choice}
-                    onClick={() => setValuation(choice)}
+                    onClick={() => setValuation(/** @type {FinanceAccount['valuation']} */ (choice))}
                   >
                     {choice === 'balance' ? 'Balance' : 'Units and price'}
                   </button>

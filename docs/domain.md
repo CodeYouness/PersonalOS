@@ -600,7 +600,8 @@ is created (`ACCOUNT_VALUATIONS`):
 
 Only an investment chooses; cash, an asset and a debt are always `balance`.
 The choice is fixed once the account has a balance, a trade or a price, so
-its history never changes meaning underneath it. An account has one answer to
+its history never changes meaning underneath it -- and so is its kind, which
+decides what the sign of a balance means. An account has one answer to
 what it is worth: a balance on a `units` account and a trade on a `balance`
 account are both refused.
 

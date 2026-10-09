@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { accountUrl } from '@/components/FinanceBalances.js';
 import { formatMoney, formatUnits, parseMoney, parseUnits, shortDate } from '@/components/format.js';
+import { TRADE_DIRECTIONS } from '@/personalos.config.js';
 
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
 /** @typedef {import('@/lib/domain/types.js').Trade} Trade */
@@ -48,13 +49,13 @@ export default function FinanceHoldings({ account, trades, write, refuse, isSavi
     <>
       <form onSubmit={recordTrade}>
         <div className="segmented finance-direction" role="group" aria-label="Direction">
-          {/** @type {const} */ (['buy', 'sell']).map((choice) => (
+          {TRADE_DIRECTIONS.map((choice) => (
             <button
               key={choice}
               type="button"
               className={'seg' + (direction === choice ? ' is-on' : '')}
               aria-pressed={direction === choice}
-              onClick={() => setDirection(choice)}
+              onClick={() => setDirection(/** @type {Trade['direction']} */ (choice))}
             >
               {choice === 'buy' ? 'Buy' : 'Sell'}
             </button>

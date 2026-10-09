@@ -994,6 +994,17 @@ export function runAdapterContract(label, load) {
         await expect(store.updateAccount(traded.id, { valuation: 'balance' })).rejects.toThrow(/valuation/);
       });
 
+      it('fixes the kind once the account has data, so a sign never changes meaning', async () => {
+        // An overdraft of a cash account, turned into a debt, would be a
+        // negative debt -- counted as money you have.
+        const current = await store.createAccount({ name: 'Current', kind: 'cash' });
+        await store.recordObservation({ accountId: current.id, kind: 'balance', amount: -50000, date: '2026-04-02' });
+        await expect(store.updateAccount(current.id, { kind: 'liability' })).rejects.toThrow(/kind/);
+
+        const fresh = await store.createAccount({ name: 'Loan', kind: 'cash' });
+        expect((await store.updateAccount(fresh.id, { kind: 'liability' })).kind).toBe('liability');
+      });
+
       it('records a buy and a sell on a holding, in integer units and cents', async () => {
         const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
 
