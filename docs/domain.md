@@ -588,6 +588,11 @@ for the other.
 **Is** where money sits. `kind` is `cash`, `investment`, `asset` or
 `liability`, and net worth is `cash + investment + asset − liability`.
 
+**Everything is EUR.** An account, a balance -- and every other amount in
+finance -- in any other currency is refused at the store
+(`FINANCE_CURRENCIES` in `personalos.config.js`), until exchange rates exist:
+euros and dollars must never be added as if they were the same.
+
 ### FinanceObservation
 
 **Is** what an account was worth at a moment, according to somebody.

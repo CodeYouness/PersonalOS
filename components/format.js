@@ -255,3 +255,21 @@ export function shortDate(dayKey, todayKey) {
     timeZone: 'UTC',
   });
 }
+
+/**
+ * An amount as typed into a field -- "12,400", "€ 1,234.5", "-500" -- read
+ * into minor units. The inverse of formatMoney: euros and cents are taken
+ * from the digits as text, so no float ever holds the amount. Commas group
+ * thousands; at most two decimals. Null when it is not an amount.
+ *
+ * @param {string} text
+ * @returns {number | null}
+ */
+export function parseMoney(text) {
+  const cleaned = text.replace(/[\s€,]/g, '').replace(MINUS, '-');
+  const match = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(cleaned);
+  if (match === null) return null;
+  const [, sign, euros, fraction = ''] = match;
+  const minor = Number(euros) * 100 + Number(fraction.padEnd(2, '0'));
+  return sign === '-' ? -minor : minor;
+}

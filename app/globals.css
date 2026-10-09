@@ -712,6 +712,14 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .finance-table th.num, .finance-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .finance-table td { padding: var(--s-xs) var(--s-sm); font-size: 13px; border-bottom: 1px solid var(--hairline); }
 .finance-table tbody tr:last-child td { border-bottom: none; }
+.finance-table tbody tr.is-selected td { background: var(--surface-2); }
+.finance-account-link { color: inherit; text-decoration: none; }
+.finance-account-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.finance-account-name { margin-bottom: var(--s-md); }
+.finance-hint { margin-bottom: var(--s-md); }
+.finance-entry { display: flex; gap: var(--s-sm); align-items: flex-end; flex-wrap: wrap; }
+.finance-entry .field { margin-bottom: 0; flex: 1; min-width: 120px; }
+.finance-date { text-align: left !important; }
 
 /* ==========================================================================
    CAPTURE LOG — the drawer that answers "where did everything go?" Undo,

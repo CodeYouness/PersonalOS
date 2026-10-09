@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { formatEuro, formatMoney, shortDate } from '@/components/format.js';
 import { allocation } from '@/lib/domain/derive/finance.js';
 
@@ -16,19 +18,31 @@ const ALLOCATION_PARTS = {
 };
 
 /**
+ * A Finances address. One place builds them, for the card and the screen;
+ * an account is selected by id, never by its place in the table.
+ *
+ * @param {string | null} [accountId]
+ */
+export function financesHref(accountId = null) {
+  return accountId === null ? '/finances' : '/finances?account=' + encodeURIComponent(accountId);
+}
+
+/**
  * The Finances screen's breakdown (#113), from lib/domain/derive/finance.js's
  * financeOverview: net worth, the allocation bar, and one row per active
  * account with its value and the date that value comes from -- so a pension
  * typed four months ago shows its age. An account with no value reads
  * "unknown", never 0. No period selector and no Refresh: values change about
- * once a month, and nothing here is live.
+ * once a month, and nothing here is live. Each account's name opens its
+ * panel (#114).
  *
  * @param {{
  *   overview: ReturnType<typeof import('@/lib/domain/derive/finance.js').financeOverview>,
  *   todayKey: string,
+ *   selectedId?: string | null,
  * }} props
  */
-export default function FinanceBreakdown({ overview, todayKey }) {
+export default function FinanceBreakdown({ overview, todayKey, selectedId = null }) {
   const parts = allocation(overview).filter((part) => part.amount !== 0);
 
   return (
@@ -82,8 +96,17 @@ export default function FinanceBreakdown({ overview, todayKey }) {
             </thead>
             <tbody>
               {overview.accounts.map((row) => (
-                <tr key={row.account.id}>
-                  <td>{row.account.name}</td>
+                <tr key={row.account.id} className={row.account.id === selectedId ? 'is-selected' : undefined}>
+                  <td>
+                    <Link
+                      href={financesHref(row.account.id)}
+                      scroll={false}
+                      className="finance-account-link"
+                      aria-current={row.account.id === selectedId ? 'true' : undefined}
+                    >
+                      {row.account.name}
+                    </Link>
+                  </td>
                   <td className="caption">{KIND_LABELS[row.account.kind]}</td>
                   {row.value === null ? (
                     <td className="num caption">unknown</td>
