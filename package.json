@@ -20,6 +20,7 @@
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "check:secrets": "node scripts/check-secrets.js",
     "data:reset": "node scripts/reset-data.js",
+    "data:remove-demo-finance": "node scripts/remove-demo-finance.js",
     "sync:calendar": "node scripts/sync-calendar.js"
   },
   "dependencies": {
