@@ -6,8 +6,8 @@ import { goalBoard } from '@/lib/domain/derive/goals.js';
 import { getGoals } from '@/lib/store.js';
 
 /**
- * The open goals on the home screen (#97), in the slot the mockup kept for
- * Finance pulse: a promise in front of you every day. Read-only -- Open and
+ * The open goals on the home screen (#97), below Calendar and Pulse: a
+ * promise in front of you every day. Read-only -- Open and
  * every row go to the Goals screen, where a goal is corrected or closed. The
  * same derivation as the screen, so both say the same thing.
  */
