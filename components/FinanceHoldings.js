@@ -276,8 +276,11 @@ function TradeEditor({ trade, todayKey, isSaving, onSave, onRefuse, onCancel }) 
       </td>
       <td>
         <select aria-label="Direction" className="input" value={direction} onChange={(event) => setDirection(/** @type {Trade['direction']} */ (event.target.value))}>
-          <option value="buy">buy</option>
-          <option value="sell">sell</option>
+          {TRADE_DIRECTIONS.map((choice) => (
+            <option key={choice} value={choice}>
+              {choice}
+            </option>
+          ))}
         </select>
       </td>
       <td>
