@@ -13,6 +13,7 @@ import { ACCOUNT_KINDS, ACCOUNT_VALUATIONS } from '@/personalos.config.js';
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
 /** @typedef {import('@/lib/domain/types.js').FinanceObservation} FinanceObservation */
 /** @typedef {import('@/lib/domain/types.js').Trade} Trade */
+/** @typedef {import('@/lib/domain/types.js').Price} Price */
 
 /** The kind as the add form offers it. */
 /** @type {Record<FinanceAccount['kind'], string>} */
@@ -21,7 +22,8 @@ const KIND_CHOICES = { cash: 'Cash', investment: 'Investment', asset: 'Asset', l
 /**
  * The Finances screen's account panel (#114), opened by `?account=<id>`:
  * what the account is worth, recorded the way it is valued -- balances
- * (FinanceBalances) or, for a holding, trades (FinanceHoldings, #116). Every
+ * (FinanceBalances) or, for a holding, trades and prices (FinanceHoldings,
+ * #116, #117). Every
  * write posts first and then re-reads the screen, win or lose, so the table
  * and net worth show what was really saved.
  *
@@ -32,9 +34,15 @@ const KIND_CHOICES = { cash: 'Cash', investment: 'Investment', asset: 'Asset', l
  *
  * Mounted with `key={account.id}`, so selecting another account starts clean.
  *
- * @param {{ account: FinanceAccount, balances: FinanceObservation[], trades: Trade[], todayKey: string }} props
+ * @param {{
+ *   account: FinanceAccount,
+ *   balances: FinanceObservation[],
+ *   trades: Trade[],
+ *   prices: Price[],
+ *   todayKey: string,
+ * }} props
  */
-export default function FinanceAccountDetail({ account, balances, trades, todayKey }) {
+export default function FinanceAccountDetail({ account, balances, trades, prices, todayKey }) {
   const router = useRouter();
   const [error, setError] = useState(/** @type {string | null} */ (null));
   const [isSaving, setIsSaving] = useState(false);
@@ -143,6 +151,7 @@ export default function FinanceAccountDetail({ account, balances, trades, todayK
           <FinanceHoldings
             account={account}
             trades={trades}
+            prices={prices}
             write={write}
             refuse={setError}
             isSaving={isSaving}

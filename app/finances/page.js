@@ -2,7 +2,7 @@ import FinanceAccountDetail, { FinanceAccountEmpty } from '@/components/FinanceA
 import FinanceBreakdown from '@/components/FinanceBreakdown.js';
 import { today } from '@/lib/domain/dates.js';
 import { financeOverview } from '@/lib/domain/derive/finance.js';
-import { getAccount, getAccounts, getObservations, getTrades } from '@/lib/store.js';
+import { getAccount, getAccounts, getObservations, getPrices, getTrades } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,13 +21,14 @@ export const dynamic = 'force-dynamic';
 export default async function FinancesScreen({ searchParams }) {
   const { account: accountParam } = await searchParams;
   const todayKey = today();
-  const [accounts, observations, trades, selected] = await Promise.all([
+  const [accounts, observations, trades, prices, selected] = await Promise.all([
     getAccounts(),
     getObservations({}),
     getTrades(),
+    getPrices(),
     typeof accountParam === 'string' ? getAccount(accountParam) : null,
   ]);
-  const overview = financeOverview({ accounts, observations, trades }, todayKey);
+  const overview = financeOverview({ accounts, observations, trades, prices }, todayKey);
   /** @type {<T extends { accountId: string, date: string }>(rows: T[]) => T[]} */
   const ofSelected = (rows) =>
     selected === null
@@ -51,6 +52,7 @@ export default async function FinancesScreen({ searchParams }) {
             account={selected}
             balances={ofSelected(observations)}
             trades={ofSelected(trades)}
+            prices={ofSelected(prices)}
             todayKey={todayKey}
           />
         )}

@@ -28,6 +28,12 @@ const trade = (/** @type {any} */ o) => ({
   fee: 0, currency: 'EUR', createdAt: '', updatedAt: '', source: 'user', ...o,
 });
 
+/** @returns {any} */
+const price = (/** @type {any} */ o) => ({
+  id: 'price_x', accountId: 'account_etf', date: '2026-01-02', price: 0, currency: 'EUR',
+  createdAt: '', updatedAt: '', source: 'user', ...o,
+});
+
 /** One unit, in the 10^-8 units a trade counts in. */
 const UNIT = 100_000_000;
 
@@ -54,7 +60,7 @@ describe('net worth comes from observations, not from transactions', () => {
       observation({ accountId: 'account_loan', amount: 715000 }),
     ];
 
-    const result = netWorthOn({ accounts, observations, trades: [] }, '2026-01-05');
+    const result = netWorthOn({ accounts, observations, trades: [], prices: [] }, '2026-01-05');
     expect(result.netWorth).toBe(1000000 + 5000000 + 20000000 - 715000);
     expect(result.liabilities).toBe(715000);
   });
@@ -69,7 +75,7 @@ describe('net worth comes from observations, not from transactions', () => {
       observation({ accountId: 'account_savings', amount: 200000 }),
     ];
 
-    const result = netWorthOn({ accounts, observations, trades: [] }, '2026-01-05');
+    const result = netWorthOn({ accounts, observations, trades: [], prices: [] }, '2026-01-05');
     expect(result.cash).toBe(150000);
     expect(result.netWorth).toBe(150000);
   });
@@ -81,7 +87,7 @@ describe('net worth comes from observations, not from transactions', () => {
       observation({ id: 'observation_future', amount: 999, date: '2026-02-01' }),
     ];
 
-    const value = accountValueOn(account({}), { accounts: [account({})], observations, trades: [] }, '2026-01-05');
+    const value = accountValueOn(account({}), { accounts: [account({})], observations, trades: [], prices: [] }, '2026-01-05');
     expect(value).toEqual({ amount: 200, date: '2026-01-03' });
   });
 
@@ -91,7 +97,7 @@ describe('net worth comes from observations, not from transactions', () => {
     const accounts = [account({ id: 'account_cash' }), account({ id: 'account_pension', kind: 'investment' })];
     const observations = [observation({ accountId: 'account_cash', amount: 500000 })];
 
-    const result = netWorthOn({ accounts, observations, trades: [] }, '2026-01-05');
+    const result = netWorthOn({ accounts, observations, trades: [], prices: [] }, '2026-01-05');
     expect(result.netWorth).toBe(500000);
     expect(result.unmeasuredAccounts).toBe(1);
   });
@@ -165,7 +171,7 @@ describe('the finance overview the screen renders from', () => {
   ];
 
   it('adds up the components from the latest value on or before today', () => {
-    const overview = financeOverview({ accounts, observations, trades: [] }, '2026-04-10');
+    const overview = financeOverview({ accounts, observations, trades: [], prices: [] }, '2026-04-10');
 
     expect(overview.cash).toBe(120000);
     expect(overview.invested).toBe(0);
@@ -175,7 +181,7 @@ describe('the finance overview the screen renders from', () => {
   });
 
   it('lists each active account with its value and the date of that value', () => {
-    const overview = financeOverview({ accounts, observations, trades: [] }, '2026-04-10');
+    const overview = financeOverview({ accounts, observations, trades: [], prices: [] }, '2026-04-10');
 
     expect(overview.accounts.map(({ account: a, value, valueDate }) => [a.id, value, valueDate])).toEqual([
       ['account_current', 120000, '2026-04-01'],
@@ -186,7 +192,7 @@ describe('the finance overview the screen renders from', () => {
   });
 
   it('counts an account with no value as unmeasured, never as zero', () => {
-    const overview = financeOverview({ accounts, observations, trades: [] }, '2026-04-10');
+    const overview = financeOverview({ accounts, observations, trades: [], prices: [] }, '2026-04-10');
 
     expect(overview.unmeasuredAccounts).toBe(1);
     expect(overview.accounts.find((row) => row.account.id === 'account_pension')?.value).toBeNull();
@@ -194,12 +200,12 @@ describe('the finance overview the screen renders from', () => {
 
   it('counts an archived account on the days before it was archived, and not after', () => {
     // Closing a loan must not raise last year's net worth.
-    expect(netWorthOn({ accounts, observations, trades: [] }, '2026-03-31').cash).toBe(100000 + 50000);
-    expect(netWorthOn({ accounts, observations, trades: [] }, '2026-04-01').cash).toBe(120000);
+    expect(netWorthOn({ accounts, observations, trades: [], prices: [] }, '2026-03-31').cash).toBe(100000 + 50000);
+    expect(netWorthOn({ accounts, observations, trades: [], prices: [] }, '2026-04-01').cash).toBe(120000);
   });
 
   it('leaves archived accounts out of the table and of net worth', () => {
-    const overview = financeOverview({ accounts, observations, trades: [] }, '2026-04-10');
+    const overview = financeOverview({ accounts, observations, trades: [], prices: [] }, '2026-04-10');
 
     expect(overview.accounts.map((row) => row.account.id)).not.toContain('account_closed');
     expect(overview.cash).toBe(120000);
@@ -231,8 +237,8 @@ describe('a holding is valued by units', () => {
     trade({ id: 'trade_2', date: '2026-02-02', direction: 'buy', units: 5.5 * UNIT, price: 10450 }),
     trade({ id: 'trade_3', date: '2026-03-02', direction: 'sell', units: 3 * UNIT, price: 11000, fee: 50 }),
   ];
-  /** @param {any[]} t @param {string} date */
-  const valueOn = (t, date) => accountValueOn(etf, { accounts: [etf], observations: [], trades: t }, date);
+  /** @param {any[]} t @param {string} date @param {any[]} [p] */
+  const valueOn = (t, date, p = []) => accountValueOn(etf, { accounts: [etf], observations: [], trades: t, prices: p }, date);
 
   it('is the units held times the price of the latest trade, dated by that trade', () => {
     expect(valueOn(trades, '2026-01-15')).toEqual({ amount: 100000, date: '2026-01-02' });
@@ -266,10 +272,42 @@ describe('a holding is valued by units', () => {
 
   it('counts in net worth as invested, and ignores any balance', () => {
     const worth = netWorthOn(
-      { accounts: [etf], observations: [observation({ accountId: 'account_etf', amount: 999 })], trades },
+      { accounts: [etf], observations: [observation({ accountId: 'account_etf', amount: 999 })], trades, prices: [] },
       '2026-03-10'
     );
     expect(worth.invested).toBe(137500);
+  });
+});
+
+describe('a holding is valued at its latest price', () => {
+  const etf = account({ id: 'account_etf', kind: 'investment', valuation: 'units' });
+  const trades = [trade({ id: 'trade_1', date: '2026-01-02', units: 10 * UNIT, price: 10000 })];
+  /** @param {any[]} p @param {string} date */
+  const valueOn = (p, date) => accountValueOn(etf, { accounts: [etf], observations: [], trades, prices: p }, date);
+
+  it('uses a price recorded without a trade, dated by it', () => {
+    const prices = [price({ id: 'price_1', date: '2026-03-31', price: 11500 })];
+
+    expect(valueOn(prices, '2026-04-10')).toEqual({ amount: 115000, date: '2026-03-31' });
+  });
+
+  it('stays flat between two prices, and keeps a stale price\'s date', () => {
+    const prices = [price({ id: 'price_1', date: '2026-03-31', price: 11500 })];
+
+    expect(valueOn(prices, '2026-03-30')).toEqual({ amount: 100000, date: '2026-01-02' });
+    expect(valueOn(prices, '2026-09-30')).toEqual({ amount: 115000, date: '2026-03-31' });
+  });
+
+  it('lets a Price beat a trade\'s price on the same date', () => {
+    const prices = [price({ id: 'price_1', date: '2026-01-02', price: 10100 })];
+
+    expect(valueOn(prices, '2026-01-02')).toEqual({ amount: 101000, date: '2026-01-02' });
+  });
+
+  it('is still unknown before the first trade, whatever the prices', () => {
+    const prices = [price({ id: 'price_1', date: '2025-12-01', price: 9000 })];
+
+    expect(valueOn(prices, '2025-12-15')).toBeNull();
   });
 });
 

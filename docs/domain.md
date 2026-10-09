@@ -657,6 +657,27 @@ purchase keeps the holding current with no extra typing. A fee is what you
 paid, never what the holding is worth. A trade that would leave the holding
 with fewer than zero units on any day is refused; a day is settled whole.
 
+A trade can be corrected (any of its fields but its account) or deleted, under
+the same rule: deleting or reducing a buy that a later sell depends on is
+refused.
+
+### Price
+
+**Is** what one unit of a holding was worth on a date, typed when there was
+no trade to say so -- a holding not bought in months is not valued at an old
+price.
+
+**Has** `accountId` (an account valued by units), `date`, `price` (minor
+units per whole unit), `currency`.
+
+A holding is valued at the latest price on or before the date, from either a
+trade or a Price; on a date with both, **the Price wins**. The account table
+shows the date of the price in use, so a stale holding shows its age, and the
+value stays flat between two prices -- nothing invents a movement you did not
+record. One Price per holding per day: recording a second for the same day
+corrects the first. A price before the first trade values nothing; a holding's
+history starts at its first trade.
+
 **A Trade is not a Transaction.** It changes what you hold, not money in or
 out. The cash that paid for a buy -- a transfer from a cash account, never
 spending -- belongs to the transactions piece.
@@ -738,7 +759,7 @@ double counting.
 | captures | days until deadline |
 | links, events | |
 | daily logs (ticks, meals, measurements) | |
-| finance accounts (including valuation and archivedOn), observations, trades, transactions | |
+| finance accounts (including valuation and archivedOn), observations, trades, prices, transactions | |
 | **net worth snapshots** — the one exception, see above | |
 
 ---
