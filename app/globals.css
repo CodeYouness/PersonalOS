@@ -222,7 +222,7 @@ button:disabled { cursor: not-allowed; }
   padding: var(--s-lg) var(--s-lg) var(--capture-h);
   min-height: calc(100vh - var(--topbar-h));
 }
-#screen-home .screen-grid { grid-template-rows: auto minmax(280px, 1fr) minmax(240px, 1fr); }
+#screen-home .screen-grid { grid-template-rows: auto minmax(280px, 1fr) minmax(240px, 1fr) auto; }
 /* The summary strip takes the height it needs; the manage and history cards
    share what is left. */
 #screen-habits .screen-grid { grid-template-rows: auto minmax(0, 1fr); }
@@ -696,6 +696,14 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
    FINANCE — card-finance-breakdown on the Finances screen, ported from the
    mockup's finance styles; no period selector and no Refresh (docs/spec.md).
    ========================================================================== */
+.net-worth { font-size: 30px; letter-spacing: -1.1px; font-weight: var(--w-display); font-variant-numeric: tabular-nums; }
+.delta-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
+.delta-row .k { color: var(--ink-subtle); }
+.spark { display: flex; align-items: flex-end; gap: 3px; height: 56px; margin: var(--s-md) 0; flex: none; }
+.spark i { flex: 1; border-radius: 2px 2px 0 0; }
+.spark i.pos { background: rgba(89,212,153,0.45); }
+.spark i.neg { background: rgba(255,97,97,0.45); }
+.pulse-empty { margin-top: var(--s-xs); }
 .finance-side { display: flex; flex-direction: column; gap: var(--s-md); min-width: 0; min-height: 0; }
 .finance-side > .card { flex: 1 1 auto; }
 .finance-total { text-align: left; margin-bottom: var(--s-xxs); }

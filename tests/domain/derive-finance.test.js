@@ -7,6 +7,7 @@ import {
   firstDayUnitsGoNegative,
   netWorthOn,
   periodTotals,
+  sparkBars,
   totalsByCategory,
 } from '@/lib/domain/derive/finance.js';
 
@@ -401,5 +402,57 @@ describe('the 30-day change of an account', () => {
       ['account_current', 25000],
       ['account_new', null],
     ]);
+  });
+});
+
+describe('the pulse: changes, sparkline and as of', () => {
+  const accounts = [account({ id: 'account_current', kind: 'cash' }), account({ id: 'account_pension', kind: 'investment' })];
+  const observations = [
+    observation({ id: 'observation_1', accountId: 'account_current', amount: 100000, date: '2026-02-20' }),
+    observation({ id: 'observation_2', accountId: 'account_current', amount: 125000, date: '2026-04-01' }),
+    observation({ id: 'observation_3', accountId: 'account_pension', amount: 50000, date: '2026-03-15' }),
+  ];
+  const inputs = { accounts, observations, trades: [], prices: [] };
+
+  it('changes net worth over 30 days, and hides the year with no value that far back', () => {
+    const { changes } = financeOverview(inputs, '2026-04-12');
+
+    // 30 days ago (13 March): 1,000 of cash, the pension not yet measured.
+    expect(changes).toEqual({ days30: 175000 - 100000, year: null });
+  });
+
+  it('changes over a year once there is a value a year back', () => {
+    const { changes } = financeOverview(inputs, '2027-02-25');
+
+    expect(changes.year).toBe(175000 - 100000);
+  });
+
+  it('draws twelve month-ends, leaving the months before the first value empty', () => {
+    const { sparkline } = financeOverview(inputs, '2026-04-12');
+
+    // May 2025 to January 2026 had no value; then the ends of February and
+    // March, and today.
+    expect(sparkline).toEqual([null, null, null, null, null, null, null, null, null, 100000, 150000, 175000]);
+  });
+
+  it('is as of the newest value it counts', () => {
+    expect(financeOverview(inputs, '2026-04-12').asOf).toBe('2026-04-01');
+    expect(financeOverview(inputs, '2026-03-20').asOf).toBe('2026-03-15');
+    expect(financeOverview({ ...inputs, observations: [] }, '2026-04-12').asOf).toBeNull();
+  });
+});
+
+describe('the sparkline bars', () => {
+  it('scales each value between the lowest and the highest, and marks a fall', () => {
+    expect(sparkBars([null, 100, 200, 150])).toEqual([
+      null,
+      { height: 0.2, fell: false },
+      { height: 1, fell: false },
+      { height: 0.6, fell: true },
+    ]);
+  });
+
+  it('draws a flat series at one height, and nothing for an empty month', () => {
+    expect(sparkBars([null, 50, 50])).toEqual([null, { height: 0.6, fell: false }, { height: 0.6, fell: false }]);
   });
 });
