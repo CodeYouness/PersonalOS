@@ -38,12 +38,28 @@ describe('net worth comes from observations, not from transactions', () => {
       observation({ accountId: 'account_cash', amount: 1000000 }),
       observation({ accountId: 'account_pf', amount: 5000000 }),
       observation({ accountId: 'account_flat', amount: 20000000 }),
-      observation({ accountId: 'account_loan', amount: -715000 }),
+      // A liability is recorded as the positive amount owed.
+      observation({ accountId: 'account_loan', amount: 715000 }),
     ];
 
     const result = netWorthAt(accounts, observations, '2026-01-05');
     expect(result.netWorth).toBe(1000000 + 5000000 + 20000000 - 715000);
     expect(result.liabilities).toBe(715000);
+  });
+
+  it('counts an overdraft against net worth, never as money you have', () => {
+    const accounts = [
+      account({ id: 'account_current', kind: 'cash' }),
+      account({ id: 'account_savings', kind: 'cash' }),
+    ];
+    const observations = [
+      observation({ accountId: 'account_current', amount: -50000 }),
+      observation({ accountId: 'account_savings', amount: 200000 }),
+    ];
+
+    const result = netWorthAt(accounts, observations, '2026-01-05');
+    expect(result.cash).toBe(150000);
+    expect(result.netWorth).toBe(150000);
   });
 
   it('uses the latest observation at or before the date', () => {

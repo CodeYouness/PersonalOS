@@ -598,6 +598,13 @@ for the other.
 An account with no observation is **unknown**, never zero. Treating it as zero
 would quietly understate the position and nothing would say so.
 
+**The sign of an observation is meaningful.** A cash, investment or asset
+observation is signed: an overdrawn current account is a negative balance, and
+it lowers net worth. A liability observation is the **positive amount owed** --
+written the way you would say it -- and is subtracted; a negative one is
+refused, so a sign typo cannot turn a debt into an asset. A provision you owe,
+such as tax set aside, is a liability.
+
 ### Transaction
 
 **Is** money moving.
