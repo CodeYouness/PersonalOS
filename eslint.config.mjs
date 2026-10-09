@@ -130,11 +130,18 @@ const eslintConfig = defineConfig([
   },
 
   // CLAUDE.md: never an empty catch -- a swallowed error is a failed write
-  // the screen never hears about.
+  // the screen never hears about. And no invisible character inside a
+  // string either: a thin or non-breaking space is written as its \u escape,
+  // so a reader can see it (a shell heredoc once turned '\u2009' into the
+  // character itself, and nothing noticed).
   {
     files: ["**/*.js", "**/*.mjs"],
     rules: {
       "no-empty": "error",
+      "no-irregular-whitespace": [
+        "error",
+        { skipStrings: false, skipTemplates: false, skipRegExps: false, skipJSXText: false },
+      ],
     },
   },
 ]);

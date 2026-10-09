@@ -14,12 +14,23 @@ block) and `tests/app/route-conventions.test.js` (every route and page is
   exists -- and maps the store's error to a status. "A done goal is not
   edited" belongs in `updateGoal`, where every caller meets it; a check only
   in the route is one script away from being bypassed.
+- **A rule that reads a second field is enforced when that field changes
+  too.** The sign of a balance means what the account's kind says, so a
+  kind change on an account with balances is refused -- otherwise an
+  overdraft becomes a negative debt by a patch the sign rule never sees.
+  Check every write path to each field the rule reads.
 - **A new operation mirrors its nearest sibling.** `completeGoal` reads like
   `completeTask`, a goal route like its task route: same guards, same order,
   same status codes, same ADR references in the comments. A difference
   is a decision, and says why where it is made.
 
 ## Screens
+
+- **A helper two components share lives in a module named for the
+  feature** (`components/finance.js`), never in the first component that
+  needed it -- an address builder, a label map, a colour rule. Otherwise
+  the second component imports a card it has nothing to do with, and the
+  helper is found only by remembering who wrote it first.
 
 - **A selection is tracked by id**, in the address (`?task=<id>`,
   `?goal=<id>`), never by index in a list: a capture can insert a row while

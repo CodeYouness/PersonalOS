@@ -24,7 +24,7 @@ data with no key set; each variable switches on the feature next to it.
 | `npm test` | Vitest, once |
 | `npm run test:watch` | Vitest, watching |
 | `npm run verify` | All four, in order. **The gate.** |
-| `npm run check:secrets` | Fails if personal data or a credential is tracked |
+| `npm run check:secrets` | Fails if personal data, a credential or a sync conflict copy (`route 2.js`, from iCloud) is tracked |
 | `npm run data:reset` | Restore `data/personalos.json` from the seed, backing up whatever was there first |
 | `npm run data:remove-demo-finance` | Remove the seed's demo accounts, balances, trades, transactions and snapshot from `data/personalos.json`, backing it up first. Yours to run once, before recording your own money; categories and all non-finance data stay, and a second run removes nothing. A demo account goes with everything recorded on it, yours included |
 

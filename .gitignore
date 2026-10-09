@@ -73,3 +73,9 @@ next-env.d.ts
 
 # Raw ideas before grilling. Personal; this repository is public.
 /.scratch/ideas.md
+
+# A sync conflict copy -- iCloud writes "route 2.js" beside a file a branch
+# switch rewrote. Ignored so `git add -A` can never stage one; check:secrets
+# fails on one that was forced in.
+* [0-9].*
+* [0-9][0-9].*
