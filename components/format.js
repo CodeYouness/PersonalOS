@@ -192,3 +192,66 @@ export function provenanceLabel({ createdDayKey, source, route }, todayKey) {
   }
   return 'Created ' + day + ' ' + MADE_BY[source];
 }
+
+const THIN_SPACE = '\u2009';
+const MINUS = '−';
+
+/**
+ * An amount of money as a table shows it: whole euros, "12,400", or with the
+ * cents when asked, "84,320.55". Money is an integer in minor units (ADR
+ * 0009), so the euros and cents are split with integer arithmetic and only
+ * the grouping is left to Intl -- no float ever holds the amount. Whole
+ * euros round half away from zero; a negative amount gets a real minus.
+ *
+ * @param {number} minor
+ * @param {{ cents?: boolean }} [options]
+ * @returns {string}
+ */
+export function formatMoney(minor, { cents = false } = {}) {
+  const sign = minor < 0 ? MINUS : '';
+  const magnitude = Math.abs(minor);
+  if (!cents) return sign + formatCount(Math.floor((magnitude + 50) / 100));
+  const fraction = String(magnitude % 100).padStart(2, '0');
+  return sign + formatCount(Math.floor(magnitude / 100)) + '.' + fraction;
+}
+
+/**
+ * A headline amount: "€ 84,320", the sign before the euro.
+ *
+ * @param {number} minor
+ * @param {{ cents?: boolean }} [options]
+ * @returns {string}
+ */
+export function formatEuro(minor, options) {
+  const sign = minor < 0 ? MINUS : '';
+  return sign + '€' + THIN_SPACE + formatMoney(Math.abs(minor), options);
+}
+
+/**
+ * A change in money: "+ 2,140", "− 1,905", "0" -- signed, whole euros.
+ *
+ * @param {number} minor
+ * @returns {string}
+ */
+export function formatMoneyChange(minor) {
+  const shown = formatMoney(Math.abs(minor));
+  if (shown === '0') return '0';
+  return (minor < 0 ? MINUS : '+') + THIN_SPACE + shown;
+}
+
+/**
+ * A date in a column of dates: "5 Jan", and "30 Jun 2025" when it is not
+ * this year -- so a value typed months ago shows its age.
+ *
+ * @param {string} dayKey
+ * @param {string} todayKey
+ * @returns {string}
+ */
+export function shortDate(dayKey, todayKey) {
+  return dayKeyToUtcDate(dayKey).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: dayKey.slice(0, 4) === todayKey.slice(0, 4) ? undefined : 'numeric',
+    timeZone: 'UTC',
+  });
+}

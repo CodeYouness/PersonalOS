@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { dayLabel, formatChange, formatWeight, ordinal, provenanceLabel, slippedLabel } from '@/components/format.js';
+import {
+  dayLabel,
+  formatChange,
+  formatEuro,
+  formatMoney,
+  formatMoneyChange,
+  formatWeight,
+  ordinal,
+  provenanceLabel,
+  shortDate,
+  slippedLabel,
+} from '@/components/format.js';
 
 describe('provenanceLabel', () => {
   it('names the capture and who filed it', () => {
@@ -47,5 +58,38 @@ describe('slippedLabel', () => {
   it('names the period a slipped goal is in', () => {
     expect(slippedLabel(2, 'week')).toBe('2nd week');
     expect(slippedLabel(3, 'month')).toBe('3rd month');
+  });
+});
+
+describe('money formatting', () => {
+  it('shows whole euros in a table, rounding the cents half away from zero', () => {
+    expect(formatMoney(1240000)).toBe('12,400');
+    expect(formatMoney(1240050)).toBe('12,401');
+    expect(formatMoney(1240049)).toBe('12,400');
+    expect(formatMoney(-50050)).toBe('−501');
+    expect(formatMoney(0)).toBe('0');
+  });
+
+  it('shows the cents when asked', () => {
+    expect(formatMoney(8432055, { cents: true })).toBe('84,320.55');
+    expect(formatMoney(-5, { cents: true })).toBe('−0.05');
+  });
+
+  it('puts the euro sign in front, with a thin space', () => {
+    expect(formatEuro(8432055)).toBe('€\u200984,321');
+    expect(formatEuro(-50000)).toBe('−€\u2009500');
+  });
+
+  it('signs a change, with a real minus', () => {
+    expect(formatMoneyChange(214000)).toBe('+\u20092,140');
+    expect(formatMoneyChange(-190500)).toBe('−\u20091,905');
+    expect(formatMoneyChange(0)).toBe('0');
+  });
+});
+
+describe('shortDate', () => {
+  it('names the day, and the year only when it is not this one', () => {
+    expect(shortDate('2026-01-05', '2026-10-09')).toBe('5 Jan');
+    expect(shortDate('2025-06-30', '2026-10-09')).toBe('30 Jun 2025');
   });
 });
