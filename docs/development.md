@@ -17,7 +17,7 @@ data with no key set; each variable switches on the feature next to it.
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Development server on :3000, on your real `data/personalos.json` |
-| `npm run dev:sandbox` | The same on a throwaway copy of the seed, removed when it stops. **For checking a change in the browser.** `-- -p 3100` for another port |
+| `npm run dev:sandbox` | The same on a throwaway copy of the seed, removed when it stops. **For checking a change in the browser.** It follows `data/seed.json`: a branch switch that changes the seed starts the sandbox again from it. `-- -p 3100` for another port |
 | `npm run build` | Production build. Stricter than dev -- things pass `dev` and fail here |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc -p jsconfig.json`: JSDoc types, `checkJs`, strict |
