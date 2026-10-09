@@ -893,6 +893,20 @@ export function runAdapterContract(label, load) {
         expect(owed.amount).toBe(500000);
       });
 
+      it('keeps every amount in EUR and refuses any other currency', async () => {
+        // Until exchange rates exist, euros and dollars must never be added
+        // as if they were the same.
+        await expect(store.createAccount({ name: 'US brokerage', kind: 'investment', currency: 'USD' })).rejects.toThrow(
+          /currency/
+        );
+        const account = await store.createAccount({ name: 'Wallet', kind: 'cash' });
+        expect(account.currency).toBe('EUR');
+        await expect(
+          store.recordObservation({ accountId: account.id, kind: 'balance', amount: 100, date: '2026-04-02', currency: 'USD' })
+        ).rejects.toThrow(/currency/);
+        await expect(store.updateAccount(account.id, { currency: 'USD' })).rejects.toThrow(/currency/);
+      });
+
       it('records an overdraft as a negative cash balance', async () => {
         const cash = (await store.getAccounts()).find((account) => account.kind === 'cash');
         if (cash === undefined) throw new Error('the seed has no cash account');

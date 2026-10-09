@@ -8,6 +8,7 @@ import {
   formatMoneyChange,
   formatWeight,
   ordinal,
+  parseMoney,
   provenanceLabel,
   shortDate,
   slippedLabel,
@@ -91,5 +92,24 @@ describe('shortDate', () => {
   it('names the day, and the year only when it is not this one', () => {
     expect(shortDate('2026-01-05', '2026-10-09')).toBe('5 Jan');
     expect(shortDate('2025-06-30', '2026-10-09')).toBe('30 Jun 2025');
+  });
+});
+
+describe('parseMoney', () => {
+  it('reads what you type as euros into cents, without a float', () => {
+    expect(parseMoney('12,400')).toBe(1240000);
+    expect(parseMoney('84320.55')).toBe(8432055);
+    expect(parseMoney(' €1,234.5 ')).toBe(123450);
+    expect(parseMoney('0.1')).toBe(10);
+    expect(parseMoney('-500')).toBe(-50000);
+    expect(parseMoney('−500')).toBe(-50000);
+  });
+
+  it('refuses what is not an amount', () => {
+    expect(parseMoney('')).toBeNull();
+    expect(parseMoney('abc')).toBeNull();
+    expect(parseMoney('1.234')).toBeNull();
+    expect(parseMoney('1.2.3')).toBeNull();
+    expect(parseMoney('-')).toBeNull();
   });
 });

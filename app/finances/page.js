@@ -1,7 +1,8 @@
+import FinanceAccountDetail, { FinanceAccountEmpty } from '@/components/FinanceAccountDetail.js';
 import FinanceBreakdown from '@/components/FinanceBreakdown.js';
 import { today } from '@/lib/domain/dates.js';
 import { financeOverview } from '@/lib/domain/derive/finance.js';
-import { getAccounts, getObservations } from '@/lib/store.js';
+import { getAccount, getAccounts, getObservations } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,16 +11,38 @@ export const dynamic = 'force-dynamic';
  * and balances once per request and renders them through the finance
  * overview -- the same derivation the Pulse card will read. Loading it never
  * calls the model or an integration (rule 3).
+ *
+ * `?account=<id>` selects an account and opens its panel (#114), by id so a
+ * capture landing never moves the selection. An id that no longer exists
+ * selects nothing; with nothing selected, the panel adds an account.
+ *
+ * @param {{ searchParams: Promise<{ account?: string | string[] }> }} props
  */
-export default async function FinancesScreen() {
+export default async function FinancesScreen({ searchParams }) {
+  const { account: accountParam } = await searchParams;
   const todayKey = today();
-  const [accounts, observations] = await Promise.all([getAccounts(), getObservations({})]);
+  const [accounts, observations, selected] = await Promise.all([
+    getAccounts(),
+    getObservations({}),
+    typeof accountParam === 'string' ? getAccount(accountParam) : null,
+  ]);
   const overview = financeOverview({ accounts, observations }, todayKey);
+  const balances =
+    selected === null
+      ? []
+      : observations
+          .filter((observation) => observation.accountId === selected.id)
+          .sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <section id="screen-finances" className="screen is-active">
       <div className="screen-grid">
-        <FinanceBreakdown overview={overview} todayKey={todayKey} />
+        <FinanceBreakdown overview={overview} todayKey={todayKey} selectedId={selected?.id ?? null} />
+        {selected === null ? (
+          <FinanceAccountEmpty />
+        ) : (
+          <FinanceAccountDetail key={selected.id} account={selected} balances={balances} todayKey={todayKey} />
+        )}
       </div>
     </section>
   );

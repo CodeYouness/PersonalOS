@@ -194,6 +194,16 @@ export const ACCOUNT_KINDS = Object.freeze(['cash', 'investment', 'asset', 'liab
  */
 export const TRANSACTION_KINDS = Object.freeze(['income', 'expense', 'transfer']);
 
+/**
+ * The currencies money may be recorded in. EUR only, until exchange rates
+ * exist: an account, a balance, a trade or a price in another currency is
+ * refused at the store, so euros and dollars are never added as if they were
+ * the same (#111). The first is the default for money that names none.
+ *
+ * @type {readonly string[]}
+ */
+export const FINANCE_CURRENCIES = Object.freeze(['EUR']);
+
 /** What a finance observation measured at a point in time. */
 export const OBSERVATION_KINDS = Object.freeze(['balance', 'position']);
 
