@@ -229,6 +229,7 @@ button:disabled { cursor: not-allowed; }
 #screen-crm .screen-grid { grid-template-rows: minmax(0, 1fr); }
 #screen-nutrition .screen-grid { grid-template-rows: minmax(0, 1fr); }
 #screen-goals .screen-grid { grid-template-rows: minmax(0, 1fr); }
+#screen-finances .screen-grid { grid-template-rows: minmax(0, 1fr); }
 
 .card {
   background: var(--surface-1);
@@ -690,6 +691,27 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
   text-decoration: underline dotted var(--ink-tertiary); text-underline-offset: 3px;
 }
 .health-day[aria-expanded="true"] { text-decoration-color: var(--ink-subtle); }
+
+/* ==========================================================================
+   FINANCE — card-finance-breakdown on the Finances screen, ported from the
+   mockup's finance styles; no period selector and no Refresh (docs/spec.md).
+   ========================================================================== */
+.finance-total { text-align: left; margin-bottom: var(--s-xxs); }
+.alloc { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin: var(--s-md) 0 var(--s-sm); flex: none; }
+.alloc i { display: block; height: 100%; }
+.legend { display: flex; gap: var(--s-md); flex-wrap: wrap; font-size: 12px; color: var(--ink-subtle); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.finance-table { width: 100%; border-collapse: collapse; }
+.finance-table th {
+  text-align: left; padding: var(--s-xs) var(--s-sm);
+  font-size: 11px; font-weight: var(--w-label); letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--ink-tertiary);
+  border-bottom: 1px solid var(--hairline);
+  position: sticky; top: 0; background: var(--surface-1);
+}
+.finance-table th.num, .finance-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.finance-table td { padding: var(--s-xs) var(--s-sm); font-size: 13px; border-bottom: 1px solid var(--hairline); }
+.finance-table tbody tr:last-child td { border-bottom: none; }
 
 /* ==========================================================================
    CAPTURE LOG — the drawer that answers "where did everything go?" Undo,

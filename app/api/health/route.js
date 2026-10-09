@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { env } from '@/lib/config/env.js';
-import { netWorthAt } from '@/lib/domain/derive/finance.js';
+import { netWorthOn } from '@/lib/domain/derive/finance.js';
 import { today } from '@/lib/domain/dates.js';
 import { dueToday } from '@/lib/domain/derive/tasks.js';
 import { getAccounts, getLinks, getObservations, getProfile, getTasks, storageName } from '@/lib/store.js';
@@ -32,7 +32,7 @@ export async function GET() {
       getLinks({}),
     ]);
 
-    const worth = netWorthAt(accounts, observations, todayKey);
+    const worth = netWorthOn({ accounts, observations }, todayKey);
 
     return NextResponse.json({
       status: 'ok',

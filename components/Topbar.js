@@ -9,12 +9,12 @@ import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
 /**
  * The shell's persistent top navigation, ported from design/mockup.html.
  *
- * Home, CRM (#52), Goals (#96), Habits (#38) and Nutrition (#69) have
- * screens behind them and are links. The mockup's "Nutrition & Health" became Nutrition, after
+ * Home, CRM (#52), Goals (#96), Habits (#38), Nutrition (#69) and Finances
+ * (#113) have screens behind them and are links. The mockup's "Nutrition & Health" became Nutrition, after
  * Habits, when its first card landed (docs/spec.md); Health joins that screen
- * later. The other two are shown, not hidden -- docs/roadmap.md says they're
+ * later. Review is shown, not hidden -- docs/roadmap.md says it is
  * coming, and a nav item that vanished would read as a bug, not as "not
- * built yet". They render disabled instead of a dead link.
+ * built yet". It renders disabled instead of a dead link.
  *
  * Client component because the captures toggle opens the capture log drawer
  * (roadmap item 11) and this is where that open/closed state lives -- along
@@ -39,7 +39,7 @@ const SCREENS = [
   { label: 'Goals', href: '/goals' },
   { label: 'Habits', href: '/habits' },
   { label: 'Nutrition & Health', href: '/nutrition' },
-  { label: 'Finances', href: null },
+  { label: 'Finances', href: '/finances' },
   { label: 'Review', href: null },
 ];
 

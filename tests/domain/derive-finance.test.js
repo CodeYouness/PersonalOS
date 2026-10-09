@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  latestObservationByAccount,
-  netWorthAt,
+  allocation,
+  financeOverview,
+  accountValueOn,
+  netWorthOn,
   periodTotals,
   totalsByCategory,
 } from '@/lib/domain/derive/finance.js';
@@ -42,7 +44,7 @@ describe('net worth comes from observations, not from transactions', () => {
       observation({ accountId: 'account_loan', amount: 715000 }),
     ];
 
-    const result = netWorthAt(accounts, observations, '2026-01-05');
+    const result = netWorthOn({ accounts, observations }, '2026-01-05');
     expect(result.netWorth).toBe(1000000 + 5000000 + 20000000 - 715000);
     expect(result.liabilities).toBe(715000);
   });
@@ -57,7 +59,7 @@ describe('net worth comes from observations, not from transactions', () => {
       observation({ accountId: 'account_savings', amount: 200000 }),
     ];
 
-    const result = netWorthAt(accounts, observations, '2026-01-05');
+    const result = netWorthOn({ accounts, observations }, '2026-01-05');
     expect(result.cash).toBe(150000);
     expect(result.netWorth).toBe(150000);
   });
@@ -69,8 +71,8 @@ describe('net worth comes from observations, not from transactions', () => {
       observation({ id: 'observation_future', amount: 999, date: '2026-02-01' }),
     ];
 
-    const latest = latestObservationByAccount(observations, '2026-01-05');
-    expect(latest.get('account_x')?.amount).toBe(200);
+    const value = accountValueOn(account({}), { accounts: [account({})], observations }, '2026-01-05');
+    expect(value).toEqual({ amount: 200, date: '2026-01-03' });
   });
 
   it('never treats an unmeasured account as empty', () => {
@@ -79,7 +81,7 @@ describe('net worth comes from observations, not from transactions', () => {
     const accounts = [account({ id: 'account_cash' }), account({ id: 'account_pension', kind: 'investment' })];
     const observations = [observation({ accountId: 'account_cash', amount: 500000 })];
 
-    const result = netWorthAt(accounts, observations, '2026-01-05');
+    const result = netWorthOn({ accounts, observations }, '2026-01-05');
     expect(result.netWorth).toBe(500000);
     expect(result.unmeasuredAccounts).toBe(1);
   });
@@ -131,5 +133,77 @@ describe('flows', () => {
 
     const income = totalsByCategory(transactions, 'income', '2026-01-01', '2026-01-31');
     expect(income.cat_consulting).toBe(250000);
+  });
+});
+
+describe('the finance overview the screen renders from', () => {
+  const accounts = [
+    account({ id: 'account_current', name: 'Current', kind: 'cash' }),
+    account({ id: 'account_pension', name: 'Pension', kind: 'investment' }),
+    account({ id: 'account_flat', name: 'Flat', kind: 'asset' }),
+    account({ id: 'account_loan', name: 'Loan', kind: 'liability' }),
+    account({ id: 'account_closed', name: 'Closed', kind: 'cash', archived: true }),
+  ];
+  const observations = [
+    observation({ id: 'observation_1', accountId: 'account_current', amount: 100000, date: '2026-03-01' }),
+    observation({ id: 'observation_2', accountId: 'account_current', amount: 120000, date: '2026-04-01' }),
+    // After today: not yet a value.
+    observation({ id: 'observation_3', accountId: 'account_current', amount: 999999, date: '2026-05-01' }),
+    observation({ id: 'observation_4', accountId: 'account_flat', amount: 20000000, date: '2026-01-10' }),
+    observation({ id: 'observation_5', accountId: 'account_loan', amount: 715000, date: '2026-03-15' }),
+    observation({ id: 'observation_6', accountId: 'account_closed', amount: 50000, date: '2026-03-15' }),
+  ];
+
+  it('adds up the components from the latest value on or before today', () => {
+    const overview = financeOverview({ accounts, observations }, '2026-04-10');
+
+    expect(overview.cash).toBe(120000);
+    expect(overview.invested).toBe(0);
+    expect(overview.otherAssets).toBe(20000000);
+    expect(overview.liabilities).toBe(715000);
+    expect(overview.netWorth).toBe(120000 + 20000000 - 715000);
+  });
+
+  it('lists each active account with its value and the date of that value', () => {
+    const overview = financeOverview({ accounts, observations }, '2026-04-10');
+
+    expect(overview.accounts.map(({ account: a, value, valueDate }) => [a.id, value, valueDate])).toEqual([
+      ['account_current', 120000, '2026-04-01'],
+      ['account_pension', null, null],
+      ['account_flat', 20000000, '2026-01-10'],
+      ['account_loan', 715000, '2026-03-15'],
+    ]);
+  });
+
+  it('counts an account with no value as unmeasured, never as zero', () => {
+    const overview = financeOverview({ accounts, observations }, '2026-04-10');
+
+    expect(overview.unmeasuredAccounts).toBe(1);
+    expect(overview.accounts.find((row) => row.account.id === 'account_pension')?.value).toBeNull();
+  });
+
+  it('leaves archived accounts out of the table and of net worth', () => {
+    const overview = financeOverview({ accounts, observations }, '2026-04-10');
+
+    expect(overview.accounts.map((row) => row.account.id)).not.toContain('account_closed');
+    expect(overview.cash).toBe(120000);
+  });
+});
+
+describe('the allocation bar', () => {
+  it('shares out cash, invested, other assets and debt by size', () => {
+    const shares = allocation({ cash: 30000, invested: 50000, otherAssets: 0, liabilities: 20000 });
+
+    expect(shares).toEqual([
+      { key: 'cash', amount: 30000, share: 0.3 },
+      { key: 'invested', amount: 50000, share: 0.5 },
+      { key: 'otherAssets', amount: 0, share: 0 },
+      { key: 'debt', amount: 20000, share: 0.2 },
+    ]);
+  });
+
+  it('gives an overdrawn cash balance no width, and is empty when there is nothing', () => {
+    expect(allocation({ cash: -10000, invested: 10000, otherAssets: 0, liabilities: 0 })[0].share).toBe(0);
+    expect(allocation({ cash: 0, invested: 0, otherAssets: 0, liabilities: 0 }).every((s) => s.share === 0)).toBe(true);
   });
 });
