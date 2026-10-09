@@ -331,3 +331,75 @@ describe('the units a holding has can never go below zero', () => {
     ).toBeNull();
   });
 });
+
+describe('the history is derived month by month', () => {
+  const accounts = [
+    account({ id: 'account_current', kind: 'cash' }),
+    account({ id: 'account_loan', kind: 'liability', archivedOn: '2026-03-10' }),
+  ];
+  const observations = [
+    observation({ id: 'observation_1', accountId: 'account_current', amount: 100000, date: '2026-01-20' }),
+    observation({ id: 'observation_2', accountId: 'account_current', amount: 130000, date: '2026-03-05' }),
+    observation({ id: 'observation_3', accountId: 'account_loan', amount: 40000, date: '2026-02-01' }),
+  ];
+  const inputs = { accounts, observations, trades: [], prices: [] };
+
+  it('gives month-end net worth from the first value to today, newest first, the first change blank', () => {
+    const { history } = financeOverview(inputs, '2026-04-12');
+
+    expect(history).toEqual([
+      { month: '2026-04', netWorth: 130000, change: 0 },
+      // The loan was archived on 10 March: it counts before, not at month end.
+      { month: '2026-03', netWorth: 130000, change: 70000 },
+      { month: '2026-02', netWorth: 60000, change: -40000 },
+      { month: '2026-01', netWorth: 100000, change: null },
+    ]);
+  });
+
+  it('counts an archived account on the dates it had a value, so closing it never rewrites the past', () => {
+    const { history } = financeOverview(inputs, '2026-04-12');
+
+    expect(history.find((row) => row.month === '2026-02')?.netWorth).toBe(100000 - 40000);
+  });
+
+  it('is empty until there is something to show', () => {
+    expect(financeOverview({ accounts, observations: [], trades: [], prices: [] }, '2026-04-12').history).toEqual([]);
+  });
+
+  it('starts a holding at its first trade and follows its prices', () => {
+    const etf = account({ id: 'account_etf', kind: 'investment', valuation: 'units' });
+    const { history } = financeOverview(
+      {
+        accounts: [etf],
+        observations: [],
+        trades: [trade({ date: '2026-02-10', units: 10 * UNIT, price: 10000 })],
+        prices: [price({ date: '2026-03-31', price: 11000 })],
+      },
+      '2026-04-12'
+    );
+
+    expect(history.map((row) => [row.month, row.netWorth])).toEqual([
+      ['2026-04', 110000],
+      ['2026-03', 110000],
+      ['2026-02', 100000],
+    ]);
+  });
+});
+
+describe('the 30-day change of an account', () => {
+  const accounts = [account({ id: 'account_current', kind: 'cash' }), account({ id: 'account_new', kind: 'cash' })];
+  const observations = [
+    observation({ id: 'observation_1', accountId: 'account_current', amount: 100000, date: '2026-02-20' }),
+    observation({ id: 'observation_2', accountId: 'account_current', amount: 125000, date: '2026-04-01' }),
+    observation({ id: 'observation_3', accountId: 'account_new', amount: 5000, date: '2026-04-01' }),
+  ];
+
+  it('is today\'s value minus the value 30 days ago, blank when there was none', () => {
+    const { accounts: rows } = financeOverview({ accounts, observations, trades: [], prices: [] }, '2026-04-12');
+
+    expect(rows.map((row) => [row.account.id, row.change30d])).toEqual([
+      ['account_current', 25000],
+      ['account_new', null],
+    ]);
+  });
+});

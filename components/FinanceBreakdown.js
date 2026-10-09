@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
-import { formatEuro, formatMoney, shortDate } from '@/components/format.js';
+import { changeClass } from '@/components/FinanceHistory.js';
+import { formatEuro, formatMoney, formatMoneyChange, shortDate } from '@/components/format.js';
 import { allocation } from '@/lib/domain/derive/finance.js';
 
 /** @typedef {import('@/lib/domain/derive/finance.js').AccountRow} AccountRow */
@@ -34,7 +35,8 @@ export function financesHref(accountId = null) {
  * typed four months ago shows its age. An account with no value reads
  * "unknown", never 0. No period selector and no Refresh: values change about
  * once a month, and nothing here is live. Each account's name opens its
- * panel (#114).
+ * panel (#114). The 30-day column (#118) is blank when there was no value
+ * that far back; a debt that grew is coloured down.
  *
  * Archived accounts are listed by name under the table, so one can be
  * opened again to restore it (#115).
@@ -95,6 +97,7 @@ export default function FinanceBreakdown({ overview, archived, todayKey, selecte
                 <th>Account</th>
                 <th>Type</th>
                 <th className="num">Value</th>
+                <th className="num">30d</th>
                 <th className="num">As of</th>
               </tr>
             </thead>
@@ -117,6 +120,9 @@ export default function FinanceBreakdown({ overview, archived, todayKey, selecte
                   ) : (
                     <td className="num">{formatMoney(row.value)}</td>
                   )}
+                  <td className={'num ' + changeClass(row.account.kind === 'liability' && row.change30d !== null ? -row.change30d : row.change30d)}>
+                    {row.change30d === null ? '' : formatMoneyChange(row.change30d)}
+                  </td>
                   <td className="num caption">{row.valueDate === null ? '' : shortDate(row.valueDate, todayKey)}</td>
                 </tr>
               ))}

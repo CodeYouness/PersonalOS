@@ -1,5 +1,6 @@
 import FinanceAccountDetail, { FinanceAccountEmpty } from '@/components/FinanceAccountDetail.js';
 import FinanceBreakdown from '@/components/FinanceBreakdown.js';
+import FinanceHistory from '@/components/FinanceHistory.js';
 import { today } from '@/lib/domain/dates.js';
 import { financeOverview } from '@/lib/domain/derive/finance.js';
 import { getAccount, getAccounts, getObservations, getPrices, getTrades } from '@/lib/store.js';
@@ -14,7 +15,8 @@ export const dynamic = 'force-dynamic';
  *
  * `?account=<id>` selects an account and opens its panel (#114), by id so a
  * capture landing never moves the selection. An id that no longer exists
- * selects nothing; with nothing selected, the panel adds an account.
+ * selects nothing; with nothing selected, the panel adds an account. The
+ * History card sits under the panel (#118).
  *
  * @param {{ searchParams: Promise<{ account?: string | string[] }> }} props
  */
@@ -44,18 +46,21 @@ export default async function FinancesScreen({ searchParams }) {
           todayKey={todayKey}
           selectedId={selected?.id ?? null}
         />
-        {selected === null ? (
-          <FinanceAccountEmpty />
-        ) : (
-          <FinanceAccountDetail
-            key={selected.id}
-            account={selected}
-            balances={ofSelected(observations)}
-            trades={ofSelected(trades)}
-            prices={ofSelected(prices)}
-            todayKey={todayKey}
-          />
-        )}
+        <div className="finance-side span-5">
+          {selected === null ? (
+            <FinanceAccountEmpty />
+          ) : (
+            <FinanceAccountDetail
+              key={selected.id}
+              account={selected}
+              balances={ofSelected(observations)}
+              trades={ofSelected(trades)}
+              prices={ofSelected(prices)}
+              todayKey={todayKey}
+            />
+          )}
+          <FinanceHistory history={overview.history} />
+        </div>
       </div>
     </section>
   );
