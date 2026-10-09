@@ -37,7 +37,12 @@ export default async function FinancesScreen({ searchParams }) {
   return (
     <section id="screen-finances" className="screen is-active">
       <div className="screen-grid">
-        <FinanceBreakdown overview={overview} todayKey={todayKey} selectedId={selected?.id ?? null} />
+        <FinanceBreakdown
+          overview={overview}
+          archived={accounts.filter((account) => account.archivedOn !== null)}
+          todayKey={todayKey}
+          selectedId={selected?.id ?? null}
+        />
         {selected === null ? (
           <FinanceAccountEmpty />
         ) : (

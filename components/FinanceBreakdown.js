@@ -36,13 +36,17 @@ export function financesHref(accountId = null) {
  * once a month, and nothing here is live. Each account's name opens its
  * panel (#114).
  *
+ * Archived accounts are listed by name under the table, so one can be
+ * opened again to restore it (#115).
+ *
  * @param {{
  *   overview: ReturnType<typeof import('@/lib/domain/derive/finance.js').financeOverview>,
+ *   archived: import('@/lib/domain/types.js').FinanceAccount[],
  *   todayKey: string,
  *   selectedId?: string | null,
  * }} props
  */
-export default function FinanceBreakdown({ overview, todayKey, selectedId = null }) {
+export default function FinanceBreakdown({ overview, archived, todayKey, selectedId = null }) {
   const parts = allocation(overview).filter((part) => part.amount !== 0);
 
   return (
@@ -118,6 +122,19 @@ export default function FinanceBreakdown({ overview, todayKey, selectedId = null
               ))}
             </tbody>
           </table>
+        )}
+        {archived.length > 0 && (
+          <p className="caption finance-archived">
+            Archived:{' '}
+            {archived.map((account, index) => (
+              <span key={account.id}>
+                {index > 0 && ', '}
+                <Link href={financesHref(account.id)} scroll={false} className="finance-account-link">
+                  {account.name}
+                </Link>
+              </span>
+            ))}
+          </p>
         )}
       </div>
     </article>

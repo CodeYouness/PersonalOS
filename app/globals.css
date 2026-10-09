@@ -717,6 +717,7 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .finance-account-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .finance-account-name { margin-bottom: var(--s-md); }
 .finance-hint { margin-bottom: var(--s-md); }
+.finance-archived { margin-top: var(--s-md); }
 .finance-entry { display: flex; gap: var(--s-sm); align-items: flex-end; flex-wrap: wrap; }
 .finance-entry .field { margin-bottom: 0; flex: 1; min-width: 120px; }
 .finance-date { text-align: left !important; }
