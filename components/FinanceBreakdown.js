@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { financesHref } from '@/components/finance.js';
 import { changeClass } from '@/components/FinanceHistory.js';
 import { formatEuro, formatMoney, formatMoneyChange, shortDate } from '@/components/format.js';
 import { allocation } from '@/lib/domain/derive/finance.js';
@@ -19,16 +20,6 @@ const ALLOCATION_PARTS = {
 };
 
 /**
- * A Finances address. One place builds them, for the card and the screen;
- * an account is selected by id, never by its place in the table.
- *
- * @param {string | null} [accountId]
- */
-export function financesHref(accountId = null) {
-  return accountId === null ? '/finances' : '/finances?account=' + encodeURIComponent(accountId);
-}
-
-/**
  * The Finances screen's breakdown (#113), from lib/domain/derive/finance.js's
  * financeOverview: net worth, the allocation bar, and one row per active
  * account with its value and the date that value comes from -- so a pension
@@ -45,10 +36,11 @@ export function financesHref(accountId = null) {
  *   overview: ReturnType<typeof import('@/lib/domain/derive/finance.js').financeOverview>,
  *   archived: import('@/lib/domain/types.js').FinanceAccount[],
  *   todayKey: string,
- *   selectedId?: string | null,
+ *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceBreakdown({ overview, archived, todayKey, selectedId = null }) {
+export default function FinanceBreakdown({ overview, archived, todayKey, place }) {
+  const selectedId = place.account ?? null;
   const parts = allocation(overview).filter((part) => part.amount !== 0);
 
   return (
@@ -106,7 +98,7 @@ export default function FinanceBreakdown({ overview, archived, todayKey, selecte
                 <tr key={row.account.id} className={row.account.id === selectedId ? 'is-selected' : undefined}>
                   <td>
                     <Link
-                      href={financesHref(row.account.id)}
+                      href={financesHref({ ...place, account: row.account.id })}
                       scroll={false}
                       className="finance-account-link"
                       aria-current={row.account.id === selectedId ? 'true' : undefined}
@@ -135,7 +127,7 @@ export default function FinanceBreakdown({ overview, archived, todayKey, selecte
             {archived.map((account, index) => (
               <span key={account.id}>
                 {index > 0 && ', '}
-                <Link href={financesHref(account.id)} scroll={false} className="finance-account-link">
+                <Link href={financesHref({ ...place, account: account.id })} scroll={false} className="finance-account-link">
                   {account.name}
                 </Link>
               </span>

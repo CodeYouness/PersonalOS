@@ -8,6 +8,7 @@ import {
   formatMoneyChange,
   formatUnits,
   formatWeight,
+  monthLabel,
   ordinal,
   parseMoney,
   parseUnits,
@@ -135,5 +136,12 @@ describe('units', () => {
     expect(formatUnits(1050000000)).toBe('10.5');
     expect(formatUnits(1)).toBe('0.00000001');
     expect(formatUnits(100000000000)).toBe('1,000');
+  });
+});
+
+describe('monthLabel', () => {
+  it('names a month as a heading does', () => {
+    expect(monthLabel('2026-01')).toBe('January 2026');
+    expect(monthLabel('2025-12')).toBe('December 2025');
   });
 });

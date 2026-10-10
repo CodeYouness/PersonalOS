@@ -5,7 +5,10 @@ import {
   dayKeysEndingAt,
   formatTimeInZone,
   isDayKey,
+  isMonthKey,
+  monthRange,
   shiftDayKey,
+  shiftMonth,
   toDayKey,
   weekDayKeys,
 } from '@/lib/domain/dates.js';
@@ -218,5 +221,27 @@ describe('the timezone default today() and toDayKey() fall back to', () => {
     const { today: freshToday } = await import('@/lib/domain/dates.js');
 
     expect(freshToday()).toBe('2026-06-16'); // Europe/Rome, the config default, is UTC+2 in June
+  });
+});
+
+describe('month keys', () => {
+  it('knows a real month from a lookalike', () => {
+    expect(isMonthKey('2026-01')).toBe(true);
+    expect(isMonthKey('2026-12')).toBe(true);
+    expect(isMonthKey('2026-13')).toBe(false);
+    expect(isMonthKey('2026-1')).toBe(false);
+    expect(isMonthKey('January')).toBe(false);
+  });
+
+  it('shifts across a year in either direction', () => {
+    expect(shiftMonth('2026-01', -1)).toBe('2025-12');
+    expect(shiftMonth('2025-12', 1)).toBe('2026-01');
+    expect(shiftMonth('2026-03', -14)).toBe('2025-01');
+  });
+
+  it('gives a month\'s first and last day, February in a leap year included', () => {
+    expect(monthRange('2026-01')).toEqual({ from: '2026-01-01', to: '2026-01-31' });
+    expect(monthRange('2028-02')).toEqual({ from: '2028-02-01', to: '2028-02-29' });
+    expect(monthRange('2026-12')).toEqual({ from: '2026-12-01', to: '2026-12-31' });
   });
 });
