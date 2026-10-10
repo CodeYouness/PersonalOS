@@ -36,14 +36,20 @@ the counter account (ADR 0023).
   zero, however many movements it has.
 - **A liability counts a movement the other way.** It stores the positive
   amount owed, so money landing in it reduces the debt and money leaving it
-  raises it.
+  raises it. A debt paid off beyond what was owed shows as a negative amount
+  owed: the store refuses a negative balance typed by hand, a sign typo, but
+  never refuses money that really moved.
 - **Accounts valued by units ignore transactions entirely.** A transfer into
   a holding lowers the cash account; the holding stays valued by its trades
   and prices.
 - **A not-counted movement still moves the balance.** It is only out of the
   month's totals.
 - The value is **dated** by the later of the observation and the last
-  movement counted.
+  movement counted: an account whose balance has been carried forward by
+  every movement since an opening balance years ago is current, not years
+  old.
+- **Of two balances on one day, the one recorded last** is the
+  reconciliation point.
 
 Today's net worth, the account table, the monthly history and the 30-day
 change all follow, because they already go through the one `accountValueOn`.

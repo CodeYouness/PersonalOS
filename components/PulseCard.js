@@ -5,7 +5,7 @@ import { changeClass } from '@/components/FinanceHistory.js';
 import { formatEuro, formatMoneyChange, shortDate } from '@/components/format.js';
 import { today } from '@/lib/domain/dates.js';
 import { financeOverview, sparkBars } from '@/lib/domain/derive/finance.js';
-import { getAccounts, getObservations, getPrices, getTrades, getTransactions } from '@/lib/store.js';
+import { getFinanceInputs } from '@/lib/store.js';
 
 /**
  * The Pulse card on Home (#119), in the slot the mockup reserves for Finance
@@ -19,14 +19,7 @@ import { getAccounts, getObservations, getPrices, getTrades, getTransactions } f
  */
 export default async function PulseCard() {
   const todayKey = today();
-  const [accounts, observations, trades, prices, transactions] = await Promise.all([
-    getAccounts(),
-    getObservations({}),
-    getTrades(),
-    getPrices(),
-    getTransactions(),
-  ]);
-  const overview = financeOverview({ accounts, observations, trades, prices, transactions }, todayKey);
+  const overview = financeOverview(await getFinanceInputs(), todayKey);
   const deltas = /** @type {const} */ ([
     ['30 days', overview.changes.days30],
     ['1 year', overview.changes.year],

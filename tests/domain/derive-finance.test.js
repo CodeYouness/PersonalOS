@@ -531,6 +531,26 @@ describe('a cash account follows its movements (ADR 0024)', () => {
     expect(accountValueOn(current, given, '2026-03-11')?.amount).toBe(89500);
   });
 
+  it('takes the balance recorded last when two share a day', () => {
+    const given = inputs({
+      observations: [
+        observation({ id: 'o1', accountId: 'account_current', amount: 100000, date: '2026-03-10' }),
+        observation({ id: 'o2', accountId: 'account_current', amount: 90000, date: '2026-03-10' }),
+      ],
+    });
+
+    expect(accountValueOn(current, given, '2026-03-10')?.amount).toBe(90000);
+  });
+
+  it('shows a debt paid off beyond what was owed as a negative amount owed', () => {
+    const given = inputs({
+      observations: [observation({ accountId: 'account_loan', amount: 10000, date: '2026-03-01' })],
+      transactions: [transaction({ accountId: 'account_current', counterAccountId: 'account_loan', amount: -15000, date: '2026-03-02' })],
+    });
+
+    expect(accountValueOn(loan, given, '2026-03-02')?.amount).toBe(-5000);
+  });
+
   it('stays unknown with movements but no balance on or before the date', () => {
     const given = inputs({
       observations: [observation({ accountId: 'account_current', amount: 100000, date: '2026-03-15' })],

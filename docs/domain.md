@@ -588,7 +588,9 @@ before D -- `amount` where it is the transaction's account, `-amount` where it
 is the counter account. A balance includes the movements of its own day; a
 balance typed later is a reconciliation point that absorbs anything forgotten
 before it. With no balance on or before D, the account is unknown, however
-many movements it has. A not-counted movement moves the balance too.
+many movements it has. A not-counted movement moves the balance too. The
+value is dated by the later of the balance and the last movement counted; of
+two balances on one day, the one recorded last counts.
 
 ### FinanceAccount
 
