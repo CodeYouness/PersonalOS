@@ -788,8 +788,9 @@ every rule meets every caller:
 - **Two levels, never three.** A subcategory cannot have subcategories, and a
   parent that has them cannot become one.
 - **A move never crosses kinds.** A subcategory moves under another parent of
-  the same kind, so a move never turns spending into income. An unused
-  top-level category can move under a parent of its kind, taking its kind.
+  the same kind, so a move never turns spending into income. A top-level
+  category with no subcategories can move under a parent of its kind, taking
+  its kind.
   Promoting a subcategory to the top level is not offered.
 - **The kind is fixed once in use** -- the category or a subcategory is
   referenced by a transaction -- so last year's totals never flip.

@@ -1,3 +1,5 @@
+import { CATEGORY_KINDS } from '@/personalos.config.js';
+
 /**
  * Helpers the Finances screen's components share (CODING_STANDARDS.md):
  * its addresses, and how a movement's direction maps to a signed amount.
@@ -103,16 +105,18 @@ export function accountUrl(id) {
   return '/api/accounts/' + encodeURIComponent(id);
 }
 
+/** @type {Record<'income' | 'expense', string>} */
+const CATEGORY_KIND_LABELS = { expense: 'Spending', income: 'Income' };
+
 /**
- * The two kinds of category, in the order the screen lists them: spending
- * first, as the money that needs watching.
+ * The kinds of category (CATEGORY_KINDS), in the order the screen lists
+ * them: spending first, as the money that needs watching.
  *
  * @type {readonly { kind: 'expense' | 'income', label: string }[]}
  */
-export const CATEGORY_GROUPS = [
-  { kind: 'expense', label: 'Spending' },
-  { kind: 'income', label: 'Income' },
-];
+export const CATEGORY_GROUPS = [...CATEGORY_KINDS]
+  .sort((a, b) => (a === 'expense' ? -1 : b === 'expense' ? 1 : 0))
+  .map((kind) => ({ kind: /** @type {'income' | 'expense'} */ (kind), label: CATEGORY_KIND_LABELS[/** @type {'income' | 'expense'} */ (kind)] }));
 
 /**
  * The categories a movement can be filed on, two levels deep (#136): per

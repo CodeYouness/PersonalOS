@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server';
 
-import { deleteFinanceCategory, getProfile, updateFinanceCategory } from '@/lib/store.js';
+import { deleteFinanceCategory, getFinanceCategory, updateFinanceCategory } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
 /** What managing a category changes (#136). */
 const EDITABLE = ['name', 'kind', 'parentId', 'fixedCost', 'archived'];
-
-/** @param {string} id */
-async function exists(id) {
-  return (await getProfile()).financeCategories.some((category) => category.id === id);
-}
 
 /**
  * Rename, flag as a fixed cost, archive or restore a category, move a
@@ -36,7 +31,7 @@ export async function PATCH(request, { params }) {
     const message = 'not editable here: ' + unknown.join(', ');
     return NextResponse.json({ status: 'error', message }, { status: 400 });
   }
-  if (!(await exists(id))) {
+  if ((await getFinanceCategory(id)) === null) {
     return NextResponse.json({ status: 'error', message: 'no category with id ' + id }, { status: 404 });
   }
 
@@ -58,7 +53,7 @@ export async function PATCH(request, { params }) {
  */
 export async function DELETE(_request, { params }) {
   const { id } = await params;
-  if (!(await exists(id))) {
+  if ((await getFinanceCategory(id)) === null) {
     return NextResponse.json({ status: 'error', message: 'no category with id ' + id }, { status: 404 });
   }
 

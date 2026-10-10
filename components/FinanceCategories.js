@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 
 import { CATEGORY_GROUPS, categoryUrl } from '@/components/finance.js';
 import { messageOf, request } from '@/components/request.js';
+import { CATEGORY_KINDS } from '@/personalos.config.js';
 
 /** @typedef {import('@/lib/domain/types.js').FinanceCategory} FinanceCategory */
 
@@ -55,7 +56,7 @@ export default function FinanceCategories({ categories }) {
   /** @param {import('react').FormEvent} event */
   async function add(event) {
     event.preventDefault();
-    const topLevel = under === 'expense' || under === 'income';
+    const topLevel = CATEGORY_KINDS.includes(under);
     const saved = await write('/api/finance-categories', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -94,7 +95,7 @@ export default function FinanceCategories({ categories }) {
                   <CategoryRow
                     key={category.id + ':' + category.name}
                     category={category}
-                    parents={parents.filter((parent) => parent.kind === kind)}
+                    parents={parents.filter((parent) => parent.kind === kind && (!parent.archived || parent.id === category.parentId))}
                     isSaving={isSaving}
                     onPatch={(body) => patch(category.id, body)}
                     onDelete={() => remove(category)}
