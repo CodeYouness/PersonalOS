@@ -140,14 +140,16 @@ export function slippedLabel(period, horizon) {
 }
 
 /**
- * A 0..1 ratio as whole percent. One implementation, so the habits ring and
- * a history row's rate can never round the same number differently.
+ * A ratio as whole percent, a negative one with a real minus. One
+ * implementation, so the habits ring, a history row's rate and a savings
+ * rate can never round the same number differently.
  *
  * @param {number} ratio
  * @returns {string}
  */
 export function percent(ratio) {
-  return Math.round(ratio * 100) + '%';
+  const whole = Math.round(ratio * 100);
+  return (whole < 0 ? MINUS : '') + Math.abs(whole) + '%';
 }
 
 /**
@@ -237,6 +239,31 @@ export function formatMoneyChange(minor) {
   const shown = formatMoney(Math.abs(minor));
   if (shown === '0') return '0';
   return (minor < 0 ? MINUS : '+') + THIN_SPACE + shown;
+}
+
+/**
+ * A change as a whole percent: "+25%", "−8%", "0%" -- or "n.d." when there
+ * was nothing to compare with, so a new expense never reads as +∞%.
+ *
+ * @param {number | null} ratio
+ * @returns {string}
+ */
+export function formatPercentChange(ratio) {
+  if (ratio === null) return 'n.d.';
+  const whole = Math.round(ratio * 100);
+  if (whole === 0) return '0%';
+  return (whole < 0 ? MINUS : '+') + Math.abs(whole) + '%';
+}
+
+/**
+ * A rate as a whole percent, "25%", "−8%" -- or "—" when it has no meaning,
+ * such as a savings rate with no income.
+ *
+ * @param {number | null} ratio
+ * @returns {string}
+ */
+export function formatRate(ratio) {
+  return ratio === null ? '—' : percent(ratio);
 }
 
 /**

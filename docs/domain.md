@@ -703,9 +703,12 @@ spending -- belongs to the transactions piece.
 `counterAccountId`, `categoryId`, `notCounted`, `tags`, `note`, `origin`.
 
 **The amount is signed from `accountId`'s side** (ADR 0023): negative when
-money left the account, positive when it came in. Zero is refused. For now a
-flow counts by its sign -- negative is spending, positive is income -- until
-the category's kind decides (#137).
+money left the account, positive when it came in. Zero is refused. **The
+category's kind decides** whether money is income or spending (#137): in a
+spending category a negative amount is spending and a positive one (a
+refund) reduces it; in an income category a positive amount is income and a
+negative one (a chargeback) reduces it. Uncategorised money counts by its
+sign.
 
 **Two zones of ownership, and getting this wrong is the classic sync bug:**
 
@@ -730,6 +733,26 @@ counting it doubles your monthly total -- so every aggregation excludes it,
 and it carries no category. A transfer from an account to itself is refused.
 Choosing a counter account for a movement turns it into a transfer and clears
 its category.
+
+### Refund
+
+**Is** money coming back into a spending category: a positive amount filed
+there, which **reduces that category's spending** rather than counting as
+income. A returned order is not money earned. Its mirror is a chargeback, a
+negative amount in an income category, which reduces income.
+
+### The month's flows
+
+The Income & spending section on the Finances screen (#137) reads a month:
+income, spending and what is left; the **savings rate**, (income − spending)
+÷ income, for the month and for the twelve months ending with it -- blank
+when income is zero or less, never 0% or −∞%; **fixed vs variable**
+spending by each transaction's own category flag; and a table per kind of
+category with each one's total (a parent's including its subcategories), its
+share of the month, and its change from the previous month in € and %, or
+"n.d." when the previous month was zero. Uncategorised money is a line of
+its own. Transfers and not-counted transactions are left out everywhere. All
+of it is derived (`monthFlows`, `yearFlows`, `savingsRate`), never stored.
 
 ### Not counted
 
@@ -837,7 +860,7 @@ double counting.
 | task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates, history heatmap cells, the thirty-day summary |
 | people | health averages, day totals |
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
-| journal entries | monthly spending, income by category -- transfers and not-counted transactions excluded; whether a transaction is a transfer |
+| journal entries | the month's flows (income, spending, what is left, per category with share and change), the savings rate, fixed vs variable -- transfers and not-counted transactions excluded; whether a transaction is a transfer |
 | memory entries | current net worth, an account's value between balances, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
