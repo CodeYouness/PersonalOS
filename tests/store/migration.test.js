@@ -674,3 +674,45 @@ describe('migration v11 to v12', () => {
     expect(migrate(once)).toEqual(once);
   });
 });
+
+/** A minimal v12 document: one level of categories, no fixed cost. */
+function v12Document() {
+  const v12 = migrate(v11Document());
+  return {
+    ...v12,
+    schemaVersion: 12,
+    profile: {
+      ...v12.profile,
+      financeCategories: [
+        { id: 'cat_rent', name: 'Rent', kind: 'expense', archived: false },
+        { id: 'cat_consulting', name: 'Consulting', kind: 'income', archived: true },
+      ],
+    },
+  };
+}
+
+describe('migration v12 to v13', () => {
+  it('puts every category at the top level, not a fixed cost, keeping its kind', () => {
+    const migrated = migrate(v12Document());
+
+    expect(migrated.profile.financeCategories).toEqual([
+      { id: 'cat_rent', name: 'Rent', kind: 'expense', archived: false, parentId: null, fixedCost: false },
+      { id: 'cat_consulting', name: 'Consulting', kind: 'income', archived: true, parentId: null, fixedCost: false },
+    ]);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('changes nothing else', () => {
+    const before = v12Document();
+    const { profile, schemaVersion, ...rest } = migrate(before);
+    const { profile: profileBefore, schemaVersion: versionBefore, ...restBefore } = before;
+
+    expect(rest).toEqual(restBefore);
+    expect({ ...profile, financeCategories: [] }).toEqual({ ...profileBefore, financeCategories: [] });
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v12Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});

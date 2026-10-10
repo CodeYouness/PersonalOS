@@ -741,6 +741,13 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .finance-month-label { font-size: 13px; color: var(--ink-subtle); min-width: 112px; text-align: center; }
 .finance-entry + .field, .field + .finance-entry { margin-top: var(--s-sm); }
 .finance-check { display: flex; align-items: center; gap: var(--s-xs); margin: var(--s-sm) 0 var(--s-md); }
+.finance-category-group + .finance-category-group { margin-top: var(--s-md); }
+.finance-categories { list-style: none; margin: var(--s-xs) 0 var(--s-md); padding: 0; }
+.finance-category { display: flex; align-items: center; gap: var(--s-xs); padding: 2px 0; }
+.finance-category .input { padding-top: 4px; padding-bottom: 4px; flex: 1; min-width: 0; }
+.finance-category.is-child { padding-left: var(--s-lg); }
+.finance-category.is-archived .input:first-child { color: var(--ink-tertiary); }
+.finance-category .finance-check { margin: 0; }
 
 /* ==========================================================================
    CAPTURE LOG — the drawer that answers "where did everything go?" Undo,
