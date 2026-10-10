@@ -763,3 +763,24 @@ describe('migration v13 to v14', () => {
     expect(migrate(once)).toEqual(once);
   });
 });
+
+describe('migration v14 to v15', () => {
+  /** A v14 document: no default account yet. */
+  const v14Document = () => {
+    const migrated = migrate(v12Document());
+    const { defaultAccountId, ...profile } = migrated.profile;
+    return { ...migrated, schemaVersion: 14, profile };
+  };
+
+  it('gives the profile a default account that is not set', () => {
+    const migrated = migrate(v14Document());
+
+    expect(migrated.profile.defaultAccountId).toBeNull();
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v14Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});

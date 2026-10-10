@@ -206,3 +206,91 @@ describe('Refile into nutrition with a model', () => {
     expect(await store.getMeal(body.recordId)).toMatchObject({ name: 'Carbonara', calories: 720, estimated: true });
   });
 });
+
+describe('POST /api/capture with a model: a finance sentence (ADR 0026)', () => {
+  /** The transaction a capture produced, read back through the store. */
+  async function produced(/** @type {{ recordId: string | null }} */ answer) {
+    return answer.recordId === null ? null : store.getTransaction(answer.recordId);
+  }
+
+  beforeEach(async () => {
+    await store.updateProfile({ defaultAccountId: 'account_seed_current' });
+  });
+
+  it('files spending on the default account, in the category the model chose, dated the day it was said', async () => {
+    modelSays({ destination: 'finance', amount: 18.4, direction: 'out', categoryId: 'cat_groceries', title: 'Supermarket' });
+
+    const answer = await post('spent 18,40 at the supermarket');
+
+    expect(await produced(answer)).toMatchObject({
+      amount: -1840, accountId: 'account_seed_current', categoryId: 'cat_groceries', description: 'Supermarket',
+      date: '2026-09-24', counterAccountId: null, source: 'capture',
+    });
+    const capture = await store.getProducingCapture(answer.recordId);
+    expect(capture?.text).toBe('spent 18,40 at the supermarket');
+  });
+
+  it('files on the account the sentence names when it is one of yours', async () => {
+    modelSays({ destination: 'finance', amount: 50, direction: 'out', account: 'emergency SAVINGS' });
+
+    expect((await produced(await post('took 50 from emergency savings for the plumber')))?.accountId).toBe('account_seed_savings');
+  });
+
+  it('reads a refund or income as money in', async () => {
+    modelSays({ destination: 'finance', amount: 30, direction: 'in', categoryId: 'cat_groceries' });
+
+    expect((await produced(await post('got 30 back for the shoes')))?.amount).toBe(3000);
+  });
+
+  it('leaves the category empty when the model chose none, so it shows as uncategorised', async () => {
+    modelSays({ destination: 'finance', amount: 12, direction: 'out' });
+
+    expect((await produced(await post('spent 12 on something')))?.categoryId).toBeNull();
+  });
+
+  it('ignores a category or an account the model invented', async () => {
+    modelSays({ destination: 'finance', amount: 12, direction: 'out', categoryId: 'cat_made_up', account: 'Swiss vault' });
+
+    expect(await produced(await post('spent 12 on something'))).toMatchObject({ categoryId: null, accountId: 'account_seed_current' });
+  });
+
+  it('stays a capture and a memory when the sentence names no amount', async () => {
+    modelSays({ destination: 'finance', direction: 'out' });
+    const before = (await store.getTransactions()).length;
+
+    const answer = await post('I should check what the gym costs');
+
+    expect(answer).toMatchObject({ destination: 'finance', recordId: null });
+    expect(await store.getTransactions()).toHaveLength(before);
+    expect((await store.getMemoryEntries()).some((entry) => entry.content === 'I should check what the gym costs')).toBe(true);
+  });
+
+  it('stays a capture and a memory when no account is named and there is no default', async () => {
+    await store.updateProfile({ defaultAccountId: null });
+    modelSays({ destination: 'finance', amount: 18.4, direction: 'out' });
+    const before = (await store.getTransactions()).length;
+
+    const answer = await post('spent 18,40 at the supermarket');
+
+    expect(answer.recordId).toBeNull();
+    expect(await store.getTransactions()).toHaveLength(before);
+  });
+
+  it('refiles a capture into finance, reading the amount again', async () => {
+    modelSays({ destination: 'task', title: 'Pay the plumber 80' });
+    const answer = await post('paid the plumber 80');
+    modelSays({ destination: 'finance', amount: 80, direction: 'out', categoryId: 'cat_rent' });
+
+    const response = await captureIdRoute.PATCH(
+      new Request('http://localhost/api/captures/x', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ destination: 'finance' }),
+      }),
+      { params: Promise.resolve({ id: (await store.getProducingCapture(answer.recordId))?.id ?? '' }) }
+    );
+    const { recordId } = await response.json();
+
+    expect(await store.getTransaction(recordId)).toMatchObject({ amount: -8000, categoryId: 'cat_rent' });
+  });
+});

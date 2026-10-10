@@ -1355,6 +1355,50 @@ export function runAdapterContract(label, load) {
           expect((await store.getTransactions()).find((t) => t.id === imported.id)?.accountId).toBe(current.id);
         });
       });
+      describe('the default account (ADR 0026)', () => {
+        it('sets an open account valued by balance, and clears it', async () => {
+          const current = await store.createAccount({ name: 'Current', kind: 'cash' });
+
+          await store.updateProfile({ defaultAccountId: current.id });
+          expect((await store.getProfile()).defaultAccountId).toBe(current.id);
+
+          await store.updateProfile({ defaultAccountId: null });
+          expect((await store.getProfile()).defaultAccountId).toBeNull();
+        });
+
+        it.each([
+          ['an account that does not exist', async () => 'account_nowhere', /account/],
+          ['an account valued by units', async () => (await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' })).id, /balance/],
+          [
+            'an archived account',
+            async () => {
+              const closed = await store.createAccount({ name: 'Closed', kind: 'cash' });
+              await store.updateAccount(closed.id, { archived: true });
+              return closed.id;
+            },
+            /archived/,
+          ],
+        ])('refuses %s', async (_label, make, reason) => {
+          const id = await make();
+
+          await expect(store.updateProfile({ defaultAccountId: id })).rejects.toThrow(reason);
+          expect((await store.getProfile()).defaultAccountId).toBeNull();
+        });
+
+        it.each([
+          ['archived', async (/** @type {string} */ id) => store.updateAccount(id, { archived: true })],
+          ['deleted', async (/** @type {string} */ id) => store.deleteAccount(id)],
+          ['revalued by units', async (/** @type {string} */ id) => store.updateAccount(id, { valuation: 'units' })],
+        ])('is cleared when its account is %s', async (_label, change) => {
+          const fund = await store.createAccount({ name: 'Fund', kind: 'investment' });
+          await store.updateProfile({ defaultAccountId: fund.id });
+
+          await change(fund.id);
+
+          expect((await store.getProfile()).defaultAccountId).toBeNull();
+        });
+      });
+
       describe('finance categories (#136)', () => {
         /** @param {string} id */
         const category = async (id) => (await store.getProfile()).financeCategories.find((c) => c.id === id);

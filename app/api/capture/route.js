@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { formatWeight } from '@/components/format.js';
+import { formatEuro, formatWeight } from '@/components/format.js';
 import { classify } from '@/lib/classify.js';
 import {
   createAppointment,
@@ -10,7 +10,9 @@ import {
   createMemoryEntry,
   fileCaptureAsMeal,
   fileCaptureAsTask,
+  fileCaptureAsTransaction,
   fileCaptureAsWeight,
+  getClassifyContext,
   linkPersonNamedIn,
   recordEvent,
 } from '@/lib/store.js';
@@ -27,10 +29,11 @@ export const dynamic = 'force-dynamic';
  * Only the capture write is load-bearing. `task` and `people` file a task
  * (linked to the person the sentence names), `goals`, `appointment` and
  * `nutrition` their own record, `health` a weight when the sentence names
- * one; `finance` and `memory` file as capture + memory only, since a
- * fabricated transaction or person would be worse than none,
- * and `docs/domain.md` calls "nothing but a memory entry" a valid outcome,
- * not a shortfall. Everything after the capture is enrichment: if it fails
+ * one, `finance` a transaction when it names an amount and there is an
+ * account to file it on (ADR 0026); `memory` files as capture + memory
+ * only, since a fabricated person would be worse than none, and
+ * `docs/domain.md` calls "nothing but a memory entry" a valid outcome, not
+ * a shortfall. Everything after the capture is enrichment: if it fails
  * partway, the capture the user just said is still there, which is the
  * floor rule 2 sets -- "capture never fails; at worst it files badly".
  *
@@ -51,7 +54,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'destination must be one of ' + DESTINATIONS.join(', ') }, { status: 400 });
   }
 
-  const { destination, route, fields } = await classify(text, chosen);
+  const { destination, route, fields } = await classify(text, chosen, undefined, await getClassifyContext());
   const capture = await createCapture({ text, origin: 'bar', destination, route });
 
   let recordId = null;
@@ -86,6 +89,10 @@ export async function POST(request) {
       const weight = await fileCaptureAsWeight(capture, fields);
       recordId = weight?.id ?? null;
       note = weight === null ? 'no weight filed' : formatWeight(weight.value) + ' ' + weight.unit;
+    } else if (destination === 'finance') {
+      const transaction = await fileCaptureAsTransaction(capture, fields);
+      recordId = transaction?.id ?? null;
+      note = transaction === null ? 'no transaction filed' : formatEuro(transaction.amount, { cents: true });
     }
 
     // createMemoryEntry links the memory back to the capture itself

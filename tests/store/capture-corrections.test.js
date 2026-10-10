@@ -411,3 +411,69 @@ describe('a capture that produced a weight', () => {
     expect((await store.getCapture(capture.id))?.destination).toBe('health');
   });
 });
+
+describe('a capture that produced a transaction (ADR 0026)', () => {
+  beforeEach(async () => {
+    await store.updateProfile({ defaultAccountId: 'account_seed_current' });
+  });
+
+  /** A finance capture filed the way the capture route files one. */
+  async function transactionCapture() {
+    const capture = await store.createCapture({ text: 'spent 18,40 at the supermarket', destination: 'finance' });
+    const transaction = /** @type {import('@/lib/domain/types.js').Transaction} */ (
+      await store.fileCaptureAsTransaction(capture, { amount: 1840, direction: 'out' })
+    );
+    const memory = await store.createMemoryEntry({ content: capture.text, source: 'capture', derivedFrom: capture.id });
+    return { capture, transaction, memory };
+  }
+
+  it('files on the account the sentence names, when there is no model to read it', async () => {
+    const capture = await store.createCapture({ text: 'paid €40 from emergency savings', destination: 'finance' });
+
+    const transaction = await store.fileCaptureAsTransaction(capture, { amount: 4000, direction: 'out' });
+
+    expect(transaction?.accountId).toBe('account_seed_savings');
+  });
+
+  it('Undo removes the transaction and keeps the capture, its sentence and its memory entry', async () => {
+    const { capture, transaction, memory } = await transactionCapture();
+
+    await store.undoCaptureFiling(capture.id);
+
+    expect(await store.getTransaction(transaction.id)).toBeNull();
+    expect((await store.getCapture(capture.id))?.text).toBe('spent 18,40 at the supermarket');
+    expect(await store.getMemoryEntries()).toContainEqual(expect.objectContaining({ id: memory.id }));
+  });
+
+  it('Undo is refused once the transaction has been corrected', async () => {
+    const { capture, transaction } = await transactionCapture();
+    await store.updateTransaction(transaction.id, { categoryId: 'cat_groceries' });
+
+    await expect(store.undoCaptureFiling(capture.id)).rejects.toThrow(/touched/);
+    expect(await store.getTransaction(transaction.id)).not.toBeNull();
+  });
+
+  it('Refile out of finance removes the transaction before filing the task', async () => {
+    const { capture, transaction } = await transactionCapture();
+
+    const taskId = await store.refileCapture(capture.id, 'task');
+
+    expect(await store.getTransaction(transaction.id)).toBeNull();
+    expect((await store.getTask(/** @type {string} */ (taskId)))?.title).toBe('spent 18,40 at the supermarket');
+  });
+
+  it('Refile into finance without an amount files nothing but still moves the capture', async () => {
+    const capture = await store.createCapture({ text: 'the gym costs too much', destination: 'memory' });
+
+    expect(await store.refileCapture(capture.id, 'finance')).toBeNull();
+    expect((await store.getCapture(capture.id))?.destination).toBe('finance');
+  });
+
+  it('a deleted transaction leaves its capture and sentence in place', async () => {
+    const { capture, transaction } = await transactionCapture();
+
+    await store.deleteTransaction(transaction.id);
+
+    expect((await store.getCapture(capture.id))?.text).toBe('spent 18,40 at the supermarket');
+  });
+});

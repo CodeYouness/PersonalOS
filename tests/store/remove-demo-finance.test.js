@@ -51,6 +51,16 @@ describe('hasDemoFinance', () => {
   });
 });
 
+describe('removeDemoFinance and the default account', () => {
+  it('clears a default account it removes', async () => {
+    await store.updateProfile({ defaultAccountId: 'account_seed_current' });
+
+    await store.removeDemoFinance();
+
+    expect((await store.getProfile()).defaultAccountId).toBeNull();
+  });
+});
+
 describe('removeDemoFinance', () => {
   it('backs up the data file before anything is removed', async () => {
     const { backupPath } = await store.removeDemoFinance();

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { formatWeight } from '@/components/format.js';
+import { formatEuro, formatWeight } from '@/components/format.js';
 import { limits } from '@/personalos.config.js';
 import { getCaptureProducedRecord, getCaptures, isCaptureRecordLocked } from '@/lib/store.js';
 
@@ -43,7 +43,8 @@ async function enrichCapture(capture) {
 
 /**
  * What the drawer calls the record: a task's or appointment's title, a goal's
- * or meal's name, a weight's value and unit.
+ * or meal's name, a weight's value and unit, a transaction's description
+ * and amount.
  *
  * @param {NonNullable<Awaited<ReturnType<typeof getCaptureProducedRecord>>>} record
  * @returns {string}
@@ -51,5 +52,6 @@ async function enrichCapture(capture) {
 function producedTitle(record) {
   if ('title' in record) return record.title;
   if ('name' in record) return record.name;
+  if ('description' in record) return record.description + ' ' + formatEuro(record.amount, { cents: true });
   return formatWeight(record.value) + ' ' + record.unit;
 }
