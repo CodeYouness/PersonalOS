@@ -4,15 +4,22 @@
  * opening balances, transfers, investment purchases and trades, through a
  * private mapping that is the only place category and account names exist.
  *
- *   npm run data:import-sheet -- <download.xlsx> <mapping.json>
+ *   npm run data:import-sheet -- <download.xlsx> <mapping.json> [--write]
  *
  * A dry run by default (#139): it reads both files, prints what it would
- * create and every row that needs your attention, and writes nothing.
+ * create and every row that needs your attention, and writes nothing -- it
+ * never reads the data file either.
  *
- * Plain Node, relative imports only, like the other data scripts. The dry
- * run reads only the two files it is given, never the data file. The
- * mapping and the report never go into the repository: keep the mapping in
- * `.scratch/`, and read the report in the terminal.
+ * With --write (#140), after a backup, it creates everything the dry run
+ * reported, through lib/store.js like the other data scripts. It refuses,
+ * writing nothing, while the seed's demo finance rows are present (run
+ * `npm run data:remove-demo-finance` first), once rows from the sheet exist
+ * (one-off: restore the backup to run it again), and while anything in the
+ * plan is unresolved.
+ *
+ * The run order: remove the demo finance rows, dry run, read the report,
+ * stop `npm run dev`, write. The mapping and the report never go into the repository: keep the
+ * mapping in `.scratch/`, and read the report in the terminal.
  */
 
 import { readFile } from 'node:fs/promises';
@@ -21,16 +28,18 @@ import { pathToFileURL } from 'node:url';
 import { validateMapping } from './sheet-import/mapping.js';
 import { blockingReasons, planImport } from './sheet-import/plan.js';
 import { readWorkbook } from './sheet-import/read.js';
+import { writePlan } from './sheet-import/write.js';
 
 /**
  * @param {{
  *   xlsxPath: string,
  *   mappingPath: string,
+ *   write?: boolean,
  *   print?: (line: string) => void,
  * }} options
- * @returns {Promise<{ plan: import('./sheet-import/plan.js').ImportPlan, blocking: string[] }>}
+ * @returns {Promise<{ plan: import('./sheet-import/plan.js').ImportPlan, blocking: string[], backupPath?: string }>}
  */
-export async function importSheet({ xlsxPath, mappingPath, print = (line) => console.log(line) }) {
+export async function importSheet({ xlsxPath, mappingPath, write = false, print = (line) => console.log(line) }) {
   let parsed;
   try {
     parsed = JSON.parse(await readFile(mappingPath, 'utf8'));
@@ -42,8 +51,12 @@ export async function importSheet({ xlsxPath, mappingPath, print = (line) => con
   const plan = planImport({ movements, trades, mapping });
   const blocking = blockingReasons(plan);
 
-  for (const line of describePlan(plan, blocking)) print(line);
-  return { plan, blocking };
+  if (!write) {
+    for (const line of describePlan(plan, blocking)) print(line);
+    return { plan, blocking };
+  }
+  const { backupPath } = await writePlan(plan, mapping, print);
+  return { plan, blocking, backupPath };
 }
 
 /**
@@ -126,13 +139,14 @@ function euros(minor) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const paths = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const paths = args.filter((arg) => arg !== '--write');
   if (paths.length !== 2) {
-    console.error('usage: npm run data:import-sheet -- <download.xlsx> <mapping.json>');
+    console.error('usage: npm run data:import-sheet -- <download.xlsx> <mapping.json> [--write]');
     process.exit(1);
   }
   try {
-    await importSheet({ xlsxPath: paths[0], mappingPath: paths[1] });
+    await importSheet({ xlsxPath: paths[0], mappingPath: paths[1], write: args.includes('--write') });
   } catch (error) {
     console.error('import refused: ' + (error instanceof Error ? error.message : String(error)));
     process.exit(1);
