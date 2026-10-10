@@ -1355,6 +1355,114 @@ export function runAdapterContract(label, load) {
           expect((await store.getTransactions()).find((t) => t.id === imported.id)?.accountId).toBe(current.id);
         });
       });
+      describe('finance categories (#136)', () => {
+        /** @param {string} id */
+        const category = async (id) => (await store.getProfile()).financeCategories.find((c) => c.id === id);
+
+        it('adds a top-level category with its kind, and a subcategory that takes its parent\'s', async () => {
+          const sport = await store.createFinanceCategory({ name: 'Sport', kind: 'expense' });
+          const gym = await store.createFinanceCategory({ name: 'Gym', parentId: sport.id, fixedCost: true });
+
+          expect(await category(sport.id)).toMatchObject({ name: 'Sport', kind: 'expense', parentId: null, fixedCost: false, archived: false });
+          // The kind lives on the parent only: a child can never disagree with it.
+          expect(await category(gym.id)).toMatchObject({ name: 'Gym', kind: null, parentId: sport.id, fixedCost: true });
+        });
+
+        it.each([
+          ['a blank name', { name: ' ', kind: 'expense' }, /name/],
+          ['a top-level category with no kind', { name: 'Misc' }, /kind/],
+          ['a kind outside the vocabulary', { name: 'Misc', kind: 'transfer' }, /kind/],
+          ['a parent that does not exist', { name: 'Misc', parentId: 'cat_nowhere' }, /category/],
+        ])('refuses %s', async (_label, input, reason) => {
+          await expect(store.createFinanceCategory(input)).rejects.toThrow(reason);
+        });
+
+        it('refuses a third level: a subcategory cannot have children', async () => {
+          const sport = await store.createFinanceCategory({ name: 'Sport', kind: 'expense' });
+          const gym = await store.createFinanceCategory({ name: 'Gym', parentId: sport.id });
+
+          await expect(store.createFinanceCategory({ name: 'Classes', parentId: gym.id })).rejects.toThrow(/level/);
+          const other = await store.createFinanceCategory({ name: 'Other', kind: 'expense' });
+          await expect(store.updateFinanceCategory(other.id, { parentId: gym.id })).rejects.toThrow(/level/);
+        });
+
+        it('refuses making a parent that has children into a subcategory', async () => {
+          const sport = await store.createFinanceCategory({ name: 'Sport', kind: 'expense' });
+          await store.createFinanceCategory({ name: 'Gym', parentId: sport.id });
+
+          await expect(store.updateFinanceCategory(sport.id, { parentId: 'cat_groceries' })).rejects.toThrow(/subcategories/);
+        });
+
+        it('moves a subcategory under another parent of the same kind, and refuses one of the other kind', async () => {
+          const sport = await store.createFinanceCategory({ name: 'Sport', kind: 'expense' });
+          const leisure = await store.createFinanceCategory({ name: 'Leisure', kind: 'expense' });
+          const gym = await store.createFinanceCategory({ name: 'Gym', parentId: leisure.id });
+
+          await store.updateFinanceCategory(gym.id, { parentId: sport.id });
+          expect((await category(gym.id))?.parentId).toBe(sport.id);
+
+          await expect(store.updateFinanceCategory(gym.id, { parentId: 'cat_consulting' })).rejects.toThrow(/kind/);
+          expect((await category(gym.id))?.parentId).toBe(sport.id);
+        });
+
+        it('moves an unused top-level category under a parent of its kind, where it takes the parent\'s', async () => {
+          const extras = await store.createFinanceCategory({ name: 'Extras', kind: 'expense' });
+
+          await store.updateFinanceCategory(extras.id, { parentId: 'cat_groceries' });
+
+          expect(await category(extras.id)).toMatchObject({ parentId: 'cat_groceries', kind: null });
+        });
+
+        it('changes the kind of an unused category, and refuses it once it or a subcategory is in use', async () => {
+          const misc = await store.createFinanceCategory({ name: 'Misc', kind: 'expense' });
+          const child = await store.createFinanceCategory({ name: 'Child', parentId: misc.id });
+          await store.updateFinanceCategory(misc.id, { kind: 'income' });
+          expect((await category(misc.id))?.kind).toBe('income');
+
+          const [account] = await store.getAccounts();
+          await store.createTransaction({ date: '2026-04-02', amount: 500, accountId: account.id, categoryId: child.id });
+          await expect(store.updateFinanceCategory(misc.id, { kind: 'expense' })).rejects.toThrow(/in use/);
+        });
+
+        it('refuses a kind on a subcategory', async () => {
+          await expect(store.updateFinanceCategory('cat_rent', { kind: 'income' })).rejects.toThrow(/parent/);
+        });
+
+        it('renames, sets fixed cost, archives and restores', async () => {
+          await store.updateFinanceCategory('cat_groceries', { name: 'Food shopping', fixedCost: true });
+          await store.updateFinanceCategory('cat_groceries', { archived: true });
+          expect(await category('cat_groceries')).toMatchObject({ name: 'Food shopping', fixedCost: true, archived: true });
+
+          await store.updateFinanceCategory('cat_groceries', { archived: false });
+          expect((await category('cat_groceries'))?.archived).toBe(false);
+        });
+
+        it('deletes an unused category with its subcategories, and refuses one in use', async () => {
+          const sport = await store.createFinanceCategory({ name: 'Sport', kind: 'expense' });
+          const gym = await store.createFinanceCategory({ name: 'Gym', parentId: sport.id });
+          await store.deleteFinanceCategory(sport.id);
+          expect(await category(sport.id)).toBeUndefined();
+          expect(await category(gym.id)).toBeUndefined();
+
+          // The seed files groceries on transactions.
+          await expect(store.deleteFinanceCategory('cat_groceries')).rejects.toThrow(/in use/);
+          expect(await category('cat_groceries')).toBeDefined();
+        });
+
+        it('refuses a transaction on a category that does not exist', async () => {
+          const [account] = await store.getAccounts();
+
+          await expect(
+            store.createTransaction({ date: '2026-04-02', amount: -500, accountId: account.id, categoryId: 'cat_nowhere' })
+          ).rejects.toThrow(/category/);
+        });
+
+        it('refuses an unknown field in a category patch, and categories in a profile patch', async () => {
+          await expect(store.updateFinanceCategory('cat_rent', { colour: 'red' })).rejects.toThrow(/colour/);
+          await expect(store.updateProfile({ financeCategories: [] })).rejects.toThrow(/financeCategories/);
+        });
+      });
+
       it('rejects an unknown field in an account patch', async () => {
         const [account] = await store.getAccounts();
 

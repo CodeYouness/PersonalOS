@@ -64,6 +64,12 @@ spending into a transfer; a transfer with no counter account becomes not
 counted. Each month's income and spending is the same
 before and after.
 
+**Categories have two levels** (#136), the kind on the top level only: a
+subcategory takes its parent's. A transaction is filed on either level, and
+its category must exist. The store refuses a third level, a move across
+kinds, a kind change on a category in use and deleting one in use; schema
+v13 puts every existing category at the top level, not a fixed cost.
+
 ## Consequences
 
 - A refund reduces the spending it belongs to, and a chargeback reduces
