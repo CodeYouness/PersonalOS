@@ -41,6 +41,16 @@ async function addYourOwnAccount() {
   return { account, observation };
 }
 
+describe('hasDemoFinance', () => {
+  it('says the demo finance rows are there until they are removed', async () => {
+    expect(await store.hasDemoFinance()).toBe(true);
+
+    await store.removeDemoFinance();
+
+    expect(await store.hasDemoFinance()).toBe(false);
+  });
+});
+
 describe('removeDemoFinance', () => {
   it('backs up the data file before anything is removed', async () => {
     const { backupPath } = await store.removeDemoFinance();

@@ -1,7 +1,8 @@
 /**
- * `npm run data:import-sheet` (#139): the dry run. The script's entry point
- * runs against a spreadsheet the test builds from made-up rows, and a
- * sandboxed DATA_DIR that it must leave exactly as it found it.
+ * `npm run data:import-sheet` (#139, #140): the dry run and the write. The
+ * script's entry point runs against a spreadsheet the test builds from
+ * made-up rows, and a sandboxed DATA_DIR; the dry run must leave it exactly
+ * as it found it, and the write is read back through the store.
  */
 
 import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -9,6 +10,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+import { accountValueOn, monthFlows } from '@/lib/domain/derive/finance.js';
 
 import { MOVEMENTS, mapping, TRADES, writeSheet } from './sheet-fixture.js';
 
@@ -240,5 +243,139 @@ describe('the mapping', () => {
     await (await import('node:fs/promises')).writeFile(paths.mappingPath, '{ not json');
 
     await expect(script.importSheet({ ...paths, print: () => {} })).rejects.toThrow(/not readable JSON/);
+  });
+});
+
+describe('the write', () => {
+  /** Runs the import with --write; the demo finance rows are removed first unless told otherwise. */
+  async function write(/** @type {Parameters<typeof writeSheet>[1] & { keepDemo?: boolean }} */ options = {}) {
+    if (!options.keepDemo) await store.removeDemoFinance();
+    const paths = await writeSheet(files, options);
+    /** @type {string[]} */
+    const printed = [];
+    const result = await script.importSheet({ ...paths, write: true, print: (line) => printed.push(line) });
+    return { ...result, printed: printed.join('\n') };
+  }
+
+  /** @param {string} name */
+  async function accountNamed(name) {
+    const account = (await store.getAccounts()).find((row) => row.name === name);
+    if (account === undefined) throw new Error('no account named ' + name);
+    return account;
+  }
+
+  it('creates the accounts from the mapping, with their kind and valuation', async () => {
+    await write();
+
+    expect((await store.getAccounts()).map(({ name, kind, valuation }) => ({ name, kind, valuation }))).toEqual([
+      { name: 'Current account', kind: 'cash', valuation: 'balance' },
+      { name: 'Card', kind: 'cash', valuation: 'balance' },
+      { name: 'Cash', kind: 'cash', valuation: 'balance' },
+      { name: 'Savings', kind: 'cash', valuation: 'balance' },
+      { name: 'World ETF', kind: 'investment', valuation: 'units' },
+    ]);
+  });
+
+  it('records the opening balances, and each account is its opening balance plus its movements', async () => {
+    await write();
+    const current = await accountNamed('Current account');
+    const savings = await accountNamed('Savings');
+
+    expect((await store.getObservations({ accountId: current.id })).map(({ date, amount }) => ({ date, amount }))).toEqual([
+      { date: '2024-01-02', amount: 100000 },
+    ]);
+    const inputs = await store.getFinanceInputs();
+    // 1,000 + 2,500 salary - 800 rent - 300 to savings - 250 for the ETF + 50 gift (not counted, still moved).
+    expect(accountValueOn(current, inputs, '2024-01-31')?.amount).toBe(220000);
+    expect(accountValueOn(savings, inputs, '2024-01-31')?.amount).toBe(530000);
+  });
+
+  it('imports transfers with their counter account and no category', async () => {
+    await write();
+    const savings = await accountNamed('Savings');
+
+    const transfer = (await store.getTransactions()).find((t) => t.counterAccountId === savings.id);
+    expect(transfer).toMatchObject({ amount: -30000, categoryId: null, origin: expect.objectContaining({ source: 'sheet' }) });
+  });
+
+  it('imports a purchase as a transfer to its holding, which stays valued by its trades', async () => {
+    await write();
+    const etf = await accountNamed('World ETF');
+
+    const purchase = (await store.getTransactions()).find((t) => t.counterAccountId === etf.id);
+    expect(purchase).toMatchObject({ amount: -25000, categoryId: null });
+    // 3.5 units at the latest trade's price of 100.00.
+    expect(accountValueOn(etf, await store.getFinanceInputs(), '2024-01-31')?.amount).toBe(35000);
+    expect((await store.getTrades({ accountId: etf.id })).map(({ date, units, price, fee }) => ({ date, units, price, fee }))).toEqual([
+      { date: '2023-06-01', units: 100_000_000, price: 9000, fee: 150 },
+      { date: '2024-01-16', units: 250_000_000, price: 10000, fee: 0 },
+    ]);
+  });
+
+  it('counts a refund against spending and never as income, and keeps not-counted money out of the totals', async () => {
+    await write();
+    const { financeCategories } = await store.getProfile();
+
+    const flows = monthFlows(await store.getTransactions(), financeCategories, '2024-01');
+    // Salary only: the 50 gift is not counted, the 30 refund is not income.
+    expect(flows.income).toBe(250000);
+    // Rent 800 + groceries 18.40 - the 30 refund.
+    expect(flows.spending).toBe(78840);
+  });
+
+  it('carries descriptions and tags, and sets "tracked since" to the first movement', async () => {
+    await write();
+
+    const groceries = (await store.getTransactions()).find((t) => t.description === 'Supermarket');
+    expect(groceries).toMatchObject({ amount: -1840, tags: ['weekends'] });
+    expect((await store.getProfile()).financeTrackedSince).toBe('2024-01-03');
+  });
+
+  it('keeps a "tracked since" already set', async () => {
+    await store.updateProfile({ financeTrackedSince: '2023-01-01' });
+
+    await write();
+
+    expect((await store.getProfile()).financeTrackedSince).toBe('2023-01-01');
+  });
+
+  it('backs the data file up before the first write', async () => {
+    await store.removeDemoFinance();
+    const before = await readFile(path.join(sandbox, 'personalos.json'), 'utf8');
+
+    const { backupPath } = await write({ keepDemo: true });
+
+    expect(await readFile(/** @type {string} */ (backupPath), 'utf8')).toBe(before);
+  });
+
+  it.each([
+    ['demo finance rows are present', { keepDemo: true }, /data:remove-demo-finance/],
+    [
+      'a pair is unmapped',
+      { movements: [...MOVEMENTS, { at: '2024-01-12T10:00:00.000Z', date: '2024-01-12', category: 'Svago', subcategory: 'Cinema', amount: 9.99, from: 'Carta' }] },
+      /not mapped/,
+    ],
+    [
+      'a purchase is unresolved',
+      { movements: [...MOVEMENTS, { at: '2024-01-14T10:00:00.000Z', date: '2024-01-14', category: 'Investimenti', subcategory: 'ETF', amount: 777, from: 'Conto' }] },
+      /matches 0 trades/,
+    ],
+  ])('refuses, writing nothing, when %s', async (_label, options, reason) => {
+    if (!('keepDemo' in options)) await store.removeDemoFinance();
+    const dataFile = path.join(sandbox, 'personalos.json');
+    const before = await readFile(dataFile);
+
+    await expect(write({ ...options, keepDemo: true })).rejects.toThrow(reason);
+
+    expect((await readFile(dataFile)).equals(before)).toBe(true);
+  });
+
+  it('refuses a second run once rows from the sheet exist', async () => {
+    await write();
+    const dataFile = path.join(sandbox, 'personalos.json');
+    const before = await readFile(dataFile);
+
+    await expect(write({ keepDemo: true })).rejects.toThrow(/already imported/);
+    expect((await readFile(dataFile)).equals(before)).toBe(true);
   });
 });
