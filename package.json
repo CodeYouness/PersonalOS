@@ -21,6 +21,7 @@
     "check:secrets": "node scripts/check-secrets.js",
     "data:reset": "node scripts/reset-data.js",
     "data:remove-demo-finance": "node scripts/remove-demo-finance.js",
+    "data:import-sheet": "node scripts/import-sheet.js",
     "sync:calendar": "node scripts/sync-calendar.js"
   },
   "dependencies": {
@@ -37,7 +38,9 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "globals": "^17.12.0",
+    "read-excel-file": "9.3.10",
     "typescript": "^5",
-    "vitest": "^4"
+    "vitest": "^4",
+    "write-excel-file": "4.1.1"
   }
 }
