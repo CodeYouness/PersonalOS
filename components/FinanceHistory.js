@@ -3,8 +3,8 @@ import { formatMoney, formatMoneyChange } from '@/components/format.js';
 /**
  * The Finances screen's History card (#118): one row per month, month-end
  * net worth and its change from the month before, newest first -- from
- * financeOverview's history, derived from the balances, trades and prices
- * rather than stored (ADR 0022). No period selector. It says it is empty
+ * financeOverview's history, derived from the balances, movements, trades
+ * and prices rather than stored (ADR 0022, 0024). No period selector. It says it is empty
  * until there is something to show, so it is never mistaken for broken.
  *
  * @param {{ history: import('@/lib/domain/derive/finance.js').HistoryRow[] }} props

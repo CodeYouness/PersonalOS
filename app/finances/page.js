@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * The Finances screen: "where is the money" (#111), and since #134 how it
- * moved. Reads the saved accounts, balances and the month's transactions
+ * moved. Reads the saved accounts, balances, trades, prices and transactions
  * once per request and renders them through the finance overview -- the
  * same derivation the Pulse card reads. Loading it never calls the model or
  * an integration (rule 3).
@@ -40,17 +40,19 @@ export default async function FinancesScreen({ searchParams }) {
   const { account: accountParam, month: monthParam, transaction: transactionParam } = await searchParams;
   const todayKey = today();
   const month = isMonthKey(monthParam) ? /** @type {string} */ (monthParam) : monthOf(todayKey);
-  const [accounts, observations, trades, prices, selected, profile, monthTransactions, selectedTransaction] = await Promise.all([
+  const [accounts, observations, trades, prices, selected, profile, transactions, selectedTransaction] = await Promise.all([
     getAccounts(),
     getObservations({}),
     getTrades(),
     getPrices(),
     typeof accountParam === 'string' ? getAccount(accountParam) : null,
     getProfile(),
-    getTransactions(monthRange(month)),
+    getTransactions(),
     typeof transactionParam === 'string' ? getTransaction(transactionParam) : null,
   ]);
-  const overview = financeOverview({ accounts, observations, trades, prices }, todayKey);
+  const overview = financeOverview({ accounts, observations, trades, prices, transactions }, todayKey);
+  const { from, to } = monthRange(month);
+  const monthTransactions = transactions.filter((transaction) => transaction.date >= from && transaction.date <= to);
   /** @type {<T extends { accountId: string, date: string }>(rows: T[]) => T[]} */
   const ofSelected = (rows) =>
     selected === null

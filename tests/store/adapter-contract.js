@@ -1243,6 +1243,19 @@ export function runAdapterContract(label, load) {
           expect((await store.getAccount(savings.id))?.archivedOn).toBeNull();
         });
 
+        it('fixes the kind and the valuation of an account once money has moved on it', async () => {
+          // A liability's movements count the other way, and a holding
+          // ignores them: either change would rewrite the account's past.
+          const { current, savings } = await twoAccounts();
+          await store.createTransaction({ date: '2026-04-02', amount: -500, accountId: current.id, counterAccountId: savings.id });
+
+          await expect(store.updateAccount(current.id, { kind: 'liability' })).rejects.toThrow(/fixed/);
+          await expect(store.updateAccount(savings.id, { kind: 'asset' })).rejects.toThrow(/fixed/);
+          const investment = await store.createAccount({ name: 'Fund', kind: 'investment' });
+          await store.createTransaction({ date: '2026-04-02', amount: 500, accountId: investment.id });
+          await expect(store.updateAccount(investment.id, { valuation: 'units' })).rejects.toThrow(/fixed/);
+        });
+
         it('turns a movement into a transfer by its counter account, clearing its category', async () => {
           const { current, savings } = await twoAccounts();
           const spent = await store.createTransaction({

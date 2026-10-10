@@ -574,14 +574,23 @@ section.
 
 ### The stock and the flow
 
-**Net worth cannot be derived from transactions.** Transactions are a flow;
-net worth is a stock. A cash balance could be derived from transactions only
-with a known opening balance and complete coverage — but an investment changes
-value when the market moves and *no transaction happens at all*, and a pension
-or a property never appears in a transaction list in the first place.
+**Net worth cannot be derived from transactions alone.** Transactions are a
+flow; net worth is a stock. A cash balance could be derived from transactions
+only with a known opening balance and complete coverage — and an investment
+changes value when the market moves and *no transaction happens at all*, and a
+pension or a property never appears in a transaction list in the first place.
 
-So: balances are **observed**, flows are **recorded**, and neither substitutes
-for the other.
+So: balances are **observed**, flows are **recorded**, and the observation
+anchors the value (ADR 0024). **Between two balances, an account valued by
+balance follows its movements:** on date D it is worth its latest balance on
+or before D, plus every movement on it dated after that balance and on or
+before D -- `amount` where it is the transaction's account, `-amount` where it
+is the counter account. A balance includes the movements of its own day; a
+balance typed later is a reconciliation point that absorbs anything forgotten
+before it. With no balance on or before D, the account is unknown, however
+many movements it has. A not-counted movement moves the balance too. The
+value is dated by the later of the balance and the last movement counted; of
+two balances on one day, the one recorded last counts.
 
 ### FinanceAccount
 
@@ -599,9 +608,13 @@ is created (`ACCOUNT_VALUATIONS`):
   Derived, never stored. Before its first trade it is unknown.
 
 Only an investment chooses; cash, an asset and a debt are always `balance`.
-The choice is fixed once the account has a balance, a trade or a price, so
-its history never changes meaning underneath it -- and so is its kind, which
-decides what the sign of a balance means. An account has one answer to
+The choice is fixed once the account has a balance, a trade, a price or a
+transaction, so its history never changes meaning underneath it -- and so is
+its kind, which decides what the sign of a balance and of a movement means: a
+**liability** counts a movement the other way, so money landing in a debt
+reduces what is owed. A holding ignores transactions entirely: a transfer
+into it lowers the cash account, and the holding stays valued by its trades
+and prices. An account has one answer to
 what it is worth: a balance on a `units` account and a trade on a `balance`
 account are both refused.
 
@@ -742,8 +755,10 @@ ADR 0008's exception applies to it again.
 
 Month-end net worth for every month from the first balance or trade to today,
 and its change from the month before -- derived, never stored (ADR 0022). An
-archived account counts on every day before it was archived; a value stays
-flat between two balances or prices; a holding starts at its first trade. An
+archived account counts, with its movements, on every day before it was
+archived; between two balances a cash account follows its movements (ADR
+0024), and otherwise a value stays flat between two balances or prices; a
+holding starts at its first trade. An
 account's **30-day change** is its value today minus its value 30 days ago,
 blank when it had none then: a missing past is not a change from zero.
 
@@ -781,7 +796,7 @@ double counting.
 | people | health averages, day totals |
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
 | journal entries | monthly spending, income by category -- transfers and not-counted transactions excluded; whether a transaction is a transfer |
-| memory entries | current net worth, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
+| memory entries | current net worth, an account's value between balances, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
 | daily logs (ticks, meals, measurements) | |
