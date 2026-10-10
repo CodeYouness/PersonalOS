@@ -435,6 +435,21 @@ describe('a capture that produced a transaction (ADR 0026)', () => {
     expect(transaction?.accountId).toBe('account_seed_savings');
   });
 
+  it('never takes a word inside another for an account name', async () => {
+    await store.createAccount({ name: 'Cash', kind: 'cash' });
+    const capture = await store.createCapture({ text: 'got €5 cashback', destination: 'finance' });
+
+    expect((await store.fileCaptureAsTransaction(capture, { amount: 500, direction: 'in' }))?.accountId).toBe('account_seed_current');
+  });
+
+  it('does not overrule a model that read no account by scanning the sentence', async () => {
+    const capture = await store.createCapture({ text: 'paid €40 from emergency savings', destination: 'finance' });
+
+    const transaction = await store.fileCaptureAsTransaction(capture, { amount: 4000, direction: 'out', account: null });
+
+    expect(transaction?.accountId).toBe('account_seed_current');
+  });
+
   it('Undo removes the transaction and keeps the capture, its sentence and its memory entry', async () => {
     const { capture, transaction, memory } = await transactionCapture();
 

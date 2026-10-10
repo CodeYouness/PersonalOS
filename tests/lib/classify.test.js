@@ -31,8 +31,21 @@ describe('classifyWithRules', () => {
     expect(classifyModule.classifyWithRules(text)).toEqual({
       destination: 'finance',
       route: 'rules',
-      fields: { amount, direction: 'out', account: null, categoryId: null },
+      fields: { amount, direction: 'out', categoryId: null },
     });
+  });
+
+  it.each([
+    ['spent € 1.234 on a bike', 123400],
+    ['spent 18,40 € 2 coffees', 1840],
+    ['paid 18,40€ di cui €2 mancia', 1840],
+    ['il 3 100€', 10000],
+    ['spent 18,40 euros', 1840],
+    ['on 12.10 spent 5€', 500],
+    ['spent €0.004', null],
+    ['spent 0,00 €', null],
+  ])('reads %j as %s minor units', (text, amount) => {
+    expect(classifyModule.financeFields(text).amount).toBe(amount);
   });
 
   it('routes a meal to nutrition', () => {

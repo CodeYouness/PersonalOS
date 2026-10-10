@@ -54,7 +54,13 @@ export async function POST(request) {
     return NextResponse.json({ error: 'destination must be one of ' + DESTINATIONS.join(', ') }, { status: 400 });
   }
 
-  const { destination, route, fields } = await classify(text, chosen, undefined, await getClassifyContext());
+  // Your categories are enrichment: a store read that fails here must not
+  // keep the sentence from being saved (rule 2), so it falls back to none.
+  const context = await getClassifyContext().catch((error) => {
+    console.error('[capture] could not read the categories for the classifier:', error);
+    return {};
+  });
+  const { destination, route, fields } = await classify(text, chosen, undefined, context);
   const capture = await createCapture({ text, origin: 'bar', destination, route });
 
   let recordId = null;
@@ -94,7 +100,15 @@ export async function POST(request) {
       recordId = transaction?.id ?? null;
       note = transaction === null ? 'no transaction filed' : formatEuro(transaction.amount, { cents: true });
     }
+  } catch (error) {
+    // The capture already landed above. A card or a link failing after that
+    // must not read to the user as the capture having failed -- that is
+    // exactly the confusing half-state rule 2 exists to prevent -- nor keep
+    // the sentence out of memory, which comes next either way.
+    console.error('[capture] filed the capture but its record failed:', error);
+  }
 
+  try {
     // createMemoryEntry links the memory back to the capture itself
     // (derived_from) -- the provenance a memory must always be able to give.
     await createMemoryEntry({
@@ -105,10 +119,7 @@ export async function POST(request) {
     });
     await recordEvent({ type: 'capture.filed', subject: capture.id, source: 'capture' });
   } catch (error) {
-    // The capture already landed above. A card, a link or the event failing
-    // after that must not read to the user as the capture having failed --
-    // that is exactly the confusing half-state rule 2 exists to prevent.
-    console.error('[capture] filed the capture but enrichment failed:', error);
+    console.error('[capture] filed the capture but its memory or event failed:', error);
   }
 
   // A health sentence with no weight to believe -- none said, or one nobody

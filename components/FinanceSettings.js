@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react';
 import { monthLabel } from '@/components/format.js';
 import { monthOf } from '@/lib/domain/dates.js';
 import { messageOf, request } from '@/components/request.js';
+import { isMovableAccount } from '@/lib/domain/derive/finance.js';
 
 /**
  * The Finances screen's settings. "Tracked since" (#138), the day your
@@ -100,7 +101,7 @@ export default function FinanceSettings({ trackedSince, defaultAccountId, accoun
           >
             <option value="">None</option>
             {accounts
-              .filter((account) => account.archivedOn === null && account.valuation === 'balance')
+              .filter(isMovableAccount)
               .map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}

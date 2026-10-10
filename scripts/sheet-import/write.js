@@ -123,8 +123,9 @@ export async function writePlan(plan, mapping, print) {
     if (profile.financeTrackedSince === null && plan.trackedSince !== null) {
       await updateProfile({ financeTrackedSince: plan.trackedSince });
     }
-    // Only when the mapping names one (ADR 0026).
-    if (mapping.defaultAccount !== null) {
+    // Only when the mapping names one and you have not chosen one (ADR
+    // 0026): a setting of yours is never overwritten.
+    if (mapping.defaultAccount !== null && profile.defaultAccountId === null) {
       await updateProfile({ defaultAccountId: accountIds.get(mapping.defaultAccount) });
     }
   } catch (error) {
