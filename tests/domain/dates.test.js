@@ -6,6 +6,7 @@ import {
   formatTimeInZone,
   isDayKey,
   isMonthKey,
+  monthOf,
   monthRange,
   shiftDayKey,
   shiftMonth,
@@ -231,6 +232,10 @@ describe('month keys', () => {
     expect(isMonthKey('2026-13')).toBe(false);
     expect(isMonthKey('2026-1')).toBe(false);
     expect(isMonthKey('January')).toBe(false);
+  });
+
+  it('names the month a day belongs to', () => {
+    expect(monthOf('2026-01-31')).toBe('2026-01');
   });
 
   it('shifts across a year in either direction', () => {

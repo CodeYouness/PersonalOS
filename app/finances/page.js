@@ -1,9 +1,9 @@
 import FinanceAccountDetail, { FinanceAccountEmpty } from '@/components/FinanceAccountDetail.js';
 import FinanceBreakdown from '@/components/FinanceBreakdown.js';
 import FinanceHistory from '@/components/FinanceHistory.js';
-import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionPanel.js';
+import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
-import { isMonthKey, monthRange, today } from '@/lib/domain/dates.js';
+import { isMonthKey, monthOf, monthRange, today } from '@/lib/domain/dates.js';
 import { financeOverview } from '@/lib/domain/derive/finance.js';
 import {
   getAccount,
@@ -39,7 +39,7 @@ export const dynamic = 'force-dynamic';
 export default async function FinancesScreen({ searchParams }) {
   const { account: accountParam, month: monthParam, transaction: transactionParam } = await searchParams;
   const todayKey = today();
-  const month = isMonthKey(monthParam) ? /** @type {string} */ (monthParam) : todayKey.slice(0, 7);
+  const month = isMonthKey(monthParam) ? /** @type {string} */ (monthParam) : monthOf(todayKey);
   const [accounts, observations, trades, prices, selected, profile, monthTransactions, selectedTransaction] = await Promise.all([
     getAccounts(),
     getObservations({}),
@@ -86,7 +86,7 @@ export default async function FinancesScreen({ searchParams }) {
           <FinanceHistory history={overview.history} />
         </div>
         <FinanceTransactions
-          transactions={monthTransactions.sort((a, b) => b.date.localeCompare(a.date))}
+          transactions={monthTransactions}
           accounts={accounts}
           categories={categories}
           month={month}
@@ -102,7 +102,6 @@ export default async function FinancesScreen({ searchParams }) {
               transaction={selectedTransaction}
               accounts={accounts}
               categories={categories}
-              todayKey={todayKey}
               place={place}
             />
           )}

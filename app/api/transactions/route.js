@@ -19,8 +19,7 @@ export async function GET(request) {
     return NextResponse.json({ status: 'error', message: 'month must be YYYY-MM' }, { status: 400 });
   }
   const { from, to } = monthRange(/** @type {string} */ (month));
-  const transactions = (await getTransactions({ from, to })).sort((a, b) => b.date.localeCompare(a.date));
-  return NextResponse.json({ ok: true, transactions });
+  return NextResponse.json({ ok: true, transactions: await getTransactions({ from, to }) });
 }
 
 /**

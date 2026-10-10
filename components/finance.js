@@ -69,13 +69,38 @@ export function signedAmount(direction, magnitude) {
 }
 
 /**
- * Tags as typed in one field -- "home, gift" -- to the list the store keeps.
+ * Tags as typed in one field -- "Home, gift" -- to the list the store keeps:
+ * trimmed, lowercased, each once, so the panel shows what was saved.
  *
  * @param {string} text
  * @returns {string[]}
  */
 export function parseTags(text) {
-  return text.split(',').map((tag) => tag.trim()).filter((tag) => tag !== '');
+  return [...new Set(text.split(',').map((tag) => tag.trim().toLowerCase()).filter((tag) => tag !== ''))];
+}
+
+/**
+ * Which way a transfer ran (ADR 0023): money that left `accountId` went to
+ * the counter account; money that arrived came from it.
+ *
+ * @param {Pick<import('@/lib/domain/types.js').Transaction, 'amount' | 'accountId' | 'counterAccountId'>} transaction
+ *   a transfer
+ * @returns {{ from: string, to: string }}
+ */
+export function transferEnds(transaction) {
+  const counter = /** @type {string} */ (transaction.counterAccountId);
+  return transaction.amount < 0
+    ? { from: transaction.accountId, to: counter }
+    : { from: counter, to: transaction.accountId };
+}
+
+/** How the table names a kind, as the mockup does: "invested", "debt". */
+/** @type {Record<import('@/lib/domain/types.js').FinanceAccount['kind'], string>} */
+export const KIND_LABELS = { cash: 'cash', investment: 'invested', asset: 'asset', liability: 'debt' };
+
+/** @param {string} id */
+export function accountUrl(id) {
+  return '/api/accounts/' + encodeURIComponent(id);
 }
 
 /** @param {string} id */

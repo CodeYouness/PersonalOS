@@ -13,6 +13,7 @@ import {
 } from '@/components/finance.js';
 import { formatMoney, parseMoney } from '@/components/format.js';
 import { messageOf, request } from '@/components/request.js';
+import { monthOf } from '@/lib/domain/dates.js';
 
 /** @typedef {import('@/lib/domain/types.js').Transaction} Transaction */
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
@@ -24,12 +25,41 @@ import { messageOf, request } from '@/components/request.js';
 const DIRECTIONS = ['out', 'in', 'transfer'];
 
 /**
- * @typedef {object} PickerProps
+ * What the form and the panel are given.
+ *
+ * @typedef {object} PanelProps
  * @property {FinanceAccount[]} accounts every account
  * @property {FinanceCategory[]} categories every category
- * @property {string} todayKey
  * @property {FinancesPlace} place
  */
+
+/**
+ * The accounts money can be recorded on: those valued by balance -- a
+ * holding is valued by its trades and ignores transactions, so it is only
+ * ever the other end of a transfer. Open ones first; an archived one stays
+ * on offer for a movement dated before it closed, and the store refuses a
+ * later one with its reason.
+ *
+ * @param {FinanceAccount[]} accounts
+ * @returns {FinanceAccount[]}
+ */
+function movableAccounts(accounts) {
+  const byBalance = accounts.filter((account) => account.valuation === 'balance');
+  return [...byBalance.filter((account) => account.archivedOn === null), ...byBalance.filter((account) => account.archivedOn !== null)];
+}
+
+/**
+ * The other end a transfer can have: any account but the first one, open
+ * ones first.
+ *
+ * @param {FinanceAccount[]} accounts
+ * @param {string} accountId
+ * @returns {FinanceAccount[]}
+ */
+function counterAccounts(accounts, accountId) {
+  const others = accounts.filter((account) => account.id !== accountId);
+  return [...others.filter((account) => account.archivedOn === null), ...others.filter((account) => account.archivedOn !== null)];
+}
 
 /**
  * The Finances screen's movement form (#134), shown in the side panel when
@@ -39,12 +69,12 @@ const DIRECTIONS = ['out', 'in', 'transfer'];
  * euros and stored as exact cents. A movement dated in another month opens
  * that month, so what you just recorded is in front of you.
  *
- * @param {PickerProps} props
+ * @param {PanelProps & { todayKey: string }} props
  */
 export function FinanceMovementForm({ accounts, categories, todayKey, place }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const movable = accounts.filter((account) => account.archivedOn === null && account.valuation === 'balance');
+  const movable = movableAccounts(accounts);
   const [direction, setDirection] = useState(/** @type {Direction} */ ('out'));
   const [date, setDate] = useState(todayKey);
   const [amount, setAmount] = useState('');
@@ -88,8 +118,8 @@ export function FinanceMovementForm({ accounts, categories, todayKey, place }) {
       setNote('');
       setTags('');
       setNotCounted(false);
-      if (date.slice(0, 7) !== place.month) {
-        router.push(financesHref({ ...place, month: date.slice(0, 7) }), { scroll: false });
+      if (monthOf(date) !== place.month) {
+        router.push(financesHref({ ...place, month: monthOf(date) }), { scroll: false });
       }
     } catch (caught) {
       setError(messageOf(caught));
@@ -143,13 +173,17 @@ export function FinanceMovementForm({ accounts, categories, todayKey, place }) {
                 label={direction === 'transfer' ? 'From' : 'Account'}
                 accounts={movable}
                 value={accountId}
-                onChange={setAccountId}
+                onChange={(id) => {
+                  setAccountId(id);
+                  // A transfer from an account to itself moves nothing.
+                  if (id === counterAccountId) setCounterAccountId('');
+                }}
               />
               {direction === 'transfer' ? (
                 <AccountPicker
                   id="m-counter"
                   label="To"
-                  accounts={accounts.filter((account) => account.archivedOn === null && account.id !== accountId)}
+                  accounts={counterAccounts(accounts, accountId)}
                   value={counterAccountId}
                   onChange={setCounterAccountId}
                   placeholder="Choose an account"
@@ -203,6 +237,7 @@ export function FinanceMovementForm({ accounts, categories, todayKey, place }) {
  */
 function editable(transaction) {
   return {
+    signed: transaction.amount,
     direction: directionOf(transaction),
     date: transaction.date,
     amount: formatMoney(Math.abs(transaction.amount), { cents: true }),
@@ -233,7 +268,7 @@ function editable(transaction) {
  *
  * Mounted with `key={transaction.id}`, so selecting another starts clean.
  *
- * @param {PickerProps & { transaction: Transaction }} props
+ * @param {PanelProps & { transaction: Transaction }} props
  */
 export default function FinanceTransactionDetail({ transaction, accounts, categories, place }) {
   const router = useRouter();
@@ -273,10 +308,12 @@ export default function FinanceTransactionDetail({ transaction, accounts, catego
   /**
    * @param {Record<string, unknown>} body what the route receives
    * @param {Partial<ReturnType<typeof editable>>} shown what the fields show meanwhile
+   * @returns {Promise<boolean>} whether it was saved
    */
   async function save(body, shown) {
     setDraft((current) => ({ ...current, ...shown }));
     setError(null);
+    let ok = true;
     try {
       await request(transactionUrl(transaction.id), {
         method: 'PATCH',
@@ -288,8 +325,10 @@ export default function FinanceTransactionDetail({ transaction, accounts, catego
       setError(messageOf(caught));
       setDraft(saved);
       setNeedsResync(true);
+      ok = false;
     }
     startTransition(() => router.refresh());
+    return ok;
   }
 
   /** @param {'description' | 'note'} field */
@@ -330,13 +369,18 @@ export default function FinanceTransactionDetail({ transaction, accounts, catego
       return;
     }
     // A transfer keeps the sign it has; a movement takes its direction's.
-    const sign = draft.direction === 'transfer' ? Math.sign(transaction.amount) : signedAmount(draft.direction, 1);
-    save({ amount: sign * Math.abs(minor) }, { amount: shown });
+    const sign = draft.direction === 'transfer' ? Math.sign(saved.signed) : signedAmount(draft.direction, 1);
+    const signed = sign * Math.abs(minor);
+    save({ amount: signed }, { amount: shown, signed });
   }
 
-  function commitDate() {
+  async function commitDate() {
     if (draft.date === saved.date) return;
-    save({ date: draft.date }, { date: draft.date });
+    const date = draft.date;
+    // Moved to another month, it is followed there, still selected.
+    if ((await save({ date }, { date })) && monthOf(date) !== place.month) {
+      router.push(financesHref({ ...place, month: monthOf(date) }), { scroll: false });
+    }
   }
 
   /** @param {Direction} direction */
@@ -347,10 +391,10 @@ export default function FinanceTransactionDetail({ transaction, accounts, catego
       setDraft((current) => ({ ...current, direction, counterAccountId: '' }));
       return;
     }
-    const magnitude = Math.abs(transaction.amount);
+    const signed = signedAmount(direction, Math.abs(saved.signed));
     save(
-      { amount: signedAmount(direction, magnitude), ...(saved.direction === 'transfer' ? { counterAccountId: null } : {}) },
-      { direction, counterAccountId: '' }
+      { amount: signed, ...(saved.direction === 'transfer' ? { counterAccountId: null } : {}) },
+      { direction, counterAccountId: '', signed }
     );
   }
 
@@ -383,10 +427,7 @@ export default function FinanceTransactionDetail({ transaction, accounts, catego
     }
   };
 
-  const fromHere = transaction.amount < 0;
-  const otherAccounts = accounts.filter(
-    (account) => account.id !== draft.accountId && (account.archivedOn === null || account.id === draft.counterAccountId)
-  );
+  const fromHere = saved.signed < 0;
 
   return (
     <aside id="card-finance-transaction" className="card">
@@ -432,7 +473,7 @@ export default function FinanceTransactionDetail({ transaction, accounts, catego
           <AccountPicker
             id="t-account"
             label={draft.direction !== 'transfer' ? 'Account' : fromHere ? 'From' : 'To'}
-            accounts={accounts.filter((account) => account.archivedOn === null || account.id === draft.accountId)}
+            accounts={movableAccounts(accounts).filter((account) => account.id !== draft.counterAccountId)}
             value={draft.accountId}
             onChange={(accountId) => save({ accountId }, { accountId })}
           />
@@ -440,7 +481,7 @@ export default function FinanceTransactionDetail({ transaction, accounts, catego
             <AccountPicker
               id="t-counter"
               label={fromHere ? 'To' : 'From'}
-              accounts={otherAccounts}
+              accounts={counterAccounts(accounts, draft.accountId)}
               value={draft.counterAccountId}
               placeholder="Choose an account"
               onChange={(counterAccountId) => save({ counterAccountId }, { counterAccountId, categoryId: '', direction: 'transfer' })}
@@ -550,7 +591,7 @@ function AccountPicker({ id, label, accounts, value, onChange, placeholder }) {
         )}
         {accounts.map((account) => (
           <option key={account.id} value={account.id}>
-            {account.name}
+            {account.archivedOn === null ? account.name : account.name + ' (archived)'}
           </option>
         ))}
       </select>

@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
-import { financesHref } from '@/components/finance.js';
+import { financesHref, transferEnds } from '@/components/finance.js';
 import { formatMoney, monthLabel, shortDate } from '@/components/format.js';
-import { shiftMonth } from '@/lib/domain/dates.js';
+import { monthOf, shiftMonth } from '@/lib/domain/dates.js';
 
 /** @typedef {import('@/lib/domain/types.js').Transaction} Transaction */
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
@@ -48,7 +48,7 @@ export default function FinanceTransactions({ transactions, accounts, categories
             ‹
           </Link>
           <span className="finance-month-label">{monthLabel(month)}</span>
-          {month < todayKey.slice(0, 7) && (
+          {month < monthOf(todayKey) && (
             <Link
               className="btn-ghost"
               scroll={false}
@@ -78,9 +78,6 @@ export default function FinanceTransactions({ transactions, accounts, categories
               {transactions.map((transaction) => {
                 const selected = transaction.id === place.transaction;
                 const transfer = transaction.counterAccountId !== null;
-                const [from, to] = transaction.amount < 0
-                  ? [transaction.accountId, transaction.counterAccountId]
-                  : [transaction.counterAccountId, transaction.accountId];
                 const category = categoryName(transaction.categoryId);
                 return (
                   <tr key={transaction.id} className={selected ? 'is-selected' : undefined}>
@@ -101,7 +98,7 @@ export default function FinanceTransactions({ transactions, accounts, categories
                     </td>
                     <td className="caption">
                       {transfer
-                        ? accountName(/** @type {string} */ (from)) + ' → ' + accountName(/** @type {string} */ (to))
+                        ? accountName(transferEnds(transaction).from) + ' → ' + accountName(transferEnds(transaction).to)
                         : accountName(transaction.accountId)}
                     </td>
                     <td className="num">{formatMoney(transfer ? Math.abs(transaction.amount) : transaction.amount, { cents: true })}</td>

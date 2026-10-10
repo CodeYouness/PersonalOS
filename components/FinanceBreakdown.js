@@ -1,15 +1,11 @@
 import Link from 'next/link';
 
-import { financesHref } from '@/components/finance.js';
+import { financesHref, KIND_LABELS } from '@/components/finance.js';
 import { changeClass } from '@/components/FinanceHistory.js';
 import { formatEuro, formatMoney, formatMoneyChange, shortDate } from '@/components/format.js';
 import { allocation } from '@/lib/domain/derive/finance.js';
 
 /** @typedef {import('@/lib/domain/derive/finance.js').AccountRow} AccountRow */
-
-/** How the table names a kind, as the mockup does: "invested", "debt". */
-/** @type {Record<import('@/lib/domain/types.js').FinanceAccount['kind'], string>} */
-export const KIND_LABELS = { cash: 'cash', investment: 'invested', asset: 'asset', liability: 'debt' };
 
 /** The allocation bar's parts, in order, with the mockup's colours. */
 const ALLOCATION_PARTS = {

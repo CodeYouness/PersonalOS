@@ -3,9 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
 
-import FinanceBalances, { accountUrl } from '@/components/FinanceBalances.js';
-import { financesHref } from '@/components/finance.js';
-import { KIND_LABELS } from '@/components/FinanceBreakdown.js';
+import { accountUrl, financesHref, KIND_LABELS } from '@/components/finance.js';
+import FinanceBalances from '@/components/FinanceBalances.js';
 import FinanceHoldings from '@/components/FinanceHoldings.js';
 import { shortDate } from '@/components/format.js';
 import { messageOf, request } from '@/components/request.js';
