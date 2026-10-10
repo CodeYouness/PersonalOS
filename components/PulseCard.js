@@ -5,13 +5,13 @@ import { changeClass } from '@/components/FinanceHistory.js';
 import { formatEuro, formatMoneyChange, shortDate } from '@/components/format.js';
 import { today } from '@/lib/domain/dates.js';
 import { financeOverview, sparkBars } from '@/lib/domain/derive/finance.js';
-import { getAccounts, getObservations, getPrices, getTrades } from '@/lib/store.js';
+import { getAccounts, getObservations, getPrices, getTrades, getTransactions } from '@/lib/store.js';
 
 /**
  * The Pulse card on Home (#119), in the slot the mockup reserves for Finance
  * pulse: net worth, the last twelve month-ends, and the change over 30 days
  * and over a year -- each hidden when there was no value that far back.
- * "As of" the newest balance or price it counts, never a clock time: a
+ * "As of" the newest balance, movement or price it counts, never a clock time: a
  * number updated last week must not look live. No Refresh -- there is
  * nothing to refresh from (rule 3). Read-only; Open goes to Finances.
  *
@@ -19,13 +19,14 @@ import { getAccounts, getObservations, getPrices, getTrades } from '@/lib/store.
  */
 export default async function PulseCard() {
   const todayKey = today();
-  const [accounts, observations, trades, prices] = await Promise.all([
+  const [accounts, observations, trades, prices, transactions] = await Promise.all([
     getAccounts(),
     getObservations({}),
     getTrades(),
     getPrices(),
+    getTransactions(),
   ]);
-  const overview = financeOverview({ accounts, observations, trades, prices }, todayKey);
+  const overview = financeOverview({ accounts, observations, trades, prices, transactions }, todayKey);
   const deltas = /** @type {const} */ ([
     ['30 days', overview.changes.days30],
     ['1 year', overview.changes.year],

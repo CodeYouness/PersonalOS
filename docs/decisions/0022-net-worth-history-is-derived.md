@@ -54,7 +54,7 @@ rates a past month was converted at, and that is the moment to write them.
 ## Consequences
 
 - Correcting or deleting a balance, a trade or a price corrects the history
-  too. That is the point: the past you see is the past you recorded.
+  too -- and, since ADR 0024, a transaction. That is the point: the past you see is the past you recorded.
 - The history costs a pass over the finance rows per month shown. At one
   person's volume that is nothing; if it ever is, cache it in the adapter,
   never in the data file.
