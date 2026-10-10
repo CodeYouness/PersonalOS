@@ -2,17 +2,16 @@ import Link from 'next/link';
 
 import { financesHref, transferEnds } from '@/components/finance.js';
 import { formatMoney, monthLabel, shortDate } from '@/components/format.js';
-import { monthOf, shiftMonth } from '@/lib/domain/dates.js';
 
 /** @typedef {import('@/lib/domain/types.js').Transaction} Transaction */
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
 /** @typedef {import('@/lib/domain/types.js').FinanceCategory} FinanceCategory */
 
 /**
- * The month's transactions on the Finances screen (#134), newest first. The
- * month is in the address, `?month=YYYY-MM`, so a reload keeps it; the
- * arrows step one month back or forward, never past today's. Each row opens
- * its panel by id (`?transaction=<id>`).
+ * The month's transactions on the Finances screen (#134), newest first --
+ * the month picked in the Income & spending section above, and with a line
+ * selected there (#137), only the transactions in it, with a way back to
+ * all of them. Each row opens its panel by id (`?transaction=<id>`).
  *
  * A transfer reads "from → to" and has no category; a not-counted movement
  * says so. A movement's amount is signed from its account's side, the way
@@ -23,46 +22,35 @@ import { monthOf, shiftMonth } from '@/lib/domain/dates.js';
  *   transactions: Transaction[],
  *   accounts: FinanceAccount[],
  *   categories: FinanceCategory[],
+ *   lineName: string | null,
  *   month: string,
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceTransactions({ transactions, accounts, categories, month, todayKey, place }) {
+export default function FinanceTransactions({ transactions, accounts, categories, lineName, month, todayKey, place }) {
   /** @param {string} id */
   const accountName = (id) => accounts.find((account) => account.id === id)?.name ?? 'an account that no longer exists';
   /** @param {string | null} id */
   const categoryName = (id) => categories.find((category) => category.id === id)?.name ?? null;
 
   return (
-    <article id="card-finance-transactions" className="card span-7">
+    <article id="card-finance-transactions" className="card">
       <div className="card-head">
-        <span className="eyebrow">Transactions</span>
-        <nav className="finance-month" aria-label="Month">
-          <Link
-            className="btn-ghost"
-            scroll={false}
-            aria-label="Previous month"
-            href={financesHref({ ...place, month: shiftMonth(month, -1), transaction: null })}
-          >
-            ‹
+        <span className="eyebrow">
+          Transactions{lineName === null ? '' : ' · ' + lineName}
+        </span>
+        {lineName !== null && (
+          <Link className="btn-ghost" scroll={false} href={financesHref({ ...place, category: null, transaction: null })}>
+            Show all
           </Link>
-          <span className="finance-month-label">{monthLabel(month)}</span>
-          {month < monthOf(todayKey) && (
-            <Link
-              className="btn-ghost"
-              scroll={false}
-              aria-label="Next month"
-              href={financesHref({ ...place, month: shiftMonth(month, 1), transaction: null })}
-            >
-              ›
-            </Link>
-          )}
-        </nav>
+        )}
       </div>
       <div className="card-body">
         {transactions.length === 0 ? (
-          <p className="caption">Nothing recorded in {monthLabel(month)}.</p>
+          <p className="caption">
+            Nothing recorded {lineName === null ? '' : 'in ' + lineName + ' '}in {monthLabel(month)}.
+          </p>
         ) : (
           <table className="finance-table">
             <thead>

@@ -1,11 +1,13 @@
 import FinanceAccountDetail, { FinanceAccountEmpty } from '@/components/FinanceAccountDetail.js';
 import FinanceBreakdown from '@/components/FinanceBreakdown.js';
 import FinanceCategories from '@/components/FinanceCategories.js';
+import FinanceFlows from '@/components/FinanceFlows.js';
+import { lineName } from '@/components/finance.js';
 import FinanceHistory from '@/components/FinanceHistory.js';
 import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
 import { isMonthKey, monthOf, monthRange, today } from '@/lib/domain/dates.js';
-import { financeOverview } from '@/lib/domain/derive/finance.js';
+import { financeOverview, flowMonths, lineHolds, monthFlows, savingsRate, yearFlows } from '@/lib/domain/derive/finance.js';
 import {
   getAccount,
   getAccounts,
@@ -35,12 +37,16 @@ export const dynamic = 'force-dynamic';
  * beside the list records a movement. The History card sits under the
  * account panel (#118), the Categories card (#136) under the movement one.
  *
- * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], transaction?: string | string[] }> }} props
+ * `?category=<line>` selects a line of the Income & spending section (#137)
+ * -- a category, or Uncategorised spending or income -- and lists that
+ * month's transactions it counts; one that no longer exists selects nothing. The month is one the section
+ * offers -- from the first transaction to today's -- and today's otherwise.
+ *
+ * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], transaction?: string | string[], category?: string | string[] }> }} props
  */
 export default async function FinancesScreen({ searchParams }) {
-  const { account: accountParam, month: monthParam, transaction: transactionParam } = await searchParams;
+  const { account: accountParam, month: monthParam, transaction: transactionParam, category: categoryParam } = await searchParams;
   const todayKey = today();
-  const month = isMonthKey(monthParam) ? /** @type {string} */ (monthParam) : monthOf(todayKey);
   const [accounts, observations, trades, prices, selected, profile, transactions, selectedTransaction] = await Promise.all([
     getAccounts(),
     getObservations({}),
@@ -52,16 +58,23 @@ export default async function FinancesScreen({ searchParams }) {
     typeof transactionParam === 'string' ? getTransaction(transactionParam) : null,
   ]);
   const overview = financeOverview({ accounts, observations, trades, prices, transactions }, todayKey);
+  const categories = profile.financeCategories;
+  const months = flowMonths(transactions, todayKey);
+  const month = isMonthKey(monthParam) && months.includes(/** @type {string} */ (monthParam)) ? /** @type {string} */ (monthParam) : monthOf(todayKey);
+  const category = typeof categoryParam === 'string' && lineName(categoryParam, categories) !== null ? categoryParam : null;
   const { from, to } = monthRange(month);
-  const monthTransactions = transactions.filter((transaction) => transaction.date >= from && transaction.date <= to);
+  const monthTransactions = transactions.filter(
+    (transaction) => transaction.date >= from && transaction.date <= to && (category === null || lineHolds(transaction, category, categories))
+  );
+  const flows = monthFlows(transactions, categories, month);
+
   /** @type {<T extends { accountId: string, date: string }>(rows: T[]) => T[]} */
   const ofSelected = (rows) =>
     selected === null
       ? []
       : rows.filter((row) => row.accountId === selected.id).sort((a, b) => b.date.localeCompare(a.date));
   /** @type {import('@/components/finance.js').FinancesPlace} */
-  const place = { account: selected?.id ?? null, month, transaction: selectedTransaction?.id ?? null };
-  const categories = profile.financeCategories;
+  const place = { account: selected?.id ?? null, month, category, transaction: selectedTransaction?.id ?? null };
 
   return (
     <section id="screen-finances" className="screen is-active">
@@ -88,14 +101,26 @@ export default async function FinancesScreen({ searchParams }) {
           )}
           <FinanceHistory history={overview.history} />
         </div>
-        <FinanceTransactions
-          transactions={monthTransactions}
-          accounts={accounts}
-          categories={categories}
-          month={month}
-          todayKey={todayKey}
-          place={place}
-        />
+        <div className="finance-side span-7">
+          <FinanceFlows
+            key={month}
+            flows={flows}
+            monthRate={savingsRate(flows)}
+            yearRate={savingsRate(yearFlows(transactions, categories, month))}
+            months={months}
+            month={month}
+            place={place}
+          />
+          <FinanceTransactions
+            transactions={monthTransactions}
+            accounts={accounts}
+            categories={categories}
+            lineName={category === null ? null : lineName(category, categories)}
+            month={month}
+            todayKey={todayKey}
+            place={place}
+          />
+        </div>
         <div className="finance-side span-5">
           {selectedTransaction === null ? (
             <FinanceMovementForm accounts={accounts} categories={categories} todayKey={todayKey} place={place} />

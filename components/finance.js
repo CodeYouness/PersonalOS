@@ -1,3 +1,4 @@
+import { UNCATEGORISED_INCOME, UNCATEGORISED_SPENDING } from '@/lib/domain/derive/finance.js';
 import { CATEGORY_KINDS } from '@/personalos.config.js';
 
 /**
@@ -14,10 +15,26 @@ import { CATEGORY_KINDS } from '@/personalos.config.js';
  * @property {string | null} [account]
  * @property {string | null} [month] YYYY-MM
  * @property {string | null} [transaction]
+ * @property {string | null} [category] a line of the month: a category id,
+ *   or one of the Uncategorised lines (lib/domain/derive/finance.js)
  */
 
 /** @type {(keyof FinancesPlace)[]} */
-const PLACE_KEYS = ['account', 'month', 'transaction'];
+const PLACE_KEYS = ['account', 'month', 'category', 'transaction'];
+
+/**
+ * A line of the month as a heading names it: a category's name, or
+ * "Uncategorised" with its direction. Null for a line that does not exist.
+ *
+ * @param {string} line
+ * @param {import('@/lib/domain/types.js').FinanceCategory[]} categories
+ * @returns {string | null}
+ */
+export function lineName(line, categories) {
+  if (line === UNCATEGORISED_SPENDING) return 'Uncategorised spending';
+  if (line === UNCATEGORISED_INCOME) return 'Uncategorised income';
+  return categories.find((category) => category.id === line)?.name ?? null;
+}
 
 /**
  * A Finances address. One place builds them, so selecting an account keeps

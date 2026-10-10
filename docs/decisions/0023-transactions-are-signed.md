@@ -73,8 +73,8 @@ v13 puts every existing category at the top level, not a fixed cost.
 ## Consequences
 
 - A refund reduces the spending it belongs to, and a chargeback reduces
-  income, once the category's kind decides (#137). Until then a flow counts
-  by its sign.
+  income: the category's kind decides (#137). Uncategorised money counts by
+  its sign.
 - "Is this a transfer" has one answer, in one field.
 - A user can recognise an imported line as a transfer, and a re-import keeps
   it.

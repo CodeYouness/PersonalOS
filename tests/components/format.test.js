@@ -6,6 +6,8 @@ import {
   formatEuro,
   formatMoney,
   formatMoneyChange,
+  formatPercentChange,
+  formatRate,
   formatUnits,
   formatWeight,
   monthLabel,
@@ -143,5 +145,28 @@ describe('monthLabel', () => {
   it('names a month as a heading does', () => {
     expect(monthLabel('2026-01')).toBe('January 2026');
     expect(monthLabel('2025-12')).toBe('December 2025');
+  });
+});
+
+describe('formatPercentChange', () => {
+  it('signs a change as a whole percent, with a real minus', () => {
+    expect(formatPercentChange(0.25)).toBe('+25%');
+    expect(formatPercentChange(-1)).toBe('−100%');
+    expect(formatPercentChange(0.001)).toBe('0%');
+  });
+
+  it('says "n.d." when there was nothing to compare with', () => {
+    expect(formatPercentChange(null)).toBe('n.d.');
+  });
+});
+
+describe('formatRate', () => {
+  it('shows a rate as a whole percent, a negative one with a real minus', () => {
+    expect(formatRate(0.254)).toBe('25%');
+    expect(formatRate(-0.25)).toBe('−25%');
+  });
+
+  it('leaves a rate that means nothing blank', () => {
+    expect(formatRate(null)).toBe('—');
   });
 });
