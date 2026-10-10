@@ -140,14 +140,16 @@ export function slippedLabel(period, horizon) {
 }
 
 /**
- * A 0..1 ratio as whole percent. One implementation, so the habits ring and
- * a history row's rate can never round the same number differently.
+ * A ratio as whole percent, a negative one with a real minus. One
+ * implementation, so the habits ring, a history row's rate and a savings
+ * rate can never round the same number differently.
  *
  * @param {number} ratio
  * @returns {string}
  */
 export function percent(ratio) {
-  return Math.round(ratio * 100) + '%';
+  const whole = Math.round(ratio * 100);
+  return (whole < 0 ? MINUS : '') + Math.abs(whole) + '%';
 }
 
 /**
@@ -261,9 +263,7 @@ export function formatPercentChange(ratio) {
  * @returns {string}
  */
 export function formatRate(ratio) {
-  if (ratio === null) return '—';
-  const whole = Math.round(ratio * 100);
-  return (whole < 0 ? MINUS : '') + Math.abs(whole) + '%';
+  return ratio === null ? '—' : percent(ratio);
 }
 
 /**

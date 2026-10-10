@@ -23,16 +23,16 @@ import { formatMoney, monthLabel, shortDate } from '@/components/format.js';
  *   accounts: FinanceAccount[],
  *   categories: FinanceCategory[],
  *   lineName: string | null,
+ *   month: string,
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceTransactions({ transactions, accounts, categories, lineName, todayKey, place }) {
+export default function FinanceTransactions({ transactions, accounts, categories, lineName, month, todayKey, place }) {
   /** @param {string} id */
   const accountName = (id) => accounts.find((account) => account.id === id)?.name ?? 'an account that no longer exists';
   /** @param {string | null} id */
   const categoryName = (id) => categories.find((category) => category.id === id)?.name ?? null;
-  const month = /** @type {string} */ (place.month);
 
   return (
     <article id="card-finance-transactions" className="card">

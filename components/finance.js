@@ -1,3 +1,4 @@
+import { UNCATEGORISED_INCOME, UNCATEGORISED_SPENDING } from '@/lib/domain/derive/finance.js';
 import { CATEGORY_KINDS } from '@/personalos.config.js';
 
 /**
@@ -14,29 +15,25 @@ import { CATEGORY_KINDS } from '@/personalos.config.js';
  * @property {string | null} [account]
  * @property {string | null} [month] YYYY-MM
  * @property {string | null} [transaction]
- * @property {string | null} [category] a category id, or UNCATEGORISED
+ * @property {string | null} [category] a line of the month: a category id,
+ *   or one of the Uncategorised lines (lib/domain/derive/finance.js)
  */
 
 /** @type {(keyof FinancesPlace)[]} */
 const PLACE_KEYS = ['account', 'month', 'category', 'transaction'];
 
-/** The address's name for the Uncategorised line (#137). */
-export const UNCATEGORISED = 'uncategorised';
-
 /**
- * Whether a transaction belongs to the line selected in the Income &
- * spending section (#137): filed on the category or, for a parent, on one of
- * its subcategories; for the Uncategorised line, a flow filed on none.
+ * A line of the month as a heading names it: a category's name, or
+ * "Uncategorised" with its direction. Null for a line that does not exist.
  *
- * @param {import('@/lib/domain/types.js').Transaction} transaction
- * @param {string} category a category id, or UNCATEGORISED
+ * @param {string} line
  * @param {import('@/lib/domain/types.js').FinanceCategory[]} categories
- * @returns {boolean}
+ * @returns {string | null}
  */
-export function inLine(transaction, category, categories) {
-  if (category === UNCATEGORISED) return transaction.categoryId === null && transaction.counterAccountId === null;
-  if (transaction.categoryId === category) return true;
-  return categories.some((row) => row.id === transaction.categoryId && row.parentId === category);
+export function lineName(line, categories) {
+  if (line === UNCATEGORISED_SPENDING) return 'Uncategorised spending';
+  if (line === UNCATEGORISED_INCOME) return 'Uncategorised income';
+  return categories.find((category) => category.id === line)?.name ?? null;
 }
 
 /**

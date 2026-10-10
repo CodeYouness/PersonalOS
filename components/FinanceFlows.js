@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { financesHref, UNCATEGORISED } from '@/components/finance.js';
+import { financesHref } from '@/components/finance.js';
 import { formatEuro, formatMoney, formatMoneyChange, formatPercentChange, formatRate, monthLabel, percent } from '@/components/format.js';
 
 /** @typedef {import('@/lib/domain/derive/finance.js').CategoryFlow} CategoryFlow */
@@ -17,8 +17,9 @@ import { formatEuro, formatMoney, formatMoneyChange, formatPercentChange, format
  * with it, blank without income; fixed vs variable spending; and a table per
  * kind of category, each with its share of the month and its change from
  * the month before. Parents open into their subcategories. Selecting a line
- * (`?category=<id>`, or `uncategorised`) lists that month's transactions in
- * it below. The month is picked here, `?month=YYYY-MM`.
+ * (`?category=<line>`) lists the month's transactions it counts below.
+ * Uncategorised money is a line of its own in each table. The month is
+ * picked here, `?month=YYYY-MM`.
  *
  * Read-only, and loading it calls neither the model nor an integration.
  *
@@ -27,12 +28,12 @@ import { formatEuro, formatMoney, formatMoneyChange, formatPercentChange, format
  *   monthRate: number | null,
  *   yearRate: number | null,
  *   months: string[],
+ *   month: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceFlows({ flows, monthRate, yearRate, months, place }) {
+export default function FinanceFlows({ flows, monthRate, yearRate, months, month, place }) {
   const router = useRouter();
-  const month = /** @type {string} */ (place.month);
 
   return (
     <article id="card-finance-flows" className="card">
@@ -62,18 +63,15 @@ export default function FinanceFlows({ flows, monthRate, yearRate, months, place
           <Figure label="Saved over 12 months" value={formatRate(yearRate)} />
         </div>
         <p className="caption finance-fixed">
-          Fixed <span className="num">{formatEuro(flows.fixed)}</span> · Variable{' '}
-          <span className="num">{formatEuro(flows.variable)}</span>
+          Fixed <span className="num">{formatEuro(flows.fixed, { cents: true })}</span> · Variable{' '}
+          <span className="num">{formatEuro(flows.variable, { cents: true })}</span>
         </p>
 
-        <FlowTable
-          title="Spending"
-          lines={flows.spendingCategories}
-          uncategorised={flows.uncategorised.spending}
-          place={place}
-        />
-        <FlowTable title="Income" lines={flows.incomeCategories} uncategorised={flows.uncategorised.income} place={place} />
-        {flows.spendingCategories.length === 0 && flows.incomeCategories.length === 0 && flows.income === 0 && flows.spending === 0 && (
+        <FlowTable title="Spending" lines={flows.spendingCategories} uncategorised={flows.uncategorisedSpending} place={place} />
+        <FlowTable title="Income" lines={flows.incomeCategories} uncategorised={flows.uncategorisedIncome} place={place} />
+        {[...flows.spendingCategories, ...flows.incomeCategories, flows.uncategorisedSpending, flows.uncategorisedIncome].every(
+          (line) => line.total === 0 && line.previous === 0
+        ) && (
           <p className="caption">Nothing came in or went out in {monthLabel(month)}.</p>
         )}
       </div>
@@ -98,7 +96,7 @@ function Figure({ label, value }) {
  * @param {{
  *   title: string,
  *   lines: CategoryFlow[],
- *   uncategorised: number,
+ *   uncategorised: CategoryFlow,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
@@ -106,7 +104,8 @@ function FlowTable({ title, lines, uncategorised, place }) {
   const [open, setOpen] = useState(
     () => new Set(lines.filter((line) => line.children.some((child) => child.id === place.category)).map((line) => line.id))
   );
-  if (lines.length === 0 && uncategorised === 0) return null;
+  const showUncategorised = uncategorised.total !== 0 || uncategorised.previous !== 0;
+  if (lines.length === 0 && !showUncategorised) return null;
 
   /** @param {string} id */
   const toggle = (id) =>
@@ -141,23 +140,7 @@ function FlowTable({ title, lines, uncategorised, place }) {
             ? line.children.map((child) => <FlowRow key={child.id} line={child} place={place} child />)
             : []),
         ])}
-        {uncategorised !== 0 && (
-          <tr className={place.category === UNCATEGORISED ? 'is-selected' : undefined}>
-            <td>
-              <Link
-                href={financesHref({ ...place, category: UNCATEGORISED, transaction: null })}
-                scroll={false}
-                className="finance-account-link caption"
-              >
-                Uncategorised
-              </Link>
-            </td>
-            <td className="num">{formatMoney(uncategorised, { cents: true })}</td>
-            <td />
-            <td />
-            <td />
-          </tr>
-        )}
+        {showUncategorised && <FlowRow line={uncategorised} place={place} />}
       </tbody>
     </table>
   );

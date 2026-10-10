@@ -6,10 +6,13 @@ import {
   financeOverview,
   firstDayUnitsGoNegative,
   flowMonths,
+  lineHolds,
   monthFlows,
   netWorthOn,
   savingsRate,
   sparkBars,
+  UNCATEGORISED_INCOME,
+  UNCATEGORISED_SPENDING,
   yearFlows,
 } from '@/lib/domain/derive/finance.js';
 
@@ -608,9 +611,32 @@ describe("a month's flows (#137)", () => {
   it('counts uncategorised money by its sign, on a line of its own', () => {
     const flows = monthFlows([t('2026-03-02', -1840, null), t('2026-03-03', 5000, null), t('2026-03-04', -160, null)], categories, '2026-03');
 
-    expect(flows.uncategorised).toEqual({ spending: 2000, income: 5000 });
+    expect(flows.uncategorisedSpending).toMatchObject({ id: UNCATEGORISED_SPENDING, total: 2000, share: 1 });
+    expect(flows.uncategorisedIncome).toMatchObject({ id: UNCATEGORISED_INCOME, total: 5000, share: 1 });
     expect(flows.spending).toBe(2000);
     expect(flows.income).toBe(5000);
+  });
+
+  it('gives the Uncategorised lines a change from the previous month too', () => {
+    const flows = monthFlows([t('2026-02-02', -1000, null), t('2026-03-02', -1500, null)], categories, '2026-03');
+
+    expect(flows.uncategorisedSpending).toMatchObject({ previous: 1000, change: 500, changeRatio: 0.5 });
+  });
+
+  it('measures a change against the size of a negative previous month, not its sign', () => {
+    // Last month was a net refund of 30; this month 100 was spent.
+    const flows = monthFlows([t('2026-02-10', 3000, 'cat_shopping'), t('2026-03-10', -10000, 'cat_shopping')], categories, '2026-03');
+
+    expect(flows.spendingCategories.find((row) => row.id === 'cat_shopping')).toMatchObject({ previous: -3000, change: 13000 });
+    expect(flows.spendingCategories.find((row) => row.id === 'cat_shopping')?.changeRatio).toBeCloseTo(13000 / 3000);
+  });
+
+  it('keeps a parent whose subcategories cancel out, so they can still be opened', () => {
+    const flows = monthFlows([t('2026-03-01', -5000, 'cat_rent'), t('2026-03-02', 5000, 'cat_repairs')], categories, '2026-03');
+
+    const home = flows.spendingCategories.find((row) => row.id === 'cat_home');
+    expect(home?.total).toBe(0);
+    expect(home?.children.map((row) => row.id)).toEqual(['cat_rent', 'cat_repairs']);
   });
 
   it('leaves out transfers and not-counted transactions, and other months', () => {
@@ -672,6 +698,29 @@ describe("a month's flows (#137)", () => {
     // Repairs sits under a fixed parent and is still variable; so is uncategorised spending.
     expect(flows.fixed).toBe(90000);
     expect(flows.variable).toBe(7000);
+  });
+});
+
+describe("which transactions a line of the month holds (#137)", () => {
+  /** @returns {any} */
+  const category = (/** @type {any} */ o) => ({ name: o.id, kind: null, parentId: null, fixedCost: false, archived: false, ...o });
+  const categories = [category({ id: 'cat_home', kind: 'expense' }), category({ id: 'cat_rent', parentId: 'cat_home' })];
+
+  it('holds a category\'s flows and, for a parent, its subcategories\'', () => {
+    expect(lineHolds(transaction({ amount: -100, categoryId: 'cat_rent' }), 'cat_home', categories)).toBe(true);
+    expect(lineHolds(transaction({ amount: -100, categoryId: 'cat_rent' }), 'cat_rent', categories)).toBe(true);
+    expect(lineHolds(transaction({ amount: -100, categoryId: 'cat_home' }), 'cat_rent', categories)).toBe(false);
+  });
+
+  it('holds nothing its total leaves out: no transfer, nothing not counted', () => {
+    expect(lineHolds(transaction({ amount: -100, categoryId: 'cat_home', notCounted: true }), 'cat_home', categories)).toBe(false);
+    expect(lineHolds(transaction({ amount: -100, counterAccountId: 'account_y' }), UNCATEGORISED_SPENDING, categories)).toBe(false);
+  });
+
+  it('splits uncategorised money by its direction, a missing category counting as none', () => {
+    expect(lineHolds(transaction({ amount: -100 }), UNCATEGORISED_SPENDING, categories)).toBe(true);
+    expect(lineHolds(transaction({ amount: -100 }), UNCATEGORISED_INCOME, categories)).toBe(false);
+    expect(lineHolds(transaction({ amount: 100, categoryId: 'cat_gone' }), UNCATEGORISED_INCOME, categories)).toBe(true);
   });
 });
 
