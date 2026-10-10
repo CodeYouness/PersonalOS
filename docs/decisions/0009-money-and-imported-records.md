@@ -30,12 +30,19 @@ concern and happens in one module.
 | --- | --- |
 | date, amount, currency, description, accountId, kind, origin | categoryId, note, links |
 
+**Amended by [0023](0023-transactions-are-signed.md).** `kind` is gone and
+the amount is signed; `counterAccountId`, `notCounted` and `tags` are yours.
+The table now reads: source owns date, amount, currency, description,
+accountId, origin; you own categoryId, counterAccountId, notCounted, tags,
+note, links.
+
 `upsertTransactionByOrigin()` rewrites the left column and never touches the
 right one. Matching is by the pair `(origin.source, origin.externalId)`, which
 also makes re-running an import idempotent rather than duplicating.
 
-Related and enforced in the same place: a `transfer` requires its
-`counterAccountId`, and every aggregation excludes transfers. Money moved
+Related and enforced in the same place: a transfer requires its
+`counterAccountId` (since ADR 0023, it is one exactly when that is set), and
+every aggregation excludes transfers. Money moved
 between two accounts you own is neither income nor spending, and counting it
 doubles the month.
 

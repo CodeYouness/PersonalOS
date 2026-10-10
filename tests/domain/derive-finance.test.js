@@ -41,7 +41,7 @@ const UNIT = 100_000_000;
 /** @returns {any} */
 const transaction = (/** @type {any} */ o) => ({
   id: 'transaction_x', date: '2026-01-05', amount: 0, currency: 'EUR', description: '',
-  kind: 'expense', accountId: 'account_x', counterAccountId: null, categoryId: null, note: '',
+  accountId: 'account_x', counterAccountId: null, categoryId: null, notCounted: false, tags: [], note: '',
   origin: null, createdAt: '', updatedAt: '', source: 'user', ...o,
 });
 
@@ -109,9 +109,9 @@ describe('flows', () => {
     // Counting a move between your own accounts doubles the month, and the
     // number looks plausible enough that you would believe it.
     const transactions = [
-      transaction({ kind: 'income', amount: 250000 }),
-      transaction({ kind: 'expense', amount: 95000 }),
-      transaction({ kind: 'transfer', amount: 100000, counterAccountId: 'account_y' }),
+      transaction({ amount: 250000 }),
+      transaction({ amount: -95000 }),
+      transaction({ amount: -100000, counterAccountId: 'account_y' }),
     ];
 
     const totals = periodTotals(transactions, '2026-01-01', '2026-01-31');
@@ -121,11 +121,27 @@ describe('flows', () => {
     expect(totals.count).toBe(2);
   });
 
+  it('excludes what is not counted: it moves a balance, not the month', () => {
+    const transactions = [
+      transaction({ amount: -95000 }),
+      transaction({ amount: 40000, notCounted: true }),
+      transaction({ amount: -3000, notCounted: true }),
+    ];
+
+    expect(periodTotals(transactions, '2026-01-01', '2026-01-31')).toEqual({ income: 0, expense: 95000, net: -95000, count: 1 });
+  });
+
+  it('counts a flow by its sign: negative is spending, positive is income', () => {
+    const transactions = [transaction({ amount: -1840 }), transaction({ amount: 3000 }), transaction({ amount: -160 })];
+
+    expect(periodTotals(transactions, '2026-01-01', '2026-01-31')).toEqual({ income: 3000, expense: 2000, net: 1000, count: 3 });
+  });
+
   it('stays inside the period', () => {
     const transactions = [
-      transaction({ kind: 'expense', amount: 100, date: '2025-12-31' }),
-      transaction({ kind: 'expense', amount: 200, date: '2026-01-01' }),
-      transaction({ kind: 'expense', amount: 400, date: '2026-02-01' }),
+      transaction({ amount: -100, date: '2025-12-31' }),
+      transaction({ amount: -200, date: '2026-01-01' }),
+      transaction({ amount: -400, date: '2026-02-01' }),
     ];
 
     expect(periodTotals(transactions, '2026-01-01', '2026-01-31').expense).toBe(200);
@@ -133,23 +149,22 @@ describe('flows', () => {
 
   it('groups by category and shows what is not filed yet', () => {
     const transactions = [
-      transaction({ kind: 'expense', amount: 95000, categoryId: 'cat_rent' }),
-      transaction({ kind: 'expense', amount: 6250, categoryId: 'cat_groceries' }),
-      transaction({ kind: 'expense', amount: 3300, categoryId: 'cat_groceries' }),
-      transaction({ kind: 'expense', amount: 1200, categoryId: null }),
-      transaction({ kind: 'income', amount: 250000, categoryId: 'cat_consulting' }),
+      transaction({ amount: -95000, categoryId: 'cat_rent' }),
+      transaction({ amount: -6250, categoryId: 'cat_groceries' }),
+      transaction({ amount: -3300, categoryId: 'cat_groceries' }),
+      transaction({ amount: -1200, categoryId: null }),
+      transaction({ amount: 250000, categoryId: 'cat_consulting' }),
+      transaction({ amount: -50000, counterAccountId: 'account_y' }),
+      transaction({ amount: -700, categoryId: 'cat_groceries', notCounted: true }),
     ];
 
     const spending = totalsByCategory(transactions, 'expense', '2026-01-01', '2026-01-31');
-    expect(spending.cat_rent).toBe(95000);
-    expect(spending.cat_groceries).toBe(9550);
+    expect(spending).toEqual({ cat_rent: 95000, cat_groceries: 9550, '': 1200 });
     // Uncategorised is shown, not dropped: a total that silently omits what
     // you have not filed is worse than one that shows you the gap.
-    expect(spending['']).toBe(1200);
-    expect(spending.cat_consulting).toBeUndefined();
 
     const income = totalsByCategory(transactions, 'income', '2026-01-01', '2026-01-31');
-    expect(income.cat_consulting).toBe(250000);
+    expect(income).toEqual({ cat_consulting: 250000 });
   });
 });
 
