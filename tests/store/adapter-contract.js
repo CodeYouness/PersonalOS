@@ -1132,86 +1132,221 @@ export function runAdapterContract(label, load) {
         expect(overdraft.amount).toBe(-50000);
       });
 
-      it('requires the other side of a transfer', async () => {
-        const [account] = await store.getAccounts();
+      describe('transactions (ADR 0023)', () => {
+        /** Two fresh cash accounts, so nothing depends on the seed's. */
+        async function twoAccounts() {
+          const current = await store.createAccount({ name: 'Current', kind: 'cash' });
+          const savings = await store.createAccount({ name: 'Savings', kind: 'cash' });
+          return { current, savings };
+        }
 
-        // A transfer with one end is money vanishing.
-        await expect(
-          store.createTransaction({
-            date: '2026-04-02', amount: 10000, kind: 'transfer', accountId: account.id,
-          })
-        ).rejects.toThrow();
-      });
+        it('records a signed amount from the account\'s side, with notCounted false and no tags', async () => {
+          const { current } = await twoAccounts();
 
-      it('refuses a negative amount, because kind gives the direction', async () => {
-        const [account] = await store.getAccounts();
+          const spent = await store.createTransaction({ date: '2026-04-02', amount: -1840, accountId: current.id });
 
-        await expect(
-          store.createTransaction({
-            date: '2026-04-02', amount: -5000, kind: 'expense', accountId: account.id,
-          })
-        ).rejects.toThrow();
-      });
-
-      it('upserts an imported transaction without touching what you own', async () => {
-        const [account] = await store.getAccounts();
-        const origin = { source: 'xlsx', externalId: 'ROW-42', syncedAt: '2026-04-02T00:00:00.000Z' };
-
-        const imported = await store.createTransaction({
-          date: '2026-04-02', amount: 4500, kind: 'expense',
-          accountId: account.id, description: 'CAFE LISBOA', origin, source: 'integration',
-        });
-        // You classify it by hand inside PersonalOS.
-        await store.updateTransaction(imported.id, {
-          categoryId: 'cat_eating_out', note: 'with Marta',
+          expect(spent.amount).toBe(-1840);
+          expect(spent.counterAccountId).toBeNull();
+          expect(spent.notCounted).toBe(false);
+          expect(spent.tags).toEqual([]);
+          expect('kind' in spent).toBe(false);
         });
 
-        // Tomorrow the import runs again with a corrected amount.
-        const reimported = await store.upsertTransactionByOrigin({
-          date: '2026-04-02', amount: 4700, kind: 'expense',
-          accountId: account.id, description: 'CAFE LISBOA LDA', origin,
+        it('records a transfer as a transaction with a counter account', async () => {
+          const { current, savings } = await twoAccounts();
+
+          const moved = await store.createTransaction({
+            date: '2026-04-02', amount: -100000, accountId: current.id, counterAccountId: savings.id,
+          });
+
+          expect((await store.getTransactions()).find((t) => t.id === moved.id)?.counterAccountId).toBe(savings.id);
         });
 
-        expect(reimported.id).toBe(imported.id);
-        expect(reimported.amount).toBe(4700);
-        expect(reimported.description).toBe('CAFE LISBOA LDA');
-        // THIS is the assertion the whole two-zone design exists for.
-        expect(reimported.categoryId).toBe('cat_eating_out');
-        expect(reimported.note).toBe('with Marta');
-        expect(await store.getTransactions()).toHaveLength(
-          (await store.getTransactions()).length
-        );
-      });
+        it('keeps notCounted and tags, tags trimmed, lowercased and each once', async () => {
+          const { current } = await twoAccounts();
 
+          const kept = await store.createTransaction({
+            date: '2026-04-02', amount: 5000, accountId: current.id, notCounted: true, tags: ['Gift ', 'gift', 'family'],
+          });
+
+          expect(kept.notCounted).toBe(true);
+          expect(kept.tags).toEqual(['gift', 'family']);
+        });
+
+        it.each([
+          ['a zero amount', { amount: 0 }, /zero/],
+          ['an amount that is not whole cents', { amount: 18.4 }, /integer/],
+          ['a currency other than EUR', { currency: 'USD' }, /currency/],
+          ['a notCounted that is not a boolean', { notCounted: 'yes' }, /notCounted/],
+          ['a blank tag', { tags: ['  '] }, /tags/],
+          ['a description that is not text', { description: 42 }, /description/],
+        ])('refuses %s', async (_label, fields, reason) => {
+          const { current } = await twoAccounts();
+
+          await expect(
+            store.createTransaction({ date: '2026-04-02', amount: -500, accountId: current.id, ...fields })
+          ).rejects.toThrow(reason);
+        });
+
+        it('refuses a transfer from an account to itself', async () => {
+          const { current } = await twoAccounts();
+
+          await expect(
+            store.createTransaction({ date: '2026-04-02', amount: -500, accountId: current.id, counterAccountId: current.id })
+          ).rejects.toThrow(/itself/);
+        });
+
+        it('refuses a counter account that does not exist', async () => {
+          const { current } = await twoAccounts();
+
+          await expect(
+            store.createTransaction({ date: '2026-04-02', amount: -500, accountId: current.id, counterAccountId: 'account_nowhere' })
+          ).rejects.toThrow(/account/);
+        });
+
+        it('refuses a category on a transfer: money that did not leave you is not spending', async () => {
+          const { current, savings } = await twoAccounts();
+
+          await expect(
+            store.createTransaction({
+              date: '2026-04-02', amount: -500, accountId: current.id, counterAccountId: savings.id, categoryId: 'cat_rent',
+            })
+          ).rejects.toThrow(/transfer/);
+        });
+
+        it('refuses a transaction dated after either account was archived, and allows the day itself', async () => {
+          const { current, savings } = await twoAccounts();
+          await store.updateAccount(savings.id, { archived: true });
+          const archivedOn = today();
+
+          await expect(
+            store.createTransaction({ date: shiftDayKey(archivedOn, 1), amount: -500, accountId: savings.id })
+          ).rejects.toThrow(/archived/);
+          await expect(
+            store.createTransaction({
+              date: shiftDayKey(archivedOn, 1), amount: -500, accountId: current.id, counterAccountId: savings.id,
+            })
+          ).rejects.toThrow(/archived/);
+          // Closing an account moves its last money out on the day it closes.
+          await store.createTransaction({ date: archivedOn, amount: -500, accountId: savings.id, counterAccountId: current.id });
+        });
+
+        it('refuses archiving an account that has money moving after today', async () => {
+          // Archiving records today; a transaction dated later would then be
+          // money moving on a closed account, the thing the store refuses.
+          const { current, savings } = await twoAccounts();
+          await store.createTransaction({
+            date: shiftDayKey(today(), 3), amount: -500, accountId: current.id, counterAccountId: savings.id,
+          });
+
+          await expect(store.updateAccount(savings.id, { archived: true })).rejects.toThrow(/after/);
+          expect((await store.getAccount(savings.id))?.archivedOn).toBeNull();
+        });
+
+        it('turns a movement into a transfer by its counter account, clearing its category', async () => {
+          const { current, savings } = await twoAccounts();
+          const spent = await store.createTransaction({
+            date: '2026-04-02', amount: -100000, accountId: current.id, categoryId: 'cat_rent',
+          });
+
+          const moved = await store.updateTransaction(spent.id, { counterAccountId: savings.id });
+
+          expect(moved.counterAccountId).toBe(savings.id);
+          expect(moved.categoryId).toBeNull();
+        });
+
+        it.each([
+          ['a category onto a transfer', { categoryId: 'cat_rent' }, /transfer/],
+          ['a zero amount', { amount: 0 }, /zero/],
+          ['the account as its own counter account', { accountId: 'SAVINGS' }, /itself/],
+          ['an unknown field', { verified: true }, /verified/],
+        ])('refuses patching %s', async (_label, fields, reason) => {
+          const { current, savings } = await twoAccounts();
+          const moved = await store.createTransaction({
+            date: '2026-04-02', amount: -500, accountId: current.id, counterAccountId: savings.id,
+          });
+          const patch = Object.fromEntries(
+            Object.entries(fields).map(([key, value]) => [key, value === 'SAVINGS' ? savings.id : value])
+          );
+
+          await expect(store.updateTransaction(moved.id, patch)).rejects.toThrow(reason);
+          expect((await store.getTransactions()).find((t) => t.id === moved.id)).toEqual(moved);
+        });
+
+        it('refuses patching a date after its account was archived', async () => {
+          const { current } = await twoAccounts();
+          const spent = await store.createTransaction({ date: today(), amount: -500, accountId: current.id });
+          await store.updateAccount(current.id, { archived: true });
+
+          await expect(
+            store.updateTransaction(spent.id, { date: shiftDayKey(today(), 1) })
+          ).rejects.toThrow(/archived/);
+        });
+
+        it('upserts an imported transaction without touching what you own', async () => {
+          const { current, savings } = await twoAccounts();
+          const origin = { source: 'xlsx', externalId: 'ROW-42', syncedAt: '2026-04-02T00:00:00.000Z' };
+          const imported = await store.createTransaction({
+            date: '2026-04-02', amount: -4500, accountId: current.id, description: 'CAFE LISBOA', origin, source: 'integration',
+          });
+          const [task] = await store.getTasks();
+          await store.createLink({ from: task.id, to: imported.id, rel: 'about' });
+          // You classify it by hand inside PersonalOS.
+          await store.updateTransaction(imported.id, {
+            categoryId: 'cat_eating_out', note: 'with Marta', notCounted: true, tags: ['work'],
+          });
+
+          // Tomorrow the import runs again with a corrected amount.
+          const reimported = await store.upsertTransactionByOrigin({
+            date: '2026-04-03', amount: -4700, accountId: current.id, description: 'CAFE LISBOA LDA', origin,
+            // A source that sends what it does not own is ignored on these.
+            categoryId: null, note: '', notCounted: false, tags: [], counterAccountId: savings.id,
+          });
+
+          expect(reimported.id).toBe(imported.id);
+          expect(reimported.amount).toBe(-4700);
+          expect(reimported.date).toBe('2026-04-03');
+          expect(reimported.description).toBe('CAFE LISBOA LDA');
+          // THIS is the assertion the whole two-zone design exists for.
+          const stored = (await store.getTransactions()).find((t) => t.id === imported.id);
+          expect(stored).toMatchObject({
+            categoryId: 'cat_eating_out', note: 'with Marta', notCounted: true, tags: ['work'], counterAccountId: null,
+          });
+          expect(await store.getLinks({ to: imported.id })).toHaveLength(1);
+          expect((await store.getTransactions()).filter((t) => t.origin?.externalId === 'ROW-42')).toHaveLength(1);
+        });
+
+        it('upserts without touching a counter account you chose', async () => {
+          const { current, savings } = await twoAccounts();
+          const origin = { source: 'xlsx', externalId: 'ROW-43', syncedAt: '2026-04-02T00:00:00.000Z' };
+          const imported = await store.createTransaction({ date: '2026-04-02', amount: -100000, accountId: current.id, origin });
+          await store.updateTransaction(imported.id, { counterAccountId: savings.id });
+
+          await store.upsertTransactionByOrigin({ date: '2026-04-02', amount: -90000, accountId: current.id, origin });
+
+          const stored = (await store.getTransactions()).find((t) => t.id === imported.id);
+          expect(stored?.counterAccountId).toBe(savings.id);
+          expect(stored?.amount).toBe(-90000);
+        });
+
+        it('refuses an upsert that would make a transfer from an account to itself', async () => {
+          const { current, savings } = await twoAccounts();
+          const origin = { source: 'xlsx', externalId: 'ROW-44', syncedAt: '2026-04-02T00:00:00.000Z' };
+          const imported = await store.createTransaction({
+            date: '2026-04-02', amount: -100000, accountId: current.id, counterAccountId: savings.id, origin,
+          });
+
+          await expect(
+            store.upsertTransactionByOrigin({ date: '2026-04-02', amount: -100000, accountId: savings.id, origin })
+          ).rejects.toThrow(/itself/);
+          expect((await store.getTransactions()).find((t) => t.id === imported.id)?.accountId).toBe(current.id);
+        });
+      });
       it('rejects an unknown field in an account patch', async () => {
         const [account] = await store.getAccounts();
 
         await expect(
           store.updateAccount(account.id, { interestRate: 0.02 })
-        ).rejects.toThrow();
-      });
-
-      it('rejects an unknown field in a transaction patch', async () => {
-        const [account] = await store.getAccounts();
-        const transaction = await store.createTransaction({
-          date: '2026-04-02', amount: 500, kind: 'expense', accountId: account.id,
-        });
-
-        await expect(
-          store.updateTransaction(transaction.id, { verified: true })
-        ).rejects.toThrow();
-      });
-
-      it('refuses to patch a transaction into a transfer with no other side', async () => {
-        // Same rule createTransaction enforces on the way in: a transfer
-        // without its other side would be counted as a disappearance.
-        const [account] = await store.getAccounts();
-        const transaction = await store.createTransaction({
-          date: '2026-04-02', amount: 500, kind: 'expense', accountId: account.id,
-        });
-
-        await expect(
-          store.updateTransaction(transaction.id, { kind: 'transfer' })
         ).rejects.toThrow();
       });
 
