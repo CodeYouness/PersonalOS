@@ -3,8 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
 
-import FinanceBalances, { accountUrl } from '@/components/FinanceBalances.js';
-import { financesHref, KIND_LABELS } from '@/components/FinanceBreakdown.js';
+import { accountUrl, financesHref, KIND_LABELS } from '@/components/finance.js';
+import FinanceBalances from '@/components/FinanceBalances.js';
 import FinanceHoldings from '@/components/FinanceHoldings.js';
 import { shortDate } from '@/components/format.js';
 import { messageOf, request } from '@/components/request.js';
@@ -40,9 +40,11 @@ const KIND_CHOICES = { cash: 'Cash', investment: 'Investment', asset: 'Asset', l
  *   trades: Trade[],
  *   prices: Price[],
  *   todayKey: string,
+ *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceAccountDetail({ account, balances, trades, prices, todayKey }) {
+export default function FinanceAccountDetail({ account, balances, trades, prices, todayKey, place }) {
+  const closed = financesHref({ ...place, account: null });
   const router = useRouter();
   const [error, setError] = useState(/** @type {string | null} */ (null));
   const [isSaving, setIsSaving] = useState(false);
@@ -55,11 +57,11 @@ export default function FinanceAccountDetail({ account, balances, trades, prices
       if (event.key !== 'Escape') return;
       const target = /** @type {HTMLElement | null} */ (event.target);
       if (target && target.tagName === 'INPUT') return;
-      router.push(financesHref(), { scroll: false });
+      router.push(closed, { scroll: false });
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [router]);
+  }, [router, closed]);
 
   /**
    * One write, then a re-read of the screen whatever the answer: the panel
@@ -102,7 +104,7 @@ export default function FinanceAccountDetail({ account, balances, trades, prices
       'Delete ' + account.name + ' with everything recorded on it? This cannot be undone. To keep its past, archive it instead.'
     );
     if (!confirmed) return;
-    if (await write(accountUrl(account.id), { method: 'DELETE' })) router.push(financesHref(), { scroll: false });
+    if (await write(accountUrl(account.id), { method: 'DELETE' })) router.push(closed, { scroll: false });
   }
 
   return (
@@ -113,7 +115,7 @@ export default function FinanceAccountDetail({ account, balances, trades, prices
           type="button"
           className="btn-ghost"
           aria-label="Esc: close the panel"
-          onClick={() => router.push(financesHref(), { scroll: false })}
+          onClick={() => router.push(closed, { scroll: false })}
         >
           Esc
         </button>
@@ -202,8 +204,10 @@ export default function FinanceAccountDetail({ account, balances, trades, prices
  * for an investment whether it is valued by balance or by units (#116) --
  * the only kind for which the choice means something. The new account opens
  * at once, ready for its first balance or trade.
+ *
+ * @param {{ place: import('@/components/finance.js').FinancesPlace }} props
  */
-export function FinanceAccountEmpty() {
+export function FinanceAccountEmpty({ place }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [kind, setKind] = useState(/** @type {FinanceAccount['kind']} */ ('cash'));
@@ -223,7 +227,7 @@ export function FinanceAccountEmpty() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(kind === 'investment' ? { name, kind, valuation } : { name, kind }),
       });
-      router.push(financesHref(account.id), { scroll: false });
+      router.push(financesHref({ ...place, account: account.id }), { scroll: false });
     } catch (caught) {
       setError(messageOf(caught));
     }

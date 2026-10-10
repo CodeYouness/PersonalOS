@@ -257,6 +257,16 @@ export function shortDate(dayKey, todayKey) {
 }
 
 /**
+ * A month as a heading names it: "January 2026".
+ *
+ * @param {string} month YYYY-MM
+ * @returns {string}
+ */
+export function monthLabel(month) {
+  return dayKeyToUtcDate(month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+}
+
+/**
  * An amount as typed into a field -- "12,400", "€ 1,234.5", "-500" -- read
  * into minor units. The inverse of formatMoney: euros and cents are taken
  * from the digits as text, so no float ever holds the amount. Commas group

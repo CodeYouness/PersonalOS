@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import { accountUrl } from '@/components/finance.js';
 import { formatMoney, parseMoney, shortDate } from '@/components/format.js';
 
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
@@ -199,9 +200,4 @@ function BalanceEditor({ balance, todayKey, isSaving, onSave, onCancel }) {
 /** @param {string} id */
 function balanceUrl(id) {
   return '/api/observations/' + encodeURIComponent(id);
-}
-
-/** @param {string} id */
-export function accountUrl(id) {
-  return '/api/accounts/' + encodeURIComponent(id);
 }
