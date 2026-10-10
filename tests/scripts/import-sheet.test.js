@@ -99,7 +99,8 @@ describe('the dry run', () => {
       expect.objectContaining({ account: 'Broker', date: '2024-01-16', direction: 'buy', units: 250_000_000, price: 10000, fee: 0 }),
       expect.objectContaining({ account: 'Broker', date: '2023-06-01', direction: 'buy', units: 100_000_000, price: 9000, fee: 150 }),
     ]);
-    expect(plan.trackedSince).toBe('2024-01-01');
+    // The first movement, not the opening balances dated before it.
+    expect(plan.trackedSince).toBe('2024-01-03');
   });
 
   it('prints the counts, the totals per category, every refund and every skipped row', async () => {
@@ -149,6 +150,68 @@ describe('the dry run', () => {
     expect(blocking).toEqual([]);
     expect(plan.transactions.find((t) => t.date === '2024-01-14')).toMatchObject({ rule: 'investment', counter: 'Broker' });
     expect(plan.transactions.find((t) => t.rule === 'refund')?.category).toBe('Food/Groceries');
+  });
+
+  it('reports an amount, a quantity or a price that is not a number, and refuses the write for a trade', async () => {
+    const { plan, blocking, printed } = await dryRun({
+      movements: [...MOVEMENTS, { at: '2024-01-12T10:00:00.000Z', date: '2024-01-12', category: 'Cibo', subcategory: 'Spesa', amount: /** @type {any} */ ('12,50'), from: 'Carta' }],
+      trades: [...TRADES, { date: '2024-02-02', ticker: 'WRLD', quantity: /** @type {any} */ ('two'), price: 10, fee: /** @type {any} */ (null) }],
+    });
+
+    expect(printed).toMatch(/line \d+\s+Importo is not a number/);
+    expect(plan.trades).toHaveLength(2);
+    expect(blocking).toEqual([expect.stringMatching(/trade on line \d+ has a Quantità that is not a number/)]);
+  });
+
+  it('reads a trade with no fee as one that cost nothing', async () => {
+    const { plan } = await dryRun({ trades: [{ date: '2024-01-16', ticker: 'WRLD', quantity: 2.5, price: 100, fee: /** @type {any} */ (null) }] });
+
+    expect(plan.trades[0].fee).toBe(0);
+  });
+
+  it('lets a category override come first, even on an investment pair', async () => {
+    const overrides = mapping();
+    overrides.rows = { '2024-01-15T10:00:00.000Z': { category: 'Shopping' } };
+
+    const { plan } = await dryRun({ mapping: overrides });
+
+    expect(plan.transactions.find((t) => t.date === '2024-01-15')).toMatchObject({ rule: 'flow', category: 'Shopping', amount: -25000 });
+  });
+
+  it('refuses a refund overridden into an income category: a refund is never income', async () => {
+    const overrides = mapping();
+    overrides.rows = { '2024-01-20T10:00:00.000Z': { category: 'Gifts' } };
+
+    const { blocking } = await dryRun({ mapping: overrides });
+
+    expect(blocking).toEqual([expect.stringMatching(/refund on line \d+ is overridden into an income category/)]);
+  });
+
+  it('asks for an override for money in on an investment pair, rather than calling the pair unmapped', async () => {
+    const { blocking, printed } = await dryRun({
+      movements: [...MOVEMENTS, { at: '2024-01-25T10:00:00.000Z', date: '2024-01-25', category: 'Investimenti', subcategory: 'ETF', amount: 120, to: 'Conto' }],
+    });
+
+    expect(blocking).toEqual([expect.stringMatching(/line \d+ needs a "rows" override: money in on an investment pair/)]);
+    expect(printed).not.toMatch(/Unmapped category pairs/);
+  });
+
+  it('still reports the pair of a row whose account is unmapped', async () => {
+    const { printed } = await dryRun({
+      movements: [...MOVEMENTS, { at: '2024-01-12T10:00:00.000Z', date: '2024-01-12', category: 'Svago', subcategory: 'Cinema', amount: 9.99, from: 'Portafoglio' }],
+    });
+
+    expect(printed).toMatch(/Unmapped category pairs:\n\s+"Svago\|Cinema"/);
+    expect(printed).toMatch(/Unmapped accounts:\n\s+"Portafoglio"/);
+  });
+
+  it('leaves two purchases unresolved when they would both claim one trade', async () => {
+    const { plan, blocking } = await dryRun({
+      movements: [...MOVEMENTS, { at: '2024-01-16T11:00:00.000Z', date: '2024-01-16', category: 'Investimenti', subcategory: 'ETF', amount: 250, from: 'Conto' }],
+    });
+
+    expect(plan.transactions.filter((t) => t.rule === 'investment')).toEqual([]);
+    expect(blocking).toHaveLength(2);
   });
 
   it('reports a quantity, a price or a fee it had to round', async () => {

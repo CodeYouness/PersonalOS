@@ -9,10 +9,10 @@
  * A dry run by default (#139): it reads both files, prints what it would
  * create and every row that needs your attention, and writes nothing.
  *
- * Plain Node, through lib/store.js, like the other data scripts -- it
- * respects DATA_DIR. The mapping and the report never go into the
- * repository: keep the mapping in `.scratch/`, and read the report in the
- * terminal.
+ * Plain Node, relative imports only, like the other data scripts. The dry
+ * run reads only the two files it is given, never the data file. The
+ * mapping and the report never go into the repository: keep the mapping in
+ * `.scratch/`, and read the report in the terminal.
  */
 
 import { readFile } from 'node:fs/promises';
@@ -26,14 +26,11 @@ import { readWorkbook } from './sheet-import/read.js';
  * @param {{
  *   xlsxPath: string,
  *   mappingPath: string,
- *   write?: boolean,
  *   print?: (line: string) => void,
  * }} options
  * @returns {Promise<{ plan: import('./sheet-import/plan.js').ImportPlan, blocking: string[] }>}
  */
-export async function importSheet({ xlsxPath, mappingPath, write = false, print = (line) => console.log(line) }) {
-  if (write) throw new Error('writing is not built yet; run without --write for the dry run');
-
+export async function importSheet({ xlsxPath, mappingPath, print = (line) => console.log(line) }) {
   let parsed;
   try {
     parsed = JSON.parse(await readFile(mappingPath, 'utf8'));
@@ -70,7 +67,7 @@ export function describePlan(plan, blocking) {
       ' (flows ' + count('flow') + ', refunds ' + count('refund') + ', not counted ' + count('not counted') + ')',
     '  transfers      ' + (count('transfer') + count('investment')) + ' (investment purchases ' + count('investment') + ')',
     '  trades         ' + plan.trades.length,
-    '  tracked since  ' + (plan.trackedSince ?? 'no movement'),
+    '  tracked since  ' + (plan.trackedSince ?? 'no movement') + ', unless it is already set',
   ];
 
   /** @type {Map<string, number>} */
@@ -92,6 +89,8 @@ export function describePlan(plan, blocking) {
   section(lines, 'Unmapped accounts', report.unmappedAccounts, (entry) => '"' + entry.name + '"  lines ' + entry.lines.join(', '));
   section(lines, 'Unmapped tickers', report.unmappedTickers, (entry) => '"' + entry.ticker + '"  lines ' + entry.lines.join(', '));
   section(lines, 'Skipped rows', report.skipped, (entry) => 'line ' + entry.line + '  ' + entry.reason);
+  section(lines, 'Rows that need a "rows" override', report.needsOverride, (entry) => 'line ' + entry.line + '  ' + entry.reason);
+  section(lines, 'Trades with a cell that is not a number', report.unreadableTrades, (entry) => 'line ' + entry.line + '  ' + entry.field);
   section(lines, 'Rounded', report.rounding, (entry) => entry.tab + ' line ' + entry.line + '  ' + entry.field + ' ' + entry.value);
 
   lines.push('');
@@ -127,14 +126,13 @@ function euros(minor) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const args = process.argv.slice(2);
-  const paths = args.filter((arg) => !arg.startsWith('--'));
+  const paths = process.argv.slice(2);
   if (paths.length !== 2) {
-    console.error('usage: npm run data:import-sheet -- <download.xlsx> <mapping.json> [--write]');
+    console.error('usage: npm run data:import-sheet -- <download.xlsx> <mapping.json>');
     process.exit(1);
   }
   try {
-    await importSheet({ xlsxPath: paths[0], mappingPath: paths[1], write: args.includes('--write') });
+    await importSheet({ xlsxPath: paths[0], mappingPath: paths[1] });
   } catch (error) {
     console.error('import refused: ' + (error instanceof Error ? error.message : String(error)));
     process.exit(1);

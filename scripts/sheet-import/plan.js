@@ -23,6 +23,7 @@
  */
 
 import { shiftDayKey } from '../../lib/domain/dates.js';
+import { valueOfUnits } from '../../lib/domain/derive/finance.js';
 import { PAIR_INVESTMENT, PAIR_REFUND } from './mapping.js';
 
 /** How far apart a purchase and its trade may be dated. */
@@ -61,7 +62,8 @@ const MATCH_DAYS = 3;
  * @property {{ account: string, date: string, amount: number, lines: number[] }[]} balances
  * @property {PlannedTransaction[]} transactions
  * @property {PlannedTrade[]} trades
- * @property {string | null} trackedSince the earliest movement's day
+ * @property {string | null} trackedSince the first movement's day -- never
+ *   an opening balance's or a skipped row's
  * @property {{
  *   skipped: { line: number, reason: string }[],
  *   refunds: { line: number, date: string, amount: number, description: string, category: string }[],
@@ -70,6 +72,8 @@ const MATCH_DAYS = 3;
  *   unmappedAccounts: { name: string, lines: number[] }[],
  *   unmappedTickers: { ticker: string, lines: number[] }[],
  *   rounding: { tab: string, line: number, field: string, value: number }[],
+ *   unreadableTrades: { line: number, field: string }[],
+ *   needsOverride: { line: number, reason: string }[],
  * }} report
  */
 
@@ -83,7 +87,17 @@ const MATCH_DAYS = 3;
  */
 export function planImport({ movements, trades, mapping }) {
   /** @type {ImportPlan['report']} */
-  const report = { skipped: [], refunds: [], unmatched: [], unmappedPairs: [], unmappedAccounts: [], unmappedTickers: [], rounding: [] };
+  const report = {
+    skipped: [],
+    refunds: [],
+    unmatched: [],
+    unmappedPairs: [],
+    unmappedAccounts: [],
+    unmappedTickers: [],
+    rounding: [],
+    unreadableTrades: [],
+    needsOverride: [],
+  };
   /** @type {Map<string, number[]>} */
   const unmappedPairs = new Map();
   /** @type {Map<string, number[]>} */
@@ -101,8 +115,15 @@ export function planImport({ movements, trades, mapping }) {
   const openings = new Map();
   /** @type {Map<string, number>} */
   const seenIds = new Map();
+  /** @type {Map<PlannedTrade, { transaction: PlannedTransaction, row: import('./read.js').MovementRow }[]>} */
+  const claims = new Map();
+  const kinds = new Map(mapping.categories.map((category) => [category.path, category.kind]));
 
   for (const row of movements) {
+    if (row.amount === null) {
+      report.skipped.push({ line: row.line, reason: 'Importo is not a number' });
+      continue;
+    }
     const amount = scaled(row.amount, 2);
     if (amount.rounded) report.rounding.push({ tab: 'movements', line: row.line, field: 'Importo', value: row.amount });
     const cents = amount.value;
@@ -114,12 +135,6 @@ export function planImport({ movements, trades, mapping }) {
       report.skipped.push({ line: row.line, reason: 'no account' });
       continue;
     }
-    const missing = [row.from, row.to].filter((name) => name !== '' && mapping.accounts[name] === undefined);
-    if (missing.length > 0) {
-      for (const name of missing) note(unmappedAccounts, name, row.line);
-      continue;
-    }
-
     // 1. A per-row override.
     const override = (row.timestamp === null ? undefined : mapping.rows[row.timestamp]) ?? {};
     if (override.skip) {
@@ -129,6 +144,13 @@ export function planImport({ movements, trades, mapping }) {
 
     const pair = row.category + '|' + row.subcategory;
     const mapped = mapping.pairs[pair];
+    const missing = [row.from, row.to].filter((name) => name !== '' && mapping.accounts[name] === undefined);
+    if (missing.length > 0) {
+      for (const name of missing) note(unmappedAccounts, name, row.line);
+      // Its pair is reported in the same run, if it is one a flow needs.
+      if ((row.from === '' || row.to === '') && mapped === undefined && override.category === undefined) note(unmappedPairs, pair, row.line);
+      continue;
+    }
     const base = {
       line: row.line,
       externalId: uniqueId(row, seenIds),
@@ -154,14 +176,26 @@ export function planImport({ movements, trades, mapping }) {
       continue;
     }
 
-    // 4. An investment purchase: the cash that paid for a trade.
-    if (row.to === '' && (override.holding !== undefined || mapped === PAIR_INVESTMENT)) {
-      const holding = override.holding !== undefined ? mapping.holdings[override.holding] : matchTrade(row, cents, plannedTrades);
-      if (holding === null || typeof holding === 'number') {
-        report.unmatched.push({ line: row.line, date: row.date, amount: cents, matches: holding ?? 0 });
+    // 4. An investment purchase: the cash that paid for a trade. A category
+    // override comes first and files it as a flow instead (rule 1).
+    if (override.category === undefined && (override.holding !== undefined || mapped === PAIR_INVESTMENT)) {
+      if (row.to !== '') {
+        report.needsOverride.push({ line: row.line, reason: 'money in on an investment pair; give it a category or skip it' });
         continue;
       }
-      transactions.push({ ...base, amount: -cents, account: row.from, counter: holding, category: null, notCounted: false, rule: 'investment' });
+      if (override.holding !== undefined) {
+        transactions.push({ ...base, amount: -cents, account: row.from, counter: mapping.holdings[override.holding], category: null, notCounted: false, rule: 'investment' });
+        continue;
+      }
+      const match = matchTrade(row, cents, plannedTrades);
+      if (typeof match === 'number') {
+        report.unmatched.push({ line: row.line, date: row.date, amount: cents, matches: match });
+        continue;
+      }
+      /** @type {PlannedTransaction} */
+      const transaction = { ...base, amount: -cents, account: row.from, counter: match.account, category: null, notCounted: false, rule: 'investment' };
+      transactions.push(transaction);
+      claims.set(match, [...(claims.get(match) ?? []), { transaction, row }]);
       continue;
     }
 
@@ -170,6 +204,10 @@ export function planImport({ movements, trades, mapping }) {
 
     // 5. A refund: money back into a spending category, never income.
     if (mapped === PAIR_REFUND) {
+      if (override.category !== undefined && kinds.get(override.category) !== 'expense') {
+        report.needsOverride.push({ line: row.line, reason: 'the refund on line ' + row.line + ' is overridden into an income category, and a refund is never income' });
+        continue;
+      }
       const category = override.category ?? mapping.refundFallback;
       transactions.push({ ...base, amount: cents, account, counter: null, category, notCounted: false, rule: 'refund' });
       report.refunds.push({ line: row.line, date: row.date, amount: cents, description: base.description, category });
@@ -185,6 +223,15 @@ export function planImport({ movements, trades, mapping }) {
     // 6. Not tracked, and 7. a flow.
     const notCounted = override.notCounted ?? !row.counted;
     transactions.push({ ...base, amount: signed, account, counter: null, category, notCounted, rule: notCounted ? 'not counted' : 'flow' });
+  }
+
+  // A trade pays for one purchase: when two would claim it, neither is sure.
+  for (const claimants of claims.values()) {
+    if (claimants.length < 2) continue;
+    for (const { transaction, row } of claimants) {
+      transactions.splice(transactions.indexOf(transaction), 1);
+      report.unmatched.push({ line: row.line, date: row.date, amount: -transaction.amount, matches: claimants.length });
+    }
   }
 
   const balances = [...openings].map(([account, opening]) => {
@@ -208,7 +255,7 @@ export function planImport({ movements, trades, mapping }) {
   report.unmappedAccounts = [...unmappedAccounts].map(([name, lines]) => ({ name, lines }));
   report.unmappedTickers = [...unmappedTickers].map(([ticker, lines]) => ({ ticker, lines }));
 
-  const dates = movements.map((row) => row.date).sort();
+  const dates = transactions.map((transaction) => transaction.date).sort();
   return {
     accounts: Object.keys(mapping.accounts).filter((name) => used.has(name)),
     balances,
@@ -233,6 +280,8 @@ export function blockingReasons(plan) {
     ...report.unmappedAccounts.map((entry) => 'the account "' + entry.name + '" is not mapped'),
     ...report.unmappedTickers.map((entry) => 'the ticker "' + entry.ticker + '" is not mapped'),
     ...report.unmatched.map((entry) => 'the purchase on line ' + entry.line + ' matches ' + entry.matches + ' trades'),
+    ...report.unreadableTrades.map((entry) => 'the trade on line ' + entry.line + ' has a ' + entry.field + ' that is not a number'),
+    ...report.needsOverride.map((entry) => 'line ' + entry.line + ' needs a "rows" override: ' + entry.reason),
   ];
 }
 
@@ -252,17 +301,24 @@ function planTrades(rows, mapping, report, unmapped) {
       unmapped(row.ticker, row.line);
       continue;
     }
-    const units = scaled(Math.abs(row.quantity), 8);
-    const price = scaled(row.price, 2);
-    const fee = scaled(row.fee, 2);
-    if (units.rounded) report.rounding.push({ tab: 'trades', line: row.line, field: 'Quantità', value: row.quantity });
-    if (price.rounded) report.rounding.push({ tab: 'trades', line: row.line, field: "Prezzo d'acquisto", value: row.price });
-    if (fee.rounded) report.rounding.push({ tab: 'trades', line: row.line, field: 'Commissioni', value: row.fee });
+    // A trade is units held: one with a cell that is not a number would
+    // value a holding wrongly, so it blocks the write rather than vanishing.
+    const fields = /** @type {const} */ ([['Quantità', row.quantity], ["Prezzo d'acquisto", row.price], ['Commissioni', row.fee]]);
+    const unreadable = fields.filter(([, value]) => value === null);
+    if (unreadable.length > 0) {
+      for (const [field] of unreadable) report.unreadableTrades.push({ line: row.line, field });
+      continue;
+    }
+    const [units, price, fee] = fields.map(([field, value], index) => {
+      const converted = scaled(index === 0 ? Math.abs(/** @type {number} */ (value)) : /** @type {number} */ (value), index === 0 ? 8 : 2);
+      if (converted.rounded) report.rounding.push({ tab: 'trades', line: row.line, field, value: /** @type {number} */ (value) });
+      return converted;
+    });
     planned.push({
       line: row.line,
       account,
       date: row.date,
-      direction: row.quantity < 0 ? 'sell' : 'buy',
+      direction: /** @type {number} */ (row.quantity) < 0 ? 'sell' : 'buy',
       units: units.value,
       price: price.value,
       fee: fee.value,
@@ -279,17 +335,17 @@ function planTrades(rows, mapping, report, unmapped) {
  * @param {import('./read.js').MovementRow} row
  * @param {number} cents
  * @param {PlannedTrade[]} trades
- * @returns {string | number}
+ * @returns {PlannedTrade | number}
  */
 function matchTrade(row, cents, trades) {
   const from = shiftDayKey(row.date, -MATCH_DAYS);
   const to = shiftDayKey(row.date, MATCH_DAYS);
   const matches = trades.filter((trade) => {
     if (trade.direction !== 'buy' || trade.date < from || trade.date > to) return false;
-    const value = Number((BigInt(trade.units) * BigInt(trade.price) + 50_000_000n) / 100_000_000n);
+    const value = valueOfUnits(trade.units, trade.price);
     return Math.abs(value - cents) <= 1 || Math.abs(value + trade.fee - cents) <= 1;
   });
-  return matches.length === 1 ? matches[0].account : matches.length;
+  return matches.length === 1 ? matches[0] : matches.length;
 }
 
 /**

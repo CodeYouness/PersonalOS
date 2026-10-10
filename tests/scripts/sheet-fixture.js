@@ -134,7 +134,7 @@ export async function writeSheet(directory, options = {}) {
         data: [
           ['Portafoglio'],
           ['Data', 'Ticker', 'Quantità', "Prezzo d'acquisto", 'Commissioni'],
-          ...trades.map((row) => [day(row.date), row.ticker, row.quantity, row.price, row.fee]),
+          ...trades.map((row) => [day(row.date), row.ticker, row.quantity, row.price, row.fee ?? null]),
         ],
       },
     ]

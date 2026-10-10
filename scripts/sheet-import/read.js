@@ -26,7 +26,8 @@ import readXlsxFile from 'read-excel-file/node';
  * @property {string} date day key
  * @property {string} category "Categoria"
  * @property {string} subcategory "Sottocategoria"
- * @property {number} amount "Importo", in euros, always positive
+ * @property {number | null} amount "Importo", in euros, always positive;
+ *   null when the cell is empty or not a number
  * @property {string} note "Note"
  * @property {string} from "Da", the account money left, or ''
  * @property {string} to "A", the account money reached, or ''
@@ -41,9 +42,10 @@ import readXlsxFile from 'read-excel-file/node';
  * @property {number} line
  * @property {string} date day key
  * @property {string} ticker
- * @property {number} quantity units; negative for a sell
- * @property {number} price per unit, in euros
- * @property {number} fee in euros
+ * @property {number | null} quantity units, negative for a sell; null when
+ *   not a number
+ * @property {number | null} price per unit, in euros; null when not a number
+ * @property {number | null} fee in euros; 0 when empty, null when not a number
  */
 
 const MOVEMENTS_TAB = 'Log Entrate/Uscite';
@@ -173,7 +175,7 @@ function readTrades(data) {
       ticker: text(cells[column.ticker]),
       quantity: number(cells[column.quantity]),
       price: number(cells[column.price]),
-      fee: number(cells[column.fee]),
+      fee: isBlank(cells[column.fee]) ? 0 : number(cells[column.fee]),
     });
   }
   return rows;
@@ -184,9 +186,20 @@ function text(cell) {
   return cell === null || cell === undefined ? '' : String(cell).trim();
 }
 
-/** @param {unknown} cell */
+/**
+ * A number cell, or null when it is empty or holds something else -- never
+ * 0, so a mistyped cell is reported rather than imported as nothing.
+ *
+ * @param {unknown} cell
+ * @returns {number | null}
+ */
 function number(cell) {
-  return typeof cell === 'number' && Number.isFinite(cell) ? cell : 0;
+  return typeof cell === 'number' && Number.isFinite(cell) ? cell : null;
+}
+
+/** @param {unknown} cell */
+function isBlank(cell) {
+  return cell === null || cell === undefined || (typeof cell === 'string' && cell.trim() === '');
 }
 
 /**
