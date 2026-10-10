@@ -32,6 +32,10 @@ not met.
 
 ## Decision
 
+**Amended by [0025](0025-tracked-since-bounds-the-history.md):** once
+"tracked since" is set, the history starts at the first month-end on or
+after it.
+
 **The history is derived.** `financeOverview` in
 `lib/domain/derive/finance.js` computes month-end net worth for every month
 from the first balance or trade to today, and the changes, from the same

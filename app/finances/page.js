@@ -2,22 +2,14 @@ import FinanceAccountDetail, { FinanceAccountEmpty } from '@/components/FinanceA
 import FinanceBreakdown from '@/components/FinanceBreakdown.js';
 import FinanceCategories from '@/components/FinanceCategories.js';
 import FinanceFlows from '@/components/FinanceFlows.js';
+import FinanceSettings from '@/components/FinanceSettings.js';
 import { lineName } from '@/components/finance.js';
 import FinanceHistory from '@/components/FinanceHistory.js';
 import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
 import { isMonthKey, monthOf, monthRange, today } from '@/lib/domain/dates.js';
 import { financeOverview, flowMonths, lineHolds, monthFlows, savingsRate, yearFlows } from '@/lib/domain/derive/finance.js';
-import {
-  getAccount,
-  getAccounts,
-  getObservations,
-  getPrices,
-  getProfile,
-  getTrades,
-  getTransaction,
-  getTransactions,
-} from '@/lib/store.js';
+import { getAccount, getFinanceInputs, getProfile, getTransaction } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,27 +31,26 @@ export const dynamic = 'force-dynamic';
  *
  * `?category=<line>` selects a line of the Income & spending section (#137)
  * -- a category, or Uncategorised spending or income -- and lists that
- * month's transactions it counts; one that no longer exists selects nothing. The month is one the section
- * offers -- from the first transaction to today's -- and today's otherwise.
+ * month's transactions it counts; one that no longer exists selects
+ * nothing. The month is one the section offers -- from "tracked since" or
+ * the first transaction to today's -- and today's otherwise. The Settings
+ * card (#138) sets "tracked since".
  *
  * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], transaction?: string | string[], category?: string | string[] }> }} props
  */
 export default async function FinancesScreen({ searchParams }) {
   const { account: accountParam, month: monthParam, transaction: transactionParam, category: categoryParam } = await searchParams;
   const todayKey = today();
-  const [accounts, observations, trades, prices, selected, profile, transactions, selectedTransaction] = await Promise.all([
-    getAccounts(),
-    getObservations({}),
-    getTrades(),
-    getPrices(),
+  const [finance, selected, profile, selectedTransaction] = await Promise.all([
+    getFinanceInputs(),
     typeof accountParam === 'string' ? getAccount(accountParam) : null,
     getProfile(),
-    getTransactions(),
     typeof transactionParam === 'string' ? getTransaction(transactionParam) : null,
   ]);
-  const overview = financeOverview({ accounts, observations, trades, prices, transactions }, todayKey);
+  const { accounts, observations, trades, prices, transactions } = finance;
+  const overview = financeOverview(finance, todayKey);
   const categories = profile.financeCategories;
-  const months = flowMonths(transactions, todayKey);
+  const months = flowMonths(transactions, todayKey, profile.financeTrackedSince);
   const month = isMonthKey(monthParam) && months.includes(/** @type {string} */ (monthParam)) ? /** @type {string} */ (monthParam) : monthOf(todayKey);
   const category = typeof categoryParam === 'string' && lineName(categoryParam, categories) !== null ? categoryParam : null;
   const { from, to } = monthRange(month);
@@ -134,6 +125,7 @@ export default async function FinancesScreen({ searchParams }) {
             />
           )}
           <FinanceCategories categories={categories} />
+          <FinanceSettings key={profile.financeTrackedSince ?? ''} trackedSince={profile.financeTrackedSince} todayKey={todayKey} />
         </div>
       </div>
     </section>

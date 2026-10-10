@@ -733,3 +733,33 @@ describe('migration v12 to v13', () => {
     expect(migrate(once)).toEqual(once);
   });
 });
+
+describe('migration v13 to v14', () => {
+  /** A v13 document: no "tracked since" yet. */
+  const v13Document = () => {
+    const { financeTrackedSince, ...profile } = migrate(v12Document()).profile;
+    return { ...migrate(v12Document()), schemaVersion: 13, profile };
+  };
+
+  it('gives the profile a "tracked since" that is not set', () => {
+    const migrated = migrate(v13Document());
+
+    expect(migrated.profile.financeTrackedSince).toBeNull();
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('changes nothing else', () => {
+    const before = v13Document();
+    const { profile, schemaVersion, ...rest } = migrate(before);
+    const { profile: profileBefore, schemaVersion: versionBefore, ...restBefore } = before;
+
+    expect(rest).toEqual(restBefore);
+    const { financeTrackedSince, ...profileRest } = profile;
+    expect(profileRest).toEqual(profileBefore);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v13Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});

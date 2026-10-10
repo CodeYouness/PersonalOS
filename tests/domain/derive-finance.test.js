@@ -764,3 +764,53 @@ describe('the months the section offers (#137)', () => {
     expect(flowMonths([transaction({ date: '2026-05-01' })], '2026-02-10')).toEqual(['2026-02']);
   });
 });
+
+describe('"tracked since" bounds the history (ADR 0025)', () => {
+  const current = account({ id: 'account_current', kind: 'cash' });
+  const etf = account({ id: 'account_etf', kind: 'investment', valuation: 'units' });
+  const given = {
+    accounts: [current, etf],
+    observations: [observation({ accountId: 'account_current', amount: 100000, date: '2024-06-30' })],
+    trades: [trade({ accountId: 'account_etf', date: '2024-01-15', units: 10 * UNIT, price: 1000 })],
+    prices: [],
+    transactions: [],
+  };
+
+  it('is unchanged when it is not set', () => {
+    const overview = financeOverview(given, '2026-02-10');
+
+    expect(overview.history.at(-1)?.month).toBe('2024-01');
+    expect(overview.changes.year).not.toBeNull();
+  });
+
+  it('starts the monthly history at the first month-end on or after the day', () => {
+    const overview = financeOverview({ ...given, trackedSince: '2025-11-12' }, '2026-02-10');
+
+    expect(overview.history.map((row) => row.month)).toEqual(['2026-02', '2026-01', '2025-12', '2025-11']);
+    // The first month drawn has no change: the month before it was not tracked.
+    expect(overview.history.at(-1)?.change).toBeNull();
+  });
+
+  it('keeps a holding bought before the day valued with its units after it', () => {
+    const overview = financeOverview({ ...given, trackedSince: '2025-11-12' }, '2026-02-10');
+
+    // 10 units at 10.00 plus the 1,000.00 balance.
+    expect(overview.history[0].netWorth).toBe(110000);
+    expect(overview.accounts.find((row) => row.account.id === 'account_etf')?.value).toBe(10000);
+  });
+
+  it('leaves the 1-year change blank when its start falls before the day', () => {
+    expect(financeOverview({ ...given, trackedSince: '2025-11-12' }, '2026-02-10').changes.year).toBeNull();
+    expect(financeOverview({ ...given, trackedSince: '2024-02-01' }, '2026-02-10').changes.year).not.toBeNull();
+  });
+
+  it('draws nothing in the sparkline before the day', () => {
+    const { sparkline } = financeOverview({ ...given, trackedSince: '2025-11-12' }, '2026-02-10');
+
+    expect(sparkline.filter((value) => value !== null)).toHaveLength(4);
+  });
+
+  it('starts the months the section offers at the day, not at earlier transactions', () => {
+    expect(flowMonths([transaction({ date: '2025-06-01' })], '2026-02-10', '2025-12-03')).toEqual(['2026-02', '2026-01', '2025-12']);
+  });
+});
