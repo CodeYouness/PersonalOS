@@ -50,14 +50,18 @@ is allowed: closing an account moves its last money out that day.
 is classification, the same kind of work as choosing its category, and a
 re-import must not undo it. `upsertTransactionByOrigin` reads only the
 source's column from its input, whatever else the input carries, and checks
-the result under the same rules as a hand correction.
+the result under the same rules as a hand correction. A line imported for
+the first time is created whole: what it carries for your zone -- a
+transfer's counter account, a category -- is where it starts, and from then
+on it is yours.
 
 **Schema v12** migrates existing data once, after a backup: `income` becomes
 `+amount`, `expense` becomes `-amount`, and `transfer` becomes `-amount` with
 its counter account kept and its category cleared -- transfers were excluded
 from every total, so it never counted under one. A counter account on
 anything that was not a transfer is cleared, or it would turn income or
-spending into a transfer. Each month's income and spending is the same
+spending into a transfer; a transfer with no counter account becomes not
+counted. Each month's income and spending is the same
 before and after.
 
 ## Consequences

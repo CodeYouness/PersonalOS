@@ -1179,7 +1179,7 @@ export function runAdapterContract(label, load) {
           ['a currency other than EUR', { currency: 'USD' }, /currency/],
           ['a notCounted that is not a boolean', { notCounted: 'yes' }, /notCounted/],
           ['a blank tag', { tags: ['  '] }, /tags/],
-          ['a category that does not exist', { categoryId: 'cat_nowhere' }, /category/],
+          ['a description that is not text', { description: 42 }, /description/],
         ])('refuses %s', async (_label, fields, reason) => {
           const { current } = await twoAccounts();
 
@@ -1229,6 +1229,18 @@ export function runAdapterContract(label, load) {
           ).rejects.toThrow(/archived/);
           // Closing an account moves its last money out on the day it closes.
           await store.createTransaction({ date: archivedOn, amount: -500, accountId: savings.id, counterAccountId: current.id });
+        });
+
+        it('refuses archiving an account that has money moving after today', async () => {
+          // Archiving records today; a transaction dated later would then be
+          // money moving on a closed account, the thing the store refuses.
+          const { current, savings } = await twoAccounts();
+          await store.createTransaction({
+            date: shiftDayKey(today(), 3), amount: -500, accountId: current.id, counterAccountId: savings.id,
+          });
+
+          await expect(store.updateAccount(savings.id, { archived: true })).rejects.toThrow(/after/);
+          expect((await store.getAccount(savings.id))?.archivedOn).toBeNull();
         });
 
         it('turns a movement into a transfer by its counter account, clearing its category', async () => {

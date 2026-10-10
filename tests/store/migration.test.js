@@ -590,6 +590,8 @@ function v11Document() {
         id: 'transaction_4', date: '2026-01-04', amount: 100000, kind: 'transfer',
         counterAccountId: 'account_savings', categoryId: 'cat_rent',
       }),
+      // A transfer with one end: the old re-import could write one.
+      tx({ id: 'transaction_5', date: '2026-01-06', amount: 30000, kind: 'transfer' }),
     ],
   };
 }
@@ -605,7 +607,7 @@ function monthlyTotals(transactions, signed) {
   /** @type {Record<string, { income: number, spending: number }>} */
   const months = {};
   for (const t of transactions) {
-    if (t.kind === 'transfer' || (t.kind === undefined && t.counterAccountId !== null)) continue;
+    if (t.kind === 'transfer' || (t.kind === undefined && (t.counterAccountId !== null || t.notCounted))) continue;
     const month = (months[t.date.slice(0, 7)] ??= { income: 0, spending: 0 });
     const amount = signed(t);
     if (amount > 0) month.income += amount;
@@ -618,7 +620,7 @@ describe('migration v11 to v12', () => {
   it('signs every amount from its account\'s side and drops kind', () => {
     const migrated = migrate(v11Document());
 
-    expect(migrated.transactions.map((/** @type {any} */ t) => t.amount)).toEqual([250000, -95000, -6250, -100000]);
+    expect(migrated.transactions.map((/** @type {any} */ t) => t.amount)).toEqual([250000, -95000, -6250, -100000, -30000]);
     expect(migrated.transactions.every((/** @type {any} */ t) => !('kind' in t))).toBe(true);
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
   });
@@ -637,9 +639,13 @@ describe('migration v11 to v12', () => {
   it('gives every transaction notCounted false and no tags', () => {
     const migrated = migrate(v11Document());
 
-    expect(migrated.transactions.map((/** @type {any} */ t) => [t.notCounted, t.tags])).toEqual([
+    expect(migrated.transactions.slice(0, 4).map((/** @type {any} */ t) => [t.notCounted, t.tags])).toEqual([
       [false, []], [false, []], [false, []], [false, []],
     ]);
+  });
+
+  it('keeps a transfer with no counter account out of the totals, as not counted', () => {
+    expect(migrate(v11Document()).transactions[4]).toMatchObject({ counterAccountId: null, notCounted: true });
   });
 
   it('keeps every month\'s income and spending', () => {
