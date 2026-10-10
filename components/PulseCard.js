@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { financesHref } from '@/components/FinanceBreakdown.js';
+import { financesHref } from '@/components/finance.js';
 import { changeClass } from '@/components/FinanceHistory.js';
 import { formatEuro, formatMoneyChange, shortDate } from '@/components/format.js';
 import { today } from '@/lib/domain/dates.js';

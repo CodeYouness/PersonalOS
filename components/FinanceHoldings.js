@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { accountUrl } from '@/components/FinanceBalances.js';
+import { accountUrl } from '@/components/finance.js';
 import { formatMoney, formatUnits, parseMoney, parseUnits, shortDate } from '@/components/format.js';
 import { TRADE_DIRECTIONS } from '@/personalos.config.js';
 
