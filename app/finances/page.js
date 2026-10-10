@@ -125,7 +125,13 @@ export default async function FinancesScreen({ searchParams }) {
             />
           )}
           <FinanceCategories categories={categories} />
-          <FinanceSettings key={profile.financeTrackedSince ?? ''} trackedSince={profile.financeTrackedSince} todayKey={todayKey} />
+          <FinanceSettings
+            key={profile.financeTrackedSince ?? ''}
+            trackedSince={profile.financeTrackedSince}
+            defaultAccountId={profile.defaultAccountId}
+            accounts={accounts}
+            todayKey={todayKey}
+          />
         </div>
       </div>
     </section>

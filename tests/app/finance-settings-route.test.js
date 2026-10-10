@@ -53,7 +53,16 @@ describe('PATCH /api/finance-settings', () => {
     expect((await store.getProfile()).financeTrackedSince).toBeNull();
   });
 
+  it('sets the default account and clears it (ADR 0026)', async () => {
+    expect((await change({ defaultAccountId: 'account_seed_current' })).status).toBe(200);
+    expect((await store.getProfile()).defaultAccountId).toBe('account_seed_current');
+
+    expect((await change({ defaultAccountId: null })).status).toBe(200);
+    expect((await store.getProfile()).defaultAccountId).toBeNull();
+  });
+
   it.each([
+    ['a default account valued by units', { defaultAccountId: 'account_seed_etf' }, /balance/],
     ['a day that is not a day', { financeTrackedSince: '2025-02-30' }, /financeTrackedSince/],
     ['a day after today', { financeTrackedSince: '2999-01-01' }, /after today/],
     ['a setting it does not hold', { name: 'Someone else' }, /name/],

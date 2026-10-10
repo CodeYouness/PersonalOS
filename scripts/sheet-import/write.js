@@ -123,6 +123,11 @@ export async function writePlan(plan, mapping, print) {
     if (profile.financeTrackedSince === null && plan.trackedSince !== null) {
       await updateProfile({ financeTrackedSince: plan.trackedSince });
     }
+    // Only when the mapping names one and you have not chosen one (ADR
+    // 0026): a setting of yours is never overwritten.
+    if (mapping.defaultAccount !== null && profile.defaultAccountId === null) {
+      await updateProfile({ defaultAccountId: accountIds.get(mapping.defaultAccount) });
+    }
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(
@@ -130,9 +135,6 @@ export async function writePlan(plan, mapping, print) {
     );
   }
 
-  if (mapping.defaultAccount !== null) {
-    print('the default account is not set yet: the profile has no default account until #141');
-  }
   print(
     'imported ' + plan.accounts.length + ' accounts, ' + plan.balances.length + ' balances, ' + plan.transactions.length +
       ' transactions and ' + plan.trades.length + ' trades'

@@ -332,6 +332,22 @@ describe('the write', () => {
     expect((await store.getProfile()).financeTrackedSince).toBe('2024-01-03');
   });
 
+  it('sets the default account the mapping names', async () => {
+    await write();
+
+    expect((await store.getProfile()).defaultAccountId).toBe((await accountNamed('Current account')).id);
+  });
+
+  it('keeps a default account already chosen', async () => {
+    await store.removeDemoFinance();
+    const mine = await store.createAccount({ name: 'Mine', kind: 'cash' });
+    await store.updateProfile({ defaultAccountId: mine.id });
+
+    await write({ keepDemo: true });
+
+    expect((await store.getProfile()).defaultAccountId).toBe(mine.id);
+  });
+
   it('keeps a "tracked since" already set', async () => {
     await store.updateProfile({ financeTrackedSince: '2023-01-01' });
 

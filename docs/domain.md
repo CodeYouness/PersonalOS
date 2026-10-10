@@ -734,6 +734,14 @@ and it carries no category. A transfer from an account to itself is refused.
 Choosing a counter account for a movement turns it into a transfer and clears
 its category.
 
+### Default account
+
+**Is** `profile.defaultAccountId`: the account a finance sentence that names
+no account is filed on (ADR 0026), chosen on the Finances screen's Settings
+card. It must be open and valued by balance; archiving, deleting or revaluing
+that account clears it. Unset, such a sentence stays a capture and a memory
+entry.
+
 ### Refund
 
 **Is** money coming back into a spending category: a positive amount filed
@@ -888,5 +896,7 @@ Recorded rather than answered, so nobody silently invents an answer:
    when it names one; weight is the first, and so far only, metric.
 3. **Answered (ADR 0018):** a capture never creates a Person; it only links
    an existing one. Creating silently risked duplicates from spelling.
-4. Whether a capture filed as `finance` should create a Transaction. Today it
-   becomes a note on the day and a memory entry, and never touches net worth.
+4. **Answered (ADR 0026):** a capture filed as `finance` files a Transaction
+   when it names an amount and there is an account to file it on -- the one
+   it names, or the default account; otherwise it stays a capture and a
+   memory entry.

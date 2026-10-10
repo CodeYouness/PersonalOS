@@ -24,13 +24,33 @@ describe('classifyWithRules', () => {
   });
 
   it.each([
-    ['paid 20 for coffee', 'finance'],
-    ['spent 340 on the accountant', 'finance'],
-    ['€45 for the workshop', 'finance'],
-    ['ate a chicken sandwich for lunch', 'nutrition'],
-  ])('routes %j to %s', (text, destination) => {
+    ['paid 20 for coffee', null],
+    ['spent 340 on the accountant', null],
+    ['€45 for the workshop', 4500],
+  ])('routes %j to finance, reading an amount only next to a euro sign (ADR 0026)', (text, amount) => {
     expect(classifyModule.classifyWithRules(text)).toEqual({
-      destination,
+      destination: 'finance',
+      route: 'rules',
+      fields: { amount, direction: 'out', categoryId: null },
+    });
+  });
+
+  it.each([
+    ['spent € 1.234 on a bike', 123400],
+    ['spent 18,40 € 2 coffees', 1840],
+    ['paid 18,40€ di cui €2 mancia', 1840],
+    ['il 3 100€', 10000],
+    ['spent 18,40 euros', 1840],
+    ['on 12.10 spent 5€', 500],
+    ['spent €0.004', null],
+    ['spent 0,00 €', null],
+  ])('reads %j as %s minor units', (text, amount) => {
+    expect(classifyModule.financeFields(text).amount).toBe(amount);
+  });
+
+  it('routes a meal to nutrition', () => {
+    expect(classifyModule.classifyWithRules('ate a chicken sandwich for lunch')).toEqual({
+      destination: 'nutrition',
       route: 'rules',
       fields: {},
     });
@@ -178,7 +198,11 @@ describe('classify (model path)', () => {
 
     const result = await classify('paid the invoice');
 
-    expect(result).toEqual({ destination: 'finance', route: 'model', fields: {} });
+    expect(result).toEqual({
+      destination: 'finance',
+      route: 'model',
+      fields: { title: 'paid the invoice', amount: null, direction: 'out', account: null, categoryId: null, date: null },
+    });
   });
 
   it('extracts a task title from the model, falling back to the raw text', async () => {

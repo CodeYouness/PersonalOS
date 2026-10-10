@@ -4,12 +4,14 @@ import { updateProfile } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
-/** The finance settings the Finances screen edits (#138). */
-const EDITABLE = ['financeTrackedSince'];
+/** The finance settings the Finances screen edits (#138, #141). */
+const EDITABLE = ['financeTrackedSince', 'defaultAccountId'];
 
 /**
  * Change the finance settings: "tracked since", the day the history starts
- * at (ADR 0025), or null to clear it. The store validates each value.
+ * at (ADR 0025), and the default account a finance sentence naming none is
+ * filed on (ADR 0026) -- either null to clear it. The store validates each
+ * value: the default account must be open and valued by balance.
  *
  * @param {Request} request
  */
@@ -31,7 +33,10 @@ export async function PATCH(request) {
     const profile = await updateProfile(body);
     // Only the settings: the rest of the profile -- habits, categories -- is
     // not this route's to hand back.
-    return NextResponse.json({ ok: true, settings: { financeTrackedSince: profile.financeTrackedSince } });
+    return NextResponse.json({
+      ok: true,
+      settings: { financeTrackedSince: profile.financeTrackedSince, defaultAccountId: profile.defaultAccountId },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[finance-settings] could not update:', message);

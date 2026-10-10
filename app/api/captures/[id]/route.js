@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { classify } from '@/lib/classify.js';
 import { toDayKey } from '@/lib/domain/dates.js';
-import { deleteCaptureCascade, refileCapture } from '@/lib/store.js';
+import { deleteCaptureCascade, getClassifyContext, refileCapture } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,10 +27,11 @@ export async function DELETE(request, { params }) {
 }
 
 /**
- * Refiling into `nutrition` or `health` reads the sentence again for that
- * destination -- the meal's estimate, or a weight -- the same extraction the
- * capture route runs; without a model a meal is filed by name only (ADR
- * 0019) and a weight only when the rule can read it (ADR 0020).
+ * Refiling into `nutrition`, `health` or `finance` reads the sentence again
+ * for that destination -- the meal's estimate, a weight, an amount -- the
+ * same extraction the capture route runs; without a model a meal is filed by
+ * name only (ADR 0019), and a weight (ADR 0020) or an amount (ADR 0026) only
+ * when the rule can read it.
  *
  * @param {Request} request
  * @param {{ params: Promise<{ id: string }> }} context
@@ -44,7 +45,7 @@ export async function PATCH(request, { params }) {
     const recordId = await refileCapture(id, destination, async (capture, chosen) => {
       // Read from the day the sentence was said: "last night" means the
       // night before it was said, not before the refile.
-      const { fields } = await classify(capture.text, chosen, toDayKey(new Date(capture.createdAt)));
+      const { fields } = await classify(capture.text, chosen, toDayKey(new Date(capture.createdAt)), await getClassifyContext());
       return fields;
     });
     return NextResponse.json({ ok: true, recordId });

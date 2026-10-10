@@ -304,3 +304,28 @@ describe('POST /api/capture', () => {
     vi.restoreAllMocks();
   });
 });
+
+describe('POST /api/capture without a model: a finance sentence (ADR 0026)', () => {
+  beforeEach(async () => {
+    await store.updateProfile({ defaultAccountId: 'account_seed_current' });
+  });
+
+  it.each([
+    ['spent € 18,40 at the market', -1840],
+    ['bought bread 18,40€', -1840],
+    ['paid 18.40 € for parking', -1840],
+    ['spent 18,40 euro on books', -1840],
+    ['paid €1.234,50 for the sofa', -123450],
+  ])('reads "%s" and files spending on the default account', async (text, amount) => {
+    const answer = await (await post(text)).json();
+
+    expect(answer.destination).toBe('finance');
+    expect(await store.getTransaction(answer.recordId)).toMatchObject({ amount, accountId: 'account_seed_current', categoryId: null });
+  });
+
+  it('keeps a money sentence with no amount as a capture and a memory', async () => {
+    const answer = await (await post("paid the plumber")).json();
+
+    expect(answer).toMatchObject({ destination: 'finance', recordId: null });
+  });
+});
