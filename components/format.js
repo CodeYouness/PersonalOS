@@ -240,6 +240,33 @@ export function formatMoneyChange(minor) {
 }
 
 /**
+ * A change as a whole percent: "+25%", "−8%", "0%" -- or "n.d." when there
+ * was nothing to compare with, so a new expense never reads as +∞%.
+ *
+ * @param {number | null} ratio
+ * @returns {string}
+ */
+export function formatPercentChange(ratio) {
+  if (ratio === null) return 'n.d.';
+  const whole = Math.round(ratio * 100);
+  if (whole === 0) return '0%';
+  return (whole < 0 ? MINUS : '+') + Math.abs(whole) + '%';
+}
+
+/**
+ * A rate as a whole percent, "25%", "−8%" -- or "—" when it has no meaning,
+ * such as a savings rate with no income.
+ *
+ * @param {number | null} ratio
+ * @returns {string}
+ */
+export function formatRate(ratio) {
+  if (ratio === null) return '—';
+  const whole = Math.round(ratio * 100);
+  return (whole < 0 ? MINUS : '') + Math.abs(whole) + '%';
+}
+
+/**
  * A date in a column of dates: "5 Jan", and "30 Jun 2025" when it is not
  * this year -- so a value typed months ago shows its age.
  *

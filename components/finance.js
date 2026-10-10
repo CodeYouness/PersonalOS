@@ -14,10 +14,30 @@ import { CATEGORY_KINDS } from '@/personalos.config.js';
  * @property {string | null} [account]
  * @property {string | null} [month] YYYY-MM
  * @property {string | null} [transaction]
+ * @property {string | null} [category] a category id, or UNCATEGORISED
  */
 
 /** @type {(keyof FinancesPlace)[]} */
-const PLACE_KEYS = ['account', 'month', 'transaction'];
+const PLACE_KEYS = ['account', 'month', 'category', 'transaction'];
+
+/** The address's name for the Uncategorised line (#137). */
+export const UNCATEGORISED = 'uncategorised';
+
+/**
+ * Whether a transaction belongs to the line selected in the Income &
+ * spending section (#137): filed on the category or, for a parent, on one of
+ * its subcategories; for the Uncategorised line, a flow filed on none.
+ *
+ * @param {import('@/lib/domain/types.js').Transaction} transaction
+ * @param {string} category a category id, or UNCATEGORISED
+ * @param {import('@/lib/domain/types.js').FinanceCategory[]} categories
+ * @returns {boolean}
+ */
+export function inLine(transaction, category, categories) {
+  if (category === UNCATEGORISED) return transaction.categoryId === null && transaction.counterAccountId === null;
+  if (transaction.categoryId === category) return true;
+  return categories.some((row) => row.id === transaction.categoryId && row.parentId === category);
+}
 
 /**
  * A Finances address. One place builds them, so selecting an account keeps

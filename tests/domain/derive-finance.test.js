@@ -5,10 +5,12 @@ import {
   allocation,
   financeOverview,
   firstDayUnitsGoNegative,
+  flowMonths,
+  monthFlows,
   netWorthOn,
-  periodTotals,
+  savingsRate,
   sparkBars,
-  totalsByCategory,
+  yearFlows,
 } from '@/lib/domain/derive/finance.js';
 
 /** @returns {any} */
@@ -101,70 +103,6 @@ describe('net worth comes from observations, not from transactions', () => {
     const result = netWorthOn({ accounts, observations, trades: [], prices: [], transactions: [] }, '2026-01-05');
     expect(result.netWorth).toBe(500000);
     expect(result.unmeasuredAccounts).toBe(1);
-  });
-});
-
-describe('flows', () => {
-  it('excludes transfers, which are not income and not spending', () => {
-    // Counting a move between your own accounts doubles the month, and the
-    // number looks plausible enough that you would believe it.
-    const transactions = [
-      transaction({ amount: 250000 }),
-      transaction({ amount: -95000 }),
-      transaction({ amount: -100000, counterAccountId: 'account_y' }),
-    ];
-
-    const totals = periodTotals(transactions, '2026-01-01', '2026-01-31');
-    expect(totals.income).toBe(250000);
-    expect(totals.expense).toBe(95000);
-    expect(totals.net).toBe(155000);
-    expect(totals.count).toBe(2);
-  });
-
-  it('excludes what is not counted: it moves a balance, not the month', () => {
-    const transactions = [
-      transaction({ amount: -95000 }),
-      transaction({ amount: 40000, notCounted: true }),
-      transaction({ amount: -3000, notCounted: true }),
-    ];
-
-    expect(periodTotals(transactions, '2026-01-01', '2026-01-31')).toEqual({ income: 0, expense: 95000, net: -95000, count: 1 });
-  });
-
-  it('counts a flow by its sign: negative is spending, positive is income', () => {
-    const transactions = [transaction({ amount: -1840 }), transaction({ amount: 3000 }), transaction({ amount: -160 })];
-
-    expect(periodTotals(transactions, '2026-01-01', '2026-01-31')).toEqual({ income: 3000, expense: 2000, net: 1000, count: 3 });
-  });
-
-  it('stays inside the period', () => {
-    const transactions = [
-      transaction({ amount: -100, date: '2025-12-31' }),
-      transaction({ amount: -200, date: '2026-01-01' }),
-      transaction({ amount: -400, date: '2026-02-01' }),
-    ];
-
-    expect(periodTotals(transactions, '2026-01-01', '2026-01-31').expense).toBe(200);
-  });
-
-  it('groups by category and shows what is not filed yet', () => {
-    const transactions = [
-      transaction({ amount: -95000, categoryId: 'cat_rent' }),
-      transaction({ amount: -6250, categoryId: 'cat_groceries' }),
-      transaction({ amount: -3300, categoryId: 'cat_groceries' }),
-      transaction({ amount: -1200, categoryId: null }),
-      transaction({ amount: 250000, categoryId: 'cat_consulting' }),
-      transaction({ amount: -50000, counterAccountId: 'account_y' }),
-      transaction({ amount: -700, categoryId: 'cat_groceries', notCounted: true }),
-    ];
-
-    const spending = totalsByCategory(transactions, 'expense', '2026-01-01', '2026-01-31');
-    expect(spending).toEqual({ cat_rent: 95000, cat_groceries: 9550, '': 1200 });
-    // Uncategorised is shown, not dropped: a total that silently omits what
-    // you have not filed is worse than one that shows you the gap.
-
-    const income = totalsByCategory(transactions, 'income', '2026-01-01', '2026-01-31');
-    expect(income).toEqual({ cat_consulting: 250000 });
   });
 });
 
@@ -636,5 +574,144 @@ describe('a cash account follows its movements (ADR 0024)', () => {
     ]);
     // 30 days back is 8 Feb, before the 10 Feb movement.
     expect(overview.accounts[0]).toMatchObject({ value: 85000, valueDate: '2026-03-03', change30d: -15000 });
+  });
+});
+
+describe("a month's flows (#137)", () => {
+  /** @returns {any} */
+  const category = (/** @type {any} */ o) => ({ name: o.id, kind: null, parentId: null, fixedCost: false, archived: false, ...o });
+  const categories = [
+    category({ id: 'cat_home', kind: 'expense' }),
+    category({ id: 'cat_rent', parentId: 'cat_home', fixedCost: true }),
+    category({ id: 'cat_repairs', parentId: 'cat_home' }),
+    category({ id: 'cat_shopping', kind: 'expense' }),
+    category({ id: 'cat_salary', kind: 'income' }),
+  ];
+  /** @param {string} date @param {number} amount @param {string | null} categoryId @param {any} [o] */
+  const t = (date, amount, categoryId, o = {}) => transaction({ date, amount, categoryId, ...o });
+
+  it('counts a spending category\'s movements as spending, a refund reducing it', () => {
+    const flows = monthFlows([t('2026-03-02', -10000, 'cat_shopping'), t('2026-03-09', 3000, 'cat_shopping')], categories, '2026-03');
+
+    expect(flows.spending).toBe(7000);
+    expect(flows.income).toBe(0);
+  });
+
+  it('counts an income category\'s movements as income, a chargeback reducing it', () => {
+    const flows = monthFlows([t('2026-03-01', 250000, 'cat_salary'), t('2026-03-05', -20000, 'cat_salary')], categories, '2026-03');
+
+    expect(flows.income).toBe(230000);
+    expect(flows.spending).toBe(0);
+    expect(flows.left).toBe(230000);
+  });
+
+  it('counts uncategorised money by its sign, on a line of its own', () => {
+    const flows = monthFlows([t('2026-03-02', -1840, null), t('2026-03-03', 5000, null), t('2026-03-04', -160, null)], categories, '2026-03');
+
+    expect(flows.uncategorised).toEqual({ spending: 2000, income: 5000 });
+    expect(flows.spending).toBe(2000);
+    expect(flows.income).toBe(5000);
+  });
+
+  it('leaves out transfers and not-counted transactions, and other months', () => {
+    const flows = monthFlows(
+      [
+        t('2026-03-02', -50000, null, { counterAccountId: 'account_y' }),
+        t('2026-03-03', -7000, 'cat_shopping', { notCounted: true }),
+        t('2026-02-28', -9000, 'cat_shopping'),
+        t('2026-04-01', -9000, 'cat_shopping'),
+      ],
+      categories,
+      '2026-03'
+    );
+
+    expect(flows).toMatchObject({ income: 0, spending: 0, left: 0 });
+  });
+
+  it('rolls a parent up from its subcategories and its own movements, with each one\'s share of the month', () => {
+    const flows = monthFlows(
+      [t('2026-03-01', -90000, 'cat_rent'), t('2026-03-10', -6000, 'cat_repairs'), t('2026-03-11', -4000, 'cat_home'), t('2026-03-12', -100000, 'cat_shopping')],
+      categories,
+      '2026-03'
+    );
+
+    const home = flows.spendingCategories.find((row) => row.id === 'cat_home');
+    expect(home).toMatchObject({ total: 100000, share: 0.5 });
+    expect(home?.children.map((row) => [row.id, row.total])).toEqual([['cat_rent', 90000], ['cat_repairs', 6000]]);
+    expect(home?.own).toBe(4000);
+    expect(flows.spendingCategories.find((row) => row.id === 'cat_shopping')?.share).toBe(0.5);
+  });
+
+  it('gives each category\'s change from the previous month, in euros and percent, "n.d." when it was zero', () => {
+    const flows = monthFlows(
+      [t('2026-02-10', -8000, 'cat_shopping'), t('2026-03-10', -10000, 'cat_shopping'), t('2026-03-01', -90000, 'cat_rent')],
+      categories,
+      '2026-03'
+    );
+
+    expect(flows.spendingCategories.find((row) => row.id === 'cat_shopping')).toMatchObject({ previous: 8000, change: 2000, changeRatio: 0.25 });
+    expect(flows.spendingCategories.find((row) => row.id === 'cat_home')).toMatchObject({ previous: 0, change: 90000, changeRatio: null });
+  });
+
+  it('lists a category that had money last month and none this month', () => {
+    const flows = monthFlows([t('2026-02-10', -8000, 'cat_shopping')], categories, '2026-03');
+
+    expect(flows.spendingCategories).toEqual([
+      expect.objectContaining({ id: 'cat_shopping', total: 0, previous: 8000, change: -8000, changeRatio: -1, share: 0 }),
+    ]);
+  });
+
+  it('splits spending into fixed and variable by each transaction\'s own category, with no inheritance', () => {
+    const fixedParent = categories.map((row) => (row.id === 'cat_home' ? { ...row, fixedCost: true } : row));
+    const flows = monthFlows(
+      [t('2026-03-01', -90000, 'cat_rent'), t('2026-03-10', -6000, 'cat_repairs'), t('2026-03-11', -1000, null)],
+      fixedParent,
+      '2026-03'
+    );
+
+    // Repairs sits under a fixed parent and is still variable; so is uncategorised spending.
+    expect(flows.fixed).toBe(90000);
+    expect(flows.variable).toBe(7000);
+  });
+});
+
+describe('the savings rate (#137)', () => {
+  it('is what was left as a share of income', () => {
+    expect(savingsRate({ income: 200000, spending: 150000 })).toBe(0.25);
+    expect(savingsRate({ income: 200000, spending: 250000 })).toBe(-0.25);
+  });
+
+  it('is blank when income is zero or less', () => {
+    expect(savingsRate({ income: 0, spending: 5000 })).toBeNull();
+    expect(savingsRate({ income: -100, spending: 0 })).toBeNull();
+  });
+
+  it('over 12 months, adds up the selected month and the eleven before it', () => {
+    /** @returns {any} */
+    const category = (/** @type {any} */ o) => ({ name: o.id, kind: null, parentId: null, fixedCost: false, archived: false, ...o });
+    const categories = [category({ id: 'cat_salary', kind: 'income' }), category({ id: 'cat_shopping', kind: 'expense' })];
+    const transactions = [
+      transaction({ date: '2025-03-31', amount: 999999, categoryId: 'cat_salary' }),
+      transaction({ date: '2025-04-01', amount: 100000, categoryId: 'cat_salary' }),
+      transaction({ date: '2026-03-31', amount: 100000, categoryId: 'cat_salary' }),
+      transaction({ date: '2025-12-15', amount: -150000, categoryId: 'cat_shopping' }),
+      transaction({ date: '2026-04-01', amount: -999999, categoryId: 'cat_shopping' }),
+    ];
+
+    expect(yearFlows(transactions, categories, '2026-03')).toEqual({ income: 200000, spending: 150000 });
+    expect(savingsRate(yearFlows(transactions, categories, '2026-03'))).toBe(0.25);
+  });
+});
+
+describe('the months the section offers (#137)', () => {
+  it('runs from the first transaction\'s month to today\'s, newest first', () => {
+    const transactions = [transaction({ date: '2026-01-20' }), transaction({ date: '2025-11-03' })];
+
+    expect(flowMonths(transactions, '2026-02-10')).toEqual(['2026-02', '2026-01', '2025-12', '2025-11']);
+  });
+
+  it('offers today\'s month alone when nothing is recorded, and never a future month', () => {
+    expect(flowMonths([], '2026-02-10')).toEqual(['2026-02']);
+    expect(flowMonths([transaction({ date: '2026-05-01' })], '2026-02-10')).toEqual(['2026-02']);
   });
 });
