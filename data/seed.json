@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 13,
+  "schemaVersion": 14,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -37,6 +37,7 @@
         "periods": [{ "from": "2026-01-04", "to": null }]
       }
     ],
+    "financeTrackedSince": null,
     "financeCategories": [
       {
         "id": "cat_consulting",

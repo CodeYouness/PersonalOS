@@ -785,6 +785,14 @@ holding starts at its first trade. An
 account's **30-day change** is its value today minus its value 30 days ago,
 blank when it had none then: a missing past is not a change from zero.
 
+**Tracked since** (`profile.financeTrackedSince`, ADR 0025) is the day your
+finance tracking started, set on the Finances screen's Settings card. Once
+set, the history starts at the first month-end on or after it, the 1-year
+change is blank when its start falls before that month-end, and the months Income &
+spending offers start at its month. Trades before it still count toward a
+holding's units -- they are only not drawn. Unset, the history starts at the
+first balance or trade.
+
 ### Categories are yours
 
 `profile.financeCategories` lives in the data file, like habits, because your
