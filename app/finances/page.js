@@ -50,7 +50,7 @@ export default async function FinancesScreen({ searchParams }) {
   const { accounts, observations, trades, prices, transactions } = finance;
   const overview = financeOverview(finance, todayKey);
   const categories = profile.financeCategories;
-  const months = flowMonths(transactions, todayKey, profile.financeTrackedSince);
+  const months = flowMonths(transactions, todayKey, finance.trackedSince);
   const month = isMonthKey(monthParam) && months.includes(/** @type {string} */ (monthParam)) ? /** @type {string} */ (monthParam) : monthOf(todayKey);
   const category = typeof categoryParam === 'string' && lineName(categoryParam, categories) !== null ? categoryParam : null;
   const { from, to } = monthRange(month);

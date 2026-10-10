@@ -799,8 +799,10 @@ describe('"tracked since" bounds the history (ADR 0025)', () => {
     expect(overview.accounts.find((row) => row.account.id === 'account_etf')?.value).toBe(10000);
   });
 
-  it('leaves the 1-year change blank when its start falls before the day', () => {
+  it('leaves the 1-year change blank when its start falls before the first month-end drawn', () => {
     expect(financeOverview({ ...given, trackedSince: '2025-11-12' }, '2026-02-10').changes.year).toBeNull();
+    // A year back is 10 Feb 2025, after the day but before 28 Feb, the first month-end drawn.
+    expect(financeOverview({ ...given, trackedSince: '2025-02-05' }, '2026-02-10').changes.year).toBeNull();
     expect(financeOverview({ ...given, trackedSince: '2024-02-01' }, '2026-02-10').changes.year).not.toBeNull();
   });
 

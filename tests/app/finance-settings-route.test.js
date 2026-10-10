@@ -55,6 +55,7 @@ describe('PATCH /api/finance-settings', () => {
 
   it.each([
     ['a day that is not a day', { financeTrackedSince: '2025-02-30' }, /financeTrackedSince/],
+    ['a day after today', { financeTrackedSince: '2999-01-01' }, /after today/],
     ['a setting it does not hold', { name: 'Someone else' }, /name/],
     ['nothing to change', {}, /nothing/],
     ['a body that is not a JSON object', '[1]', /JSON object/],

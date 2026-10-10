@@ -29,6 +29,8 @@ export async function PATCH(request) {
 
   try {
     const profile = await updateProfile(body);
+    // Only the settings: the rest of the profile -- habits, categories -- is
+    // not this route's to hand back.
     return NextResponse.json({ ok: true, settings: { financeTrackedSince: profile.financeTrackedSince } });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

@@ -18,15 +18,16 @@ right.
 ## Decision
 
 **A "tracked since" day lives in the profile, `financeTrackedSince`**, a
-nullable day key validated at the store boundary and set from the Finances
+nullable day key validated at the store boundary -- never after today and set from the Finances
 screen's Settings card (or by the migration, #140).
 
 When it is set:
 
 - **The monthly history starts at the first month-end on or after it** -- the
   end of its month -- or at the first value if that is later.
-- **The 1-year change is blank when its start falls before it.** A change from
-  a month that was not tracked is not a change.
+- **The 1-year change is blank when its start falls before the first
+  month-end drawn.** A change from a month that was not tracked is not a
+  change.
 - **Trades dated before it still count toward a holding's units.** They are
   only not drawn: valuation is untouched.
 - The Pulse card's sparkline follows, through the same derivation, and the

@@ -3,14 +3,16 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { shortDate } from '@/components/format.js';
+import { monthLabel } from '@/components/format.js';
+import { monthOf } from '@/lib/domain/dates.js';
 import { messageOf, request } from '@/components/request.js';
 
 /**
  * The Finances screen's settings (#138): "tracked since", the day your
  * tracking started. The history, the 1-year change and the months Income &
  * spending offers start there (ADR 0025); trades before it still count
- * toward a holding's units. Saved when the day is chosen; Clear goes back
+ * toward a holding's units. Saved when you leave the field (also on
+ * Enter); Clear goes back
  * to starting at the first value. A refused write shows why and re-reads.
  *
  * @param {{ trackedSince: string | null, todayKey: string }} props
@@ -63,6 +65,9 @@ export default function FinanceSettings({ trackedSince, todayKey }) {
               max={todayKey}
               disabled={isSaving}
               onChange={(event) => setDay(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+              }}
               onBlur={() => {
                 if (day !== '' && day !== trackedSince) save(day);
               }}
@@ -75,7 +80,7 @@ export default function FinanceSettings({ trackedSince, todayKey }) {
         <p className="caption finance-hint">
           {trackedSince === null
             ? 'The history starts at your first balance or trade.'
-            : 'The history starts at the end of ' + shortDate(trackedSince, todayKey) + "'s month; earlier trades still count toward what you hold."}
+            : 'The history starts with ' + monthLabel(monthOf(trackedSince)) + '; earlier trades still count toward what you hold.'}
         </p>
       </div>
     </article>
