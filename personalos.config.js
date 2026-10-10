@@ -41,6 +41,7 @@ export const ENTITY_TYPES = Object.freeze([
   'transaction',
   'snapshot',
   'appointment',
+  'category',
 ]);
 
 /**
@@ -195,6 +196,15 @@ export const ACCOUNT_KINDS = Object.freeze(['cash', 'investment', 'asset', 'liab
  * @type {readonly string[]}
  */
 export const ACCOUNT_VALUATIONS = Object.freeze(['balance', 'units']);
+
+/**
+ * What a finance category counts as (#136): money in, or money out. Stored
+ * on a top-level category only; a subcategory takes its parent's. Fixed once
+ * the category or a subcategory is in use, so last year's totals never flip.
+ *
+ * @type {readonly string[]}
+ */
+export const CATEGORY_KINDS = Object.freeze(['income', 'expense']);
 
 /** Which way a trade moves units: in, or out. */
 export const TRADE_DIRECTIONS = Object.freeze(['buy', 'sell']);

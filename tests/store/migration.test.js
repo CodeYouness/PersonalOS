@@ -578,9 +578,17 @@ function v11Document() {
     categoryId: null, note: '', origin: null, createdAt: '2026-01-05T06:00:00.000Z',
     updatedAt: '2026-01-05T06:00:00.000Z', source: 'user', ...o,
   });
+  const v10 = migrate(v10Document());
   return {
-    ...migrate(v10Document()),
+    ...v10,
     schemaVersion: 11,
+    profile: {
+      ...v10.profile,
+      financeCategories: [
+        { id: 'cat_rent', name: 'Rent', kind: 'expense', archived: false },
+        { id: 'cat_consulting', name: 'Consulting', kind: 'income', archived: false },
+      ],
+    },
     transactions: [
       tx({ id: 'transaction_1', date: '2026-01-02', amount: 250000, kind: 'income', categoryId: 'cat_consulting' }),
       tx({ id: 'transaction_2', date: '2026-01-03', amount: 95000, kind: 'expense', categoryId: 'cat_rent', note: 'January' }),
@@ -671,6 +679,57 @@ describe('migration v11 to v12', () => {
 
   it('is idempotent', () => {
     const once = migrate(v11Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});
+
+/** A minimal v12 document: one level of categories, no fixed cost. */
+function v12Document() {
+  const v12 = migrate(v11Document());
+  return {
+    ...v12,
+    schemaVersion: 12,
+    profile: {
+      ...v12.profile,
+      financeCategories: [
+        { id: 'cat_rent', name: 'Rent', kind: 'expense', archived: false },
+        { id: 'cat_consulting', name: 'Consulting', kind: 'income', archived: true },
+      ],
+    },
+  };
+}
+
+describe('migration v12 to v13', () => {
+  it('puts every category at the top level, not a fixed cost, keeping its kind', () => {
+    const migrated = migrate(v12Document());
+
+    expect(migrated.profile.financeCategories).toEqual([
+      { id: 'cat_rent', name: 'Rent', kind: 'expense', archived: false, parentId: null, fixedCost: false },
+      { id: 'cat_consulting', name: 'Consulting', kind: 'income', archived: true, parentId: null, fixedCost: false },
+    ]);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('uncategorises a transaction filed on a category that no longer exists', () => {
+    const migrated = migrate(v12Document());
+
+    // v11Document files transaction_1 on cat_consulting, which v12Document keeps.
+    expect(migrated.transactions[0].categoryId).toBe('cat_consulting');
+    expect(migrate({ ...v12Document(), profile: { ...v12Document().profile, financeCategories: [] } }).transactions[0].categoryId).toBeNull();
+  });
+
+  it('changes nothing else', () => {
+    const before = v12Document();
+    const { profile, schemaVersion, transactions, ...rest } = migrate(before);
+    const { profile: profileBefore, schemaVersion: versionBefore, transactions: transactionsBefore, ...restBefore } = before;
+
+    expect(transactions).toEqual(transactionsBefore);
+    expect(rest).toEqual(restBefore);
+    expect({ ...profile, financeCategories: [] }).toEqual({ ...profileBefore, financeCategories: [] });
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v12Document());
     expect(migrate(once)).toEqual(once);
   });
 });

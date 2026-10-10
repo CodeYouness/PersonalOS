@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 12,
+  "schemaVersion": 13,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -42,36 +42,64 @@
         "id": "cat_consulting",
         "name": "Consulting",
         "kind": "income",
+        "parentId": null,
+        "fixedCost": false,
         "archived": false
       },
       {
         "id": "cat_teaching",
         "name": "Teaching",
         "kind": "income",
+        "parentId": null,
+        "fixedCost": false,
+        "archived": false
+      },
+      {
+        "id": "cat_home",
+        "name": "Home",
+        "kind": "expense",
+        "parentId": null,
+        "fixedCost": false,
         "archived": false
       },
       {
         "id": "cat_rent",
         "name": "Rent",
-        "kind": "expense",
+        "kind": null,
+        "parentId": "cat_home",
+        "fixedCost": true,
+        "archived": false
+      },
+      {
+        "id": "cat_utilities",
+        "name": "Utilities",
+        "kind": null,
+        "parentId": "cat_home",
+        "fixedCost": true,
         "archived": false
       },
       {
         "id": "cat_groceries",
         "name": "Groceries",
         "kind": "expense",
+        "parentId": null,
+        "fixedCost": false,
         "archived": false
       },
       {
         "id": "cat_eating_out",
         "name": "Eating out",
         "kind": "expense",
+        "parentId": null,
+        "fixedCost": false,
         "archived": false
       },
       {
         "id": "cat_transport",
         "name": "Transport",
         "kind": "expense",
+        "parentId": null,
+        "fixedCost": false,
         "archived": false
       }
     ]

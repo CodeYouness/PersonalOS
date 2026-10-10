@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 
 import {
+  categoryOptions,
   DIRECTION_LABELS,
   directionOf,
   financesHref,
@@ -600,30 +601,24 @@ function AccountPicker({ id, label, accounts, value, onChange, placeholder }) {
 }
 
 /**
- * The categories you can file on: every one not archived, spending first,
- * and the one already chosen even if it was archived since.
+ * The categories you can file on, a parent or one of its subcategories
+ * (categoryOptions).
  *
  * @param {{ id: string, categories: FinanceCategory[], value: string, onChange: (id: string) => void }} props
  */
 function CategoryPicker({ id, categories, value, onChange }) {
-  const offered = categories.filter((category) => !category.archived || category.id === value);
   return (
     <div className="field">
       <label className="caption" htmlFor={id}>Category</label>
       <select id={id} className="input" value={value} onChange={(event) => onChange(event.target.value)}>
         <option value="">Uncategorised</option>
-        {[
-          ['expense', 'Spending'],
-          ['income', 'Income'],
-        ].map(([kind, label]) => (
+        {categoryOptions(categories, value).map(({ kind, label, options }) => (
           <optgroup key={kind} label={label}>
-            {offered
-              .filter((category) => category.kind === kind)
-              .map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
+            {options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.child ? '\u00a0\u00a0\u00a0' + option.name : option.name}
+              </option>
+            ))}
           </optgroup>
         ))}
       </select>

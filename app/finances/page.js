@@ -1,5 +1,6 @@
 import FinanceAccountDetail, { FinanceAccountEmpty } from '@/components/FinanceAccountDetail.js';
 import FinanceBreakdown from '@/components/FinanceBreakdown.js';
+import FinanceCategories from '@/components/FinanceCategories.js';
 import FinanceHistory from '@/components/FinanceHistory.js';
 import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
@@ -32,7 +33,7 @@ export const dynamic = 'force-dynamic';
  * (#134). An id that no longer exists selects nothing. With no account
  * selected, the panel adds one; with no transaction selected, the panel
  * beside the list records a movement. The History card sits under the
- * account panel (#118).
+ * account panel (#118), the Categories card (#136) under the movement one.
  *
  * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], transaction?: string | string[] }> }} props
  */
@@ -107,6 +108,7 @@ export default async function FinancesScreen({ searchParams }) {
               place={place}
             />
           )}
+          <FinanceCategories categories={categories} />
         </div>
       </div>
     </section>

@@ -1,3 +1,5 @@
+import { CATEGORY_KINDS } from '@/personalos.config.js';
+
 /**
  * Helpers the Finances screen's components share (CODING_STANDARDS.md):
  * its addresses, and how a movement's direction maps to a signed amount.
@@ -101,6 +103,54 @@ export const KIND_LABELS = { cash: 'cash', investment: 'invested', asset: 'asset
 /** @param {string} id */
 export function accountUrl(id) {
   return '/api/accounts/' + encodeURIComponent(id);
+}
+
+/** @type {Record<'income' | 'expense', string>} */
+const CATEGORY_KIND_LABELS = { expense: 'Spending', income: 'Income' };
+
+/**
+ * The kinds of category (CATEGORY_KINDS), in the order the screen lists
+ * them: spending first, as the money that needs watching.
+ *
+ * @type {readonly { kind: 'expense' | 'income', label: string }[]}
+ */
+export const CATEGORY_GROUPS = [...CATEGORY_KINDS]
+  .sort((a, b) => (a === 'expense' ? -1 : b === 'expense' ? 1 : 0))
+  .map((kind) => ({ kind: /** @type {'income' | 'expense'} */ (kind), label: CATEGORY_KIND_LABELS[/** @type {'income' | 'expense'} */ (kind)] }));
+
+/**
+ * The categories a movement can be filed on, two levels deep (#136): per
+ * kind, each parent followed by its subcategories. An archived category --
+ * or one under an archived parent -- leaves the picker but keeps its
+ * transactions; the one already chosen stays, so a filed movement still
+ * shows where it is.
+ *
+ * @param {import('@/lib/domain/types.js').FinanceCategory[]} categories
+ * @param {string} chosen the category already chosen, or ''
+ * @returns {{ kind: 'expense' | 'income', label: string, options: { id: string, name: string, child: boolean }[] }[]}
+ */
+export function categoryOptions(categories, chosen) {
+  const parents = categories.filter((category) => category.parentId === null);
+  /** @param {import('@/lib/domain/types.js').FinanceCategory} category */
+  const offered = (category) => {
+    if (category.id === chosen) return true;
+    const parent = parents.find((row) => row.id === category.parentId);
+    return !category.archived && !(parent?.archived ?? false);
+  };
+  return CATEGORY_GROUPS.map(({ kind, label }) => ({
+    kind,
+    label,
+    options: parents
+      .filter((parent) => parent.kind === kind)
+      .flatMap((parent) => [parent, ...categories.filter((category) => category.parentId === parent.id)])
+      .filter(offered)
+      .map((category) => ({ id: category.id, name: category.name, child: category.parentId !== null })),
+  }));
+}
+
+/** @param {string} id */
+export function categoryUrl(id) {
+  return '/api/finance-categories/' + encodeURIComponent(id);
 }
 
 /** @param {string} id */

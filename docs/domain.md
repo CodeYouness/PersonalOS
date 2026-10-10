@@ -768,6 +768,48 @@ blank when it had none then: a missing past is not a change from zero.
 categories are yours. The template ships a demo set in the seed; it does not
 ship your business.
 
+### Category / subcategory
+
+**Is** a bucket a transaction is filed in, at one of **two levels** (#136). A
+top-level category has a `kind` -- `income` or `expense`, the closed
+`CATEGORY_KINDS` in `personalos.config.js`. A **subcategory** has a
+`parentId`, a top-level category, and takes its parent's kind: the kind is
+stored on the top level only, because it can be derived, and so a child can
+never disagree with its parent. A transaction may be filed on a parent or on
+one of its subcategories.
+
+**Has** `name`, `kind` (null on a subcategory), `parentId` (null at the top
+level), `fixedCost`, `archived`.
+
+Managing them is the store's (`createFinanceCategory`,
+`updateFinanceCategory`, `deleteFinanceCategory`), never a profile patch, so
+every rule meets every caller:
+
+- **Two levels, never three.** A subcategory cannot have subcategories, and a
+  parent that has them cannot become one.
+- **A move never crosses kinds.** A subcategory moves under another parent of
+  the same kind, so a move never turns spending into income. A top-level
+  category with no subcategories can move under a parent of its kind, taking
+  its kind.
+  Promoting a subcategory to the top level is not offered.
+- **The kind is fixed once in use** -- the category or a subcategory is
+  referenced by a transaction -- so last year's totals never flip.
+- **Archiving** takes a category, and a parent's subcategories with it, out
+  of the pickers; its transactions and totals stay. Restoring brings it back.
+- **Deleting** is for a mistake, and is refused while the category or a
+  subcategory is in use; its unused subcategories go with it.
+- A transaction's category must exist (ADR 0023).
+
+### Fixed cost
+
+**Is** a flag the user sets on a category, at either level: money filed
+there was already committed before the month began -- rent, insurance, a
+subscription. Fixed vs variable spending reads each transaction's **own**
+category's flag, with no inheritance, so a parent with both fixed and
+variable children is never misread. It is the user's decision, kept distinct
+from the planned **Recurring charge** detection, which would infer
+recurrence from the transactions themselves.
+
 ---
 
 ## Integrations
@@ -791,7 +833,7 @@ double counting.
 | Canonical | Derived (never stored) |
 | --- | --- |
 | profile, habit definitions (including periods) | overdue, days overdue, a task's age, board column and By person group |
-| finance categories | whether a habit is active/archived on a day |
+| finance categories (two levels, kind on the top level, fixedCost, archived) | whether a habit is active/archived on a day; a subcategory's kind |
 | task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates, history heatmap cells, the thirty-day summary |
 | people | health averages, day totals |
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
