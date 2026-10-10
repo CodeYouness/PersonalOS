@@ -18,7 +18,7 @@
  * plan is unresolved.
  *
  * The run order: remove the demo finance rows, dry run, read the report,
- * write. The mapping and the report never go into the repository: keep the
+ * stop `npm run dev`, write. The mapping and the report never go into the repository: keep the
  * mapping in `.scratch/`, and read the report in the terminal.
  */
 
@@ -55,7 +55,7 @@ export async function importSheet({ xlsxPath, mappingPath, write = false, print 
     for (const line of describePlan(plan, blocking)) print(line);
     return { plan, blocking };
   }
-  const { backupPath } = await writePlan(plan, mapping, blocking, print);
+  const { backupPath } = await writePlan(plan, mapping, print);
   return { plan, blocking, backupPath };
 }
 

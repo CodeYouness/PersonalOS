@@ -9,8 +9,16 @@
  * `upsertTransactionByOrigin` with origin `{ source: 'sheet', externalId:
  * <Timestamp> }`: its category, counter account, tags and not-counted flag
  * are where it starts, and from then on they are yours (ADR 0023).
+ *
+ * The refusals are this importer's policy -- a one-off run against a clean
+ * finance section -- not rules of an entity, so they live here rather than in
+ * the store. The writes are separate store calls, serialised in this process
+ * (ADR 0011) but not against another one: stop `npm run dev` while it writes.
+ * A failure part way says how to restore the backup.
  */
 
+import { firstDayUnitsGoNegative } from '../../lib/domain/derive/finance.js';
+import { blockingReasons } from './plan.js';
 import {
   backupData,
   createAccount,
@@ -32,27 +40,39 @@ export const SHEET_SOURCE = 'sheet';
 /**
  * @param {import('./plan.js').ImportPlan} plan
  * @param {import('./mapping.js').Mapping} mapping
- * @param {string[]} blocking what the plan itself leaves unresolved
  * @param {(line: string) => void} print
  * @returns {Promise<{ backupPath: string }>}
  */
-export async function writePlan(plan, mapping, blocking, print) {
+export async function writePlan(plan, mapping, print) {
   const [accounts, profile, transactions, demo] = await Promise.all([getAccounts(), getProfile(), getTransactions(), hasDemoFinance()]);
 
-  const refusals = [...blocking];
+  const refusals = blockingReasons(plan);
   if (demo) refusals.unshift('the demo finance rows are still in your data: run `npm run data:remove-demo-finance` first');
   if (transactions.some((transaction) => transaction.origin?.source === SHEET_SOURCE)) {
     refusals.unshift('the sheet is already imported; this is a one-off -- restore the backup to run it again');
   }
   for (const key of plan.accounts) {
     const wanted = mapping.accounts[key];
-    const existing = accounts.find((account) => account.name === wanted.name);
+    const existing = accountNamed(accounts, wanted.name);
     if (existing !== undefined && (existing.kind !== wanted.kind || existing.valuation !== wanted.valuation)) {
       refusals.push('an account named "' + wanted.name + '" already exists as ' + existing.kind + ' valued by ' + existing.valuation);
     }
+    // Nothing moves on a closed account (ADR 0023): reusing one would stop
+    // the write part way, so it is refused before it starts.
+    if (existing?.archivedOn) refusals.push('the account "' + wanted.name + '" is archived; restore it before importing');
+  }
+  // What the store would refuse part way, checked against the plan first.
+  for (const balance of plan.balances) {
+    if (mapping.accounts[balance.account].valuation === 'units') {
+      refusals.push('an opening balance lands on "' + mapping.accounts[balance.account].name + '", which is valued by units');
+    }
+  }
+  for (const holding of new Set(plan.trades.map((trade) => trade.account))) {
+    const day = firstDayUnitsGoNegative(plan.trades.filter((trade) => trade.account === holding));
+    if (day !== null) refusals.push('the trades on "' + mapping.accounts[holding].name + '" would take the units held below zero on ' + day);
   }
   for (const category of mapping.categories.filter((row) => row.parent === null)) {
-    const existing = profile.financeCategories.find((row) => row.parentId === null && row.name === category.name);
+    const existing = topCategoryNamed(profile.financeCategories, category.name);
     if (existing !== undefined && existing.kind !== category.kind) {
       refusals.push('a category named "' + category.name + '" already exists as ' + existing.kind);
     }
@@ -110,6 +130,9 @@ export async function writePlan(plan, mapping, blocking, print) {
     );
   }
 
+  if (mapping.defaultAccount !== null) {
+    print('the default account is not set yet: the profile has no default account until #141');
+  }
   print(
     'imported ' + plan.accounts.length + ' accounts, ' + plan.balances.length + ' balances, ' + plan.transactions.length +
       ' transactions and ' + plan.trades.length + ' trades'
@@ -131,7 +154,7 @@ async function writeAccounts(plan, mapping, existing) {
   const ids = new Map();
   for (const key of plan.accounts) {
     const { name, kind, valuation } = mapping.accounts[key];
-    const found = existing.find((account) => account.name === name);
+    const found = accountNamed(existing, name);
     ids.set(key, found?.id ?? (await createAccount({ name, kind, valuation, source: 'integration' })).id);
   }
   return ids;
@@ -149,7 +172,7 @@ async function writeCategories(mapping, existing) {
   /** @type {Map<string, string>} */
   const ids = new Map();
   for (const category of mapping.categories.filter((row) => row.parent === null)) {
-    const found = existing.find((row) => row.parentId === null && row.name === category.name);
+    const found = topCategoryNamed(existing, category.name);
     ids.set(category.path, found?.id ?? (await createFinanceCategory({ name: category.name, kind: category.kind, fixedCost: category.fixedCost })).id);
   }
   for (const category of mapping.categories.filter((row) => row.parent !== null)) {
@@ -158,4 +181,24 @@ async function writeCategories(mapping, existing) {
     ids.set(category.path, found?.id ?? (await createFinanceCategory({ name: category.name, parentId, fixedCost: category.fixedCost })).id);
   }
   return ids;
+}
+
+/**
+ * The account a mapped one is reused as: the same name.
+ *
+ * @param {import('../../lib/domain/types.js').FinanceAccount[]} accounts
+ * @param {string} name
+ */
+function accountNamed(accounts, name) {
+  return accounts.find((account) => account.name === name);
+}
+
+/**
+ * The top-level category a mapped one is reused as: the same name.
+ *
+ * @param {import('../../lib/domain/types.js').FinanceCategory[]} categories
+ * @param {string} name
+ */
+function topCategoryNamed(categories, name) {
+  return categories.find((category) => category.parentId === null && category.name === name);
 }

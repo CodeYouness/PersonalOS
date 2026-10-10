@@ -86,6 +86,14 @@ export function validateMapping(input) {
     accounts[sheetName] = { name: nonBlank(account.name, where + '.name'), kind: /** @type {any} */ (kind), valuation: /** @type {any} */ (valuation) };
   }
 
+  /** @type {Map<string, string>} */
+  const names = new Map();
+  for (const [sheetName, account] of Object.entries(accounts)) {
+    const other = names.get(account.name);
+    if (other !== undefined) throw new Error('accounts["' + other + '"] and accounts["' + sheetName + '"] both map to "' + account.name + '"');
+    names.set(account.name, sheetName);
+  }
+
   /** @type {Record<string, string>} */
   const holdings = {};
   for (const [ticker, value] of Object.entries(record(root.holdings ?? {}, 'holdings'))) {

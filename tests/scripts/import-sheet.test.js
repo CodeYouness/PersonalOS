@@ -232,6 +232,7 @@ describe('the mapping', () => {
     ['a pair mapped to a category it does not list', (/** @type {any} */ m) => ({ ...m, pairs: { ...m.pairs, 'Cibo|Spesa': 'Food/Snacks' } }), /names no category/],
     ['a subcategory under a parent it does not list', (/** @type {any} */ m) => ({ ...m, categories: [...m.categories, { name: 'Cinema', parent: 'Fun' }] }), /no top-level category/],
     ['an account of a kind outside the vocabulary', (/** @type {any} */ m) => ({ ...m, accounts: { ...m.accounts, Conto: { name: 'X', kind: 'wallet' } } }), /kind must be one of/],
+    ['two sheet accounts mapped to one name', (/** @type {any} */ m) => ({ ...m, accounts: { ...m.accounts, Contanti: { name: 'Card', kind: 'cash' } } }), /both map to "Card"/],
     ['a holding that is not valued by units', (/** @type {any} */ m) => ({ ...m, holdings: { WRLD: 'Conto' } }), /valued by units/],
     ['a row override with a field it does not know', (/** @type {any} */ m) => ({ ...m, rows: { x: { amount: 3 } } }), /unknown amount/],
   ])('refuses %s, with the reason', async (_label, change, reason) => {
@@ -327,7 +328,7 @@ describe('the write', () => {
     await write();
 
     const groceries = (await store.getTransactions()).find((t) => t.description === 'Supermarket');
-    expect(groceries).toMatchObject({ amount: -1840, tags: ['weekends'] });
+    expect(groceries).toMatchObject({ amount: -1840, tags: ['weekends'], origin: expect.objectContaining({ source: 'sheet', externalId: '2024-01-05T12:30:00.000Z' }) });
     expect((await store.getProfile()).financeTrackedSince).toBe('2024-01-03');
   });
 
@@ -356,6 +357,21 @@ describe('the write', () => {
       /not mapped/,
     ],
     [
+      'an account is unmapped',
+      { movements: [...MOVEMENTS, { at: '2024-01-13T10:00:00.000Z', date: '2024-01-13', category: 'Cibo', subcategory: 'Spesa', amount: 5, from: 'Portafoglio' }] },
+      /account "Portafoglio" is not mapped/,
+    ],
+    [
+      'the trades sell more units than they hold',
+      { trades: [...TRADES, { date: '2024-02-01', ticker: 'WRLD', quantity: -10, price: 100, fee: 0 }] },
+      /below zero/,
+    ],
+    [
+      'an opening balance lands on an account valued by units',
+      { movements: [...MOVEMENTS, { at: '2024-01-01T09:03:00.000Z', date: '2024-01-01', category: 'Saldo', subcategory: 'Iniziale', amount: 100, to: 'Broker', counted: false, tags: 'saldo iniziale' }] },
+      /valued by units/,
+    ],
+    [
       'a purchase is unresolved',
       { movements: [...MOVEMENTS, { at: '2024-01-14T10:00:00.000Z', date: '2024-01-14', category: 'Investimenti', subcategory: 'ETF', amount: 777, from: 'Conto' }] },
       /matches 0 trades/,
@@ -368,6 +384,14 @@ describe('the write', () => {
     await expect(write({ ...options, keepDemo: true })).rejects.toThrow(reason);
 
     expect((await readFile(dataFile)).equals(before)).toBe(true);
+  });
+
+  it('refuses to reuse an account that is archived', async () => {
+    await store.removeDemoFinance();
+    const card = await store.createAccount({ name: 'Card', kind: 'cash' });
+    await store.updateAccount(card.id, { archived: true });
+
+    await expect(write({ keepDemo: true })).rejects.toThrow(/"Card" is archived/);
   });
 
   it('refuses a second run once rows from the sheet exist', async () => {
