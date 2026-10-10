@@ -186,17 +186,6 @@ export const GOAL_HORIZONS = Object.freeze(['week', 'month', 'open']);
 export const ACCOUNT_KINDS = Object.freeze(['cash', 'investment', 'asset', 'liability']);
 
 /**
- * Money moving.
- *
- * `transfer` is the one that saves you from a wrong number: moving money
- * between two accounts you own is neither income nor spending, and counting
- * it doubles your monthly total. Every aggregation excludes it.
- *
- * @type {readonly string[]}
- */
-export const TRANSACTION_KINDS = Object.freeze(['income', 'expense', 'transfer']);
-
-/**
  * How an account is valued (#116). `balance`: you record what it is worth on
  * a date -- cash, a pension fund, a property, a debt. `units`: a holding such
  * as an ETF, valued by the units its trades leave you holding times the

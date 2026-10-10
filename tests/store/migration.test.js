@@ -570,3 +570,101 @@ describe('migration v10 to v11', () => {
     expect(migrate(once)).toEqual(once);
   });
 });
+
+/** A minimal v11 document: transactions with a positive amount and a kind. */
+function v11Document() {
+  const tx = (/** @type {any} */ o) => ({
+    currency: 'EUR', description: '', accountId: 'account_current', counterAccountId: null,
+    categoryId: null, note: '', origin: null, createdAt: '2026-01-05T06:00:00.000Z',
+    updatedAt: '2026-01-05T06:00:00.000Z', source: 'user', ...o,
+  });
+  return {
+    ...migrate(v10Document()),
+    schemaVersion: 11,
+    transactions: [
+      tx({ id: 'transaction_1', date: '2026-01-02', amount: 250000, kind: 'income', categoryId: 'cat_consulting' }),
+      tx({ id: 'transaction_2', date: '2026-01-03', amount: 95000, kind: 'expense', categoryId: 'cat_rent', note: 'January' }),
+      // A counter account on spending: the old patch allowed it, and it meant nothing.
+      tx({ id: 'transaction_3', date: '2026-02-04', amount: 6250, kind: 'expense', counterAccountId: 'account_savings' }),
+      tx({
+        id: 'transaction_4', date: '2026-01-04', amount: 100000, kind: 'transfer',
+        counterAccountId: 'account_savings', categoryId: 'cat_rent',
+      }),
+    ],
+  };
+}
+
+/**
+ * Income and spending per month, read the way each schema means it: v11 by
+ * `kind`, v12 by the sign.
+ *
+ * @param {any[]} transactions
+ * @param {(t: any) => number} signed
+ */
+function monthlyTotals(transactions, signed) {
+  /** @type {Record<string, { income: number, spending: number }>} */
+  const months = {};
+  for (const t of transactions) {
+    if (t.kind === 'transfer' || (t.kind === undefined && t.counterAccountId !== null)) continue;
+    const month = (months[t.date.slice(0, 7)] ??= { income: 0, spending: 0 });
+    const amount = signed(t);
+    if (amount > 0) month.income += amount;
+    else month.spending -= amount;
+  }
+  return months;
+}
+
+describe('migration v11 to v12', () => {
+  it('signs every amount from its account\'s side and drops kind', () => {
+    const migrated = migrate(v11Document());
+
+    expect(migrated.transactions.map((/** @type {any} */ t) => t.amount)).toEqual([250000, -95000, -6250, -100000]);
+    expect(migrated.transactions.every((/** @type {any} */ t) => !('kind' in t))).toBe(true);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('keeps a transfer\'s counter account and clears the category it never counted under', () => {
+    const transfer = migrate(v11Document()).transactions[3];
+
+    expect(transfer.counterAccountId).toBe('account_savings');
+    expect(transfer.categoryId).toBeNull();
+  });
+
+  it('keeps income and spending what they were, even with a stray counter account', () => {
+    expect(migrate(v11Document()).transactions[2].counterAccountId).toBeNull();
+  });
+
+  it('gives every transaction notCounted false and no tags', () => {
+    const migrated = migrate(v11Document());
+
+    expect(migrated.transactions.map((/** @type {any} */ t) => [t.notCounted, t.tags])).toEqual([
+      [false, []], [false, []], [false, []], [false, []],
+    ]);
+  });
+
+  it('keeps every month\'s income and spending', () => {
+    const before = v11Document();
+    const migrated = migrate(before);
+
+    expect(monthlyTotals(migrated.transactions, (t) => t.amount)).toEqual(
+      monthlyTotals(before.transactions, (t) => (t.kind === 'income' ? t.amount : -t.amount))
+    );
+    expect(monthlyTotals(migrated.transactions, (t) => t.amount)).toEqual({
+      '2026-01': { income: 250000, spending: 95000 },
+      '2026-02': { income: 0, spending: 6250 },
+    });
+  });
+
+  it('changes nothing else about a transaction', () => {
+    const before = v11Document();
+    const { amount, notCounted, tags, ...rest } = migrate(before).transactions[1];
+    const { amount: a, kind, ...restBefore } = before.transactions[1];
+
+    expect(rest).toEqual(restBefore);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v11Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});

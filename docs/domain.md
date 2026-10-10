@@ -686,24 +686,44 @@ spending -- belongs to the transactions piece.
 
 **Is** money moving.
 
-**Has** `date`, `amount`, `currency`, `description`, `kind`, `accountId`,
-`counterAccountId`, `categoryId`, `note`, `origin`.
+**Has** `date`, `amount`, `currency`, `description`, `accountId`,
+`counterAccountId`, `categoryId`, `notCounted`, `tags`, `note`, `origin`.
+
+**The amount is signed from `accountId`'s side** (ADR 0023): negative when
+money left the account, positive when it came in. Zero is refused. For now a
+flow counts by its sign -- negative is spending, positive is income -- until
+the category's kind decides (#137).
 
 **Two zones of ownership, and getting this wrong is the classic sync bug:**
 
 | Owned by the source | Owned by you |
 | --- | --- |
-| date, amount, currency, description, accountId, kind, origin | categoryId, note, links |
+| date, amount, currency, description, accountId, origin | categoryId, counterAccountId, notCounted, tags, note, links |
 
 `upsertTransactionByOrigin()` rewrites the left column and never touches the
-right one. That is what lets you recategorise a transaction inside PersonalOS
-and re-run the import tomorrow without losing the work.
+right one. That is what lets you recategorise a transaction inside PersonalOS,
+or recognise it as a transfer, and re-run the import tomorrow without losing
+the work.
 
-**`kind: 'transfer'` is the one that saves you from a wrong number.** Money
-moved between two accounts you own is neither income nor spending, and
-counting it doubles your monthly total. Every aggregation excludes it, and a
-transfer without its `counterAccountId` is rejected — money with one end is
-money vanishing.
+Neither account may move after the day it was archived; the day itself is
+allowed, so an account can be emptied the day it closes.
+
+### Transfer
+
+**Is** a transaction with a `counterAccountId`: money moved between two
+accounts you own. The counter account receives `-amount`. It is the one that
+saves you from a wrong number -- it is neither income nor spending, and
+counting it doubles your monthly total -- so every aggregation excludes it,
+and it carries no category. A transfer from an account to itself is refused.
+Choosing a counter account for a movement turns it into a transfer and clears
+its category.
+
+### Not counted
+
+**Is** a transaction with `notCounted: true`: money that moves a balance but is
+neither income nor spending -- a friend paying back a loan, a deposit
+returned. Every aggregation excludes it, the same as a transfer; unlike a
+transfer, it has one end.
 
 **Amounts are integers in minor units** (cents). Floating point and money do
 not belong in the same file. ADR 0009.
@@ -760,12 +780,12 @@ double counting.
 | task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates, history heatmap cells, the thirty-day summary |
 | people | health averages, day totals |
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
-| journal entries | monthly spending, income by category |
+| journal entries | monthly spending, income by category -- transfers and not-counted transactions excluded; whether a transaction is a transfer |
 | memory entries | current net worth, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
 | daily logs (ticks, meals, measurements) | |
-| finance accounts (including valuation and archivedOn), observations, trades, prices, transactions | |
+| finance accounts (including valuation and archivedOn), observations, trades, prices, transactions (signed amount, counter account, notCounted, tags) | |
 | **net worth snapshots** — the one exception, not written in one currency (ADR 0022) | |
 
 ---
