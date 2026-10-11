@@ -206,6 +206,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 #screen-finances .screen-grid { grid-template-rows: minmax(0, 1fr); }
 #screen-review  .screen-grid { grid-template-rows: minmax(0, 1fr); }
 #screen-nutrition .screen-grid { grid-template-rows: minmax(0, 1fr); }
+#screen-journal .screen-grid { grid-template-rows: minmax(0, 1fr); }
 
 .card {
   background: var(--surface-1);
@@ -538,6 +539,35 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .sub-meal { display: flex; gap: var(--s-sm); font-size: 12px; color: var(--ink-subtle); padding: 3px 0; }
 
 /* ==========================================================================
+   JOURNAL
+   One day at a time. Only layout here: an entry is a capture log item, a
+   memory line a badge and a link button, a proposal the panel's inputs.
+   ========================================================================== */
+.journal-day { display: flex; align-items: center; gap: var(--s-xxs); }
+.journal-day .subhead { min-width: 150px; text-align: center; }
+.journal-day .input { width: auto; padding: 5px 10px; font-size: 13px; }
+.journal-write { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-xs); }
+.journal-write textarea.input { min-height: 96px; }
+.journal-entry .log-text { font-size: 14px; white-space: pre-wrap; }
+.journal-entry .log-top .caption { font-family: var(--font-mono); }
+.journal-entry .log-top .link-btn:first-of-type { margin-left: auto; }
+.journal-memories { margin: var(--s-xs) 0 0; }
+.journal-line { display: flex; align-items: center; gap: var(--s-xs); padding: 4px 0; font-size: 13px; }
+.journal-line > span:not(.badge) { flex: 1; min-width: 0; }
+.journal-line .input { padding: 5px 10px; font-size: 13px; }
+.journal-line select.input { width: auto; flex: none; }
+.journal-extract { margin-top: var(--s-xs); }
+.journal-extract > .btn-ghost { margin-bottom: var(--s-xxs); }
+/* The outcome on show; in the app it is the button's own state. */
+.journal-outcome { display: none; }
+.journal-extract[data-outcome="proposals"] .outcome-proposals,
+.journal-extract[data-outcome="nothing"] .outcome-nothing,
+.journal-extract[data-outcome="no-model"] .outcome-no-model,
+.journal-extract[data-outcome="failed"] .outcome-failed { display: block; }
+#card-journal[data-day="empty"] .journal-entries,
+#card-journal[data-day="entries"] .journal-empty { display: none; }
+
+/* ==========================================================================
    CAPTURE BAR
    Conceptually Raycast's command bar: one dominant element, heavily rounded,
    sitting one step above the canvas. The four states change border, accent
@@ -699,6 +729,7 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
     <button class="nav-item" aria-current="page" data-screen="screen-home">Home</button>
     <button class="nav-item" data-screen="screen-crm">CRM</button>
     <button class="nav-item" data-screen="screen-habits">Habits</button>
+    <button class="nav-item" data-screen="screen-journal">Journal</button>
     <button class="nav-item" data-screen="screen-finances">Finances</button>
     <button class="nav-item" data-screen="screen-nutrition">Nutrition &amp; Health</button>
     <button class="nav-item" data-screen="screen-review">Review</button>
@@ -1086,6 +1117,125 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
             <tr><td>Deep work blocks</td><td class="num up">76%</td><td class="num up">72%</td><td class="num flat">58%</td></tr>
           </tbody>
         </table>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- SCREEN: JOURNAL                                                       -->
+<!-- ===================================================================== -->
+<section id="screen-journal" class="screen">
+  <div class="screen-grid">
+
+    <!-- card-journal: one day, written and read back. No Home card. ------ -->
+    <article id="card-journal" class="card span-8" data-day="entries">
+      <div class="card-head">
+        <span class="eyebrow">Journal</span>
+        <div class="journal-day">
+          <button class="icon-btn" aria-label="Previous day">
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <span class="subhead">Sun 4 January</span>
+          <!-- Disabled on today: no day after it can be written about. -->
+          <button class="icon-btn" aria-label="Next day">
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 3l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-ghost">Today</button>
+          <input class="input" type="date" aria-label="Go to day" value="2026-01-04" max="2026-01-05">
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Saves to the day on screen. The draft is kept per day until saved. -->
+        <form class="journal-write">
+          <textarea class="input" placeholder="What happened on Sun 4 Jan…"></textarea>
+          <button class="btn-primary" type="button">Save</button>
+        </form>
+        <div class="divider"></div>
+
+        <p class="caption journal-empty">Nothing written on this day</p>
+
+        <div class="journal-entries">
+          <!-- An entry nothing has been drawn from: it can be corrected. -->
+          <div class="log-item journal-entry">
+            <div class="log-top">
+              <span class="caption">08:12</span>
+              <button class="link-btn">Correct</button>
+              <button class="link-btn">Delete</button>
+            </div>
+            <p class="log-text">Up before anyone was online and wrote the whole outline for the onboarding guide. I'm not taking calls before ten any more: the mornings are worth more than that.</p>
+
+            <div class="journal-extract" data-outcome="proposals">
+              <button class="btn-ghost">What's worth remembering?</button>
+
+              <div class="journal-outcome outcome-proposals">
+                <div class="journal-line">
+                  <select class="input" aria-label="Type">
+                    <option>fact</option><option>preference</option><option selected>decision</option>
+                    <option>context</option><option>observation</option><option>event</option>
+                  </select>
+                  <input class="input" aria-label="What to remember" value="No calls before ten in the morning.">
+                  <button class="btn-ghost">Accept</button>
+                  <button class="icon-btn" aria-label="Discard">
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                  </button>
+                </div>
+                <div class="journal-line">
+                  <select class="input" aria-label="Type">
+                    <option>fact</option><option selected>preference</option><option>decision</option>
+                    <option>context</option><option>observation</option><option>event</option>
+                  </select>
+                  <input class="input" aria-label="What to remember" value="Writing goes best early, before anyone is online.">
+                  <button class="btn-ghost">Accept</button>
+                  <button class="icon-btn" aria-label="Discard">
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                  </button>
+                </div>
+              </div>
+              <p class="caption journal-outcome outcome-nothing">Nothing here worth remembering</p>
+              <p class="caption journal-outcome outcome-no-model">No model configured</p>
+              <p class="caption journal-outcome outcome-failed">
+                <span class="down">The model didn't answer.</span>
+                <button class="link-btn">Try again</button>
+              </p>
+            </div>
+          </div>
+
+          <!-- An entry with a memory: its text is fixed, so no Correct. -->
+          <div class="log-item journal-entry">
+            <div class="log-top">
+              <span class="caption">23:35</span>
+              <button class="link-btn">Delete</button>
+            </div>
+            <p class="log-text">Long day. The two-phase pricing idea felt right when I said it out loud to Marta, and she did not flinch at the number. Distracted all afternoon though. Gym in the evening fixed it.</p>
+
+            <div class="journal-memories">
+              <p class="caption">Remembered from this</p>
+              <div class="journal-line">
+                <span class="badge badge-tag">decision</span>
+                <span>Going with two-phase pricing rather than a single fee.</span>
+                <button class="link-btn">Delete</button>
+              </div>
+            </div>
+
+            <div class="journal-extract">
+              <button class="btn-ghost">What's worth remembering?</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mockup affordance only: the states, side by side. -->
+      <div class="state-legend" data-legend="day">
+        <button class="is-on" data-set="entries">two entries</button>
+        <button data-set="empty">empty day</button>
+      </div>
+      <div class="state-legend" data-legend="outcome">
+        <button class="is-on" data-set="proposals">proposals</button>
+        <button data-set="nothing">nothing</button>
+        <button data-set="no-model">no model</button>
+        <button data-set="failed">failed</button>
       </div>
     </article>
 
@@ -1673,6 +1823,22 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
     setState('processing');
     setTimeout(function () { setState('done'); }, 1200);
     setTimeout(function () { setState('idle'); }, 5200);
+  });
+
+  // Journal states: the day's entries or an empty day, and the four
+  // outcomes of "What's worth remembering?".
+  var journal = document.getElementById('card-journal');
+  var extract = journal.querySelector('.journal-extract[data-outcome]');
+  journal.querySelectorAll('.state-legend').forEach(function (group) {
+    group.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-set]');
+      if (!button) return;
+      if (group.dataset.legend === 'day') journal.dataset.day = button.dataset.set;
+      else extract.dataset.outcome = button.dataset.set;
+      group.querySelectorAll('button').forEach(function (other) {
+        other.classList.toggle('is-on', other === button);
+      });
+    });
   });
 
   document.addEventListener('keydown', function (event) {

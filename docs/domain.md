@@ -144,8 +144,19 @@ merged.
 
 **Has** `date` (day key), `text`, `tags`.
 
+`date` is the day the entry is about: today or any day before it, never one
+after. Writing at 01:00 about the evening before is the normal case, not the
+exception.
+
 **Never rewritten by the system.** The AI may propose extracting something
 from it; the entry itself stays exactly as you typed it, forever retrievable.
+
+**You may correct it until something is drawn from it.** While a memory
+derives from the entry, its text is fixed -- the memory quotes it -- and
+correcting it means removing that memory first. **Deleting an entry deletes
+the memories drawn from it**: a reading does not outlive what it read.
+See
+[ADR-0027](decisions/0027-a-memory-is-accepted-from-one-entry-and-goes-with-it.md).
 
 ---
 
@@ -173,6 +184,33 @@ entry or the capture stays the primary record.
 must carry a `derived_from` link to its origin. The store rejects it
 otherwise. There are no orphan memories asserting facts with nothing behind
 them, and deleting a memory never touches the writing it came from.
+
+### Extraction
+
+**Extraction** is asking what in one journal entry is worth remembering. You
+ask, entry by entry; nothing extracts on its own. The answer is a handful of
+**proposals** -- a type, a content, the model's confidence -- and a proposal
+is not a memory: it is a reading nobody has confirmed, it is never stored,
+and one you leave undecided is gone.
+
+Extraction reads the entry and the memories already drawn from it, and does
+not propose those again. It may come back with nothing, and "nothing here
+worth remembering" is a real answer, not a failure.
+
+A proposal is a reading of the entry as it stands. Correcting the entry
+throws its proposals away: a memory must be able to quote what its entry
+says, not what it used to say.
+
+You may reword a proposal or change its type, then accept or discard it.
+**Accepting writes the memory**, `source: journal`, derived from that one
+entry, with confidence 1: you have vouched for it. A confidence below 1 means
+the system holds a claim no one has confirmed. Its `validFrom` is the entry's
+`date` -- the one thing known about when it became true -- and its
+`validUntil` is open. Its only link is `derived_from`; what it is `about` is
+not guessed.
+
+Without a model, extraction says so and does nothing. Writing and reading the
+journal never depend on it.
 
 `validFrom` / `validUntil` exist because knowledge expires. A preference was
 true from a date and may stop being true; without a window the system would
