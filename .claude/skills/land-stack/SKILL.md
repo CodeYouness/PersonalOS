@@ -40,15 +40,17 @@ order, and `npm run verify` passes on every branch.
 1. **Record the anchors.** For every PR in the stack, bottom first, write
    down `number headRefName headRefOid` (`gh pr view <n> --json ...`). The
    **anchor** is that head SHA; branches vanish as the stack lands, the
-   anchors do not. Write each anchor commit's body to a scratch file
-   (`git log -1 --format=%b <anchor>`). A PR that carries a review fix has
-   more than one commit: its subject and body are its **first** commit's,
-   with an `Also: <subject>` line per later commit, so the squash names the
-   ticket and not the fix. Done when every PR has an anchor, a subject and
-   a body file.
+   anchors do not. The squash names the ticket, not a review fix, so two
+   commands per PR: the subject is its **first** commit's
+   (`git log -1 --format=%s <first>`), and the body is
+   `scripts/squash-message.sh <first> [<later> ...] > <body-file>`, which
+   adds an `Also: <subject>` line per later commit. Done when every PR has
+   an anchor, a subject and a body file.
 
 2. **Land one link**, for the parent at the bottom and its child:
-   1. Parent is `CLEAN`, and its head has the anchor's tree:
+   1. Parent has passed CI on its head --
+      `scripts/wait-for-ci.sh <n> <its head SHA>` exits 0 (2.7 did this for
+      every parent after the first) -- and its head has the anchor's tree:
       `git diff --quiet origin/<parent-branch> <anchor>`.
    2. Squash it with that subject plus the PR number:
       `gh pr merge <n> --squash --subject "<anchor subject> (#<n>)" --body-file <file>`.
@@ -61,9 +63,10 @@ order, and `npm run verify` passes on every branch.
       then push its printed command on its own line. A docs-only parent
       often leaves the child `MERGEABLE`; then skip the repair.
    6. Delete the parent branch: `git push origin --delete <parent-branch>`.
-   7. Wait until the child is `CLEAN` with CI passing on its new head
-      (poll `mergeStateStatus`; `gh run watch` can latch onto the previous
-      run).
+   7. Wait for CI on the child's new head, the SHA the push printed:
+      `scripts/wait-for-ci.sh <child> <new-head-sha>`, in the background --
+      never `mergeStateStatus` alone (the script's header says why). Exit 0
+      means CI passed on that SHA and the child is `CLEAN`.
 
    Done when the child is `CLEAN` and based on `main`. Repeat for the next
    link; the last PR lands with 2.1, 2.2, 2.4 and 2.6.
