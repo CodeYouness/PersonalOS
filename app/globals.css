@@ -822,6 +822,10 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .journal-memories { margin: var(--s-xs) 0 0; }
 .journal-line { display: flex; align-items: center; gap: var(--s-xs); padding: 4px 0; font-size: 13px; }
 .journal-line > span:not(.badge) { flex: 1; min-width: 0; }
+.journal-line .input { padding: 5px 10px; font-size: 13px; }
+.journal-line select.input { width: auto; flex: none; }
+.journal-extract { margin-top: var(--s-xs); }
+.journal-extract > .btn-ghost { margin-bottom: var(--s-xxs); }
 
 /* ==========================================================================
    RESPONSIVE — shell rules only; a card's own responsive tweaks are ported
