@@ -40,12 +40,12 @@ order, and `npm run verify` passes on every branch.
 1. **Record the anchors.** For every PR in the stack, bottom first, write
    down `number headRefName headRefOid` (`gh pr view <n> --json ...`). The
    **anchor** is that head SHA; branches vanish as the stack lands, the
-   anchors do not. The squash names the ticket, not a review fix: its
-   subject is the PR's **first** commit's (`git log -1 --format=%s <first>`)
-   and its body comes from
+   anchors do not. The squash names the ticket, not a review fix, so two
+   commands per PR: the subject is its **first** commit's
+   (`git log -1 --format=%s <first>`), and the body is
    `scripts/squash-message.sh <first> [<later> ...] > <body-file>`, which
-   adds an `Also: <subject>` line per later commit and keeps the trailers
-   last. Done when every PR has an anchor, a subject and a body file.
+   adds an `Also: <subject>` line per later commit. Done when every PR has
+   an anchor, a subject and a body file.
 
 2. **Land one link**, for the parent at the bottom and its child:
    1. Parent has passed CI on its head --
@@ -64,10 +64,9 @@ order, and `npm run verify` passes on every branch.
       often leaves the child `MERGEABLE`; then skip the repair.
    6. Delete the parent branch: `git push origin --delete <parent-branch>`.
    7. Wait for CI on the child's new head, the SHA the push printed:
-      `scripts/wait-for-ci.sh <child> <new-head-sha>`, in the background.
-      Exit 0 means CI passed on that SHA and the child is `CLEAN`. A PR reads
-      `CLEAN` before CI has registered on a fresh push, so `mergeStateStatus`
-      alone lands a head CI never ran on.
+      `scripts/wait-for-ci.sh <child> <new-head-sha>`, in the background --
+      never `mergeStateStatus` alone (the script's header says why). Exit 0
+      means CI passed on that SHA and the child is `CLEAN`.
 
    Done when the child is `CLEAN` and based on `main`. Repeat for the next
    link; the last PR lands with 2.1, 2.2, 2.4 and 2.6.

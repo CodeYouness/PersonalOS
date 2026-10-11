@@ -121,7 +121,7 @@ before pushing. Git history does not forget.
 ## Picking this up cold
 
 `docs/roadmap.md` says what exists and what comes next. `docs/decisions/` says
-why; a new ADR takes the number after its last file.
+why; a new ADR takes the number after the last file in `docs/decisions/`.
 
 Open work is GitHub issues on `CodeYouness/PersonalOS`. Read the open pull
 requests before you start: a feature ships as a stack of one-ticket branches,

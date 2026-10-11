@@ -1,25 +1,31 @@
 #!/bin/bash
-# Waits until a PR's pushed head has passed CI and the PR can merge.
+# Waits until a PR's pushed head has passed CI and the PR can merge
+# (/land-stack, step 2.7).
 #
 # GitHub reports a PR CLEAN before CI has registered on a head just pushed:
 # with no check run yet there is nothing to fail. Landing the #158 stack, a
-# repaired child read CLEAN with an empty check list, and merging it then
-# would have squashed a head CI never ran on. So this waits on the SHA you
-# pushed, not on the PR's state alone.
+# repaired child read CLEAN with an empty check list. So this waits on the
+# SHA you pushed, not on the PR's state alone.
 #
 #   scripts/wait-for-ci.sh <pr-number> <head-sha>
 #
-# Read-only: it calls gh and changes nothing. Exits 0 once the PR's head is
-# <head-sha>, at least one check run exists on it, every one has completed
-# as success, skipped or neutral, and the PR is CLEAN. Exits 1 on a failed
-# check, a PR whose head has moved on, conflicts, or after
-# WAIT_FOR_CI_TIMEOUT seconds (default 1200).
-set -euo pipefail
+# Read-only: it only calls gh. Exits 0 once at least one check run exists on
+# <head-sha>, every one has completed as success, skipped or neutral, and
+# the PR is CLEAN. Exits 1 on a failed check, conflicts, a PR head that is
+# still not <head-sha> after a minute, or WAIT_FOR_CI_TIMEOUT seconds
+# (default 1200). A gh call that fails -- a network blip -- is retried.
+set -uo pipefail
 
+if [ "$#" -ne 2 ]; then
+  echo "usage: scripts/wait-for-ci.sh <pr-number> <head-sha>" >&2
+  exit 1
+fi
 PR=$1
 SHA=$2
 REPO=CodeYouness/PersonalOS
 DEADLINE=$((SECONDS + ${WAIT_FOR_CI_TIMEOUT:-1200}))
+# How long GitHub may take to see the push before a different head is an error.
+HEAD_GRACE=$((SECONDS + 60))
 
 # "<runs> <unfinished> <failed>" for the check runs on one commit.
 COUNTS='.check_runs
@@ -27,37 +33,42 @@ COUNTS='.check_runs
 
 seen="nothing yet"
 while :; do
-  head=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid)
-  # GitHub can take a moment to see a push; a head that differs from the
-  # SHA is only an error once it is neither the SHA nor catching up to it.
-  if [ "$head" = "$SHA" ]; then
-    read -r runs unfinished failed < <(gh api "repos/$REPO/commits/$SHA/check-runs" --jq "$COUNTS")
+  if ! head=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid); then
+    seen="gh pr view failed, retrying"
+  elif [ "$head" != "$SHA" ]; then
+    seen="PR head $head"
+    if [ "$SECONDS" -ge "$HEAD_GRACE" ]; then
+      echo "PR #$PR: its head is $head, not $SHA -- wait on the head you pushed" >&2
+      exit 1
+    fi
+  elif ! counts=$(gh api "repos/$REPO/commits/$SHA/check-runs" --jq "$COUNTS"); then
+    seen="gh api check-runs failed, retrying"
+  else
+    read -r runs unfinished failed <<<"$counts"
     seen="$runs check runs, $unfinished unfinished"
     if [ "$failed" -gt 0 ]; then
-      echo "PR #$PR: a check failed on $SHA:"
+      echo "PR #$PR: a check failed on $SHA:" >&2
       gh api "repos/$REPO/commits/$SHA/check-runs" \
-        --jq '.check_runs[] | select(.status == "completed") | "  \(.name): \(.conclusion)"'
+        --jq '.check_runs[] | select(.status == "completed") | "  \(.name): \(.conclusion)"' >&2
       exit 1
     fi
     if [ "$runs" -gt 0 ] && [ "$unfinished" -eq 0 ]; then
-      state=$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeStateStatus)
-      seen="CI passed, PR is $state"
-      if [ "$state" = CLEAN ]; then
-        echo "PR #$PR: CI passed on $SHA ($runs check runs), CLEAN"
-        exit 0
-      fi
-      if [ "$state" = DIRTY ]; then
-        echo "PR #$PR: CI passed on $SHA, but it conflicts with its base"
-        exit 1
+      if state=$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeStateStatus); then
+        seen="CI passed, PR is $state"
+        if [ "$state" = CLEAN ]; then
+          echo "PR #$PR: CI passed on $SHA ($runs check runs), CLEAN"
+          exit 0
+        fi
+        if [ "$state" = DIRTY ]; then
+          echo "PR #$PR: CI passed on $SHA, but it conflicts with its base" >&2
+          exit 1
+        fi
       fi
     fi
-  elif git merge-base --is-ancestor "$SHA" "$head" 2>/dev/null; then
-    echo "PR #$PR: its head $head is past $SHA -- wait on the new head instead"
-    exit 1
   fi
 
   if [ "$SECONDS" -ge "$DEADLINE" ]; then
-    echo "PR #$PR: timed out on $SHA (head $head): last saw $seen"
+    echo "PR #$PR: timed out on $SHA: last saw $seen" >&2
     exit 1
   fi
   sleep 10

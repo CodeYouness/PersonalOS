@@ -1,14 +1,11 @@
 #!/bin/bash
-# Prints the squash body for one PR of a stack (/land-stack, step 1).
-#
-# The squash names the ticket, not the review fix that came after it: the
-# body is the first commit's, then one "Also: <subject>" line per later
-# commit, then the first commit's trailers (Co-Authored-By), kept last so
-# GitHub still reads them as trailers.
+# Prints the squash body for one PR of a stack (/land-stack, step 1): the
+# first commit's body, an "Also: <subject>" line per later commit, then the
+# trailers of every commit (Co-Authored-By), once each and last, so GitHub
+# still reads them as trailers.
 #
 #   scripts/squash-message.sh <first-sha> [<later-sha> ...] > <body-file>
 #
-# The subject is the first commit's own: git log -1 --format=%s <first-sha>.
 # Git only, read-only.
 set -euo pipefail
 
@@ -19,7 +16,10 @@ fi
 FIRST=$1
 shift
 
-trailers=$(git log -1 --format='%(trailers:only,unfold)' "$FIRST" | sed '/^$/d')
+trailers=$(for commit in "$FIRST" "$@"; do
+  git log -1 --format='%(trailers:only,unfold)' "$commit"
+done | sed '/^$/d' | awk '!seen[$0]++')
+
 body=$(git log -1 --format=%b "$FIRST")
 if [ -n "$trailers" ]; then
   body=$(grep -vxF -f <(printf '%s\n' "$trailers") <<<"$body" || true)
@@ -27,14 +27,13 @@ fi
 # Trailing blank lines, left where the trailers were.
 body=$(printf '%s\n' "$body" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
 
-printf '%s\n' "$body"
-if [ "$#" -gt 0 ]; then
-  echo
-  for commit in "$@"; do
-    echo "Also: $(git log -1 --format=%s "$commit")"
-  done
-fi
-if [ -n "$trailers" ]; then
-  echo
-  printf '%s\n' "$trailers"
-fi
+also=$(for commit in "$@"; do echo "Also: $(git log -1 --format=%s "$commit")"; done)
+
+# The non-empty paragraphs, one blank line between them.
+first=true
+for paragraph in "$body" "$also" "$trailers"; do
+  [ -n "$paragraph" ] || continue
+  $first || echo
+  printf '%s\n' "$paragraph"
+  first=false
+done
