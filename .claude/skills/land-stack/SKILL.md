@@ -48,7 +48,9 @@ order, and `npm run verify` passes on every branch.
    a body file.
 
 2. **Land one link**, for the parent at the bottom and its child:
-   1. Parent is `CLEAN`, and its head has the anchor's tree:
+   1. Parent has passed CI on its head --
+      `scripts/wait-for-ci.sh <n> <its head SHA>` exits 0 (2.7 did this for
+      every parent after the first) -- and its head has the anchor's tree:
       `git diff --quiet origin/<parent-branch> <anchor>`.
    2. Squash it with that subject plus the PR number:
       `gh pr merge <n> --squash --subject "<anchor subject> (#<n>)" --body-file <file>`.
@@ -61,9 +63,11 @@ order, and `npm run verify` passes on every branch.
       then push its printed command on its own line. A docs-only parent
       often leaves the child `MERGEABLE`; then skip the repair.
    6. Delete the parent branch: `git push origin --delete <parent-branch>`.
-   7. Wait until the child is `CLEAN` with CI passing on its new head
-      (poll `mergeStateStatus`; `gh run watch` can latch onto the previous
-      run).
+   7. Wait for CI on the child's new head, the SHA the push printed:
+      `scripts/wait-for-ci.sh <child> <new-head-sha>`, in the background.
+      Exit 0 means CI passed on that SHA and the child is `CLEAN`. A PR reads
+      `CLEAN` before CI has registered on a fresh push, so `mergeStateStatus`
+      alone lands a head CI never ran on.
 
    Done when the child is `CLEAN` and based on `main`. Repeat for the next
    link; the last PR lands with 2.1, 2.2, 2.4 and 2.6.
