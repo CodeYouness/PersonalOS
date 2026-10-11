@@ -6,6 +6,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { defaultModel, defaultTimezone } from '@/personalos.config.js';
+
 beforeEach(() => {
   vi.resetModules();
 });
@@ -21,13 +23,13 @@ describe('DATA_DIR', () => {
   it('refuses a value that is set but empty', async () => {
     vi.stubEnv('DATA_DIR', '');
 
-    await expect(import('@/lib/config/env.js')).rejects.toThrow(/DATA_DIR/);
+    await expect(import('@/lib/config/env.js')).rejects.toThrow(/DATA_DIR.*Unset it to use the default "data"/);
   });
 
   it('refuses a value of only spaces the same way', async () => {
     vi.stubEnv('DATA_DIR', '   ');
 
-    await expect(import('@/lib/config/env.js')).rejects.toThrow(/DATA_DIR/);
+    await expect(import('@/lib/config/env.js')).rejects.toThrow(/DATA_DIR.*Unset it to use the default "data"/);
   });
 
   it('means the data directory when unset', async () => {
@@ -55,7 +57,7 @@ describe('the other variables', () => {
 
     const { env } = await import('@/lib/config/env.js');
 
-    expect(env.anthropicModel).toBe('claude-sonnet-5');
-    expect(env.timezone).toBe('Europe/Rome');
+    expect(env.anthropicModel).toBe(defaultModel);
+    expect(env.timezone).toBe(defaultTimezone);
   });
 });
