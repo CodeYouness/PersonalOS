@@ -23,9 +23,23 @@ import { copyFile, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import nextEnv from '@next/env';
+
+import { describeModel } from '../lib/config/env.js';
+
 const sandbox = await mkdtemp(path.join(tmpdir(), 'personalos-sandbox-'));
 await copyFile('data/seed.json', path.join(sandbox, 'seed.json'));
 console.log('sandboxed data in ' + sandbox);
+
+// The shell's variables, before .env* files are read into this process:
+// they are what the server starts with, and it reads .env* itself.
+// eslint-disable-next-line no-restricted-syntax
+const shellEnv = { ...process.env };
+// Whether the server will call the model, resolved as `next dev` resolves it:
+// the shell, then .env*. A key exported in the shell counts too, with none
+// in .env.local, and a browser check of a model path then calls the real API.
+const { combinedEnv } = nextEnv.loadEnvConfig(process.cwd(), true, { info: () => {}, error: console.error });
+console.log(describeModel(combinedEnv));
 
 // Polled rather than fs.watch: a checkout replaces the file, and a watch on
 // the old one would go quiet.
@@ -45,10 +59,10 @@ watchFile('data/seed.json', { interval: 1000 }, async (current, previous) => {
 
 const server = spawn('npx', ['next', 'dev', ...process.argv.slice(2)], {
   stdio: 'inherit',
-  // Hands the whole environment on to the server, reading nothing from it:
-  // lib/config/env.js still validates every value inside `next dev`.
-  // eslint-disable-next-line no-restricted-syntax
-  env: { ...process.env, DATA_DIR: sandbox },
+  // Hands the shell's environment on to the server, reading nothing from it:
+  // lib/config/env.js still validates every value inside `next dev`, which
+  // loads .env* itself -- and reloads them when they change.
+  env: { ...shellEnv, DATA_DIR: sandbox },
 });
 
 /** @param {number} code */

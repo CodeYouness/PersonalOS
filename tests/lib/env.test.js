@@ -61,3 +61,24 @@ describe('the other variables', () => {
     expect(env.timezone).toBe(defaultTimezone);
   });
 });
+
+describe('describeModel', () => {
+  // The sandbox prints this before `next dev` starts, from the shell and
+  // .env* files together, so "is the model on?" is never a guess (retro of
+  // #158: a key in the shell reached the sandbox with none in .env.local).
+  it('says the model is on, and which, when a key is set', async () => {
+    const { describeModel } = await import('@/lib/config/env.js');
+
+    expect(describeModel({ ANTHROPIC_API_KEY: 'sk-test', ANTHROPIC_MODEL: 'claude-test-1' })).toBe(
+      'model: on (claude-test-1)'
+    );
+    expect(describeModel({ ANTHROPIC_API_KEY: 'sk-test' })).toBe('model: on (' + defaultModel + ')');
+  });
+
+  it('says the model is off when no key is set, or an empty one', async () => {
+    const { describeModel } = await import('@/lib/config/env.js');
+
+    expect(describeModel({})).toBe('model: off');
+    expect(describeModel({ ANTHROPIC_API_KEY: '  ', ANTHROPIC_MODEL: 'claude-test-1' })).toBe('model: off');
+  });
+});
