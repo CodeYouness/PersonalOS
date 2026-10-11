@@ -1,8 +1,7 @@
 /**
  * eslint.config.mjs: a month key or a day key comes from lib/domain/dates.js,
- * never from slicing a string by hand (ADR-0005, CLAUDE.md rule 4). A review
- * once caught a hand-written month slice; the next ticket wrote two more
- * (#153). The config is tested here, through ESLint itself, because flat
+ * never from slicing a string by hand (ADR-0005, CLAUDE.md rule 4). The
+ * config is tested here, through ESLint itself, because flat
  * config replaces a rule's options when a later block names it again: a
  * selector in the wrong block silently drops the rules already there.
  */
@@ -28,8 +27,10 @@ const MONTH_SLICE = "export const month = '2026-10-11'.slice(0, 7);\n";
 const DAY_SLICE = "export const day = '2026-10-11T08:00:00.000Z'.slice(0, 10);\n";
 const ISO_SLICE = 'export const day = new Date().toISOString().slice(0, 4);\n';
 
-// One file in each folder the rule protects. The names need not exist.
-const PROTECTED = ['app/example/route.js', 'components/Example.js', 'lib/domain/derive/example.js', 'scripts/example.js'];
+// One file in each folder the rule protects, and lib/config/env.js, which
+// sits outside the process.env rule but not outside these. The names need
+// not exist.
+const PROTECTED = ['app/example/route.js', 'components/Example.js', 'lib/domain/derive/example.js', 'scripts/example.js', 'lib/config/env.js'];
 
 describe('slicing a month key by hand', () => {
   it.each(PROTECTED)('is an error in %s, naming monthOf', async (filePath) => {
@@ -50,6 +51,22 @@ describe('where slicing by hand is allowed', () => {
 
   it('is allowed in tests, which compute expected values without the helper under test', async () => {
     expect(await restrictedSyntax(MONTH_SLICE + DAY_SLICE, 'tests/domain/example.test.js')).toEqual([]);
+  });
+
+  it('reports a day sliced from toISOString() once, not twice', async () => {
+    const code = 'export const day = new Date().toISOString().slice(0, 10);\n';
+
+    expect(await restrictedSyntax(code, 'lib/domain/derive/example.js')).toEqual([expect.stringContaining('from an instant')]);
+  });
+
+  // The rule cannot tell a string from an array: a top ten sliced with
+  // literals is flagged too. Naming the count says what it is and passes.
+  it("flags an array's slice(0, 10) as well, and passes a named count", async () => {
+    const literal = 'export const top = (rows) => rows.slice(0, 10);\n';
+    const named = 'const TOP = 10;\nexport const top = (rows) => rows.slice(0, TOP);\n';
+
+    expect(await restrictedSyntax(literal, 'lib/domain/derive/example.js')).toHaveLength(1);
+    expect(await restrictedSyntax(named, 'lib/domain/derive/example.js')).toEqual([]);
   });
 
   it('leaves other slices alone', async () => {

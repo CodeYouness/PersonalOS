@@ -31,15 +31,19 @@ const NO_ISO_SLICE = {
 };
 
 // The same rule for any string: a month key or a day key is never sliced by
-// hand outside lib/domain/dates.js. A review caught one; the next ticket
-// wrote two more (#153). Tests are exempt: a test computes its expected
-// value without the helper it is testing.
+// hand outside lib/domain/dates.js. Tests are exempt: a test computes its
+// expected value without the helper it is testing. The selector cannot tell
+// a string from an array, so an array's top ten trips it too -- name the
+// count (`rows.slice(0, TOP)`) and it passes.
 const NO_MONTH_SLICE = {
   selector: "CallExpression[callee.property.name='slice'][arguments.length=2][arguments.0.value=0][arguments.1.value=7]",
   message: "A month key comes from lib/domain/dates.js: call monthOf() instead of slicing the day key.",
 };
 const NO_DAY_SLICE = {
-  selector: "CallExpression[callee.property.name='slice'][arguments.length=2][arguments.0.value=0][arguments.1.value=10]",
+  // A toISOString() receiver is NO_ISO_SLICE's, so it is reported once.
+  selector:
+    "CallExpression[callee.property.name='slice'][arguments.length=2][arguments.0.value=0][arguments.1.value=10]" +
+    ":not([callee.object.callee.property.name='toISOString'])",
   message:
     "A day key comes from lib/domain/dates.js: call toDayKey() or today() instead of slicing a timestamp (ADR-0005).",
 };
@@ -138,6 +142,14 @@ const eslintConfig = defineConfig([
         NO_MONTH_SLICE,
         NO_DAY_SLICE,
       ],
+    },
+  },
+  // lib/config/env.js is the one file allowed to read process.env, so it
+  // sits outside the block above -- but not outside the date rules.
+  {
+    files: ["lib/config/env.js"],
+    rules: {
+      "no-restricted-syntax": ["error", NO_ISO_SLICE, NO_MONTH_SLICE, NO_DAY_SLICE],
     },
   },
   {
