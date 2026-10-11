@@ -137,6 +137,26 @@ describe('GET /api/journal', () => {
     expect((await (await read('2026-01-05')).json()).entries).toEqual([]);
   });
 
+  it('gives each entry the memories drawn from it, and none to an entry with none', async () => {
+    await post({ date: '2026-01-04', text: 'A second thought that day.' });
+
+    const { entries } = await (await read('2026-01-04')).json();
+
+    expect(entries).toEqual([
+      expect.objectContaining({
+        id: 'journal_seed_1',
+        memories: [
+          expect.objectContaining({
+            id: 'memory_seed_2',
+            type: 'decision',
+            content: 'Going with two-phase pricing rather than a single fee.',
+          }),
+        ],
+      }),
+      expect.objectContaining({ text: 'A second thought that day.', memories: [] }),
+    ]);
+  });
+
   it.each([['2026-9-23'], ['yesterday'], ['']])('refuses a malformed day %j', async (date) => {
     expect((await read(date)).status).toBe(400);
   });
