@@ -25,7 +25,7 @@ import path from 'node:path';
 
 import nextEnv from '@next/env';
 
-import { describeModel } from '../lib/config/env.js';
+import { readModelSettings } from '../lib/config/variables.js';
 
 const sandbox = await mkdtemp(path.join(tmpdir(), 'personalos-sandbox-'));
 await copyFile('data/seed.json', path.join(sandbox, 'seed.json'));
@@ -39,7 +39,8 @@ const shellEnv = { ...process.env };
 // the shell, then .env*. A key exported in the shell counts too, with none
 // in .env.local, and a browser check of a model path then calls the real API.
 const { combinedEnv } = nextEnv.loadEnvConfig(process.cwd(), true, { info: () => {}, error: console.error });
-console.log(describeModel(combinedEnv));
+const model = readModelSettings(combinedEnv);
+console.log(model.anthropicApiKey === null ? 'model: off' : 'model: on (' + model.anthropicModel + ')');
 
 // Polled rather than fs.watch: a checkout replaces the file, and a watch on
 // the old one would go quiet.
