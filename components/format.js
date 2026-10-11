@@ -114,6 +114,16 @@ export function dayLabel(dayKey) {
   return dayKeyToUtcDate(dayKey).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
+/**
+ * A day as a screen's heading names it: "Sun 4 January".
+ *
+ * @param {string} dayKey
+ * @returns {string}
+ */
+export function dayHeading(dayKey) {
+  return dayKeyToUtcDate(dayKey).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'UTC' });
+}
+
 const ORDINAL_RULES = new Intl.PluralRules('en-GB', { type: 'ordinal' });
 /** @type {Record<string, string>} */
 const ORDINAL_SUFFIX = { one: 'st', two: 'nd', few: 'rd', other: 'th' };

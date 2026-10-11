@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  dayHeading,
   dayLabel,
   formatChange,
   formatEuro,
@@ -49,6 +50,12 @@ describe('health formatting', () => {
     expect(formatChange(0.4)).toBe('+0.4');
     expect(formatChange(0)).toBe('0');
     expect(dayLabel('2026-01-05')).toBe('Mon 5 Jan');
+  });
+});
+
+describe('dayHeading', () => {
+  it('names a day the way a screen heads it', () => {
+    expect(dayHeading('2026-01-04')).toBe('Sun 4 January');
   });
 });
 
