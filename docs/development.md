@@ -60,7 +60,9 @@ Not tested: pixels, real model calls, coverage as a target.
 Tests set `DATA_DIR` to a temporary directory before importing anything, since
 `lib/config/env.js` reads the environment once at import. That is why the
 store import in `tests/store/json-adapter.test.js` is dynamic -- a test run can
-never touch your real data.
+never touch your real data. A `DATA_DIR` that is set but empty is refused at
+that import, not read as the default: an empty value is what a shell variable
+that matched nothing produces, and the default is your real data.
 
 ## Debugging
 
