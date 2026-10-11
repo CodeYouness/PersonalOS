@@ -18,5 +18,8 @@
     }
   },
   "include": ["**/*.js", "**/*.jsx", "**/*.mjs"],
-  "exclude": ["node_modules", ".next", "out", "build"]
+  // "**/* *": sync conflict copies ("route 2.js"), as eslint.config.mjs
+  // ignores them (#154). Its globs have no "[0-9]", so this is any path with
+  // a space -- and no real file in the repository has one.
+  "exclude": ["node_modules", ".next", "out", "build", "**/* *"]
 }

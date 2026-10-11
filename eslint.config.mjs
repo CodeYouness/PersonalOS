@@ -61,6 +61,11 @@ const eslintConfig = defineConfig([
     // per-ticket flow); without this, `eslint .` lints every ticket branch
     // ever checked out here, not just the current tree.
     ".worktrees/**",
+    // Sync conflict copies ("route 2.js") from the synced folder the
+    // repository lives in: a space, then a digit. A stale one must never
+    // fail the lint (#154); check:secrets keeps one out of the repository.
+    // jsconfig.json excludes the same copies from the typecheck.
+    "**/* [0-9]*",
   ]),
 
   // ADR-0001 keeps ESLint so a lint check exists at all; these are that
