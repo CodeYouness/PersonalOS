@@ -109,7 +109,7 @@ throws if it is.
 - **Relations.** Add a `rel` to `LINK_RELS` and document it in `domain.md`.
 - **Destinations.** `DESTINATIONS` in `personalos.config.js`.
 - **Integrations.** Implement the contract, register it, flag it in config.
-- **Model provider.** Isolated behind classify and answer modules.
+- **Model provider.** Isolated behind classify, extract and answer modules.
 - **Cards.** Each owns a screen section and its own API route, and never
   reaches into another card's data.
 
