@@ -5,8 +5,8 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 ## This repo
 
 The remote is `CodeYouness/PersonalOS`, so `gh` resolves the repo on its own
-from inside a clone. **`gh` is not currently authenticated on this machine** --
-run `gh auth login` before a skill tries to read or write an issue.
+from inside a clone. If `gh` reports it is not logged in, `gh auth login`
+before a skill tries to read or write an issue.
 
 The repository is public. Never put personal data or a secret in an issue body.
 
@@ -14,6 +14,7 @@ The repository is public. Never put personal data or a secret in an issue body.
 
 - **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
 - **Read an issue**: `gh issue view <number> --comments`, filtering comments by `jq` and also fetching labels.
+- **Implement a spec's tickets**: read the spec once, then each ticket as you start it -- `gh issue view <n> --json body -q .body`. One call for a spec and all its tickets came back at 46 KB, more than a tool result holds.
 - **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
 - **Comment on an issue**: `gh issue comment <number> --body "..."`
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
