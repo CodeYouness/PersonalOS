@@ -230,6 +230,7 @@ button:disabled { cursor: not-allowed; }
 #screen-nutrition .screen-grid { grid-template-rows: minmax(0, 1fr); }
 #screen-goals .screen-grid { grid-template-rows: minmax(0, 1fr); }
 #screen-finances .screen-grid { grid-template-rows: minmax(0, 1fr); }
+#screen-journal .screen-grid { grid-template-rows: minmax(0, 1fr); }
 
 .card {
   background: var(--surface-1);
@@ -798,6 +799,22 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
   background: rgba(0,0,0,0.5); display: none;
 }
 .scrim.is-open { display: block; }
+
+/* ==========================================================================
+   JOURNAL SCREEN — card-journal
+   Ported from the mockup's `#card-journal`: one day at a time. An entry is
+   a capture log item; only layout is new.
+   ========================================================================== */
+.link-btn { color: var(--primary-hover); font-size: 12px; padding: 3px 6px; border-radius: var(--r-xs); background: none; border: none; cursor: pointer; }
+.link-btn:hover { background: var(--surface-3); }
+.link-btn:disabled { color: var(--ink-tertiary); cursor: default; background: none; }
+.journal-day { display: flex; align-items: center; gap: var(--s-xxs); }
+.journal-day .subhead { min-width: 150px; text-align: center; }
+.journal-day .input { width: auto; padding: 5px 10px; font-size: 13px; }
+.journal-write { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-xs); }
+.journal-write textarea.input { min-height: 96px; }
+.journal-entry .log-text { font-size: 14px; white-space: pre-wrap; }
+.journal-entry .log-top .caption { font-family: var(--font-mono); }
 
 /* ==========================================================================
    RESPONSIVE — shell rules only; a card's own responsive tweaks are ported
