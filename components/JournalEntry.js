@@ -4,6 +4,24 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
 import { messageOf, request } from '@/components/request.js';
+import { MEMORY_TYPES } from '@/personalos.config.js';
+
+/**
+ * @typedef {{ key: string, type: string, content: string }} DraftProposal
+ *   a proposal as you are editing it, before you accept or discard it
+ */
+
+/**
+ * What "What's worth remembering?" last answered for this entry. It lives
+ * only here, in the screen's state: a proposal is never stored, so a reload
+ * forgets it (ADR 0027).
+ *
+ * @typedef {{ status: 'asking' }
+ *   | { status: 'proposals', proposals: DraftProposal[], updatedAt: string }
+ *   | { status: 'nothing' }
+ *   | { status: 'no-model' }
+ *   | { status: 'failed', message: string }} Extraction
+ */
 
 /**
  * One journal entry on the Journal screen, with what was remembered from it
@@ -16,6 +34,11 @@ import { messageOf, request } from '@/components/request.js';
  * A failed write re-reads the day, so the screen never keeps showing what
  * was not saved.
  *
+ * "What's worth remembering?" asks the model to read this one entry (#161)
+ * and shows its proposals in place, each one's content and type yours to
+ * change, or to discard. They are a reading of the entry as it stands, so a
+ * saved correction throws them away.
+ *
  * @param {{ entry: import('@/lib/store.js').JournalDayEntry, time: string, todayKey: string }} props
  *   `time` is when it was written, read in USER_TIMEZONE on the server
  */
@@ -24,6 +47,7 @@ export default function JournalEntry({ entry, time, todayKey }) {
   const [isCorrecting, setIsCorrecting] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState(/** @type {string | null} */ (null));
+  const [extraction, setExtraction] = useState(/** @type {Extraction | null} */ (null));
   const [, startTransition] = useTransition();
   const isLocked = entry.memories.length > 0;
 
@@ -64,7 +88,48 @@ export default function JournalEntry({ entry, time, todayKey }) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(changes),
     });
-    if (saved) setIsCorrecting(false);
+    if (saved) {
+      setIsCorrecting(false);
+      // A memory must quote what its entry says now, not what it said.
+      setExtraction(null);
+    }
+  }
+
+  async function ask() {
+    setExtraction({ status: 'asking' });
+    try {
+      const answer = await request('/api/journal/' + entry.id + '/extract', { method: 'POST' });
+      if (answer.outcome === 'no-model') setExtraction({ status: 'no-model' });
+      else if (answer.proposals.length === 0) setExtraction({ status: 'nothing' });
+      else {
+        setExtraction({
+          status: 'proposals',
+          updatedAt: answer.updatedAt,
+          proposals: answer.proposals.map((/** @type {{ type: string, content: string }} */ proposal, /** @type {number} */ index) => ({
+            key: String(index),
+            type: proposal.type,
+            content: proposal.content,
+          })),
+        });
+      }
+    } catch (caught) {
+      setExtraction({ status: 'failed', message: messageOf(caught) });
+    }
+  }
+
+  /**
+   * @param {string} key
+   * @param {Partial<DraftProposal> | null} change null discards it
+   */
+  function changeProposal(key, change) {
+    setExtraction((current) => {
+      if (current?.status !== 'proposals') return current;
+      const proposals =
+        change === null
+          ? current.proposals.filter((proposal) => proposal.key !== key)
+          : current.proposals.map((proposal) => (proposal.key === key ? { ...proposal, ...change } : proposal));
+      return proposals.length === 0 ? null : { ...current, proposals };
+    });
   }
 
   async function remove() {
@@ -122,6 +187,67 @@ export default function JournalEntry({ entry, time, todayKey }) {
           ))}
         </div>
       )}
+
+      <JournalExtract extraction={extraction} onAsk={ask} onChange={changeProposal} />
+    </div>
+  );
+}
+
+/**
+ * The button and what it last answered: the proposals, "Nothing here worth
+ * remembering", "No model configured", or the failure with a retry.
+ *
+ * @param {{
+ *   extraction: Extraction | null,
+ *   onAsk: () => void,
+ *   onChange: (key: string, change: Partial<DraftProposal> | null) => void,
+ * }} props
+ */
+function JournalExtract({ extraction, onAsk, onChange }) {
+  const isAsking = extraction?.status === 'asking';
+  return (
+    <div className="journal-extract">
+      <button type="button" className="btn-ghost" disabled={isAsking} onClick={onAsk}>
+        {isAsking ? 'Reading…' : "What's worth remembering?"}
+      </button>
+      {extraction?.status === 'nothing' && <p className="caption">Nothing here worth remembering</p>}
+      {extraction?.status === 'no-model' && <p className="caption">No model configured</p>}
+      {extraction?.status === 'failed' && (
+        <p className="caption">
+          <span className="receipt-error">{extraction.message}</span>{' '}
+          <button type="button" className="link-btn" onClick={onAsk}>
+            Try again
+          </button>
+        </p>
+      )}
+      {extraction?.status === 'proposals' &&
+        extraction.proposals.map((proposal) => (
+          <div key={proposal.key} className="journal-line">
+            <select
+              className="input"
+              aria-label="Type"
+              value={proposal.type}
+              onChange={(event) => onChange(proposal.key, { type: event.target.value })}
+            >
+              {MEMORY_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <input
+              className="input"
+              aria-label="What to remember"
+              value={proposal.content}
+              onChange={(event) => onChange(proposal.key, { content: event.target.value })}
+            />
+            <button type="button" className="icon-btn" aria-label="Discard" onClick={() => onChange(proposal.key, null)}>
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        ))}
     </div>
   );
 }
