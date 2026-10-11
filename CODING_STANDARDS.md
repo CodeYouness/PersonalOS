@@ -3,9 +3,10 @@
 Read at review, against a diff. These are the judgement calls -- the rules no
 linter can check. The mechanical ones are enforced, not listed here:
 `eslint.config.mjs` (no `@/` in `lib/`, no adapter outside the store, no
-`process.env` outside `lib/config/env.js`, no `toISOString().slice`, no empty
+`process.env` outside `lib/config/env.js`, no `toISOString().slice`, no
+month or day key sliced by hand outside `lib/domain/dates.js`, no empty
 block) and `tests/app/route-conventions.test.js` (every route and page is
-`force-dynamic`). The non-negotiable rules in `CLAUDE.md` apply as well.
+`force-dynamic`). `tests/lint/` holds the config's date rules in place. The non-negotiable rules in `CLAUDE.md` apply as well.
 
 ## Where a rule lives
 
