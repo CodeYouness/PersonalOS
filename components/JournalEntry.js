@@ -105,6 +105,9 @@ export default function JournalEntry({ entry, time, todayKey }) {
         setExtraction({
           status: 'proposals',
           updatedAt: answer.updatedAt,
+          // A key is given once, when the answer arrives, and never
+          // re-numbered: discarding one leaves the others' keys as they were,
+          // so a selection never slides onto its neighbour.
           proposals: answer.proposals.map((/** @type {{ type: string, content: string }} */ proposal, /** @type {number} */ index) => ({
             key: String(index),
             type: proposal.type,
