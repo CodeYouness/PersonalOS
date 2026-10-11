@@ -30,6 +30,20 @@ const NO_ISO_SLICE = {
     "Only lib/domain/dates.js may compute a day key from an instant. Call toDayKey() or today() instead (ADR-0005).",
 };
 
+// The same rule for any string: a month key or a day key is never sliced by
+// hand outside lib/domain/dates.js. A review caught one; the next ticket
+// wrote two more (#153). Tests are exempt: a test computes its expected
+// value without the helper it is testing.
+const NO_MONTH_SLICE = {
+  selector: "CallExpression[callee.property.name='slice'][arguments.length=2][arguments.0.value=0][arguments.1.value=7]",
+  message: "A month key comes from lib/domain/dates.js: call monthOf() instead of slicing the day key.",
+};
+const NO_DAY_SLICE = {
+  selector: "CallExpression[callee.property.name='slice'][arguments.length=2][arguments.0.value=0][arguments.1.value=10]",
+  message:
+    "A day key comes from lib/domain/dates.js: call toDayKey() or today() instead of slicing a timestamp (ADR-0005).",
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   // Override default ignores of eslint-config-next.
@@ -101,10 +115,12 @@ const eslintConfig = defineConfig([
   },
 
   // CLAUDE.md / lib/config/env.js: it is the only module allowed to read
-  // process.env, dot or bracket notation. ADR-0005's day-key rule lives in
-  // the same block since both apply to the same files. Tests are exempt
+  // process.env, dot or bracket notation. ADR-0005's day-key rules live in
+  // the same block since they apply to the same files. Tests are exempt
   // from the first -- they set process.env directly to drive env.js through
-  // its own fallbacks, a different concern -- but not the second, below.
+  // its own fallbacks, a different concern -- and from the hand-slice rules,
+  // but not from NO_ISO_SLICE, below. tests/lint/date-slices.test.js holds
+  // this block to that.
   {
     files: ["app/**/*.js", "components/**/*.js", "lib/**/*.js", "scripts/**/*.js"],
     ignores: ["lib/config/env.js", "lib/domain/dates.js"],
@@ -119,6 +135,8 @@ const eslintConfig = defineConfig([
             "Only lib/config/env.js may read process.env. Import { env } from lib/config/env.js instead.",
         },
         NO_ISO_SLICE,
+        NO_MONTH_SLICE,
+        NO_DAY_SLICE,
       ],
     },
   },
