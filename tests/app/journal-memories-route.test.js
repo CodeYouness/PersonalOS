@@ -130,7 +130,7 @@ describe('POST /api/journal/[id]/memories', () => {
 
     expect(response.status).toBe(404);
     await expect(
-      store.acceptProposal(entry.id, { type: 'fact', content: 'Slow start.', seenUpdatedAt: entry.updatedAt })
+      store.acceptJournalProposal(entry.id, { type: 'fact', content: 'Slow start.', updatedAt: entry.updatedAt })
     ).rejects.toThrow(/no journal entry/);
   });
 

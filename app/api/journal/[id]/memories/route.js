@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { acceptProposal, getJournalEntry } from '@/lib/store.js';
+import { acceptJournalProposal, getJournalEntry } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +34,7 @@ export async function POST(request, { params }) {
   }
 
   try {
-    const memory = await acceptProposal(id, { type: body.type, content: body.content, seenUpdatedAt: body.updatedAt });
+    const memory = await acceptJournalProposal(id, body);
     return NextResponse.json({ ok: true, memory });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
