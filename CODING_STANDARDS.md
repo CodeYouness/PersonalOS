@@ -24,6 +24,14 @@ block) and `tests/app/route-conventions.test.js` (every route and page is
   `completeTask`, a goal route like its task route: same guards, same order,
   same status codes, same ADR references in the comments. A difference
   is a decision, and says why where it is made.
+- **A route that only the model can answer reports the model's outcome.**
+  Capture never fails on the model: rules sit underneath it. A route with
+  nothing underneath -- extraction, `app/api/journal/[id]/extract/route.js`
+  -- answers "no model configured" as a 200 with `outcome: 'no-model'`,
+  since a missing key is an answer, and a model that did not answer as a
+  502 with `outcome: 'failed'`, which the screen offers to retry. The
+  model's own error stays in the server log. The next such route mirrors
+  this one.
 
 ## Screens
 
