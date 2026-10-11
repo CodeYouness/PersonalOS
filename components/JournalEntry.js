@@ -37,7 +37,9 @@ import { MEMORY_TYPES } from '@/personalos.config.js';
  * "What's worth remembering?" asks the model to read this one entry (#161)
  * and shows its proposals in place, each one's content and type yours to
  * change, or to discard. They are a reading of the entry as it stands, so a
- * saved correction throws them away.
+ * saved correction throws them away. Accept writes one as a memory (#162):
+ * it leaves the proposals and appears under "Remembered from this", and the
+ * entry loses Correct.
  *
  * @param {{ entry: import('@/lib/store.js').JournalDayEntry, time: string, todayKey: string }} props
  *   `time` is when it was written, read in USER_TIMEZONE on the server
@@ -121,6 +123,24 @@ export default function JournalEntry({ entry, time, todayKey }) {
   }
 
   /**
+   * Writes a proposal as a memory, carrying the `updatedAt` its entry was
+   * read with: the store refuses it if the entry has changed since.
+   *
+   * @param {string} key
+   */
+  async function accept(key) {
+    if (extraction?.status !== 'proposals') return;
+    const proposal = extraction.proposals.find((candidate) => candidate.key === key);
+    if (proposal === undefined) return;
+    const saved = await write('/api/journal/' + entry.id + '/memories', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: proposal.type, content: proposal.content, updatedAt: extraction.updatedAt }),
+    });
+    if (saved) changeProposal(key, null);
+  }
+
+  /**
    * @param {string} key
    * @param {Partial<DraftProposal> | null} change null discards it
    */
@@ -191,7 +211,7 @@ export default function JournalEntry({ entry, time, todayKey }) {
         </div>
       )}
 
-      <JournalExtract extraction={extraction} onAsk={ask} onChange={changeProposal} />
+      <JournalExtract extraction={extraction} isBusy={isBusy} onAsk={ask} onChange={changeProposal} onAccept={accept} />
     </div>
   );
 }
@@ -202,11 +222,13 @@ export default function JournalEntry({ entry, time, todayKey }) {
  *
  * @param {{
  *   extraction: Extraction | null,
+ *   isBusy: boolean,
  *   onAsk: () => void,
  *   onChange: (key: string, change: Partial<DraftProposal> | null) => void,
+ *   onAccept: (key: string) => void,
  * }} props
  */
-function JournalExtract({ extraction, onAsk, onChange }) {
+function JournalExtract({ extraction, isBusy, onAsk, onChange, onAccept }) {
   const isAsking = extraction?.status === 'asking';
   return (
     <div className="journal-extract">
@@ -244,6 +266,14 @@ function JournalExtract({ extraction, onAsk, onChange }) {
               value={proposal.content}
               onChange={(event) => onChange(proposal.key, { content: event.target.value })}
             />
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={isBusy || proposal.content.trim() === ''}
+              onClick={() => onAccept(proposal.key)}
+            >
+              Accept
+            </button>
             <button type="button" className="icon-btn" aria-label="Discard" onClick={() => onChange(proposal.key, null)}>
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                 <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
