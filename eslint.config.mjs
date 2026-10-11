@@ -44,8 +44,9 @@ const eslintConfig = defineConfig([
     // ever checked out here, not just the current tree.
     ".worktrees/**",
     // Sync conflict copies ("route 2.js") from the synced folder the
-    // repository lives in. Git ignores them too; a stale one must never
-    // fail the lint (#154).
+    // repository lives in: a space, then a digit. A stale one must never
+    // fail the lint (#154); check:secrets keeps one out of the repository.
+    // jsconfig.json excludes the same copies from the typecheck.
     "**/* [0-9]*",
   ]),
 
