@@ -47,11 +47,13 @@ export default function JournalWrite({ dayKey, placeholder }) {
         body: JSON.stringify({ date: dayKey, text: draft }),
       });
       change('');
-      startTransition(() => router.refresh());
     } catch (caught) {
       setError(messageOf(caught));
     }
     setIsSaving(false);
+    // Win or lose, the day is re-read: a refused save may still have landed,
+    // and the draft it kept must not be saved twice unseen.
+    startTransition(() => router.refresh());
   }
 
   return (
