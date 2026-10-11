@@ -40,12 +40,12 @@ order, and `npm run verify` passes on every branch.
 1. **Record the anchors.** For every PR in the stack, bottom first, write
    down `number headRefName headRefOid` (`gh pr view <n> --json ...`). The
    **anchor** is that head SHA; branches vanish as the stack lands, the
-   anchors do not. Write each anchor commit's body to a scratch file
-   (`git log -1 --format=%b <anchor>`). A PR that carries a review fix has
-   more than one commit: its subject and body are its **first** commit's,
-   with an `Also: <subject>` line per later commit, so the squash names the
-   ticket and not the fix. Done when every PR has an anchor, a subject and
-   a body file.
+   anchors do not. The squash names the ticket, not a review fix: its
+   subject is the PR's **first** commit's (`git log -1 --format=%s <first>`)
+   and its body comes from
+   `scripts/squash-message.sh <first> [<later> ...] > <body-file>`, which
+   adds an `Also: <subject>` line per later commit and keeps the trailers
+   last. Done when every PR has an anchor, a subject and a body file.
 
 2. **Land one link**, for the parent at the bottom and its child:
    1. Parent has passed CI on its head --
