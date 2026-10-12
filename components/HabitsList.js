@@ -20,13 +20,18 @@ import { targetOn } from '@/lib/domain/derive/habits.js';
  * `router.refresh()` so `HabitsCard`'s ring and streak (which this
  * component does not track locally) catch up to the real state.
  *
+ * The habits scheduled today come first; those in `off` have a day off and
+ * follow, faded and labelled, but ticked like any other -- it is recorded,
+ * and counts toward nothing (ADR 0029).
+ *
  * @param {{
- *   habits: import('@/lib/domain/types.js').Habit[],
+ *   scheduled: import('@/lib/domain/types.js').Habit[],
+ *   off: import('@/lib/domain/types.js').Habit[],
  *   todayKey: string,
  *   values: Record<string, boolean | number>,
  * }} props
  */
-export default function HabitsList({ habits, todayKey, values: initialValues }) {
+export default function HabitsList({ scheduled, off, todayKey, values: initialValues }) {
   const [values, setValues] = useState(initialValues);
   const [pending, setPending] = useState(/** @type {Set<string>} */ (new Set()));
   const router = useRouter();
@@ -63,39 +68,57 @@ export default function HabitsList({ habits, todayKey, values: initialValues }) 
     router.refresh();
   }
 
+  /**
+   * @param {import('@/lib/domain/types.js').Habit} habit
+   * @param {boolean} isOff
+   */
+  function row(habit, isOff) {
+    const value = values[habit.id];
+    const isPending = pending.has(habit.id);
+    return habit.type === 'check' ? (
+      <CheckRow key={habit.id} habit={habit} done={value === true} isOff={isOff} disabled={isPending} onToggle={save} />
+    ) : (
+      <CounterRow
+        key={habit.id}
+        habit={habit}
+        target={targetOn(habit, todayKey)}
+        count={typeof value === 'number' ? value : 0}
+        isOff={isOff}
+        disabled={isPending}
+        onChange={save}
+      />
+    );
+  }
+
   return (
     <ul>
-      {habits.map((habit) => {
-        const value = values[habit.id];
-        const isPending = pending.has(habit.id);
-        return habit.type === 'check' ? (
-          <CheckRow key={habit.id} habit={habit} done={value === true} disabled={isPending} onToggle={save} />
-        ) : (
-          <CounterRow
-            key={habit.id}
-            habit={habit}
-            target={targetOn(habit, todayKey)}
-            count={typeof value === 'number' ? value : 0}
-            disabled={isPending}
-            onChange={save}
-          />
-        );
-      })}
+      {scheduled.map((habit) => row(habit, false))}
+      {off.map((habit) => row(habit, true))}
     </ul>
   );
+}
+
+/**
+ * @param {boolean} done
+ * @param {boolean} isOff
+ * @returns {string}
+ */
+function rowClass(done, isOff) {
+  return 'habit' + (done ? ' is-done' : '') + (isOff ? ' is-off' : '');
 }
 
 /**
  * @param {{
  *   habit: import('@/lib/domain/types.js').Habit,
  *   done: boolean,
+ *   isOff: boolean,
  *   disabled: boolean,
  *   onToggle: (habitId: string, value: boolean) => void,
  * }} props
  */
-function CheckRow({ habit, done, disabled, onToggle }) {
+function CheckRow({ habit, done, isOff, disabled, onToggle }) {
   return (
-    <li className={'habit' + (done ? ' is-done' : '')}>
+    <li className={rowClass(done, isOff)}>
       <span className={'habit-box' + (done ? ' is-done' : '')} aria-hidden="true">
         {done && (
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
@@ -118,6 +141,7 @@ function CheckRow({ habit, done, disabled, onToggle }) {
       >
         {habit.label}
       </button>
+      {isOff && <span className="habit-off">Day off</span>}
     </li>
   );
 }
@@ -129,16 +153,17 @@ function CheckRow({ habit, done, disabled, onToggle }) {
  *   habit: import('@/lib/domain/types.js').Habit,
  *   target: number,
  *   count: number,
+ *   isOff: boolean,
  *   disabled: boolean,
  *   onChange: (habitId: string, value: number) => void,
  * }} props
  */
-function CounterRow({ habit, target, count, disabled, onChange }) {
+function CounterRow({ habit, target, count, isOff, disabled, onChange }) {
   const done = target > 0 && count >= target;
   const percent = target > 0 ? Math.min((count / target) * 100, 100) : 0;
 
   return (
-    <li className={'habit' + (done ? ' is-done' : '')}>
+    <li className={rowClass(done, isOff)}>
       <span className={'habit-box' + (done ? ' is-done' : '')} aria-hidden="true" />
       <button type="button" className="habit-label" disabled={disabled} onClick={() => onChange(habit.id, count + 1)}>
         {habit.label}
@@ -154,6 +179,7 @@ function CounterRow({ habit, target, count, disabled, onChange }) {
           &minus;
         </button>
       )}
+      {isOff && <span className="habit-off">Day off</span>}
       <span className="meter">
         <span style={{ width: percent + '%' }} />
       </span>

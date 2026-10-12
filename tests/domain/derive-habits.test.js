@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { completionRatio, historyRows, isActiveOn, isScheduledOn, justCompleted, ratesByHabit, streak, windowSummary } from '@/lib/domain/derive/habits.js';
+import { completionRatio, dayCompletion, habitsForDay, historyRows, isActiveOn, isScheduledOn, justCompleted, ratesByHabit, streak, windowSummary } from '@/lib/domain/derive/habits.js';
 import { averagesOverRecordedDays, caloriesFromMacros, dayTotals } from '@/lib/domain/derive/nutrition.js';
 
 /** Every weekday, ISO 1 (Monday) to 7 (Sunday): a habit kept every day. */
@@ -568,5 +568,43 @@ describe('a schedule (ADR 0029)', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].ratedDays).toBe(0);
     expect(rows[0].cells.map((cell) => cell.state)).toEqual(['off-done', 'unrecorded']);
+  });
+});
+
+describe('today on the home card', () => {
+  const MON = '2026-10-12', TUE = '2026-10-13';
+  const gym = {
+    id: 'habit_gym', label: 'Gym', type: 'check',
+    periods: [{ from: '2026-10-01', to: null, days: [1, 3, 5], target: null }],
+  };
+  const move = { id: 'habit_move', label: 'Move', type: 'check', periods: open('2026-10-01') };
+  const stretch = {
+    id: 'habit_stretch', label: 'Stretch', type: 'check',
+    periods: [{ from: '2026-10-01', to: null, days: [1], target: null }],
+  };
+  const gone = {
+    id: 'habit_gone', label: 'Gone', type: 'check',
+    periods: [{ from: '2026-09-01', to: '2026-10-01', days: [1, 2, 3, 4, 5, 6, 7], target: null }],
+  };
+  const ids = (/** @type {any[]} */ list) => list.map((habit) => habit.id);
+
+  it('puts the habits scheduled today first, then those with a day off, each in the habit order', () => {
+    const { scheduled, off } = habitsForDay(/** @type {any} */ ([gym, move, stretch, gone]), TUE);
+    expect(ids(scheduled)).toEqual(['habit_move']);
+    expect(ids(off)).toEqual(['habit_gym', 'habit_stretch']);
+  });
+
+  it('has no completion on a day nothing is scheduled, so the ring can say "Day off" instead of 0%', () => {
+    expect(dayCompletion(/** @type {any} */ ([gym, stretch]), /** @type {any} */ (log(TUE, { habit_gym: true })))).toBeNull();
+    expect(dayCompletion(/** @type {any} */ ([gym, move]), /** @type {any} */ (log(TUE, { habit_gym: true })))).toBe(0);
+    expect(dayCompletion(/** @type {any} */ ([gym, stretch]), /** @type {any} */ (log(MON, { habit_gym: true })))).toBe(0.5);
+    // With no habit at all there is no day to be off.
+    expect(dayCompletion([], /** @type {any} */ (log(TUE, {})))).toBe(0);
+  });
+
+  it('leaves out a habit that is not active that day', () => {
+    const { scheduled, off } = habitsForDay(/** @type {any} */ ([gym, move, stretch, gone]), MON);
+    expect(ids(scheduled)).toEqual(['habit_gym', 'habit_move', 'habit_stretch']);
+    expect(off).toEqual([]);
   });
 });

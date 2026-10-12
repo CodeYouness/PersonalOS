@@ -1,14 +1,11 @@
 import Link from 'next/link';
 
-import { percent, streakLabel } from '@/components/format.js';
+import { streakLabel } from '@/components/format.js';
 import HabitsList from '@/components/HabitsList.js';
+import HabitsRing from '@/components/HabitsRing.js';
 import { dayKeysEndingAt, today } from '@/lib/domain/dates.js';
-import { completionRatio, isActiveOn, STREAK_WINDOW_DAYS, streak } from '@/lib/domain/derive/habits.js';
+import { dayCompletion, habitsForDay, STREAK_WINDOW_DAYS, streak } from '@/lib/domain/derive/habits.js';
 import { getDailyLogs, getProfile } from '@/lib/store.js';
-
-/** The ring's radius, matching design/mockup.html's `#card-habits` SVG. */
-const RING_RADIUS = 32;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 /**
  * The compact Habits card, ported from design/mockup.html's `#card-habits`.
@@ -17,23 +14,27 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
  * A server component for the same reason CalendarCard is one -- the ring,
  * streak and every habit's starting value are read once per request, no
  * loading flash. Only the tap targets (`HabitsList`) are a client island.
+ *
+ * The habits scheduled today come first; those with a day off follow, faded
+ * and still tickable -- the Tuesday gym session happened -- and outside the
+ * ring, which is completion over today's scheduled habits only (ADR 0029).
  */
 export default async function HabitsCard() {
   const profile = await getProfile();
   const todayKey = today();
-  // Only today's active habits are shown in the list, but the streak looks
-  // back 365 days -- a habit archived since must still count for the days
-  // it *was* active, so streak() gets every habit, not just today's.
-  const activeToday = profile.habits.filter((habit) => isActiveOn(habit, todayKey));
+  // The list is today's active habits, split into scheduled and off. The
+  // streak looks back 365 days -- a habit archived since must still count
+  // for the days it *was* scheduled, so streak() gets every habit.
+  const { scheduled, off } = habitsForDay(profile.habits, todayKey);
 
   const windowStart = dayKeysEndingAt(STREAK_WINDOW_DAYS, todayKey)[0];
   const windowLogs = await getDailyLogs(windowStart, todayKey);
   const todayLog = windowLogs[windowLogs.length - 1];
 
-  const ratio = completionRatio(activeToday, todayLog);
+  // Only today's scheduled habits count, so a tick on a day off never moves
+  // the ring; null, with nothing scheduled, is the ring's "Day off".
+  const ratio = dayCompletion(profile.habits, todayLog);
   const streakDays = streak(profile.habits, windowLogs, todayKey);
-
-  const offset = RING_CIRCUMFERENCE * (1 - ratio);
 
   return (
     <article id="card-habits" className="card span-4">
@@ -45,35 +46,19 @@ export default async function HabitsCard() {
       </div>
       <div className="card-body">
         <div className="ring-wrap">
-          <div className="ring">
-            <svg width="76" height="76" aria-hidden="true">
-              <circle className="ring-track" cx="38" cy="38" r={RING_RADIUS} fill="none" stroke="currentColor" strokeWidth="6" />
-              <circle
-                className="ring-progress"
-                cx="38"
-                cy="38"
-                r={RING_RADIUS}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeDasharray={RING_CIRCUMFERENCE}
-                strokeDashoffset={offset}
-              />
-            </svg>
-            <div className="ring-value num">{percent(ratio)}</div>
-          </div>
+          <HabitsRing ratio={ratio} />
           <div>
             <div className="streak-num num">{streakLabel(streakDays)}</div>
             <div className="caption">day streak</div>
           </div>
         </div>
-        {activeToday.length === 0 ? (
+        {scheduled.length + off.length === 0 ? (
           <p className="caption">No active habits.</p>
         ) : (
           <HabitsList
             key={JSON.stringify(todayLog.habits)}
-            habits={activeToday}
+            scheduled={scheduled}
+            off={off}
             todayKey={todayKey}
             values={todayLog.habits}
           />
