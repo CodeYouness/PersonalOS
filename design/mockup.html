@@ -347,6 +347,18 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .meter { width: 54px; height: 3px; border-radius: 2px; background: var(--surface-3); overflow: hidden; flex: none; }
 .meter > span { display: block; height: 100%; background: var(--ink-subtle); }
 
+/* --- A day off. The habit exists but is not expected today: after the
+   scheduled ones, faded, and still tickable -- the Tuesday gym session
+   happened. A tick here is outlined, never green: it is recorded, and it is
+   not part of the ring. */
+.habit.is-off { opacity: 0.55; }
+.habit.is-off .habit-box.is-done { background: none; border-color: var(--ink-subtle); color: var(--ink-subtle); }
+.habit-off { font-size: 11px; color: var(--ink-tertiary); flex: none; }
+/* Nothing scheduled today: no progress arc, and the ring says so. */
+.ring-value.is-off { font-size: 12px; letter-spacing: 0; color: var(--ink-subtle); }
+#card-habits[data-today="some-off"] .today-none,
+#card-habits[data-today="none-scheduled"] .today-some { display: none; }
+
 /* Habits screen — manage list */
 .habit-manage {
   display: flex; align-items: center; gap: var(--s-sm);
@@ -365,9 +377,25 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .icon-btn:hover { background: var(--surface-4); color: var(--ink-muted); }
 .icon-btn.danger:hover { background: var(--danger-soft); color: var(--danger); }
 .add-habit {
-  display: flex; gap: var(--s-xs); margin-top: var(--s-sm);
+  display: flex; flex-wrap: wrap; gap: var(--s-xs); margin-top: var(--s-sm);
   padding-top: var(--s-sm); border-top: 1px solid var(--hairline);
 }
+.add-habit .input { flex: 1; min-width: 160px; }
+.habit-manage.is-editing { flex-wrap: wrap; gap: var(--s-xs); }
+.habit-manage.is-editing .input { flex: 1; min-width: 140px; }
+.add-habit .input-target,
+.habit-manage.is-editing .input-target { flex: none; width: 64px; min-width: 0; text-align: right; }
+.edit-note { flex-basis: 100%; }
+
+/* The weekday picker: Monday to Sunday, all seven on for a new habit. At
+   least one stays on -- a habit expected on no day is an archived one. */
+.weekdays { display: flex; gap: 2px; flex-basis: 100%; }
+.weekdays button {
+  flex: 1; max-width: 44px; height: 26px; border-radius: var(--r-xs);
+  border: 1px solid var(--hairline); font-size: 11px; color: var(--ink-tertiary);
+}
+.weekdays button:hover { border-color: var(--hairline-strong); color: var(--ink-subtle); }
+.weekdays button[aria-pressed="true"] { background: var(--surface-3); border-color: var(--hairline-strong); color: var(--ink); }
 
 /* Habits screen — history heatmap */
 .heat-row { display: flex; align-items: center; gap: var(--s-sm); margin-bottom: var(--s-xs); }
@@ -381,6 +409,19 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .heat-rate { width: 44px; flex: none; font-size: 13px; }
 .heat-legend { display: flex; align-items: center; gap: var(--s-xs); font-size: 11px; color: var(--ink-tertiary); }
 .heat-legend i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+/* A day off: the habit existed and was not expected -- hatched, unlike a day
+   it did not exist (blank) or a day nothing was recorded (outlined). Done on
+   a day off keeps the hatching and gains a green outline: it happened, and
+   it is not filled because it counts toward nothing. */
+.heat-cells i[data-v="off"],
+.heat-legend i[data-v="off"],
+.heat-cells i[data-v="off-done"],
+.heat-legend i[data-v="off-done"] {
+  background: repeating-linear-gradient(135deg, var(--hairline-strong) 0 1px, transparent 1px 4px);
+}
+.heat-cells i[data-v="off-done"],
+.heat-legend i[data-v="off-done"] { box-shadow: inset 0 0 0 1px var(--success); }
+.heat-legend .sep { width: 1px; height: 12px; background: var(--hairline); margin: 0 2px; }
 
 /* ==========================================================================
    HOME — card-calendar
@@ -895,27 +936,63 @@ a.cite { text-decoration: none; }
     </article>
 
     <!-- card-habits (compact; the full screen lives under Habits) -------- -->
-    <article id="card-habits" class="card span-4">
+    <!-- Today is a Tuesday. The gym is Monday, Wednesday and Friday: a day
+         off, after the scheduled habits, still tickable. The ring is the four
+         habits scheduled today; the gym tick is recorded and not in it. -->
+    <article id="card-habits" class="card span-4" data-today="some-off">
       <div class="card-head">
         <span class="eyebrow">Habits</span>
         <button class="btn-ghost" data-screen="screen-habits">Open</button>
       </div>
       <div class="card-body">
-        <div class="ring-wrap">
+        <div class="ring-wrap today-some">
           <div class="ring">
             <svg width="76" height="76" aria-hidden="true">
               <circle cx="38" cy="38" r="32" fill="none" stroke="#18191a" stroke-width="6"/>
               <circle cx="38" cy="38" r="32" fill="none" stroke="#59d499" stroke-width="6"
-                      stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="72"/>
+                      stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="86"/>
             </svg>
-            <div class="ring-value">64%</div>
+            <div class="ring-value">57%</div>
           </div>
           <div>
             <div class="streak-num num">12</div>
             <div class="caption">day streak</div>
           </div>
         </div>
-        <ul>
+        <!-- Nothing scheduled today -- a Sunday, for a list of only the gym and
+             deep work on weekdays: no arc, and the ring says "Day off" rather
+             than 0%. The streak skips the day; it neither grows nor breaks. -->
+        <div class="ring-wrap today-none">
+          <div class="ring">
+            <svg width="76" height="76" aria-hidden="true">
+              <circle cx="38" cy="38" r="32" fill="none" stroke="#18191a" stroke-width="6"/>
+            </svg>
+            <div class="ring-value is-off">Day off</div>
+          </div>
+          <div>
+            <div class="streak-num num">12</div>
+            <div class="caption">day streak</div>
+          </div>
+        </div>
+        <ul class="today-none">
+          <li class="habit is-off is-done">
+            <span class="habit-box is-done">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path d="M1.5 5.2l2.3 2.3L8.5 2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="habit-label">Gym</span>
+            <span class="habit-off">Day off</span>
+          </li>
+          <li class="habit is-off">
+            <span class="habit-box"></span>
+            <span class="habit-label">Deep work blocks</span>
+            <span class="habit-off">Day off</span>
+            <span class="meter"><span style="width:0%"></span></span>
+            <span class="habit-count num">0&thinsp;/&thinsp;3</span>
+          </li>
+        </ul>
+        <ul class="today-some">
           <li class="habit is-done">
             <span class="habit-box is-done">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
@@ -937,7 +1014,22 @@ a.cite { text-decoration: none; }
             <span class="meter"><span style="width:67%"></span></span>
             <span class="habit-count num">2&thinsp;/&thinsp;3</span>
           </li>
+          <li class="habit is-off is-done">
+            <span class="habit-box is-done">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path d="M1.5 5.2l2.3 2.3L8.5 2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="habit-label">Gym</span>
+            <span class="habit-off">Day off</span>
+          </li>
         </ul>
+      </div>
+
+      <!-- Mockup affordance only: the states, side by side. -->
+      <div class="state-legend" data-legend="today">
+        <button class="is-on" data-set="some-off">a day off</button>
+        <button data-set="none-scheduled">nothing scheduled</button>
       </div>
     </article>
 
@@ -1056,12 +1148,12 @@ a.cite { text-decoration: none; }
     <article id="card-habits-manage" class="card span-5">
       <div class="card-head">
         <span class="eyebrow">Your habits</span>
-        <span class="caption">4 active</span>
+        <span class="caption">5 active</span>
       </div>
       <div class="card-body">
         <div class="habit-manage">
           <span class="grip">⠿</span>
-          <span class="habit-label">Move for 30 minutes<br><span class="type">check</span></span>
+          <span class="habit-label">Move for 30 minutes<br><span class="type">check · Every day</span></span>
           <div class="actions">
             <button class="icon-btn" aria-label="Edit">
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9.5 2.5l2 2L5 11l-2.5.5L3 9l6.5-6.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
@@ -1073,7 +1165,28 @@ a.cite { text-decoration: none; }
         </div>
         <div class="habit-manage">
           <span class="grip">⠿</span>
-          <span class="habit-label">Read<br><span class="type">check</span></span>
+          <span class="habit-label">Read<br><span class="type">check · Every day</span></span>
+          <div class="actions">
+            <button class="icon-btn" aria-label="Edit"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2L5 11l-2.5.5L3 9l6.5-6.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button>
+            <button class="icon-btn danger" aria-label="Archive"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 4h8M5.5 4V2.8h3V4M4.3 4l.5 7.2h4.4L9.7 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+        <!-- Editing in place: the name, a counter's target and the days. A
+             change counts from today; every day before it keeps the days and
+             the target it had. Saving the same days and target changes nothing. -->
+        <div class="habit-manage is-editing">
+          <input class="input" value="Glasses of water" aria-label="Name of Glasses of water">
+          <input class="input input-target num" type="number" min="1" value="10" aria-label="Target for Glasses of water">
+          <div class="weekdays" role="group" aria-label="Days for Glasses of water"><button aria-pressed="true">Mon</button><button aria-pressed="true">Tue</button><button aria-pressed="true">Wed</button><button aria-pressed="true">Thu</button><button aria-pressed="true">Fri</button><button aria-pressed="true">Sat</button><button aria-pressed="true">Sun</button></div>
+          <p class="caption edit-note">From today. Earlier days keep the days and target they had.</p>
+          <div class="actions">
+            <button class="btn-primary">Save</button>
+            <button class="btn-ghost">Cancel</button>
+          </div>
+        </div>
+        <div class="habit-manage">
+          <span class="grip">⠿</span>
+          <span class="habit-label">Deep work blocks<br><span class="type">counter · target 3 · Mon Tue Wed Thu Fri</span></span>
           <div class="actions">
             <button class="icon-btn" aria-label="Edit"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2L5 11l-2.5.5L3 9l6.5-6.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button>
             <button class="icon-btn danger" aria-label="Archive"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 4h8M5.5 4V2.8h3V4M4.3 4l.5 7.2h4.4L9.7 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
@@ -1081,25 +1194,20 @@ a.cite { text-decoration: none; }
         </div>
         <div class="habit-manage">
           <span class="grip">⠿</span>
-          <span class="habit-label">Glasses of water<br><span class="type">counter · target 8</span></span>
-          <div class="actions">
-            <button class="icon-btn" aria-label="Edit"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2L5 11l-2.5.5L3 9l6.5-6.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button>
-            <button class="icon-btn danger" aria-label="Archive"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 4h8M5.5 4V2.8h3V4M4.3 4l.5 7.2h4.4L9.7 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-          </div>
-        </div>
-        <div class="habit-manage">
-          <span class="grip">⠿</span>
-          <span class="habit-label">Deep work blocks<br><span class="type">counter · target 3</span></span>
+          <span class="habit-label">Gym<br><span class="type">check · Mon Wed Fri</span></span>
           <div class="actions">
             <button class="icon-btn" aria-label="Edit"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2L5 11l-2.5.5L3 9l6.5-6.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button>
             <button class="icon-btn danger" aria-label="Archive"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 4h8M5.5 4V2.8h3V4M4.3 4l.5 7.2h4.4L9.7 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
           </div>
         </div>
 
+        <!-- A new habit starts on every day; untick the days it is not kept
+             on. At least one stays on: a habit expected on no day is archived. -->
         <div class="add-habit">
           <input class="input" placeholder="New habit — e.g. Stretch before bed">
           <button class="btn-ghost">check</button>
           <button class="btn-primary">Add</button>
+          <div class="weekdays" role="group" aria-label="Days for the new habit"><button aria-pressed="true">Mon</button><button aria-pressed="true">Tue</button><button aria-pressed="true">Wed</button><button aria-pressed="true">Thu</button><button aria-pressed="true">Fri</button><button aria-pressed="true">Sat</button><button aria-pressed="true">Sun</button></div>
         </div>
         <p class="caption" style="margin-top:var(--s-sm)">
           Archiving keeps the history. Past days still show the habit; it stops appearing today.
@@ -1116,10 +1224,13 @@ a.cite { text-decoration: none; }
           <i style="background:rgba(89,212,153,0.22)"></i>
           <i style="background:rgba(89,212,153,0.48)"></i>
           <i style="background:var(--success)"></i><span>full</span>
+          <span class="sep"></span>
+          <i data-v="off"></i><span>day off</span>
+          <i data-v="off-done"></i><span>done on a day off</span>
         </div>
       </div>
       <div class="card-body">
-        <p class="caption" style="margin-bottom:var(--s-md)">Last 30 days · outlined cells are days with nothing recorded, not days you failed.</p>
+        <p class="caption" style="margin-bottom:var(--s-md)">Last 30 days · outlined cells are days with nothing recorded, not days you failed. Hatched cells are days off: nothing was expected, and something done on one counts toward nothing.</p>
 
         <div class="heat-row">
           <span class="heat-name">Move for 30 minutes</span>
@@ -1157,12 +1268,26 @@ a.cite { text-decoration: none; }
         <div class="heat-row">
           <span class="heat-name">Deep work blocks</span>
           <span class="heat-cells">
-            <i data-v="2"></i><i data-v="2"></i><i data-v="0"></i><i data-v="3"></i><i data-v="3"></i><i data-v="1"></i><i data-v="0"></i>
-            <i data-v="2"></i><i data-v="3"></i><i data-v="2"></i><i data-v="miss"></i><i data-v="3"></i><i data-v="1"></i><i data-v="2"></i>
-            <i data-v="3"></i><i data-v="3"></i><i data-v="2"></i><i data-v="0"></i><i data-v="2"></i><i data-v="3"></i><i data-v="3"></i>
-            <i data-v="miss"></i><i data-v="miss"></i><i data-v="1"></i><i data-v="2"></i><i data-v="3"></i><i data-v="2"></i><i data-v="3"></i><i data-v="2"></i><i data-v="2"></i>
+            <i data-v="2"></i><i data-v="2"></i><i data-v="0"></i><i data-v="3"></i><i data-v="3"></i><i data-v="off"></i><i data-v="off"></i>
+            <i data-v="2"></i><i data-v="3"></i><i data-v="2"></i><i data-v="miss"></i><i data-v="3"></i><i data-v="off"></i><i data-v="off"></i>
+            <i data-v="3"></i><i data-v="3"></i><i data-v="2"></i><i data-v="0"></i><i data-v="2"></i><i data-v="off"></i><i data-v="off"></i>
+            <i data-v="miss"></i><i data-v="miss"></i><i data-v="1"></i><i data-v="2"></i><i data-v="3"></i><i data-v="off-done"></i><i data-v="off"></i><i data-v="2"></i><i data-v="2"></i>
           </span>
           <span class="heat-rate num up">72%</span>
+        </div>
+
+        <!-- Monday, Wednesday and Friday. Hatched days are days off; the two
+             outlined in green are a session on a day off -- recorded, and kept
+             out of the rate. Every cell is a correction, a day off included. -->
+        <div class="heat-row">
+          <span class="heat-name">Gym</span>
+          <span class="heat-cells">
+            <i data-v="3"></i><i data-v="off"></i><i data-v="3"></i><i data-v="off"></i><i data-v="0"></i><i data-v="off"></i><i data-v="off"></i>
+            <i data-v="3"></i><i data-v="off"></i><i data-v="3"></i><i data-v="miss"></i><i data-v="3"></i><i data-v="off"></i><i data-v="off"></i>
+            <i data-v="3"></i><i data-v="off-done"></i><i data-v="3"></i><i data-v="off"></i><i data-v="3"></i><i data-v="off"></i><i data-v="off"></i>
+            <i data-v="miss"></i><i data-v="miss"></i><i data-v="3"></i><i data-v="off"></i><i data-v="3"></i><i data-v="off"></i><i data-v="off"></i><i data-v="3"></i><i data-v="off-done"></i>
+          </span>
+          <span class="heat-rate num up">92%</span>
         </div>
 
         <div class="divider"></div>
@@ -2054,6 +2179,28 @@ a.cite { text-decoration: none; }
       group.querySelectorAll('button').forEach(function (other) {
         other.classList.toggle('is-on', other === button);
       });
+    });
+  });
+
+  // Habits card: a day off among scheduled habits, or nothing scheduled.
+  var habitsCard = document.getElementById('card-habits');
+  habitsCard.querySelector('.state-legend').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-set]');
+    if (!button) return;
+    habitsCard.dataset.today = button.dataset.set;
+    habitsCard.querySelectorAll('.state-legend button').forEach(function (other) {
+      other.classList.toggle('is-on', other === button);
+    });
+  });
+
+  // Weekday pickers: a toggle each, never the last one off.
+  document.querySelectorAll('.weekdays').forEach(function (group) {
+    group.addEventListener('click', function (event) {
+      var button = event.target.closest('button');
+      if (!button) return;
+      var on = button.getAttribute('aria-pressed') === 'true';
+      if (on && group.querySelectorAll('[aria-pressed="true"]').length === 1) return;
+      button.setAttribute('aria-pressed', String(!on));
     });
   });
 
