@@ -549,6 +549,83 @@
       ],
       "measurements": [],
       "notes": []
+    },
+    "2026-01-06": {
+      "date": "2026-01-06",
+      "habits": { "habit_move": true, "habit_read": true, "habit_water": 8, "habit_deep_work": 3 },
+      "meals": [],
+      "measurements": [],
+      "notes": []
+    },
+    "2026-01-07": {
+      "date": "2026-01-07",
+      "habits": { "habit_move": true, "habit_read": false, "habit_water": 6, "habit_deep_work": 2 },
+      "meals": [],
+      "measurements": [],
+      "notes": []
+    },
+    "2026-01-08": {
+      "date": "2026-01-08",
+      "habits": { "habit_move": false, "habit_read": true, "habit_water": 8, "habit_deep_work": 3 },
+      "meals": [],
+      "measurements": [],
+      "notes": []
+    },
+    "2026-01-09": {
+      "date": "2026-01-09",
+      "habits": { "habit_move": true, "habit_read": true, "habit_water": 7, "habit_deep_work": 1 },
+      "meals": [],
+      "measurements": [],
+      "notes": []
+    },
+    "2026-01-10": {
+      "date": "2026-01-10",
+      "habits": { "habit_move": true, "habit_read": true, "habit_water": 8, "habit_deep_work": 1 },
+      "meals": [],
+      "measurements": [],
+      "notes": []
+    },
+    "2026-01-11": {
+      "date": "2026-01-11",
+      "habits": { "habit_move": false, "habit_read": true, "habit_water": 5 },
+      "meals": [],
+      "measurements": [],
+      "notes": []
+    },
+    "2026-01-12": {
+      "date": "2026-01-12",
+      "habits": { "habit_move": true, "habit_read": false, "habit_water": 8, "habit_deep_work": 3 },
+      "meals": [],
+      "measurements": [],
+      "notes": []
+    },
+    "2026-01-13": {
+      "date": "2026-01-13",
+      "habits": { "habit_move": true, "habit_read": true, "habit_water": 8, "habit_deep_work": 2 },
+      "meals": [],
+      "measurements": [],
+      "notes": []
+    },
+    "2026-01-15": {
+      "date": "2026-01-15",
+      "habits": { "habit_move": true, "habit_read": true, "habit_water": 6, "habit_deep_work": 3 },
+      "meals": [],
+      "measurements": [],
+      "notes": []
+    },
+    "2026-01-16": {
+      "date": "2026-01-16",
+      "habits": { "habit_move": true, "habit_read": false, "habit_water": 8, "habit_deep_work": 3 },
+      "meals": [],
+      "measurements": [],
+      "notes": []
+    },
+    "2026-01-17": {
+      "date": "2026-01-17",
+      "habits": { "habit_move": true, "habit_read": true, "habit_water": 4 },
+      "meals": [],
+      "measurements": [],
+      "notes": []
     }
   },
   "accounts": [

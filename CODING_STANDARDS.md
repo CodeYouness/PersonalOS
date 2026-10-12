@@ -61,7 +61,9 @@ block) and `tests/app/route-conventions.test.js` (every route and page is
 - **A new component that decides what to render has a render test.** A link
   or a button, a note shown only sometimes, a retry offered only for some
   failures: `renderToStaticMarkup`, as in `tests/components/answer-panel.test.js`.
-  An older one gets its test when it is next changed.
+  An older one gets its test when it is next changed. This holds whatever a
+  spec's testing section says: the spec decides what to prove, this decides
+  where.
 
 - **A selection is tracked by id**, in the address (`?task=<id>`,
   `?goal=<id>`), never by index in a list: a capture can insert a row while

@@ -129,7 +129,8 @@ why; a new ADR takes the number after the last file in `docs/decisions/`.
 Open work is GitHub issues on `CodeYouness/PersonalOS`. Read the open pull
 requests before you start: a feature ships as a stack of one-ticket branches,
 each based on the one before it, so the branch you need may already exist and
-the base you want may not be `main`.
+the base you want may not be `main`. A review fix for a lower ticket goes on
+that ticket's branch: `.claude/skills/land-stack/SKILL.md` § Before landing.
 
 `docs/handoff/2026-09-03-foundation-v2.md` is history, not a to-do list. Every
 ticket it points at is resolved, including the data-loss bug it calls "the bug

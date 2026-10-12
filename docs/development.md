@@ -17,7 +17,7 @@ data with no key set; each variable switches on the feature next to it.
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Development server on :3000, on your real `data/personalos.json` |
-| `npm run dev:sandbox` | The same on a throwaway copy of the seed, removed when it stops. **For checking a change in the browser.** It follows `data/seed.json`: a branch switch that changes the seed starts the sandbox again from it. It prints whether the model is on -- a key exported in your shell counts, not only `.env.local` -- since a model path checked there calls the real API. `-- -p 3100` for another port |
+| `npm run dev:sandbox` | The same on a throwaway copy of the seed, its habit history moved to recent days, removed when it stops. **For checking a change in the browser.** It follows `data/seed.json`: a branch switch that changes the seed starts the sandbox again from it. It prints whether the model is on -- a key exported in your shell counts, not only `.env.local` -- since a model path checked there calls the real API. `-- -p 3100` for another port |
 | `npm run build` | Production build. Stricter than dev -- things pass `dev` and fail here |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc -p jsconfig.json`: JSDoc types, `checkJs`, strict |
@@ -71,9 +71,15 @@ that matched nothing produces, and the default is your real data.
 
 ## Checking a change in the browser
 
-`npm run dev:sandbox -- -p 3100`, driven with the Playwright MCP. Four things
-the tool will not tell you:
+`npm run dev:sandbox -- -p 3100`, driven with the Playwright MCP. What the
+tool will not tell you:
 
+- **The days.** The demo habit history is moved forward by whole weeks to end
+  in the week before today (`scripts/sandbox-seed.js`), so each day keeps its
+  weekday and Deep work's weekends stay days off. Meals, weights and notes
+  stay on their January days.
+- **One theme.** The app and the mockup are dark only; a light theme has
+  nothing to check.
 - **The model.** The banner says `model: on` or `off`, and a key exported in
   your shell counts. Off, a question answers "No model configured". To see a
   path that returns before the model is called, start it with a fake key

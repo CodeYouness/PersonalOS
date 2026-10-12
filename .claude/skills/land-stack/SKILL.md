@@ -19,6 +19,10 @@ Auto mode refuses a merge it cannot match to an allow rule. The rules in
 `$(...)`, no `&&` chain, no wrapper script around `gh`. Write each PR body
 to a file and pass `--body-file`; pass `--repo CodeYouness/PersonalOS`.
 
+Each command is its own tool call, issued once the previous one has
+returned: calls sent together may run at once, and a proof run out of order
+proves nothing.
+
 ## Before landing: fixing a lower link
 
 A review finding that belongs to a lower ticket is committed on that
