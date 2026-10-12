@@ -1,9 +1,12 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Fragment } from 'react';
 
 import { dayLabel, formatCount, formatWeight } from '@/components/format.js';
 import MealList from '@/components/MealList.js';
+import { nutritionAddress } from '@/lib/domain/addresses.js';
+import { requestedOpenDay } from '@/lib/domain/derive/health.js';
 
 /**
  * The Health card's table, one row per recorded day. A day with meals opens
@@ -14,6 +17,14 @@ import MealList from '@/components/MealList.js';
  * One day open at a time, tracked by its day key, never by row position: a
  * capture can add a day while one is open. Opening the open day closes it.
  *
+ * Which day is open lives in the address (`?day=<day key>`), not in local
+ * state: a citation of a meal (#173) links to it, and a link to the address
+ * you are already on changes nothing -- so the address has to say what is
+ * open, or a citation could not reopen a row you had closed by hand. Opening
+ * and closing rewrite it in place (`replaceState`, which Next syncs into
+ * `useSearchParams`) without a server round trip or a history entry. An
+ * address naming a day the table cannot open is read as no day.
+ *
  * @param {{
  *   rows: ReturnType<typeof import('@/lib/domain/derive/health.js').healthRows>,
  *   mealsByDay: Record<string, import('@/lib/domain/types.js').Meal[]>,
@@ -22,7 +33,7 @@ import MealList from '@/components/MealList.js';
  * }} props
  */
 export default function HealthTable({ rows, mealsByDay, target, todayKey }) {
-  const [openDay, setOpenDay] = useState(/** @type {string | null} */ (null));
+  const openDay = requestedOpenDay(useSearchParams().get('day'), rows);
 
   return (
     <table>
@@ -50,7 +61,7 @@ export default function HealthTable({ rows, mealsByDay, target, todayKey }) {
                       type="button"
                       className="health-day"
                       aria-expanded={isOpen}
-                      onClick={() => setOpenDay(isOpen ? null : row.date)}
+                      onClick={() => window.history.replaceState(null, '', nutritionAddress(isOpen ? null : row.date))}
                     >
                       {label}
                     </button>

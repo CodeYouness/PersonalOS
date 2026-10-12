@@ -8,7 +8,7 @@ import FinanceHistory from '@/components/FinanceHistory.js';
 import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
 import { isMonthKey, monthOf, monthRange, today } from '@/lib/domain/dates.js';
-import { financeOverview, flowMonths, lineHolds, monthFlows, savingsRate, yearFlows } from '@/lib/domain/derive/finance.js';
+import { financeOverview, flowMonths, lineHolds, monthFlows, monthsWith, savingsRate, yearFlows } from '@/lib/domain/derive/finance.js';
 import { getAccount, getFinanceInputs, getProfile, getTransaction } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +33,8 @@ export const dynamic = 'force-dynamic';
  * -- a category, or Uncategorised spending or income -- and lists that
  * month's transactions it counts; one that no longer exists selects
  * nothing. The month is one the section offers -- from "tracked since" or
- * the first transaction to today's -- and today's otherwise. The Settings
+ * the first transaction to today's, and the month of the selected
+ * transaction -- and today's otherwise. The Settings
  * card (#138) sets "tracked since".
  *
  * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], transaction?: string | string[], category?: string | string[] }> }} props
@@ -50,7 +51,13 @@ export default async function FinancesScreen({ searchParams }) {
   const { accounts, observations, trades, prices, transactions } = finance;
   const overview = financeOverview(finance, todayKey);
   const categories = profile.financeCategories;
-  const months = flowMonths(transactions, todayKey, finance.trackedSince);
+  // The month of the selected transaction is on offer even when the section
+  // would not (before "tracked since", or after today): a citation links to
+  // a transaction with its month, and the list beside it has to contain it.
+  const months = monthsWith(
+    flowMonths(transactions, todayKey, finance.trackedSince),
+    selectedTransaction === null ? null : monthOf(selectedTransaction.date)
+  );
   const month = isMonthKey(monthParam) && months.includes(/** @type {string} */ (monthParam)) ? /** @type {string} */ (monthParam) : monthOf(todayKey);
   const category = typeof categoryParam === 'string' && lineName(categoryParam, categories) !== null ? categoryParam : null;
   const { from, to } = monthRange(month);

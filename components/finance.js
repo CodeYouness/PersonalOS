@@ -1,3 +1,4 @@
+import { financesAddress } from '@/lib/domain/addresses.js';
 import { UNCATEGORISED_INCOME, UNCATEGORISED_SPENDING } from '@/lib/domain/derive/finance.js';
 import { CATEGORY_KINDS } from '@/personalos.config.js';
 
@@ -7,20 +8,10 @@ import { CATEGORY_KINDS } from '@/personalos.config.js';
  */
 
 /**
- * Where you are on the Finances screen: the selected account, the month
- * read, the selected transaction. Each by id or key, never by place in a
- * list.
+ * Where you are on the Finances screen (lib/domain/addresses.js).
  *
- * @typedef {object} FinancesPlace
- * @property {string | null} [account]
- * @property {string | null} [month] YYYY-MM
- * @property {string | null} [transaction]
- * @property {string | null} [category] a line of the month: a category id,
- *   or one of the Uncategorised lines (lib/domain/derive/finance.js)
+ * @typedef {import('@/lib/domain/addresses.js').FinancesPlace} FinancesPlace
  */
-
-/** @type {(keyof FinancesPlace)[]} */
-const PLACE_KEYS = ['account', 'month', 'category', 'transaction'];
 
 /**
  * A line of the month as a heading names it: a category's name, or
@@ -44,13 +35,7 @@ export function lineName(line, categories) {
  * @returns {string}
  */
 export function financesHref(place = {}) {
-  const params = new URLSearchParams();
-  for (const key of PLACE_KEYS) {
-    const value = place[key];
-    if (typeof value === 'string' && value !== '') params.set(key, value);
-  }
-  const query = params.toString();
-  return query === '' ? '/finances' : '/finances?' + query;
+  return financesAddress(place);
 }
 
 /**

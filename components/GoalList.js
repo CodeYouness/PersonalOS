@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { dayLabel, slippedLabel } from '@/components/format.js';
+import { goalsAddress } from '@/lib/domain/addresses.js';
 
 /** @type {Record<import('@/lib/domain/types.js').Goal['horizon'], string>} */
 const GROUP_LABELS = { week: 'This week', month: 'This month', open: 'Open' };
@@ -11,7 +12,7 @@ const GROUP_LABELS = { week: 'This week', month: 'This month', open: 'Open' };
  * @param {string | null} [goalId]
  */
 export function goalsHref(goalId = null) {
-  return goalId === null ? '/goals' : '/goals?goal=' + encodeURIComponent(goalId);
+  return goalsAddress(goalId);
 }
 
 /**

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { ageLabel, ageTitle, initials, personLabel } from '@/components/format.js';
+import { crmAddress } from '@/lib/domain/addresses.js';
 
 /**
  * The CRM screen's main card, ported from design/mockup.html's
@@ -57,11 +58,7 @@ const VIEWS = [
  * @param {string | null} [taskId]
  */
 export function crmHref(view, taskId = null) {
-  const params = new URLSearchParams();
-  if (view === 'person') params.set('view', 'person');
-  if (taskId !== null) params.set('task', taskId);
-  const query = params.toString();
-  return query === '' ? '/crm' : '/crm?' + query;
+  return crmAddress(view, taskId);
 }
 
 /**

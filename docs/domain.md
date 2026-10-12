@@ -249,6 +249,14 @@ a screen already shows -- a number is built for a screen first, and only
 then can an answer cite it. The profile -- who you are and what today is
 about -- is citable too.
 
+A citation opens what it cites. The context decides where, from the record --
+never the model: a task on the CRM screen, a goal on Goals, a journal entry on
+its day, a memory on the day of the entry it was drawn from, a transaction and
+an account on Finances, a meal on its day of Nutrition & Health
+(`/nutrition?day=`, only while that day is inside the Health card's window).
+A record with no screen of its own -- a capture, a person, a balance, an
+event, the profile -- expands in place, showing its content.
+
 One fact is cited once. A record filed from a capture is cited as the
 record, carrying the capture's sentence; a capture that filed nothing is
 cited as the capture. A memory that only repeats its capture's sentence is

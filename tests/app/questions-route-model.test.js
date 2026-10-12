@@ -529,13 +529,35 @@ describe('POST /api/questions with a model: the answer', () => {
         {
           text: 'Marta prefers a call over email.',
           citations: [
-            { id: 'memory_seed_1', type: 'memory', label: 'Marta Oliveira prefers a call over email.', labels: [] },
-            { id: 'person_seed_1', type: 'person', label: 'Marta Oliveira', labels: [] },
+            {
+              id: 'memory_seed_1',
+              type: 'memory',
+              label: 'Marta Oliveira prefers a call over email.',
+              labels: [],
+              opens: null,
+              content: expect.stringContaining('Marta Oliveira prefers a call over email.'),
+            },
+            {
+              id: 'person_seed_1',
+              type: 'person',
+              label: 'Marta Oliveira',
+              labels: [],
+              opens: null,
+              content: expect.stringContaining('person: Marta Oliveira'),
+            },
           ],
         },
         {
           text: 'The revised quote is still open.',
-          citations: [{ id: 'task_seed_1', type: 'task', label: 'Send the revised quote', labels: [] }],
+          citations: [
+            {
+              id: 'task_seed_1',
+              type: 'task',
+              label: 'Send the revised quote',
+              labels: [],
+              opens: '/crm?task=task_seed_1',
+            },
+          ],
         },
       ],
       leftOut: false,
@@ -547,7 +569,9 @@ describe('POST /api/questions with a model: the answer', () => {
 
     const { statements } = await (await ask()).json();
 
-    expect(statements[0].citations).toEqual([{ id: 'profile', type: 'profile', label: 'Sam Rivers', labels: [] }]);
+    expect(statements[0].citations).toEqual([
+      { id: 'profile', type: 'profile', label: 'Sam Rivers', labels: [], opens: null, content: expect.stringContaining('Sam Rivers') },
+    ]);
   });
 
   it('drops a statement that cites nothing, and says something was left out', async () => {
@@ -755,6 +779,164 @@ describe('POST /api/questions with a model: the answer', () => {
     expect(body).toEqual({ status: 'error', outcome: 'failed', message: "The model didn't answer." });
     expect(JSON.stringify(body)).not.toContain('secret detail');
     expect(await workingFile()).toBe(before);
+  });
+});
+
+/**
+ * Asks a question the model answers by citing each id once, and returns the
+ * citations that came back, by id.
+ *
+ * @param {string[]} ids
+ * @returns {Promise<Record<string, { id: string, type: string, opens: string | null, content?: string }>>}
+ */
+async function cited(ids) {
+  modelAnswers(ids.map((id) => ({ text: 'About ' + id + '.', citations: [id] })));
+  const { statements } = await (await ask()).json();
+  return Object.fromEntries(
+    statements.map((/** @type {{ citations: { id: string }[] }} */ statement) => [statement.citations[0].id, statement.citations[0]])
+  );
+}
+
+describe('POST /api/questions with a model: where a citation opens', () => {
+  it('opens a task, a goal, a journal day, a transaction and an account on their own screens', async () => {
+    const citations = await cited([
+      'task_seed_1',
+      'goal_seed_1',
+      'journal_seed_1',
+      'transaction_seed_4',
+      'account_seed_current',
+    ]);
+
+    expect(citations.task_seed_1.opens).toBe('/crm?task=task_seed_1');
+    expect(citations.goal_seed_1.opens).toBe('/goals?goal=goal_seed_1');
+    expect(citations.journal_seed_1.opens).toBe('/journal?date=2026-01-04');
+    expect(citations.transaction_seed_4.opens).toBe('/finances?month=2026-01&transaction=transaction_seed_4');
+    expect(citations.account_seed_current.opens).toBe('/finances?account=account_seed_current');
+    for (const citation of Object.values(citations)) expect(citation).not.toHaveProperty('content');
+  });
+
+  it("opens a memory on the journal day it was drawn from", async () => {
+    const citations = await cited(['memory_seed_2']);
+
+    expect(citations.memory_seed_2.opens).toBe('/journal?date=2026-01-04');
+    expect(citations.memory_seed_2).not.toHaveProperty('content');
+  });
+
+  it('expands in place a memory with no journal entry to open: from a capture, or made by hand', async () => {
+    const capture = await store.createCapture({ text: 'Prefers evening calls', destination: 'memory', route: 'rules' });
+    const fromCapture = await store.createMemoryEntry({
+      content: 'Evening calls suit them because mornings are for deep work.',
+      source: 'capture',
+      derivedFrom: capture.id,
+    });
+    const byHand = await store.createMemoryEntry({ content: 'Likes oat milk.' });
+
+    const citations = await cited([fromCapture.id, byHand.id, 'memory_seed_1']);
+
+    for (const id of [fromCapture.id, byHand.id, 'memory_seed_1']) {
+      expect(citations[id].opens).toBeNull();
+      expect(citations[id].content).toContain('memory');
+    }
+    expect(citations[byHand.id].content).toContain('Likes oat milk.');
+  });
+
+  it('opens a done task, a done goal and an archived account all the same', async () => {
+    await store.completeTask('task_seed_3');
+    await store.completeGoal('goal_seed_1');
+    await store.updateAccount('account_seed_savings', { archived: true });
+
+    const citations = await cited(['task_seed_3', 'goal_seed_1', 'account_seed_savings']);
+
+    expect(citations.task_seed_3.opens).toBe('/crm?task=task_seed_3');
+    expect(citations.goal_seed_1.opens).toBe('/goals?goal=goal_seed_1');
+    expect(citations.account_seed_savings.opens).toBe('/finances?account=account_seed_savings');
+  });
+
+  it("opens a meal on its day only while that day is inside the Health card's window", async () => {
+    const edge = await store.createMeal({ date: '2026-08-25', name: 'Edge soup' });
+    const today = await store.createMeal({ date: '2026-09-24', name: 'Today soup' });
+    const outside = await store.createMeal({ date: '2026-08-24', name: 'Old soup' });
+
+    const citations = await cited([edge.id, today.id, outside.id, 'meal_seed_1']);
+
+    // 2026-09-24 less healthWindowDays (30) is 2026-08-25: that day is in, the one before is not.
+    expect(limits.healthWindowDays).toBe(30);
+    expect(citations[edge.id].opens).toBe('/nutrition?day=2026-08-25');
+    expect(citations[today.id].opens).toBe('/nutrition?day=2026-09-24');
+    expect(citations[outside.id]).toMatchObject({ opens: null, content: expect.stringContaining('Old soup') });
+    expect(citations.meal_seed_1.opens).toBeNull();
+    expect(citations.meal_seed_1.content).toContain('2026-01-05');
+  });
+
+  it('expands in place every record with no screen of its own, with its content', async () => {
+    const citations = await cited([
+      'capture_seed_2',
+      'person_seed_1',
+      'observation_seed_1',
+      'event_seed_1',
+      'profile',
+      'appointment_seed_1',
+      'habit_water',
+      'measurement_seed_1',
+      'trade_seed_1',
+      'snapshot_seed_1',
+    ]);
+
+    expect(Object.keys(citations)).toHaveLength(10);
+    for (const citation of Object.values(citations)) {
+      expect(citation.opens).toBeNull();
+      expect(typeof citation.content).toBe('string');
+      expect(citation.content).not.toBe('');
+    }
+    expect(citations.capture_seed_2.content).toContain('paid 340 euro to the accountant');
+    expect(citations.observation_seed_1.content).toContain('12400.00 EUR');
+    expect(citations.measurement_seed_1.content).toContain('74.6');
+  });
+
+  it('expands in place a price, which the seed has none of', async () => {
+    const price = await store.recordPrice({ accountId: 'account_seed_etf', date: '2026-01-04', price: 11050 });
+
+    const citations = await cited([price.id]);
+
+    expect(citations[price.id]).toMatchObject({ opens: null, content: expect.stringContaining('110.50 EUR') });
+  });
+
+  it('takes content from the context, never from the model', async () => {
+    modelAnswers([
+      { text: 'Marta.', citations: ['person_seed_1'], content: 'FAKE', opens: '/evil', href: '/evil' },
+      { text: 'Quote.', citations: ['task_seed_1'], content: 'FAKE', opens: '/evil' },
+    ]);
+
+    const { statements } = await (await ask()).json();
+
+    expect(statements[0].citations[0].content).not.toContain('FAKE');
+    expect(statements[0].citations[0].opens).toBeNull();
+    expect(statements[1].citations[0].opens).toBe('/crm?task=task_seed_1');
+    expect(statements[1].citations[0]).not.toHaveProperty('content');
+  });
+
+  it('never sends where anything opens to the model', async () => {
+    const context = await contextSent();
+    const { blocks } = sentRequest();
+
+    for (const entry of context.items) expect(Object.keys(entry).sort()).toEqual(['content', 'id', 'label', 'labels', 'type']);
+    const sent = JSON.stringify(blocks);
+    for (const address of ['/crm', '/goals', '/journal', '/finances', '/nutrition', 'opens', 'href']) {
+      expect(sent).not.toContain(address);
+    }
+  });
+
+  it('still drops a statement that cites an id it was not sent, whatever else it cites', async () => {
+    modelAnswers([
+      { text: 'Half real.', citations: ['task_seed_1', 'task_not_there'] },
+      { text: 'Real.', citations: ['goal_seed_1'] },
+    ]);
+
+    const body = await (await ask()).json();
+
+    expect(body.statements).toHaveLength(1);
+    expect(body.statements[0].citations[0].opens).toBe('/goals?goal=goal_seed_1');
+    expect(body.leftOut).toBe(true);
   });
 });
 
