@@ -146,7 +146,9 @@ words mean) · `docs/development.md` (how to work here) ·
 
 Issues live as GitHub issues on `CodeYouness/PersonalOS`, via the `gh` CLI. The
 nine foundation-v2 tickets are the exception: they stay on disk, and they are
-all closed. See `docs/agents/issue-tracker.md`.
+all closed. Read a spec and each of its tickets in a call of its own: all of
+them together run to ~46 KB, more than a tool result holds. See
+`docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
