@@ -7,6 +7,8 @@
 
 import { limits } from '@/personalos.config.js';
 
+import { readSummarised } from './answerNotes.js';
+
 /**
  * @param {string} text
  * @param {typeof fetch} [fetchImpl]
@@ -32,7 +34,7 @@ export async function submitCapture(text, fetchImpl = fetch, destination) {
 }
 
 /** What a 200 from the questions route may say; anything else is not trusted. */
-const ANSWER_OUTCOMES = ['answer', 'not-in-data', 'no-model'];
+const ANSWER_OUTCOMES = ['answer', 'not-in-data', 'no-model', 'too-large'];
 
 const FAILED_MESSAGE = "The model didn't answer.";
 const TIMEOUT_MESSAGE = 'The model took too long to answer.';
@@ -85,15 +87,27 @@ export async function submitQuestion(question, fetchImpl = fetch, timeoutMs = li
     if (!ANSWER_OUTCOMES.includes(body?.outcome)) {
       return { type: 'questionFailed', message: FAILED_MESSAGE };
     }
-    if (body.outcome !== 'answer') {
+    // too-large is an honest answer, like no-model: nothing was asked, so
+    // nothing failed and there is nothing to retry.
+    if (body.outcome === 'no-model' || body.outcome === 'too-large') {
       return { type: 'answerReceived', result: { outcome: body.outcome } };
+    }
+    // What was summarised comes with the answer and with "not in your data":
+    // a "not in your data" over a summarised archive must say what was not read.
+    if (body.outcome === 'not-in-data') {
+      return { type: 'answerReceived', result: { outcome: 'not-in-data', summarised: readSummarised(body.summarised) } };
     }
     if (!Array.isArray(body.statements)) {
       return { type: 'questionFailed', message: FAILED_MESSAGE };
     }
     return {
       type: 'answerReceived',
-      result: { outcome: 'answer', statements: body.statements, leftOut: body.leftOut === true },
+      result: {
+        outcome: 'answer',
+        statements: body.statements,
+        leftOut: body.leftOut === true,
+        summarised: readSummarised(body.summarised),
+      },
     };
   } catch (caught) {
     // A network failure rejects fetch; a body that is not JSON rejects json();

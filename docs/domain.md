@@ -317,10 +317,37 @@ can answer a question honestly.
 When the archive is too large to ask over whole, old detail is shown as its
 computed figures, and the answer says what was summarised. Nothing is left
 out silently: a record missing from what was asked over would make "not in
-your data" a lie.
-If it is still too large once summarised, the question is refused and the
-model is not called: an honest "too large" is better than an archive cut
-silently.
+your data" a lie. "Too large" is measured on what is sent to the model
+(`limits.contextMaxChars`, about 75k tokens; the demo data is an eighth of it),
+and what is **summarised** is only ever transactions: a month's transactions
+are replaced by that month's monthly figures (income, spending, what is left,
+the rates, fixed and variable, the category lines), oldest month first, until
+what is sent fits. Three rules bound it:
+
+- The newest `limits.contextRecentMonths` (3) months that hold transactions,
+  up to today (a month after today is not recent and holds no slot), are never
+  summarised: recent detail is what "this month" questions need.
+- A month with no monthly figure is never summarised -- one before "tracked
+  since" (ADR 0025), or after today -- because nothing would stand in for its
+  transactions: that would be the silent loss. A transaction that was
+  summarised has no id in the context, so a citation of it is dropped like
+  any id the model was not sent; the month's figures are what an answer cites.
+  Such months stay in full even when older than the ones that were summarised.
+- Nothing else is cut. No trimming of memories, journal, events or figures.
+
+The context says what it did (`summarised: { before: 'YYYY-MM' }`: every month
+before `before`, the first month listed in full after the summarised ones, or
+null) and so does the answer: "Transactions before June 2026 were read as
+monthly totals", also under a "not in your data". When months before "tracked
+since" stay whole although they are older, "before" alone would claim too much,
+so the context carries `since` too (`{ since, before }`, the months from
+`since` up to `before`) and the answer names the range: "Transactions from March
+2026 to May 2026 were read as monthly totals". The model is told the same, and
+told never to say that nothing happened in those months.
+If it is still too large once everything that may be summarised is, the
+question is refused (the **too-large** outcome) and the model is not called:
+an honest "too large" is better than an archive cut silently. With no model
+there is nothing to refuse: that answer is no-model, first.
 
 ---
 

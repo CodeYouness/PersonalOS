@@ -246,8 +246,6 @@ export const limits = Object.freeze({
   calendarWindowDays: 14,
   /** Server-side cache for the parsed iCal feed. */
   calendarCacheMs: 5 * 60 * 1000,
-  /** Nearest memory entries passed to the model when answering a question. */
-  memorySearchResults: 20,
   /** How many recent captures the capture log drawer shows. */
   captureLogCount: 20,
   /**
@@ -269,6 +267,23 @@ export const limits = Object.freeze({
    * included -- until the page is reloaded.
    */
   questionTimeoutMs: 90_000,
+  /**
+   * The most characters a question sends the model as its context block
+   * (#175, ADR 0028) -- about 75k tokens, so a long archive still fits the
+   * model's window with room for the question, the instructions and the
+   * answer. Measured on what is SENT (`serializeContext`), not on the records.
+   * The demo data is about an eighth of it, so today's archive never meets it.
+   * Over it, old transactions are replaced by their monthly figures; still
+   * over, the question is refused and nothing is sent.
+   */
+  contextMaxChars: 300_000,
+  /**
+   * How many of the newest calendar months holding transactions are always
+   * sent in full (#175). Recent detail is what "this month" and "last week"
+   * need, and the months that go first are the ones whose monthly totals
+   * answer the question just as well.
+   */
+  contextRecentMonths: 3,
 });
 
 /**

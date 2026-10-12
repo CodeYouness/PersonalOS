@@ -691,7 +691,8 @@ a.cite { text-decoration: none; }
   display: block; font-weight: 600; color: var(--ink);
 }
 .answer-note { display: none; margin-top: var(--s-xs); }
-.answer[data-left-out="true"] .note-left-out { display: block; }
+.answer[data-left-out="true"] .note-left-out,
+.answer[data-summarised="true"] .note-summarised { display: block; }
 
 /* ==========================================================================
    NUTRITION SCREEN — card-nutrition
