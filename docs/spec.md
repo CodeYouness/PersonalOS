@@ -94,8 +94,9 @@ habit was not active cannot be ticked.
 **A habit is active over periods of days.** Creating it opens a period;
 archiving closes it, the archive day excluded; restoring opens a new one. Every
 number -- completion, streak, rates, the heatmap -- counts a habit only on the
-days it was active, so archiving never rewrites the past, and the days a
-habit spent archived stay out of it after a restore. Nothing is deleted.
+days it was scheduled inside a period, so archiving never rewrites the past,
+and the days a habit spent archived stay out of it after a restore. Nothing is
+deleted.
 
 **What you can change from the screen:** add a habit (label, type, its days,
 target), rename it, change its days or a counter's target, archive or restore
@@ -117,10 +118,10 @@ renaming and archiving a habit is configuration, not something that happened
 to you, and writes no event.
 
 Not yet: a period selector, the longest streak, per-habit streaks, ticking a
-habit from the capture bar, linking a habit to a goal from the UI, a number of
-times per week ("three times, any days" -- not a schedule, by decision, ADR
-0029), a day off on a date rather than a weekday, and showing a habit's past
-schedules.
+habit from the capture bar, linking a habit to a goal from the UI and goal
+progress derived from a habit, a number of times per week ("three times, any
+days" -- not a schedule, by decision, ADR 0029), a day off on a date rather
+than a weekday, and showing a habit's past schedules.
 
 ## CRM
 

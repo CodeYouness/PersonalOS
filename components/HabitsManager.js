@@ -4,10 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
 import { daysLabel, WEEKDAY_SHORT } from '@/components/format.js';
+import { EVERY_WEEKDAY } from '@/lib/domain/dates.js';
 import { currentPeriod, isActiveOn } from '@/lib/domain/derive/habits.js';
-
-/** Every weekday, ISO 1 (Monday) to 7 (Sunday): what a new habit starts on. */
-const EVERY_DAY = [1, 2, 3, 4, 5, 6, 7];
 
 /**
  * The Habits screen's management card, ported from design/mockup.html's
@@ -405,7 +403,7 @@ function AddHabit({ disabled, onAdd }) {
   const [label, setLabel] = useState('');
   const [type, setType] = useState(/** @type {'check' | 'counter'} */ ('check'));
   const [target, setTarget] = useState('8');
-  const [days, setDays] = useState(EVERY_DAY);
+  const [days, setDays] = useState(/** @type {number[]} */ ([...EVERY_WEEKDAY]));
 
   return (
     <form
@@ -420,7 +418,7 @@ function AddHabit({ disabled, onAdd }) {
         });
         if (created) {
           setLabel('');
-          setDays(EVERY_DAY);
+          setDays([...EVERY_WEEKDAY]);
         }
       }}
     >
