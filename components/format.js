@@ -6,6 +6,7 @@
 
 import {
   dayKeyToUtcDate,
+  daysLabel,
   formatChange,
   formatCount,
   formatPercentChange,
@@ -15,12 +16,14 @@ import {
   ordinal,
   percent,
   streakLabel,
+  WEEKDAY_SHORT,
 } from '@/lib/domain/format.js';
 
 // One implementation per format (CODING_STANDARDS.md): these live in lib/ so
 // the question context writes the same numbers a screen does (#174).
 export {
   dayKeyToUtcDate,
+  daysLabel,
   formatChange,
   formatCount,
   formatPercentChange,
@@ -29,6 +32,7 @@ export {
   ordinal,
   percent,
   streakLabel,
+  WEEKDAY_SHORT,
 };
 
 /** @param {string} name */

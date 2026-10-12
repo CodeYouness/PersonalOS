@@ -96,12 +96,18 @@ export default function HabitsHistory({ rows }) {
           <i className="heat-cell" data-v="high" />
           <i className="heat-cell" data-v="full" />
           <span>full</span>
+          <span className="sep" />
+          <i className="heat-cell" data-v="off" />
+          <span>day off</span>
+          <i className="heat-cell" data-v="off-done" />
+          <span>done on a day off</span>
         </div>
       </div>
       <div className="card-body">
         <p className="caption heat-note">
           Last {rows[0]?.cells.length ?? 30} days · outlined cells are days with nothing recorded,
-          not days you failed.
+          not days you failed. Hatched cells are days off: nothing was expected, and something done
+          on one counts toward nothing.
         </p>
         {error !== null && (
           <p className="caption is-error" role="alert">
@@ -163,7 +169,9 @@ function cellKey(habitId, date) {
 /**
  * One day of one habit. A day the habit was not active gets no cell at all --
  * but it still gets its place in the row, or the columns of two habits with
- * different histories would no longer line up by date.
+ * different histories would no longer line up by date. A day off is a cell
+ * like any other: the Tuesday gym session forgotten on the day is added from
+ * here, and it is recorded without counting toward anything (ADR 0029).
  *
  * A counter's cell shows the target that day was measured against, never
  * today's: correcting an old day must not quietly re-measure it (ADR 0029).
@@ -188,14 +196,14 @@ function HeatCell({ habit, date, target, value, state, disabled, isOpen, onOpen,
     return <i className="heat-cell" data-v="inactive" aria-hidden="true" />;
   }
 
+  const done =
+    habit.type === 'check' ? (value === true ? 'done' : 'not done') : value + ' of ' + target;
   const described =
     state === 'unrecorded'
       ? 'nothing recorded'
-      : habit.type === 'check'
-        ? value === true
-          ? 'done'
-          : 'not done'
-        : value + ' of ' + target;
+      : state === 'off' || state === 'off-done'
+        ? 'day off, ' + done
+        : done;
   const label = habit.label + ', ' + date + ': ' + described;
 
   if (habit.type === 'check') {

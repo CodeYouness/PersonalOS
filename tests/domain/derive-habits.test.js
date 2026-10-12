@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { completionRatio, historyRows, isActiveOn, justCompleted, ratesByHabit, streak, windowSummary } from '@/lib/domain/derive/habits.js';
+import { completionRatio, historyRows, isActiveOn, isScheduledOn, justCompleted, ratesByHabit, streak, windowSummary } from '@/lib/domain/derive/habits.js';
 import { averagesOverRecordedDays, caloriesFromMacros, dayTotals } from '@/lib/domain/derive/nutrition.js';
 
 /** Every weekday, ISO 1 (Monday) to 7 (Sunday): a habit kept every day. */
@@ -476,5 +476,97 @@ describe('a target change (ADR 0029)', () => {
   it('fires the tick on the target of the day written', () => {
     expect(justCompleted(/** @type {any} */ (raised), '2026-01-02', 7, 8)).toBe(true);
     expect(justCompleted(/** @type {any} */ (raised), '2026-01-04', 7, 8)).toBe(false);
+  });
+});
+
+describe('a schedule (ADR 0029)', () => {
+  // The week of Monday 12 October 2026: the gym is Monday, Wednesday and
+  // Friday; moving is every day.
+  const MON = '2026-10-12', TUE = '2026-10-13', WED = '2026-10-14', THU = '2026-10-15';
+  const FRI = '2026-10-16', SAT = '2026-10-17', SUN = '2026-10-18';
+  const gym = {
+    id: 'habit_gym', label: 'Gym', type: 'check',
+    periods: [{ from: '2026-10-01', to: null, days: [1, 3, 5], target: null }],
+  };
+  const move = { id: 'habit_move', label: 'Move', type: 'check', periods: open('2026-10-01') };
+
+  it('is scheduled when active and the weekday is one of its period\'s days', () => {
+    expect([MON, TUE, WED, THU, FRI, SAT, SUN].map((day) => isScheduledOn(/** @type {any} */ (gym), day)))
+      .toEqual([true, false, true, false, true, false, false]);
+    expect(isScheduledOn(/** @type {any} */ (gym), '2026-09-28')).toBe(false); // a Monday before it existed
+  });
+
+  it('measures a day only against the habits scheduled on it; a tick on a day off counts toward nothing', () => {
+    const habitsBoth = /** @type {any} */ ([move, gym]);
+    expect(completionRatio(habitsBoth, log(MON, { habit_move: true }))).toBe(0.5);
+    expect(completionRatio(habitsBoth, log(TUE, { habit_move: true }))).toBe(1);
+    expect(completionRatio(habitsBoth, log(TUE, { habit_move: false, habit_gym: true }))).toBe(0);
+  });
+
+  it('rates a habit over the days it was scheduled: three out of three is 100%, not 43%', () => {
+    const week = [MON, TUE, WED, THU, FRI, SAT, SUN].map((day) =>
+      log(day, { habit_move: true, ...([MON, WED, FRI].includes(day) ? { habit_gym: true } : {}) })
+    );
+    const [, gymRow] = historyRows(/** @type {any} */ ([move, gym]), /** @type {any} */ (week));
+
+    expect(ratesByHabit(/** @type {any} */ ([gym]), /** @type {any} */ (week)).habit_gym).toBe(1);
+    expect(gymRow.ratedDays).toBe(3);
+  });
+
+  it('counts a perfect day when every habit scheduled that day was complete, and leaves out a day with nothing scheduled', () => {
+    const summary = windowSummary(/** @type {any} */ ([gym]), /** @type {any} */ ([
+      log(MON, { habit_gym: true }),
+      log(TUE, { habit_gym: true }),
+      log(WED, { habit_gym: false }),
+    ]));
+
+    expect(summary).toEqual({ completion: 0.5, perfectDays: 1, recordedDays: 2, days: 3 });
+  });
+
+  it('skips a day with nothing scheduled in the streak: it neither breaks nor extends it', () => {
+    const logs = [
+      log(MON, { habit_gym: true }),
+      log(TUE, {}),
+      log(WED, { habit_gym: true }),
+      log(THU, {}),
+      log(FRI, { habit_gym: true }),
+      log(SAT, {}),
+    ];
+    expect(streak(/** @type {any} */ ([gym]), /** @type {any} */ (logs), SAT)).toBe(3);
+  });
+
+  it('does not let a tick on a day off carry the streak, and still breaks on a scheduled day missed', () => {
+    const logs = [log(MON, { habit_gym: false }), log(TUE, { habit_gym: true })];
+    expect(streak(/** @type {any} */ ([gym]), /** @type {any} */ (logs), TUE)).toBe(0);
+  });
+
+  it('draws a day off, and something done on one, apart from inactive and unrecorded days', () => {
+    const counterGym = {
+      ...gym, id: 'habit_sets', type: 'counter',
+      periods: [{ from: TUE, to: null, days: [1, 3, 5], target: 3 }],
+    };
+    const logs = [
+      log(MON, { habit_move: true, habit_gym: true }),
+      log(TUE, { habit_gym: true, habit_sets: 2 }),
+      log(WED, {}),
+      log(THU, { habit_move: true, habit_sets: 0 }),
+      log(FRI, { habit_gym: false, habit_sets: 3 }),
+      log(SAT, {}),
+      log(SUN, { habit_move: true }),
+    ];
+    const [gymRow, setsRow] = historyRows(/** @type {any} */ ([gym, counterGym]), /** @type {any} */ (logs));
+
+    expect(gymRow.cells.map((cell) => cell.state))
+      .toEqual(['full', 'off-done', 'unrecorded', 'off', 'zero', 'unrecorded', 'off']);
+    expect(setsRow.cells.map((cell) => cell.state))
+      .toEqual(['inactive', 'off-done', 'unrecorded', 'off', 'full', 'unrecorded', 'off']);
+  });
+
+  it('keeps a row for a habit active in the window even when every day of it was a day off', () => {
+    const rows = historyRows(/** @type {any} */ ([gym]), /** @type {any} */ ([log(TUE, { habit_gym: true }), log(THU, {})]));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].ratedDays).toBe(0);
+    expect(rows[0].cells.map((cell) => cell.state)).toEqual(['off-done', 'unrecorded']);
   });
 });

@@ -5,9 +5,10 @@ import { createHabit } from '@/lib/store.js';
 export const dynamic = 'force-dynamic';
 
 /**
- * A new habit (#38). The client sends only what it knows -- label, type and,
- * for a counter, a target; the id and the first period are the server's to
- * assign, so a habit can never start on a day the browser guessed.
+ * A new habit (#38). The client sends only what it knows -- label, type, the
+ * weekdays it is kept on (every day when omitted, #185) and, for a counter,
+ * a target; the id and the first period are the server's to assign, so a
+ * habit can never start on a day the browser guessed.
  *
  * The body is passed through as-is rather than coerced here: the store is
  * the one place that decides what a well-formed habit is, and a second

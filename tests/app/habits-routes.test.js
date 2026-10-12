@@ -83,6 +83,15 @@ describe('POST /api/habits', () => {
     expect((await response.json()).habit.periods.at(-1).target).toBe(20);
   });
 
+  it('passes the days through, and answers a malformed set with a 400 and the store\'s message', async () => {
+    const created = await (await post({ label: 'Gym', type: 'check', target: null, days: [1, 3, 5] })).json();
+    expect(created.habit.periods.at(-1).days).toEqual([1, 3, 5]);
+
+    const refused = await post({ label: 'Gym', type: 'check', target: null, days: [] });
+    expect(refused.status).toBe(400);
+    expect((await refused.json()).message).toMatch(/days/);
+  });
+
   it('rejects a bad label, type or target', async () => {
     expect((await post({ label: '   ', type: 'check', target: null })).status).toBe(400);
     expect((await post({ label: 'X', type: 'bogus', target: null })).status).toBe(400);
@@ -106,6 +115,15 @@ describe('PATCH /api/habits/[id]', () => {
     const saved = await habits();
     expect(saved.find((habit) => habit.id === 'habit_move')?.label).toBe('Move for 45 minutes');
     expect(saved.find((habit) => habit.id === 'habit_water')?.periods.at(-1)?.target).toBe(10);
+  });
+
+  it('changes a habit\'s days, and answers a malformed set with a 400', async () => {
+    expect((await patch('habit_move', { days: [1, 3, 5] })).status).toBe(200);
+    expect((await habits()).find((habit) => habit.id === 'habit_move')?.periods.at(-1)?.days).toEqual([1, 3, 5]);
+
+    const refused = await patch('habit_move', { days: [0, 9] });
+    expect(refused.status).toBe(400);
+    expect((await refused.json()).message).toMatch(/days/);
   });
 
   it('rejects a change of type', async () => {

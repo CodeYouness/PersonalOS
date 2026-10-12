@@ -30,7 +30,7 @@
         "id": "habit_deep_work",
         "label": "Deep work blocks",
         "type": "counter",
-        "periods": [{ "from": "2026-01-04", "to": null, "days": [1, 2, 3, 4, 5, 6, 7], "target": 3 }]
+        "periods": [{ "from": "2026-01-04", "to": null, "days": [1, 2, 3, 4, 5], "target": 3 }]
       }
     ],
     "financeTrackedSince": null,

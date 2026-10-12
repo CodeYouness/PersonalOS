@@ -3,12 +3,16 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
+import { daysLabel, WEEKDAY_SHORT } from '@/components/format.js';
 import { currentPeriod, isActiveOn } from '@/lib/domain/derive/habits.js';
+
+/** Every weekday, ISO 1 (Monday) to 7 (Sunday): what a new habit starts on. */
+const EVERY_DAY = [1, 2, 3, 4, 5, 6, 7];
 
 /**
  * The Habits screen's management card, ported from design/mockup.html's
- * `#card-habits-manage`: add, rename, retarget, archive, restore and
- * reorder.
+ * `#card-habits-manage`: add, rename, retarget, choose the days, archive,
+ * restore and reorder.
  *
  * Nothing here is optimistic. Every action writes, then calls
  * `router.refresh()` and re-renders from what the server actually holds --
@@ -84,7 +88,7 @@ export default function HabitsManager({ habits, todayKey }) {
 
   /**
    * @param {string} id
-   * @param {{ label?: string, target?: number, archived?: boolean }} fields
+   * @param {{ label?: string, target?: number, days?: number[], archived?: boolean }} fields
    */
   const patch = (id, fields) => write(id, '/api/habits/' + id, 'PATCH', fields);
 
@@ -176,7 +180,7 @@ export default function HabitsManager({ habits, todayKey }) {
                   <span className="habit-name">
                     {habit.label}
                     <br />
-                    <span className="type">{describeType(habit)}</span>
+                    <span className="type">{describeHabit(habit)}</span>
                   </span>
                   <div className="actions">
                     <button
@@ -198,14 +202,48 @@ export default function HabitsManager({ habits, todayKey }) {
 }
 
 /**
- * The current target: the open period's, or the last one's when archived --
- * what a restore reopens with (ADR 0029).
+ * The type, and the current target and days: the open period's, or the last
+ * one's when archived -- what a restore reopens with (ADR 0029).
  *
  * @param {import('@/lib/domain/types.js').Habit} habit
  * @returns {string}
  */
-function describeType(habit) {
-  return habit.type === 'check' ? 'check' : 'counter · target ' + currentPeriod(habit).target;
+function describeHabit(habit) {
+  const { days, target } = currentPeriod(habit);
+  return (habit.type === 'check' ? 'check' : 'counter · target ' + target) + ' · ' + daysLabel(days);
+}
+
+/**
+ * Monday to Sunday, one toggle each. The last day on cannot be turned off:
+ * a habit expected on no day is an archived habit, and archiving has its own
+ * action (ADR 0029) -- so the picker never offers a set the store refuses.
+ *
+ * @param {{
+ *   days: number[],
+ *   label: string,
+ *   onChange: (days: number[]) => void,
+ * }} props
+ */
+function WeekdayPicker({ days, label, onChange }) {
+  return (
+    <div className="weekdays" role="group" aria-label={label}>
+      {WEEKDAY_SHORT.map((name, index) => {
+        const day = index + 1;
+        const on = days.includes(day);
+        return (
+          <button
+            key={day}
+            type="button"
+            aria-pressed={on}
+            disabled={on && days.length === 1}
+            onClick={() => onChange(on ? days.filter((other) => other !== day) : [...days, day].sort((a, b) => a - b))}
+          >
+            {name}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 /**
@@ -215,17 +253,22 @@ function describeType(habit) {
  * shows text abandoned an edit ago -- or a label that has since changed on
  * the server.
  *
+ * The days and the target are sent on every save: the store changes nothing
+ * when they are the ones already there, and otherwise counts the change from
+ * today (ADR 0029), which the note under the picker says.
+ *
  * @param {{
  *   habit: import('@/lib/domain/types.js').Habit,
  *   isPending: boolean,
  *   disabled: boolean,
  *   onCancel: () => void,
- *   onSave: (fields: { label: string, target?: number }) => void,
+ *   onSave: (fields: { label: string, target?: number, days: number[] }) => void,
  * }} props
  */
 function HabitEditor({ habit, isPending, disabled, onCancel, onSave }) {
   const [label, setLabel] = useState(habit.label);
   const [target, setTarget] = useState(String(currentPeriod(habit).target ?? ''));
+  const [days, setDays] = useState(currentPeriod(habit).days);
 
   return (
     <form
@@ -235,7 +278,7 @@ function HabitEditor({ habit, isPending, disabled, onCancel, onSave }) {
         // The type is fixed after creation (ADR 0016), so a counter always
         // sends a target and a check never does -- the store rejects either
         // the other way round.
-        onSave(habit.type === 'counter' ? { label, target: Number(target) } : { label });
+        onSave(habit.type === 'counter' ? { label, target: Number(target), days } : { label, days });
       }}
     >
       <input
@@ -252,10 +295,12 @@ function HabitEditor({ habit, isPending, disabled, onCancel, onSave }) {
           min="1"
           step="1"
           value={target}
-          aria-label={'Daily target for ' + habit.label}
+          aria-label={'Target for ' + habit.label}
           onChange={(event) => setTarget(event.target.value)}
         />
       )}
+      <WeekdayPicker days={days} label={'Days for ' + habit.label} onChange={setDays} />
+      <p className="caption edit-note">From today. Earlier days keep the days and target they had.</p>
       <div className="actions">
         <button type="submit" className="btn-primary" disabled={disabled}>
           {isPending ? 'Saving…' : 'Save'}
@@ -305,7 +350,7 @@ function HabitRow({ habit, disabled, isFirst, isLast, onEdit, onArchive, onMove 
       <span className="habit-name">
         {habit.label}
         <br />
-        <span className="type">{describeType(habit)}</span>
+        <span className="type">{describeHabit(habit)}</span>
       </span>
       <div className="actions">
         <button
@@ -348,17 +393,19 @@ function HabitRow({ habit, disabled, isFirst, isLast, onEdit, onArchive, onMove 
 /**
  * The mockup's add row. The type is chosen before the habit exists because
  * it can never be changed afterwards -- a counter's history is numbers and a
- * check's is booleans.
+ * check's is booleans. The days start as all seven, so a daily habit is
+ * still one step to add.
  *
  * @param {{
  *   disabled: boolean,
- *   onAdd: (input: { label: string, type: string, target: number | null }) => Promise<boolean>,
+ *   onAdd: (input: { label: string, type: string, target: number | null, days: number[] }) => Promise<boolean>,
  * }} props
  */
 function AddHabit({ disabled, onAdd }) {
   const [label, setLabel] = useState('');
   const [type, setType] = useState(/** @type {'check' | 'counter'} */ ('check'));
   const [target, setTarget] = useState('8');
+  const [days, setDays] = useState(EVERY_DAY);
 
   return (
     <form
@@ -369,8 +416,12 @@ function AddHabit({ disabled, onAdd }) {
           label,
           type,
           target: type === 'counter' ? Number(target) : null,
+          days,
         });
-        if (created) setLabel('');
+        if (created) {
+          setLabel('');
+          setDays(EVERY_DAY);
+        }
       }}
     >
       <input
@@ -395,13 +446,14 @@ function AddHabit({ disabled, onAdd }) {
           min="1"
           step="1"
           value={target}
-          aria-label="Daily target"
+          aria-label="Target"
           onChange={(event) => setTarget(event.target.value)}
         />
       )}
       <button type="submit" className="btn-primary" disabled={disabled || label.trim() === ''}>
         Add
       </button>
+      <WeekdayPicker days={days} label="Days for the new habit" onChange={setDays} />
     </form>
   );
 }
