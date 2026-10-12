@@ -7,13 +7,14 @@
 # repaired child read CLEAN with an empty check list. So this waits on the
 # SHA you pushed, not on the PR's state alone.
 #
-#   scripts/wait-for-ci.sh <pr-number> <head-sha>
+#   scripts/wait-for-ci.sh <pr-number> <head-sha>     (abbreviated is fine)
 #
-# Read-only: it only calls gh. Exits 0 once at least one check run exists on
-# <head-sha>, every one has completed as success, skipped or neutral, and
-# the PR is CLEAN. Exits 1 on a failed check, conflicts, a PR head that is
-# still not <head-sha> after a minute, or WAIT_FOR_CI_TIMEOUT seconds
-# (default 1200). A gh call that fails -- a network blip -- is retried.
+# Read-only: it only calls gh (and git rev-parse). Exits 0 once at least one
+# check run exists on <head-sha>, every one has completed as success, skipped
+# or neutral, and the PR is CLEAN. Exits 1 on a failed check, conflicts, a PR
+# head that is still not <head-sha> after a minute, or WAIT_FOR_CI_TIMEOUT
+# seconds (default 1200). A gh call that fails -- a network blip -- is
+# retried.
 set -uo pipefail
 
 if [ "$#" -ne 2 ]; then
@@ -21,7 +22,10 @@ if [ "$#" -ne 2 ]; then
   exit 1
 fi
 PR=$1
-SHA=$2
+# The PR's head and the check runs are compared as full SHAs, and `git push`
+# prints an abbreviated one: resolve it here. A SHA this clone does not know
+# is used as given, and the head check below says so.
+SHA=$(git rev-parse --verify --quiet "$2^{commit}" 2>/dev/null || echo "$2")
 REPO=CodeYouness/PersonalOS
 DEADLINE=$((SECONDS + ${WAIT_FOR_CI_TIMEOUT:-1200}))
 # How long GitHub may take to see the push before a different head is an error.

@@ -115,6 +115,9 @@ before pushing. Git history does not forget.
 - A transfer between your own accounts is not spending. Aggregations exclude
   it, or your month doubles.
 - An account with no observation is unknown, not zero.
+- iCloud sync-conflict copies (`route 2.js`) are gitignored; lint and typecheck
+  skip them and `check:secrets` rejects a tracked one. `grep -r` still reads
+  them: search with `git grep`.
 - Next 16 changed APIs since most training data. If code that "should work"
   will not compile, read `node_modules/next/dist/docs/` before retrying.
 
@@ -146,7 +149,14 @@ words mean) · `docs/development.md` (how to work here) ·
 
 Issues live as GitHub issues on `CodeYouness/PersonalOS`, via the `gh` CLI. The
 nine foundation-v2 tickets are the exception: they stay on disk, and they are
-all closed. See `docs/agents/issue-tracker.md`.
+all closed. Read a spec and each of its tickets in a call of its own: all of
+them together run to ~46 KB, more than a tool result holds. See
+`docs/agents/issue-tracker.md`.
+
+### Parallel agents
+
+Several agents in one tree -- ownership, which commands only the orchestrator
+runs, test data. See `docs/agents/parallel-agents.md`.
 
 ### Triage labels
 

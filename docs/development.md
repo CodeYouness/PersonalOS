@@ -54,6 +54,11 @@ Not a large suite. A net under the things that lie silently when they break:
 4. **Route handlers** -- called as functions against a real store pointed at
    a sandboxed, throwaway data directory. No HTTP server, no real model
    calls.
+5. **What a component renders** -- `renderToStaticMarkup` from
+   `react-dom/server`, no DOM: a link or a button, an aria attribute, a note
+   shown only sometimes (`tests/components/answer-panel.test.js`). `vitest.config.js`
+   lets a test import a component's JSX. It shows the first render only: what
+   happens after a click is still a check in the browser.
 
 Not tested: pixels, real model calls, coverage as a target.
 
@@ -63,6 +68,27 @@ store import in `tests/store/json-adapter.test.js` is dynamic -- a test run can
 never touch your real data. A `DATA_DIR` that is set but empty is refused at
 that import, not read as the default: an empty value is what a shell variable
 that matched nothing produces, and the default is your real data.
+
+## Checking a change in the browser
+
+`npm run dev:sandbox -- -p 3100`, driven with the Playwright MCP. Four things
+the tool will not tell you:
+
+- **The model.** The banner says `model: on` or `off`, and a key exported in
+  your shell counts. Off, a question answers "No model configured". To see a
+  path that returns before the model is called, start it with a fake key
+  (`ANTHROPIC_API_KEY=sk-ant-fake npm run dev:sandbox`): it works end to end,
+  and a call that did reach the model would fail with a 502. To see an answer,
+  stub the route with `page.route`.
+- **Stubs outlive the call.** A `page.route` stays on the browser for every
+  later call and `goto`. Start a check against the real server with
+  `await page.unrouteAll({ behavior: 'ignoreErrors' })`, and assert something
+  only the real response can say, such as a status or an outcome name.
+- **The mockup.** Playwright refuses `file:`. Serve it:
+  `python3 -m http.server 8765 --bind 127.0.0.1 --directory design`, and stop
+  it when done.
+- **Screenshots** are written only under the repo. Use `.playwright-mcp/`,
+  which git ignores, and delete it afterwards.
 
 ## Debugging
 
