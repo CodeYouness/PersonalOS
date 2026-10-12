@@ -210,6 +210,17 @@ describe('POST /api/questions with a model: what the model is sent', () => {
     expect(item(context, 'snapshot_seed_1').type).toBe('snapshot');
   });
 
+  it("states each habit's current days, and a counter's target per scheduled day (ADR 0029)", async () => {
+    const context = await contextSent();
+
+    // The seed keeps deep work on weekdays and moving every day.
+    expect(item(context, 'habit_deep_work').content).toContain('scheduled: Monday, Tuesday, Wednesday, Thursday, Friday');
+    expect(item(context, 'habit_deep_work').content).toContain('type: counter, target 3 per scheduled day');
+    expect(item(context, 'habit_deep_work').content).not.toContain('daily');
+    expect(item(context, 'habit_move').content).toContain('scheduled: every day');
+    expect(item(context, 'habit_move').content).toContain('type: check (done or not)');
+  });
+
   it('writes every field a person could ask about into the content, money from integer minor units', async () => {
     const context = await contextSent();
 

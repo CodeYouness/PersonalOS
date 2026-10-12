@@ -177,6 +177,32 @@ describe('habits', () => {
     expect(find(await build(), 'figure:habit-streak:now')?.content).toContain('0 days');
   });
 
+  it('follows the schedule as the screen does: a habit kept on weekdays is rated on its weekdays only', async () => {
+    // Deep work is Monday to Friday in the seed. Saturday 19 is a day off and
+    // ticked anyway; Monday to Wednesday are done in full.
+    for (const date of ['2026-09-19', '2026-09-21', '2026-09-22', '2026-09-23']) {
+      await store.logHabitValue({ date, habitId: 'habit_deep_work', value: 3 });
+    }
+
+    const profile = await store.getProfile();
+    const streakLogs = await store.getDailyLogs(dayKeysEndingAt(STREAK_WINDOW_DAYS, TODAY)[0], TODAY);
+    const logs = streakLogs.slice(-HABITS_WINDOW_DAYS);
+    const row = historyRows(profile.habits, logs).find((entry) => entry.habit.id === 'habit_deep_work');
+    const summary = windowSummary(profile.habits, logs);
+    expect(row?.rate).toBe(1);
+    expect(row?.ratedDays).toBe(3);
+
+    const items = await build();
+    const rate = find(items, 'figure:habit-rate:habit_deep_work:30d');
+    expect(rate?.content).toContain('100%');
+    expect(rate?.content).toContain('rests on 3 days');
+    const completion = find(items, 'figure:habit-completion:30d');
+    expect(completion?.content).toContain(Math.round(summary.completion * 100) + '%');
+    expect(completion?.content).toContain(`${summary.perfectDays} of ${summary.recordedDays}`);
+    const streakDays = streak(profile.habits, streakLogs, TODAY);
+    expect(find(items, 'figure:habit-streak:now')?.content).toContain(streakDays + ' days');
+  });
+
   it('carries a rate per habit that was active in the window, an archived one too, and no other', async () => {
     const yesterday = shiftDayKey(TODAY, -1);
     await store.logHabitValue({ date: yesterday, habitId: 'habit_read', value: true });
