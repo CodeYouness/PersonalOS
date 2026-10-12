@@ -9,7 +9,10 @@ export const dynamic = 'force-dynamic';
 /**
  * Ask a question of your own data (#172, ADR 0028): the question and every
  * record a screen shows go to the answer module, and what comes back is a
- * set of statements, each with the records it cites. Writes nothing -- no
+ * set of statements, each with the records it cites. A citation says where
+ * it opens (`opens`, an address on the record's own screen, or null) and,
+ * when null, carries the record's text to expand in place (#173); both come
+ * from the context, never from the model. Writes nothing -- no
  * capture, no memory, no event -- and stores neither the question nor the
  * answer. Asked on purpose by the capture bar's Ask mode: the route never
  * decides whether a sentence "is" a question.

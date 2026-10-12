@@ -13,6 +13,11 @@ export const dynamic = 'force-dynamic';
  * `#screen-nutrition`: today's card, and the Health card for the
  * `healthWindowDays` before it. It reads the saved days and never calls the
  * model -- a meal is estimated when it is said, not when it is looked at.
+ *
+ * `?day=<day key>` opens that day's row in the Health table, so an answer's
+ * citation of a meal can land on it. The table reads the address itself, on
+ * the client, so a link to the address you are already on still reopens the
+ * row (#173); only a day the table shows and that has meals counts.
  */
 export default async function NutritionScreen() {
   const todayKey = today();

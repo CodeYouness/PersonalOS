@@ -84,6 +84,26 @@ describe('submitQuestion', () => {
     expect(action).toEqual({ type: 'answerReceived', result: { outcome: 'answer', statements, leftOut: true } });
   });
 
+  it('keeps opens and content on every citation, and does not invent them where the route sent none', async () => {
+    const statements = [
+      {
+        text: 'Marta is a client.',
+        citations: [
+          { id: 'task_1', type: 'task', label: 'Send the quote', labels: [], opens: '/crm?task=task_1' },
+          { id: 'person_1', type: 'person', label: 'Marta', labels: [], opens: null, content: 'Marta Oliveira\nclient' },
+          { id: 'old_1', type: 'person', label: 'Older shape' },
+        ],
+      },
+    ];
+    const fetchImpl = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'answer', statements }));
+
+    const action = await submitQuestion('Who is Marta?', fetchImpl);
+
+    // Not stripped, not rewritten: a missing `opens` is read as null by the
+    // panel (answerCitations), so the helper has nothing to normalise.
+    expect(action).toEqual({ type: 'answerReceived', result: { outcome: 'answer', statements, leftOut: false } });
+  });
+
   it.each(['not-in-data', 'no-model'])('turns the %s outcome into an answerReceived action', async (outcome) => {
     const fetchImpl = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome }));
 

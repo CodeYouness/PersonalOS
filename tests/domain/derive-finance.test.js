@@ -8,6 +8,7 @@ import {
   flowMonths,
   lineHolds,
   monthFlows,
+  monthsWith,
   netWorthOn,
   savingsRate,
   sparkBars,
@@ -762,6 +763,22 @@ describe('the months the section offers (#137)', () => {
   it('offers today\'s month alone when nothing is recorded, and never a future month', () => {
     expect(flowMonths([], '2026-02-10')).toEqual(['2026-02']);
     expect(flowMonths([transaction({ date: '2026-05-01' })], '2026-02-10')).toEqual(['2026-02']);
+  });
+});
+
+describe('a selected transaction keeps its own month on offer (#173)', () => {
+  it('adds the month of a transaction before "tracked since" or after today, newest first', () => {
+    const months = flowMonths([], '2026-10-12', '2026-01-01');
+
+    expect(monthsWith(months, '2025-12')).toEqual([...months, '2025-12']);
+    expect(monthsWith(months, '2026-11')).toEqual(['2026-11', ...months]);
+  });
+
+  it('leaves the offer as it is when the month is already on it, or there is none', () => {
+    const months = ['2026-10', '2026-09'];
+
+    expect(monthsWith(months, '2026-09')).toBe(months);
+    expect(monthsWith(months, null)).toBe(months);
   });
 });
 

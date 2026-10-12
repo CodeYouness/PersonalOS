@@ -15,6 +15,8 @@ import HealthTable from '@/components/HealthTable.js';
  * Presentational: the page derives every number on the server. The client
  * island is HealthTable, where a day opens to correct its meals.
  *
+ * The open day is read from the address by the table itself (`?day=`).
+ *
  * @param {{
  *   averages: ReturnType<typeof import('@/lib/domain/derive/health.js').healthAverages>,
  *   rows: ReturnType<typeof import('@/lib/domain/derive/health.js').healthRows>,

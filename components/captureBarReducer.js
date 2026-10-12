@@ -26,6 +26,9 @@
  * @property {string} type
  * @property {string} label
  * @property {string[]} [labels] how the record stands: done, archived, expired, unconfirmed
+ * @property {string | null} [opens] a site-relative address the context chose, or null
+ *   (absent reads as null) when the record has no screen and expands in place
+ * @property {string} [content] plain text shown when it expands; present only when `opens` is null
  *
  * @typedef {object} AnswerStatement
  * @property {string} text

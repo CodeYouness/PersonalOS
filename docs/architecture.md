@@ -121,7 +121,7 @@ keep their own prompts until they move. One entry point:
 
 ```
 buildContext('question') -> { today, week: { from, to }, timezone, trackedSince, items }
-item = { id, type, label, content, labels }
+item = { id, type, label, content, labels, opens }
 ```
 
 An item is one thing a screen shows, written as plain text and cited by `id`:
@@ -135,6 +135,16 @@ record stands (`done`, `archived`, `expired`, `unconfirmed`). A computed
 number is never written a second time: an account's value comes from
 `accountValueOn` (rule 6). Event payloads are not sent beyond a short list of
 vocabulary keys, since one of them holds the sentence of a deleted capture.
+
+`opens` (#173) is where a citation of the item goes: a site-relative address,
+or `null` when the record has no screen of its own and the panel expands its
+`content` in place. It is decided here, from the record, and **never reaches
+the model**: `contextBlock` (in `lib/answer.js`) strips it from the JSON the model sees, so the
+model cannot invent or alter an address, and `lib/answer.js` copies it onto a
+citation from the context, not from the reply. Each address is spelled once in
+`lib/domain/addresses.js` (pure; the screens' own link builders delegate to
+it), so a citation can only open what its screen would open. The client still
+follows only a plain site-relative address (`components/answerCitations.js`).
 
 The route is `POST /api/questions`: it validates the question
 (`limits.questionMaxChars`), builds the context, and hands both to

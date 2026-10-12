@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { dayWeight, healthAverages, healthRows, weightTrend } from '@/lib/domain/derive/health.js';
+import { dayWeight, healthAverages, healthRows, requestedOpenDay, weightTrend } from '@/lib/domain/derive/health.js';
 
 /**
  * @param {string} date
@@ -59,5 +59,26 @@ describe('health', () => {
     const averages = healthAverages([log('2026-10-05', { meals: [meal] }), log('2026-10-06', { meals: [big] })], '2026-10-06');
 
     expect(averages).toMatchObject({ calories: 500, recordedDays: 1 });
+  });
+});
+
+describe('requestedOpenDay', () => {
+  const rows = healthRows([
+    log('2026-10-01', { meals: [meal] }),
+    log('2026-10-02', { weights: [[74.4, '2026-10-02T09:00:00Z']] }),
+    log('2026-10-03', { meals: [meal] }),
+  ]);
+
+  it('is the day asked for when the table has that day with meals in it', () => {
+    expect(requestedOpenDay('2026-10-01', rows)).toBe('2026-10-01');
+  });
+
+  it('ignores a day with no meals, one outside the window and anything malformed', () => {
+    expect(requestedOpenDay('2026-10-02', rows)).toBeNull();
+    expect(requestedOpenDay('2026-09-01', rows)).toBeNull();
+    expect(requestedOpenDay('2026-02-30', rows)).toBeNull();
+    expect(requestedOpenDay('yesterday', rows)).toBeNull();
+    expect(requestedOpenDay(['2026-10-01', '2026-10-03'], rows)).toBeNull();
+    expect(requestedOpenDay(undefined, rows)).toBeNull();
   });
 });

@@ -1,3 +1,5 @@
+import { journalAddress } from '@/lib/domain/addresses.js';
+
 /**
  * What the Journal screen's components share: the address of a day, and the
  * draft kept in the browser while you write.
@@ -10,7 +12,7 @@
  * @returns {string}
  */
 export function journalHref(dayKey) {
-  return '/journal?date=' + dayKey;
+  return journalAddress(dayKey);
 }
 
 /** @param {string} dayKey */
