@@ -258,7 +258,10 @@ The past is citable as the past. A memory past its `validUntil`, or one
 nobody confirmed, is what you *used to* hold or what is *unconfirmed* --
 never what is true now. A done task or goal, an archived account or habit,
 is cited as done or archived. A deleted record is gone and is never cited.
-Events are the dated timeline: when something happened, citable.
+Events are the dated timeline: when something happened, citable. What an
+event's payload holds is not shown to the model beyond vocabulary and counts:
+a deleted capture's event keeps its sentence, and that is the one thing a
+deletion must not leave readable.
 
 An answer may be **not in your data** -- a real answer, not a failure. With
 no model there is no answer at all, and the system says so: nothing rule-based
