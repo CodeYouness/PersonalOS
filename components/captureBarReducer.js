@@ -34,16 +34,22 @@
  * @property {string} text
  * @property {CitationChip[]} citations
  *
+ * @typedef {object} Summarised transactions of the months before `before` were read as monthly totals (#175)
+ * @property {string} [since] YYYY-MM, the oldest month summarised; there only when older months stayed whole
+ * @property {string} before YYYY-MM, the first month listed in full after the summarised ones
+ *
  * @typedef {object} AnswerResult what the questions route said, without the question
- * @property {'answer' | 'not-in-data' | 'no-model'} outcome
+ * @property {'answer' | 'not-in-data' | 'no-model' | 'too-large'} outcome
  * @property {AnswerStatement[]} [statements]
  * @property {boolean} [leftOut]
+ * @property {Summarised | null} [summarised]
  *
  * @typedef {object} AnswerState
  * @property {string} question
- * @property {'answer' | 'not-in-data' | 'no-model' | 'failed'} outcome
+ * @property {'answer' | 'not-in-data' | 'no-model' | 'too-large' | 'failed'} outcome
  * @property {AnswerStatement[]} [statements]
  * @property {boolean} [leftOut]
+ * @property {Summarised | null} [summarised]
  * @property {string} [message] why a question failed
  * @property {boolean} [retryable] false when sending it again would fail the same way
  *

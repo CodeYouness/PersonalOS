@@ -120,7 +120,7 @@ it answers. It is built for questions first; the classifier and extraction
 keep their own prompts until they move. One entry point:
 
 ```
-buildContext('question') -> { today, week: { from, to }, timezone, trackedSince, items }
+buildContext('question') -> { today, week: { from, to }, timezone, trackedSince, items, summarised, tooLarge }
 item = { id, type, label, content, labels, opens }
 ```
 
@@ -150,10 +150,29 @@ record reference, `profile` or a figure id) and then by membership in what was
 sent, which stays the real check; the prompt lets a total, difference,
 average, rate or comparison be stated only by citing a figure.
 
+**The size budget** (#175, ADR 0028). The context is measured on what is sent:
+`serializeContext(context)` (`serialize.js`) returns the exact JSON placed in
+the `<context>` block -- items reduced to `{ id, type, label, content,
+labels }`, `<` escaped, plus today, the week, the timezone, `trackedSince` and
+`summarised` -- and `lib/answer.js` builds its block from the same call, so
+the measure cannot drift from what the model reads. `buildContext` hands the
+whole context to `fitToBudget` (`budget.js`, pure). Within
+`limits.contextMaxChars`, nothing changes. Over it, the transaction items of
+a month are replaced by that month's figures (which are already items),
+oldest month first, re-measuring after each, stopping as soon as it fits;
+the newest `limits.contextRecentMonths` months holding transactions up to today, and any
+month with no monthly figure (`flowMonths`: before "tracked since"), are never
+summarised. `summarised` says `{ before }`, the first month listed in
+full after the summarised ones -- plus `since` when older months (before
+"tracked since") stay whole, so it never claims more than was summarised. Still over: `tooLarge`, nothing else is cut, and `answerQuestion`
+returns `too-large` without calling the model (after `no-model`, which comes
+first). The route passes `summarised` on an answer and a not-in-data, and
+answers `too-large` with a 200; nothing is written.
+
 `opens` (#173) is where a citation of the item goes: a site-relative address,
 or `null` when the record has no screen of its own and the panel expands its
 `content` in place. It is decided here, from the record, and **never reaches
-the model**: `contextBlock` (in `lib/answer.js`) strips it from the JSON the model sees, so the
+the model**: `serializeContext` strips it from the JSON the model sees, so the
 model cannot invent or alter an address, and `lib/answer.js` copies it onto a
 citation from the context, not from the reply. Each address is spelled once in
 `lib/domain/addresses.js` (pure; the screens' own link builders delegate to
@@ -168,8 +187,7 @@ comes back. It writes nothing. Loading a page never reaches it (rule 3).
 The rule the layer exists to establish: **no feature builds its own prompt.**
 A feature asks for context and passes it to a prompt module. Without that,
 every new card invents its own retrieval and its own token budget, and
-changing what the AI knows means editing fifteen files. Still to come: the
-token budget and summarising (#175).
+changing what the AI knows means editing fifteen files.
 
 ## Planned, not built
 

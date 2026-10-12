@@ -1829,7 +1829,10 @@ a.cite { text-decoration: none; }
       <p class="caption answer-note note-summarised">Transactions before June 2026 were read as monthly totals.</p>
     </div>
 
-    <p class="caption answer-outcome outcome-not-in-data">Not in your data</p>
+    <div class="answer-outcome outcome-not-in-data">
+      <p class="caption">Not in your data</p>
+      <p class="caption answer-note note-summarised">Transactions before June 2026 were read as monthly totals.</p>
+    </div>
     <p class="caption answer-outcome outcome-no-model">No model configured</p>
     <p class="caption answer-outcome outcome-failed">
       <span class="down">The model didn&rsquo;t answer.</span>
@@ -1886,7 +1889,9 @@ a.cite { text-decoration: none; }
     <button data-ask="expanded">citation expanded</button>
     <button data-ask="left-out">left out</button>
     <button data-ask="summarised">summarised</button>
+    <button data-ask="summarised-range">summarised, older kept</button>
     <button data-ask="not-in-data">not in your data</button>
+    <button data-ask="not-in-data-summarised">not in your data, summarised</button>
     <button data-ask="no-model">no model</button>
     <button data-ask="failed">failed</button>
     <button data-ask="too-large">too large</button>
@@ -1974,11 +1979,18 @@ a.cite { text-decoration: none; }
   // request; "expanded", "left out" and "summarised" are variations of an
   // answer, so one outcome can wear several.
   function showAnswer(which) {
-    var outcome = ['not-in-data', 'no-model', 'failed', 'too-large'].indexOf(which) >= 0 ? which : 'answer';
+    var outcome = ['not-in-data', 'no-model', 'failed', 'too-large'].indexOf(which) >= 0 ? which
+      : which === 'not-in-data-summarised' ? 'not-in-data' : 'answer';
     answer.dataset.outcome = outcome;
     answer.dataset.expanded = String(which === 'expanded');
     answer.dataset.leftOut = String(which === 'left-out');
-    answer.dataset.summarised = String(which === 'summarised');
+    answer.dataset.summarised = String(which === 'summarised' || which === 'summarised-range' || which === 'not-in-data-summarised');
+    // Months before "tracked since" are never summarised and stay whole, so
+    // the note then names the range instead of claiming everything before.
+    var note = which === 'summarised-range'
+      ? 'Transactions from March 2026 to May 2026 were read as monthly totals.'
+      : 'Transactions before June 2026 were read as monthly totals.';
+    answer.querySelectorAll('.note-summarised').forEach(function (el) { el.textContent = note; });
     document.getElementById('cite-expand').setAttribute('aria-expanded', String(which === 'expanded'));
     bar.dataset.answer = 'open';
     setMode('capture');

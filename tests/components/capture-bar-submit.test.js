@@ -81,7 +81,10 @@ describe('submitQuestion', () => {
 
     const action = await submitQuestion('What is open?', fetchImpl);
 
-    expect(action).toEqual({ type: 'answerReceived', result: { outcome: 'answer', statements, leftOut: true } });
+    expect(action).toEqual({
+      type: 'answerReceived',
+      result: { outcome: 'answer', statements, leftOut: true, summarised: null },
+    });
   });
 
   it('keeps opens and content on every citation, and does not invent them where the route sent none', async () => {
@@ -101,15 +104,66 @@ describe('submitQuestion', () => {
 
     // Not stripped, not rewritten: a missing `opens` is read as null by the
     // panel (answerCitations), so the helper has nothing to normalise.
-    expect(action).toEqual({ type: 'answerReceived', result: { outcome: 'answer', statements, leftOut: false } });
+    expect(action).toEqual({ type: 'answerReceived', result: { outcome: 'answer', statements, leftOut: false, summarised: null },
+    });
   });
 
-  it.each(['not-in-data', 'no-model'])('turns the %s outcome into an answerReceived action', async (outcome) => {
-    const fetchImpl = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome }));
+  it('turns the no-model outcome into an answerReceived action', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'no-model' }));
 
     expect(await submitQuestion('What is open?', fetchImpl)).toEqual({
       type: 'answerReceived',
-      result: { outcome },
+      result: { outcome: 'no-model' },
+    });
+  });
+
+  it('turns not-in-data into an answerReceived action, with what was summarised or null', async () => {
+    const plain = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'not-in-data' }));
+    const summarised = vi
+      .fn()
+      .mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'not-in-data', summarised: { before: '2026-06' } }));
+
+    expect(await submitQuestion('q', plain)).toEqual({
+      type: 'answerReceived',
+      result: { outcome: 'not-in-data', summarised: null },
+    });
+    expect(await submitQuestion('q', summarised)).toEqual({
+      type: 'answerReceived',
+      result: { outcome: 'not-in-data', summarised: { before: '2026-06' } },
+    });
+  });
+
+  it('passes summarised through on an answer', async () => {
+    const statements = [{ text: 'You spent 1.200,00 EUR.', citations: [] }];
+    const fetchImpl = vi.fn().mockResolvedValue(
+      fakeResponse(200, { ok: true, outcome: 'answer', statements, leftOut: false, summarised: { before: '2026-06' } })
+    );
+
+    expect(await submitQuestion('q', fetchImpl)).toEqual({
+      type: 'answerReceived',
+      result: { outcome: 'answer', statements, leftOut: false, summarised: { before: '2026-06' } },
+    });
+  });
+
+  it('ignores a summarised that is not the shape the route sends, and never renders it', async () => {
+    for (const summarised of ['2026-06', { before: 'June 2026' }, { before: 5 }, [], 7]) {
+      const fetchImpl = vi
+        .fn()
+        .mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'not-in-data', summarised }));
+
+      expect(await submitQuestion('q', fetchImpl)).toEqual({
+        type: 'answerReceived',
+        result: { outcome: 'not-in-data', summarised: null },
+      });
+    }
+  });
+
+  it('turns the too-large 200 into an answerReceived action, not a failure', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'too-large' }));
+
+    expect(await submitQuestion('What did I spend?', fetchImpl)).toEqual({
+      type: 'answerReceived',
+      result: { outcome: 'too-large' },
     });
   });
 
@@ -168,7 +222,7 @@ describe('submitQuestion', () => {
   });
 
   it('treats an outcome it does not know, or an answer with no statements list, as a failure', async () => {
-    const unknown = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'too-large' }));
+    const unknown = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'maybe' }));
     const malformed = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'answer' }));
 
     expect((await submitQuestion('What is open?', unknown)).type).toBe('questionFailed');

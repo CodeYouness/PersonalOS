@@ -166,6 +166,32 @@ describe('captureBarReducer, Ask mode', () => {
     expect(state.answer).toEqual({ question: 'What is open?', ...result });
   });
 
+  it('stores the too-large outcome, returns to capture, and offers no retry', () => {
+    const state = captureBarReducer(askingState('What did I spend?'), {
+      type: 'answerReceived',
+      result: { outcome: 'too-large' },
+    });
+
+    expect(state.answer).toEqual({ question: 'What did I spend?', outcome: 'too-large' });
+    expect(state.mode).toBe('capture');
+    expect(state.status).toBe('idle');
+    // Asking again changes nothing, so the reducer does not let it.
+    expect(captureBarReducer(state, { type: 'retryQuestion' })).toBe(state);
+  });
+
+  it('keeps what was summarised on the answer it came with', () => {
+    const state = captureBarReducer(askingState('What did I spend?'), {
+      type: 'answerReceived',
+      result: { outcome: 'not-in-data', summarised: { before: '2026-06' } },
+    });
+
+    expect(state.answer).toEqual({
+      question: 'What did I spend?',
+      outcome: 'not-in-data',
+      summarised: { before: '2026-06' },
+    });
+  });
+
   it.each(['not-in-data', 'no-model'])('stores the %s outcome and returns to capture', (outcome) => {
     const state = captureBarReducer(askingState('What is open?'), { type: 'answerReceived', result: { outcome } });
 
