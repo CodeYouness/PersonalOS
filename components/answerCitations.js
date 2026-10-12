@@ -23,6 +23,37 @@ export function citationTarget(citation) {
 }
 
 /**
+ * "Memory · expired", "Task · overdue", "Figure": the type as the context named
+ * it, and how the record stands when it is not simply current -- what the
+ * model was told to say.
+ *
+ * @param {import('./captureBarReducer.js').CitationChip} citation
+ * @returns {string}
+ */
+export function citationBadgeText(citation) {
+  const type = citation.type.charAt(0).toUpperCase() + citation.type.slice(1);
+  const labels = citation.labels ?? [];
+  return labels.length === 0 ? type : type + ' \u00b7 ' + labels.join(', ');
+}
+
+/**
+ * The mockup's tones: warm for a record that is past or unconfirmed -- not
+ * what is true now -- hot for a task that is overdue (as on the CRM board),
+ * blue for a computed figure (the mockup's Figure chip), cold for a person,
+ * plain for the rest.
+ *
+ * @param {import('./captureBarReducer.js').CitationChip} citation
+ * @returns {string} the badge class
+ */
+export function citationBadgeTone(citation) {
+  const labels = citation.labels ?? [];
+  if (labels.includes('overdue')) return 'badge-hot';
+  if (labels.includes('expired') || labels.includes('unconfirmed')) return 'badge-warm';
+  if (citation.type === 'figure') return 'badge-est';
+  return citation.type === 'person' ? 'badge-cold' : 'badge-tag';
+}
+
+/**
  * Key of one chip's expanded state: statement index and citation id, so the
  * same record cited by two statements expands independently.
  *

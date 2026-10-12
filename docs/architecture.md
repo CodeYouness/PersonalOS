@@ -131,10 +131,24 @@ your data" is a claim about the whole archive; `getLoggedDays` exists so the
 day-keyed daily logs can be read that way. `build.js` is pure: links become
 words on the records they join, a capture that filed a record rides on it, a
 memory that only repeats its capture is left out, and `labels` say how a
-record stands (`done`, `archived`, `expired`, `unconfirmed`). A computed
-number is never written a second time: an account's value comes from
-`accountValueOn` (rule 6). Event payloads are not sent beyond a short list of
+record stands (`done`, `overdue`, `archived`, `expired`, `unconfirmed`;
+`overdue` is `isOverdue` from `lib/domain/derive/tasks.js`, so a done task is
+never overdue). A computed number is never written a second time: an account's
+value comes from `accountValueOn` (rule 6). Event payloads are not sent beyond a short list of
 vocabulary keys, since one of them holds the sentence of a deleted capture.
+
+**Computed figures** (#174) are appended after the records: `figures-finance.js`
+and `figures-life.js` call the derivations the screens call (`financeOverview`,
+`flowMonths`, `monthFlows`, `savingsRate`, `yearFlows`, `streak`,
+`windowSummary`, `historyRows`, `healthAverages`, `weightTrend`, `dayTotals`,
+`goalBoard`) with the screens' arguments, so the number in an answer is the
+number on the screen, and add no arithmetic of their own. A figure is an
+ordinary item of type `figure` with the id `figure:<what>:<period>[:<detail>]`
+(docs/domain.md, Computed figure, has the list); an unknown is omitted, never
+zero. `lib/answer.js` checks a citation's id by shape first (`isCitationId`: a
+record reference, `profile` or a figure id) and then by membership in what was
+sent, which stays the real check; the prompt lets a total, difference,
+average, rate or comparison be stated only by citing a figure.
 
 `opens` (#173) is where a citation of the item goes: a site-relative address,
 or `null` when the record has no screen of its own and the panel expands its
@@ -155,7 +169,7 @@ The rule the layer exists to establish: **no feature builds its own prompt.**
 A feature asks for context and passes it to a prompt module. Without that,
 every new card invents its own retrieval and its own token budget, and
 changing what the AI knows means editing fifteen files. Still to come: the
-token budget and summarising (#175), computed figures (#174).
+token budget and summarising (#175).
 
 ## Planned, not built
 

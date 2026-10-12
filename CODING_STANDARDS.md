@@ -52,4 +52,7 @@ block) and `tests/app/route-conventions.test.js` (every route and page is
   saved.
 - **Numbers are right-aligned in tabular figures**, and formatted in
   `components/format.js` -- one implementation per format, so two screens
-  never round the same number differently.
+  never round the same number differently. A format the
+  question context also writes (a percent, a weight, a month) lives in
+  `lib/domain/format.js` and `components/format.js` re-exports it, so an
+  answer's figure and the screen never disagree.

@@ -2,13 +2,10 @@ import HabitsHistory from '@/components/HabitsHistory.js';
 import HabitsManager from '@/components/HabitsManager.js';
 import HabitsSummary from '@/components/HabitsSummary.js';
 import { dayKeysEndingAt, today } from '@/lib/domain/dates.js';
-import { historyRows, STREAK_WINDOW_DAYS, streak, windowSummary } from '@/lib/domain/derive/habits.js';
+import { HABITS_WINDOW_DAYS, historyRows, STREAK_WINDOW_DAYS, streak, windowSummary } from '@/lib/domain/derive/habits.js';
 import { getDailyLogs, getProfile } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
-
-/** How far back the summary and history look (docs/spec.md: "the last 30 days"). */
-const HISTORY_WINDOW_DAYS = 30;
 
 /**
  * The Habits screen, ported from design/mockup.html's `#screen-habits`: the
@@ -32,7 +29,7 @@ export default async function HabitsScreen() {
   const todayKey = today();
   const streakStart = dayKeysEndingAt(STREAK_WINDOW_DAYS, todayKey)[0];
   const streakLogs = await getDailyLogs(streakStart, todayKey);
-  const windowLogs = streakLogs.slice(-HISTORY_WINDOW_DAYS);
+  const windowLogs = streakLogs.slice(-HABITS_WINDOW_DAYS);
 
   // Every habit, not only today's: one archived last week still owns its
   // row, and its days, for the days it was active.

@@ -5,6 +5,7 @@ import {
   financesAddress,
   goalsAddress,
   journalAddress,
+  habitsAddress,
   nutritionAddress,
 } from '@/lib/domain/addresses.js';
 import { financesHref } from '@/components/finance.js';
@@ -47,6 +48,10 @@ describe('addresses: one implementation of where a record opens', () => {
   it('addresses a day of Nutrition & Health', () => {
     expect(nutritionAddress('2026-09-20')).toBe('/nutrition?day=2026-09-20');
     expect(nutritionAddress()).toBe('/nutrition');
+  });
+
+  it('addresses the Habits screen, which selects nothing', () => {
+    expect(habitsAddress()).toBe('/habits');
   });
 
   it('is what the plain-module builders delegate to (the JSX ones cannot load under Vitest)', () => {

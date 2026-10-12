@@ -4,7 +4,32 @@
  * rendering concern, not a rule about what a name means.
  */
 
-import { STREAK_WINDOW_DAYS } from '@/lib/domain/derive/habits.js';
+import {
+  dayKeyToUtcDate,
+  formatChange,
+  formatCount,
+  formatPercentChange,
+  formatWeight,
+  MINUS,
+  monthLabel,
+  ordinal,
+  percent,
+  streakLabel,
+} from '@/lib/domain/format.js';
+
+// One implementation per format (CODING_STANDARDS.md): these live in lib/ so
+// the question context writes the same numbers a screen does (#174).
+export {
+  dayKeyToUtcDate,
+  formatChange,
+  formatCount,
+  formatPercentChange,
+  formatWeight,
+  monthLabel,
+  ordinal,
+  percent,
+  streakLabel,
+};
 
 /** @param {string} name */
 export function initials(name) {
@@ -20,31 +45,6 @@ export function initials(name) {
 /** @param {string} isoInstant */
 export function formatTime(isoInstant) {
   return new Date(isoInstant).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-}
-
-/**
- * A day key has no time and no zone (lib/domain/dates.js), so it is parsed
- * as UTC midnight purely to hand a Date to Intl -- this is formatting, not a
- * second "what day is it" computation.
- *
- * @param {string} dayKey
- * @returns {Date}
- */
-export function dayKeyToUtcDate(dayKey) {
-  const [year, month, day] = dayKey.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day));
-}
-
-/**
- * A streak as it is shown. The count can only ever look back over the window
- * the logs were read for, so at the window's edge it says "365+" rather than
- * claiming a number it cannot know.
- *
- * @param {number} days
- * @returns {string}
- */
-export function streakLabel(days) {
-  return days >= STREAK_WINDOW_DAYS ? STREAK_WINDOW_DAYS + '+' : String(days);
 }
 
 /**
@@ -73,38 +73,6 @@ export function ageTitle(days) {
 }
 
 /**
- * A count as it is shown: "1,780". One fixed locale, so the server's render
- * and the browser's never disagree about a separator.
- *
- * @param {number} value
- * @returns {string}
- */
-export function formatCount(value) {
-  return value.toLocaleString('en-GB');
-}
-
-/**
- * A weight as a scale shows it: always one decimal, "75.0" -- so a column of
- * weights lines up.
- *
- * @param {number} kg
- * @returns {string}
- */
-export function formatWeight(kg) {
-  return kg.toLocaleString('en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-}
-
-/**
- * A change as it is shown: "+0.4", "−1.2", "0" -- signed, with a real minus.
- *
- * @param {number} value
- * @returns {string}
- */
-export function formatChange(value) {
-  return value.toLocaleString('en-GB', { signDisplay: 'exceptZero' }).replace('-', '−');
-}
-
-/**
  * A day in a table row: "Mon 5 Jan".
  *
  * @param {string} dayKey
@@ -124,20 +92,6 @@ export function dayHeading(dayKey) {
   return dayKeyToUtcDate(dayKey).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'UTC' });
 }
 
-const ORDINAL_RULES = new Intl.PluralRules('en-GB', { type: 'ordinal' });
-/** @type {Record<string, string>} */
-const ORDINAL_SUFFIX = { one: 'st', two: 'nd', few: 'rd', other: 'th' };
-
-/**
- * A count as an English ordinal: "2nd", "11th", "21st".
- *
- * @param {number} count
- * @returns {string}
- */
-export function ordinal(count) {
-  return count + ORDINAL_SUFFIX[ORDINAL_RULES.select(count)];
-}
-
 /**
  * The period a slipped goal is in: "2nd week", "3rd month" (ADR 0021).
  *
@@ -147,19 +101,6 @@ export function ordinal(count) {
  */
 export function slippedLabel(period, horizon) {
   return ordinal(period) + ' ' + horizon;
-}
-
-/**
- * A ratio as whole percent, a negative one with a real minus. One
- * implementation, so the habits ring, a history row's rate and a savings
- * rate can never round the same number differently.
- *
- * @param {number} ratio
- * @returns {string}
- */
-export function percent(ratio) {
-  const whole = Math.round(ratio * 100);
-  return (whole < 0 ? MINUS : '') + Math.abs(whole) + '%';
 }
 
 /**
@@ -206,7 +147,6 @@ export function provenanceLabel({ createdDayKey, source, route }, todayKey) {
 }
 
 const THIN_SPACE = '\u2009';
-const MINUS = '−';
 
 /**
  * An amount of money as a table shows it: whole euros, "12,400", or with the
@@ -252,20 +192,6 @@ export function formatMoneyChange(minor) {
 }
 
 /**
- * A change as a whole percent: "+25%", "−8%", "0%" -- or "n.d." when there
- * was nothing to compare with, so a new expense never reads as +∞%.
- *
- * @param {number | null} ratio
- * @returns {string}
- */
-export function formatPercentChange(ratio) {
-  if (ratio === null) return 'n.d.';
-  const whole = Math.round(ratio * 100);
-  if (whole === 0) return '0%';
-  return (whole < 0 ? MINUS : '+') + Math.abs(whole) + '%';
-}
-
-/**
  * A rate as a whole percent, "25%", "−8%" -- or "—" when it has no meaning,
  * such as a savings rate with no income.
  *
@@ -291,16 +217,6 @@ export function shortDate(dayKey, todayKey) {
     year: dayKey.slice(0, 4) === todayKey.slice(0, 4) ? undefined : 'numeric',
     timeZone: 'UTC',
   });
-}
-
-/**
- * A month as a heading names it: "January 2026".
- *
- * @param {string} month YYYY-MM
- * @returns {string}
- */
-export function monthLabel(month) {
-  return dayKeyToUtcDate(month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
 /**
