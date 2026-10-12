@@ -591,7 +591,12 @@ progress should be derived instead; nothing links one yet.
 
 ## Habit
 
-**Is** something you do every day, configured in the profile, not in code.
+**Is** something you do on set days of the week — every day unless you say
+otherwise — configured in the profile, not in code.
+
+**Is not** a number of times per week. "Gym three times a week, any days" has
+no day on which it is missed until the week is over; a habit is measured one
+day at a time, so it names its days: Monday, Wednesday, Friday.
 
 **Types** `check` (done or not) and `counter` (counted against a target).
 The type is chosen once and **never changes** (ADR 0016): a check's history
@@ -612,13 +617,38 @@ period — the same shape `overdue` already takes. Archiving closes the
 current period at today; restoring opens a new one. The gap in between
 belongs to no period, so it never counts and is never mistaken for missed.
 
+**A period carries its days and its target.** Each period names the weekdays
+the habit is expected on (at least one; all seven by default) and, for a
+counter, the target it is measured against. Changing either closes the current
+period and opens a new one, so a past day is always measured against the
+schedule and the target it had — never against today's (ADR 0029). A change
+counts from today, like archiving and restoring; a second change on the same
+day amends the period opened today rather than leaving an empty one behind.
+Restoring reopens with the last period's days and target.
+
+Three words for a habit on a given day:
+
+- **Active** — inside one of its periods: the habit exists and is not
+  archived.
+- **Scheduled** — active, and the day's weekday is one of that period's days.
+- **Day off** — active but not scheduled. Not the same as **inactive**
+  (outside every period): on a day off the habit exists, it is simply not
+  expected.
+
+**A habit is measured only on the days it is scheduled.** Completion, perfect
+days, rates, the summary and the streak all ask "was it scheduled?", never
+just "was it active?". A habit ticked on a day off — the gym on a Tuesday — is
+recorded and shown, because it happened, but counts toward nothing: it neither
+raises a rate nor makes up a missed day.
+
 **Archiving keeps the history.** A habit counts, everywhere a habit number is
-computed, only on the days it was active: nothing before its first period,
-nothing in an archived-then-restored gap, everything else. Nothing is
-deleted.
+computed, only on the days it was scheduled: nothing before its first period,
+nothing in an archived-then-restored gap, nothing on a day off, everything
+else. Nothing is deleted.
 
 The **streak** counts backwards over consecutive days with at least one
-*active* habit completed. A day still in progress does not break it —
+*scheduled* habit completed. A day with nothing scheduled is skipped — it
+neither extends nor breaks the streak. A day still in progress does not break it —
 breaking a streak at 00:01 would be punishing someone for waking up. It
 is counted over the last 365 days, one window shared by every screen that
 shows it, so the home card and the Habits screen can never disagree — the
@@ -627,7 +657,7 @@ Habits screen's thirty-day window does not cut it down (ADR 0017).
 The **thirty-day summary** on the Habits screen averages completion over the
 days that were *recorded*, and counts perfect days out of those same days —
 an unrecorded day is not a zero, and averaging one in would make a week you
-forgot to tick look like a week you failed. A day no habit was active on is
+forgot to tick look like a week you failed. A day no habit was scheduled on is
 left out for the same reason (ADR 0017). **Days recorded** is the honest
 denominator alongside it: how many of the thirty days there is anything to
 average at all.
