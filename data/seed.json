@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 15,
+  "schemaVersion": 16,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -12,29 +12,25 @@
         "id": "habit_move",
         "label": "Move for 30 minutes",
         "type": "check",
-        "target": null,
-        "periods": [{ "from": "2026-01-04", "to": null }]
+        "periods": [{ "from": "2026-01-04", "to": null, "days": [1, 2, 3, 4, 5, 6, 7], "target": null }]
       },
       {
         "id": "habit_read",
         "label": "Read",
         "type": "check",
-        "target": null,
-        "periods": [{ "from": "2026-01-04", "to": null }]
+        "periods": [{ "from": "2026-01-04", "to": null, "days": [1, 2, 3, 4, 5, 6, 7], "target": null }]
       },
       {
         "id": "habit_water",
         "label": "Glasses of water",
         "type": "counter",
-        "target": 8,
-        "periods": [{ "from": "2026-01-04", "to": null }]
+        "periods": [{ "from": "2026-01-04", "to": null, "days": [1, 2, 3, 4, 5, 6, 7], "target": 8 }]
       },
       {
         "id": "habit_deep_work",
         "label": "Deep work blocks",
         "type": "counter",
-        "target": 3,
-        "periods": [{ "from": "2026-01-04", "to": null }]
+        "periods": [{ "from": "2026-01-04", "to": null, "days": [1, 2, 3, 4, 5, 6, 7], "target": 3 }]
       }
     ],
     "financeTrackedSince": null,

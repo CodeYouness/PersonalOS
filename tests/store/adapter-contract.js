@@ -15,6 +15,9 @@ import { ADAPTER_METHODS } from '@/lib/adapters/contract.js';
 import { shiftDayKey, today } from '@/lib/domain/dates.js';
 import { isActiveOn } from '@/lib/domain/derive/habits.js';
 
+/** Every weekday, ISO 1 (Monday) to 7 (Sunday): a period that has no day off. */
+const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
+
 /**
  * @param {string} label
  * @param {() => Promise<import('@/lib/adapters/contract.js').StoreAdapter>} load
@@ -63,8 +66,8 @@ export function runAdapterContract(label, load) {
 
       it('accepts a well-formed habits patch', async () => {
         const habits = /** @type {import('@/lib/domain/types.js').Habit[]} */ ([
-          { id: 'habit_x', label: 'Stretch', type: 'check', target: null, periods: [{ from: '2026-01-01', to: null }] },
-          { id: 'habit_y', label: 'Water', type: 'counter', target: 6, periods: [{ from: '2026-01-01', to: '2026-02-01' }] },
+          { id: 'habit_x', label: 'Stretch', type: 'check', periods: [{ from: '2026-01-01', to: null, days: ALL_DAYS, target: null }] },
+          { id: 'habit_y', label: 'Water', type: 'counter', periods: [{ from: '2026-01-01', to: '2026-02-01', days: ALL_DAYS, target: 6 }] },
         ]);
         await store.updateProfile({ habits });
         const profile = await store.getProfile();
@@ -74,42 +77,61 @@ export function runAdapterContract(label, load) {
 
       it('rejects a habit with a type outside the closed vocabulary', async () => {
         const habits = /** @type {any} */ ([
-          { id: 'habit_x', label: 'Stretch', type: 'bogus', target: null, periods: [{ from: '2026-01-01', to: null }] },
+          { id: 'habit_x', label: 'Stretch', type: 'bogus', periods: [{ from: '2026-01-01', to: null, days: ALL_DAYS, target: null }] },
         ]);
         await expect(store.updateProfile({ habits })).rejects.toThrow();
       });
 
       it('rejects a check habit that carries a target', async () => {
         const habits = /** @type {any} */ ([
-          { id: 'habit_x', label: 'Stretch', type: 'check', target: 5, periods: [{ from: '2026-01-01', to: null }] },
+          { id: 'habit_x', label: 'Stretch', type: 'check', periods: [{ from: '2026-01-01', to: null, days: ALL_DAYS, target: 5 }] },
         ]);
         await expect(store.updateProfile({ habits })).rejects.toThrow();
       });
 
       it('rejects a counter habit without a valid target', async () => {
         const habits = /** @type {any} */ ([
-          { id: 'habit_x', label: 'Water', type: 'counter', target: null, periods: [{ from: '2026-01-01', to: null }] },
+          { id: 'habit_x', label: 'Water', type: 'counter', periods: [{ from: '2026-01-01', to: null, days: ALL_DAYS, target: null }] },
         ]);
         await expect(store.updateProfile({ habits })).rejects.toThrow();
       });
 
       it('rejects a habit with an empty label', async () => {
         const habits = /** @type {any} */ ([
-          { id: 'habit_x', label: '   ', type: 'check', target: null, periods: [{ from: '2026-01-01', to: null }] },
+          { id: 'habit_x', label: '   ', type: 'check', periods: [{ from: '2026-01-01', to: null, days: ALL_DAYS, target: null }] },
         ]);
         await expect(store.updateProfile({ habits })).rejects.toThrow();
       });
 
       it('rejects a habit with malformed periods', async () => {
         const habits = /** @type {any} */ ([
-          { id: 'habit_x', label: 'Stretch', type: 'check', target: null, periods: [{ from: 'not-a-day', to: null }] },
+          { id: 'habit_x', label: 'Stretch', type: 'check', periods: [{ from: 'not-a-day', to: null, days: ALL_DAYS, target: null }] },
+        ]);
+        await expect(store.updateProfile({ habits })).rejects.toThrow();
+      });
+
+      it('rejects a period with no days, a weekday outside 1-7, a repeated or an unordered weekday', async () => {
+        for (const days of [[], [0, 1], [1, 8], [1, 1, 2], [3, 1], [1.5], 'every day']) {
+          const habits = /** @type {any} */ ([
+            { id: 'habit_x', label: 'Stretch', type: 'check', periods: [{ from: '2026-01-01', to: null, days, target: null }] },
+          ]);
+          await expect(store.updateProfile({ habits })).rejects.toThrow();
+        }
+      });
+
+      it('rejects a target on the habit itself: a period carries it (ADR 0029)', async () => {
+        const habits = /** @type {any} */ ([
+          {
+            id: 'habit_x', label: 'Water', type: 'counter', target: 8,
+            periods: [{ from: '2026-01-01', to: null, days: ALL_DAYS, target: 8 }],
+          },
         ]);
         await expect(store.updateProfile({ habits })).rejects.toThrow();
       });
 
       it('rejects a habit with no periods at all', async () => {
         const habits = /** @type {any} */ ([
-          { id: 'habit_x', label: 'Stretch', type: 'check', target: null, periods: [] },
+          { id: 'habit_x', label: 'Stretch', type: 'check', periods: [] },
         ]);
         await expect(store.updateProfile({ habits })).rejects.toThrow();
       });
@@ -121,13 +143,13 @@ export function runAdapterContract(label, load) {
         const habit = await store.createHabit({ label: 'Stretch before bed', type: 'check', target: null });
 
         expect(habit.id.startsWith('habit_')).toBe(true);
-        expect(habit.periods).toEqual([{ from: today(), to: null }]);
+        expect(habit.periods).toEqual([{ from: today(), to: null, days: ALL_DAYS, target: null }]);
         expect((await store.getProfile()).habits).toHaveLength(before + 1);
       });
 
       it('creates a counter habit with its target', async () => {
         const habit = await store.createHabit({ label: 'Pages read', type: 'counter', target: 20 });
-        expect(habit.target).toBe(20);
+        expect(habit.periods).toEqual([{ from: today(), to: null, days: ALL_DAYS, target: 20 }]);
       });
 
       it('rejects a create with a bad label, type or target', async () => {
@@ -143,7 +165,68 @@ export function runAdapterContract(label, load) {
 
         const habits = (await store.getProfile()).habits;
         expect(habits.find((habit) => habit.id === 'habit_move')?.label).toBe('Move for 45 minutes');
-        expect(habits.find((habit) => habit.id === 'habit_water')?.target).toBe(10);
+        expect(habits.find((habit) => habit.id === 'habit_water')?.periods.at(-1)?.target).toBe(10);
+      });
+
+      it('a target change closes the open period at today and opens one from today, so the past keeps its target', async () => {
+        const before = (await store.getProfile()).habits.find((habit) => habit.id === 'habit_water');
+        const opened = before?.periods.at(-1);
+        if (opened === undefined || opened.from === today()) throw new Error('the seed water habit must start before today');
+
+        const changed = await store.updateHabit('habit_water', { target: 10 });
+        expect(changed.periods).toEqual([
+          ...(before?.periods.slice(0, -1) ?? []),
+          { ...opened, to: today() },
+          { from: today(), to: null, days: opened.days, target: 10 },
+        ]);
+      });
+
+      it('a second change on the same day amends the period opened today', async () => {
+        const first = await store.updateHabit('habit_water', { target: 10 });
+        const second = await store.updateHabit('habit_water', { target: 12 });
+
+        expect(second.periods).toHaveLength(first.periods.length);
+        expect(second.periods.slice(0, -1)).toEqual(first.periods.slice(0, -1));
+        expect(second.periods.at(-1)).toEqual({ ...first.periods.at(-1), target: 12 });
+      });
+
+      it('changing the target back on the same day leaves the habit as it was that morning', async () => {
+        const before = (await store.getProfile()).habits.find((habit) => habit.id === 'habit_water');
+        const target = /** @type {number} */ (before?.periods.at(-1)?.target);
+
+        await store.updateHabit('habit_water', { target: target + 2 });
+        expect(await store.updateHabit('habit_water', { target })).toEqual(before);
+      });
+
+      it('refuses a change and an archive or a restore in one patch: restore first, then change', async () => {
+        await expect(store.updateHabit('habit_water', { archived: true, target: 10 })).rejects.toThrow(/restore/);
+        await store.updateHabit('habit_water', { archived: true });
+        await expect(store.updateHabit('habit_water', { archived: false, target: 10 })).rejects.toThrow(/restore/);
+      });
+
+      it('saving the target already there changes nothing', async () => {
+        const before = (await store.getProfile()).habits.find((habit) => habit.id === 'habit_water');
+        const current = before?.periods.at(-1)?.target;
+        expect(await store.updateHabit('habit_water', { target: /** @type {number} */ (current) })).toEqual(before);
+      });
+
+      it('refuses a target change on an archived habit: restore it first', async () => {
+        await store.updateHabit('habit_water', { archived: true });
+        await expect(store.updateHabit('habit_water', { target: 10 })).rejects.toThrow(/restore/);
+      });
+
+      it('restoring reopens with the last period\'s days and target', async () => {
+        await store.updateProfile({
+          habits: [
+            {
+              id: 'habit_gym', label: 'Gym', type: 'counter',
+              periods: [{ from: shiftDayKey(today(), -30), to: shiftDayKey(today(), -10), days: [1, 3, 5], target: 2 }],
+            },
+          ],
+        });
+
+        const restored = await store.updateHabit('habit_gym', { archived: false });
+        expect(restored.periods.at(-1)).toEqual({ from: today(), to: null, days: [1, 3, 5], target: 2 });
       });
 
       it('refuses to change a habit type', async () => {
@@ -161,7 +244,7 @@ export function runAdapterContract(label, load) {
 
         const restored = await store.updateHabit('habit_move', { archived: false });
         expect(restored.periods).toHaveLength(2);
-        expect(restored.periods.at(-1)).toEqual({ from: today(), to: null });
+        expect(restored.periods.at(-1)).toEqual({ ...archived.periods.at(-1), from: today(), to: null });
       });
 
       it('leaves the gap between an archive and a later restore inactive', async () => {
@@ -174,8 +257,7 @@ export function runAdapterContract(label, load) {
               id: 'habit_gap',
               label: 'Gap',
               type: 'check',
-              target: null,
-              periods: [{ from: shiftDayKey(today(), -30), to: gapStart }],
+              periods: [{ from: shiftDayKey(today(), -30), to: gapStart, days: ALL_DAYS, target: null }],
             },
           ],
         });

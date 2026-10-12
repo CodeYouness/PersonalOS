@@ -91,6 +91,8 @@ habit spent archived stay out of it after a restore. Nothing is deleted.
 **What you can change from the screen:** add a habit (label, type, target),
 rename it, change a counter's target, archive or restore it, and move it up or
 down. The type never changes after creation -- archive it and make a new one.
+A new target counts from today: every day before it keeps the target it was
+measured against (ADR 0029).
 
 **History** is the last 30 days: one row per habit, one cell per day, and the
 rate for that row. A day with nothing recorded for any habit is drawn as "not

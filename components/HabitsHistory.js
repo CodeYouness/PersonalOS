@@ -128,6 +128,7 @@ export default function HabitsHistory({ rows }) {
                       key={cell.date}
                       habit={row.habit}
                       date={cell.date}
+                      target={cell.target}
                       value={value}
                       // A corrected day has something recorded by definition:
                       // this write.
@@ -164,9 +165,13 @@ function cellKey(habitId, date) {
  * but it still gets its place in the row, or the columns of two habits with
  * different histories would no longer line up by date.
  *
+ * A counter's cell shows the target that day was measured against, never
+ * today's: correcting an old day must not quietly re-measure it (ADR 0029).
+ *
  * @param {{
  *   habit: import('@/lib/domain/types.js').Habit,
  *   date: string,
+ *   target: number | null,
  *   value: boolean | number,
  *   state: string,
  *   disabled: boolean,
@@ -176,7 +181,7 @@ function cellKey(habitId, date) {
  *   onSave: (value: boolean | number) => void,
  * }} props
  */
-function HeatCell({ habit, date, value, state, disabled, isOpen, onOpen, onClose, onSave }) {
+function HeatCell({ habit, date, target, value, state, disabled, isOpen, onOpen, onClose, onSave }) {
   const cell = useRef(/** @type {HTMLButtonElement | null} */ (null));
 
   if (state === 'inactive') {
@@ -190,7 +195,7 @@ function HeatCell({ habit, date, value, state, disabled, isOpen, onOpen, onClose
         ? value === true
           ? 'done'
           : 'not done'
-        : value + ' of ' + habit.target;
+        : value + ' of ' + target;
   const label = habit.label + ', ' + date + ': ' + described;
 
   if (habit.type === 'check') {
@@ -223,6 +228,7 @@ function HeatCell({ habit, date, value, state, disabled, isOpen, onOpen, onClose
         <CounterPopover
           habit={habit}
           date={date}
+          target={target}
           count={typeof value === 'number' ? value : 0}
           disabled={disabled}
           onSave={onSave}
@@ -244,13 +250,14 @@ function HeatCell({ habit, date, value, state, disabled, isOpen, onOpen, onClose
  * @param {{
  *   habit: import('@/lib/domain/types.js').Habit,
  *   date: string,
+ *   target: number | null,
  *   count: number,
  *   disabled: boolean,
  *   onSave: (value: number) => void,
  *   onClose: () => void,
  * }} props
  */
-function CounterPopover({ habit, date, count, disabled, onSave, onClose }) {
+function CounterPopover({ habit, date, target, count, disabled, onSave, onClose }) {
   const popover = useRef(/** @type {HTMLDivElement | null} */ (null));
 
   useEffect(() => {
@@ -285,7 +292,7 @@ function CounterPopover({ habit, date, count, disabled, onSave, onClose }) {
         &minus;
       </button>
       <span className="num">
-        {count}&thinsp;/&thinsp;{habit.target}
+        {count}&thinsp;/&thinsp;{target}
       </span>
       <button
         type="button"

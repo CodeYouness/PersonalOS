@@ -37,8 +37,13 @@ its open period, or of its last one when it is archived.
 **Changing the days or the target closes the current period at today and
 opens a new one from today**, the same move archiving and restoring already
 make. A second change on the same day amends the period opened today instead
-of leaving an empty one behind; a closed period is still never touched.
-Restoring reopens with the last period's days and target.
+of leaving an empty one behind. Amended back to what the period closed that
+morning had, the period opened today goes and that one is open again: the
+habit is as it was, not two ranges saying the same thing. A period closed on
+an earlier day is never touched. Restoring reopens with the last period's
+days and target. Archiving or restoring is a write of its own: one that also
+changes the days or the target is refused, so an archived habit is restored
+before it is changed, never edited behind its own back.
 
 **A habit is measured only on the days it is scheduled** -- active, and the
 day's weekday among its period's days. Every derivation that asked "was it

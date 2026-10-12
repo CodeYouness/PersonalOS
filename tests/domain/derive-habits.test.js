@@ -3,11 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { completionRatio, historyRows, isActiveOn, justCompleted, ratesByHabit, streak, windowSummary } from '@/lib/domain/derive/habits.js';
 import { averagesOverRecordedDays, caloriesFromMacros, dayTotals } from '@/lib/domain/derive/nutrition.js';
 
-const open = (/** @type {string} */ from) => [{ from, to: /** @type {string | null} */ (null) }];
+/** Every weekday, ISO 1 (Monday) to 7 (Sunday): a habit kept every day. */
+const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
+
+const open = (/** @type {string} */ from, /** @type {number | null} */ target = null) => [
+  { from, to: /** @type {string | null} */ (null), days: ALL_DAYS, target },
+];
 
 const habits = [
-  { id: 'habit_move', label: 'Move', type: 'check', target: null, periods: open('2026-01-01') },
-  { id: 'habit_water', label: 'Water', type: 'counter', target: 8, periods: open('2026-01-01') },
+  { id: 'habit_move', label: 'Move', type: 'check', periods: open('2026-01-01') },
+  { id: 'habit_water', label: 'Water', type: 'counter', periods: open('2026-01-01', 8) },
 ];
 
 /** @returns {any} */
@@ -17,20 +22,20 @@ const log = (/** @type {any} */ date, /** @type {any} */ habitState, /** @type {
 
 describe('isActiveOn', () => {
   it('is active from the period start onward when the period is still open', () => {
-    const habit = { periods: [{ from: '2026-01-05', to: null }] };
+    const habit = { periods: [{ from: '2026-01-05', to: null, days: ALL_DAYS, target: null }] };
     expect(isActiveOn(/** @type {any} */ (habit), '2026-01-04')).toBe(false);
     expect(isActiveOn(/** @type {any} */ (habit), '2026-01-05')).toBe(true);
     expect(isActiveOn(/** @type {any} */ (habit), '2026-06-01')).toBe(true);
   });
 
   it('is not active on or after a closed period\'s end', () => {
-    const habit = { periods: [{ from: '2026-01-01', to: '2026-01-10' }] };
+    const habit = { periods: [{ from: '2026-01-01', to: '2026-01-10', days: ALL_DAYS, target: null }] };
     expect(isActiveOn(/** @type {any} */ (habit), '2026-01-09')).toBe(true);
     expect(isActiveOn(/** @type {any} */ (habit), '2026-01-10')).toBe(false);
   });
 
   it('is not active in the gap between an archived period and a restore', () => {
-    const habit = { periods: [{ from: '2026-01-01', to: '2026-01-05' }, { from: '2026-01-10', to: null }] };
+    const habit = { periods: [{ from: '2026-01-01', to: '2026-01-05', days: ALL_DAYS, target: null }, { from: '2026-01-10', to: null, days: ALL_DAYS, target: null }] };
     expect(isActiveOn(/** @type {any} */ (habit), '2026-01-07')).toBe(false);
     expect(isActiveOn(/** @type {any} */ (habit), '2026-01-10')).toBe(true);
   });
@@ -48,8 +53,8 @@ describe('habit completion', () => {
   });
 
   it('ignores a habit archived before that day, but not one archived after it', () => {
-    const archivedBefore = { id: 'habit_old', label: 'Old', type: 'check', target: null, periods: [{ from: '2026-01-01', to: '2026-01-04' }] };
-    const archivedAfter = { id: 'habit_new', label: 'New', type: 'check', target: null, periods: [{ from: '2026-01-01', to: '2026-01-06' }] };
+    const archivedBefore = { id: 'habit_old', label: 'Old', type: 'check', periods: [{ from: '2026-01-01', to: '2026-01-04', days: ALL_DAYS, target: null }] };
+    const archivedAfter = { id: 'habit_new', label: 'New', type: 'check', periods: [{ from: '2026-01-01', to: '2026-01-06', days: ALL_DAYS, target: null }] };
 
     const withArchivedBefore = [...habits, archivedBefore];
     expect(completionRatio(/** @type {any} */ (withArchivedBefore), log('2026-01-05', { habit_move: true, habit_water: 8 })))
@@ -61,7 +66,7 @@ describe('habit completion', () => {
   });
 
   it('counts nowhere before its first period', () => {
-    const notYetStarted = { id: 'habit_future', label: 'Future', type: 'check', target: null, periods: open('2026-02-01') };
+    const notYetStarted = { id: 'habit_future', label: 'Future', type: 'check', periods: open('2026-02-01') };
     expect(completionRatio(/** @type {any} */ ([notYetStarted]), log('2026-01-05', { habit_future: true })))
       .toBe(0);
   });
@@ -99,7 +104,7 @@ describe('streak', () => {
   });
 
   it('does not let a stale tick before a habit\'s period start extend the streak', () => {
-    const lateStarter = { id: 'habit_late', label: 'Late', type: 'check', target: null, periods: open('2026-01-04') };
+    const lateStarter = { id: 'habit_late', label: 'Late', type: 'check', periods: open('2026-01-04') };
     const logs = [
       log('2026-01-02', { habit_late: true }),
       log('2026-01-03', { habit_late: true }),
@@ -121,8 +126,8 @@ describe('streak', () => {
 
   it('ignores days in an archived-then-restored gap when rating a habit', () => {
     const restarted = {
-      id: 'habit_restarted', label: 'Restarted', type: 'check', target: null,
-      periods: [{ from: '2026-01-01', to: '2026-01-03' }, { from: '2026-01-05', to: null }],
+      id: 'habit_restarted', label: 'Restarted', type: 'check',
+      periods: [{ from: '2026-01-01', to: '2026-01-03', days: ALL_DAYS, target: null }, { from: '2026-01-05', to: null, days: ALL_DAYS, target: null }],
     };
     const logs = [
       log('2026-01-02', { habit_restarted: true }),
@@ -158,7 +163,7 @@ describe('history heatmap', () => {
   });
 
   it('closes each band at its own boundary', () => {
-    const thirds = { id: 'habit_thirds', label: 'Thirds', type: 'counter', target: 3, periods: open('2026-01-01') };
+    const thirds = { id: 'habit_thirds', label: 'Thirds', type: 'counter', periods: open('2026-01-01', 3) };
     const logs = [
       log('2026-01-01', { habit_thirds: 1 }),
       log('2026-01-02', { habit_thirds: 2 }),
@@ -170,15 +175,15 @@ describe('history heatmap', () => {
   });
 
   it('has no cell on the days before a habit was created', () => {
-    const born = { id: 'habit_new', label: 'New', type: 'check', target: null, periods: open('2026-01-04') };
+    const born = { id: 'habit_new', label: 'New', type: 'check', periods: open('2026-01-04') };
     const [row] = historyRows(/** @type {any} */ ([born]), /** @type {any} */ (windowLogs));
     expect(states(row)).toEqual(['inactive', 'inactive', 'inactive', 'zero', 'zero']);
   });
 
   it('has no cell while a habit was archived, and cells again after a restore', () => {
     const restarted = {
-      id: 'habit_restarted', label: 'Restarted', type: 'check', target: null,
-      periods: [{ from: '2026-01-01', to: '2026-01-02' }, { from: '2026-01-05', to: null }],
+      id: 'habit_restarted', label: 'Restarted', type: 'check',
+      periods: [{ from: '2026-01-01', to: '2026-01-02', days: ALL_DAYS, target: null }, { from: '2026-01-05', to: null, days: ALL_DAYS, target: null }],
     };
     const [row] = historyRows(/** @type {any} */ ([restarted]), /** @type {any} */ (windowLogs));
     expect(states(row)).toEqual(['zero', 'inactive', 'inactive', 'inactive', 'zero']);
@@ -186,8 +191,8 @@ describe('history heatmap', () => {
 
   it('keeps an archived habit\'s row, labelled archived, when it was active in the window', () => {
     const archived = {
-      id: 'habit_old', label: 'Old', type: 'check', target: null,
-      periods: [{ from: '2026-01-01', to: '2026-01-03' }],
+      id: 'habit_old', label: 'Old', type: 'check',
+      periods: [{ from: '2026-01-01', to: '2026-01-03', days: ALL_DAYS, target: null }],
     };
     const rows = historyRows(/** @type {any} */ ([...habits, archived]), /** @type {any} */ (windowLogs));
 
@@ -197,8 +202,8 @@ describe('history heatmap', () => {
 
   it('drops a habit that was active on no day of the window', () => {
     const gone = {
-      id: 'habit_gone', label: 'Gone', type: 'check', target: null,
-      periods: [{ from: '2025-12-01', to: '2025-12-20' }],
+      id: 'habit_gone', label: 'Gone', type: 'check',
+      periods: [{ from: '2025-12-01', to: '2025-12-20', days: ALL_DAYS, target: null }],
     };
     expect(historyRows(/** @type {any} */ ([gone]), /** @type {any} */ (windowLogs))).toEqual([]);
   });
@@ -221,7 +226,7 @@ describe('history heatmap', () => {
     expect(water.ratedDays).toBe(4);
 
     // Active on the window's last day, but that day holds nothing recorded.
-    const born = { id: 'habit_new', label: 'New', type: 'check', target: null, periods: open('2026-01-03') };
+    const born = { id: 'habit_new', label: 'New', type: 'check', periods: open('2026-01-03') };
     const [row] = historyRows(/** @type {any} */ ([born]), /** @type {any} */ ([log('2026-01-03', {}), log('2026-01-04', {})]));
     expect(row.ratedDays).toBe(0);
     expect(row.rate).toBe(0);
@@ -279,7 +284,7 @@ describe('windowSummary', () => {
     // past, which docs/spec.md says it never does -- and would disagree
     // with the heatmap's own rate for the same window.
     const archivedToday = [
-      { ...habits[0], periods: [{ from: '2026-01-01', to: '2026-01-05' }] },
+      { ...habits[0], periods: [{ from: '2026-01-01', to: '2026-01-05', days: ALL_DAYS, target: null }] },
     ];
     const summary = windowSummary(/** @type {any} */ (archivedToday), /** @type {any} */ ([
       log('2026-01-04', { habit_move: true }),
@@ -294,7 +299,7 @@ describe('windowSummary', () => {
   it('stops counting a habit archived mid-window, so the days after it stay perfect', () => {
     const archivedMidWindow = [
       habits[0],
-      { ...habits[1], periods: [{ from: '2026-01-01', to: '2026-01-05' }] },
+      { ...habits[1], periods: [{ from: '2026-01-01', to: '2026-01-05', days: ALL_DAYS, target: 8 }] },
     ];
     const summary = windowSummary(/** @type {any} */ (archivedMidWindow), /** @type {any} */ ([
       log('2026-01-04', { habit_move: true, habit_water: 8 }),
@@ -307,32 +312,32 @@ describe('windowSummary', () => {
 });
 
 describe('justCompleted', () => {
-  const check = { id: 'habit_move', label: 'Move', type: 'check', target: null, periods: open('2026-01-01') };
-  const counter = { id: 'habit_water', label: 'Water', type: 'counter', target: 8, periods: open('2026-01-01') };
+  const check = { id: 'habit_move', label: 'Move', type: 'check', periods: open('2026-01-01') };
+  const counter = { id: 'habit_water', label: 'Water', type: 'counter', periods: open('2026-01-01', 8) };
 
   it('fires when a check flips from unset to true', () => {
-    expect(justCompleted(/** @type {any} */ (check), undefined, true)).toBe(true);
+    expect(justCompleted(/** @type {any} */ (check), '2026-01-05', undefined, true)).toBe(true);
   });
 
   it('does not fire on untick', () => {
-    expect(justCompleted(/** @type {any} */ (check), true, false)).toBe(false);
+    expect(justCompleted(/** @type {any} */ (check), '2026-01-05', true, false)).toBe(false);
   });
 
   it('does not fire twice for a check already true', () => {
-    expect(justCompleted(/** @type {any} */ (check), true, true)).toBe(false);
+    expect(justCompleted(/** @type {any} */ (check), '2026-01-05', true, true)).toBe(false);
   });
 
   it('fires only when a counter reaches its target, not on an intermediate step', () => {
-    expect(justCompleted(/** @type {any} */ (counter), 3, 4)).toBe(false);
-    expect(justCompleted(/** @type {any} */ (counter), 7, 8)).toBe(true);
+    expect(justCompleted(/** @type {any} */ (counter), '2026-01-05', 3, 4)).toBe(false);
+    expect(justCompleted(/** @type {any} */ (counter), '2026-01-05', 7, 8)).toBe(true);
   });
 
   it('does not fire when a counter was already at or past target', () => {
-    expect(justCompleted(/** @type {any} */ (counter), 8, 9)).toBe(false);
+    expect(justCompleted(/** @type {any} */ (counter), '2026-01-05', 8, 9)).toBe(false);
   });
 
   it('does not fire on a decrement, even one that stays at or above target', () => {
-    expect(justCompleted(/** @type {any} */ (counter), 9, 8)).toBe(false);
+    expect(justCompleted(/** @type {any} */ (counter), '2026-01-05', 9, 8)).toBe(false);
   });
 });
 
@@ -427,5 +432,49 @@ describe('nutrition', () => {
       days: { calories: 0, protein: 0, carbs: 0, fat: 0 },
       recordedDays: 0, withoutNumbers: 0,
     });
+  });
+});
+
+describe('a target change (ADR 0029)', () => {
+  /** Water was 8 glasses until the 3rd, and 10 from then on. */
+  const raised = {
+    id: 'habit_water', label: 'Water', type: 'counter',
+    periods: [
+      { from: '2026-01-01', to: '2026-01-03', days: ALL_DAYS, target: 8 },
+      { from: '2026-01-03', to: null, days: ALL_DAYS, target: 10 },
+    ],
+  };
+  const logs = [
+    log('2026-01-01', { habit_water: 8 }),
+    log('2026-01-02', { habit_water: 8 }),
+    log('2026-01-03', { habit_water: 8 }),
+    log('2026-01-04', { habit_water: 10 }),
+  ];
+
+  it('measures a day before it against the old target in completion', () => {
+    expect(completionRatio(/** @type {any} */ ([raised]), /** @type {any} */ (logs[1]))).toBe(1);
+    expect(completionRatio(/** @type {any} */ ([raised]), /** @type {any} */ (logs[2]))).toBeCloseTo(0.8);
+  });
+
+  it('keeps the old shade in the heatmap, and carries each day\'s own target for its correction', () => {
+    const [row] = historyRows(/** @type {any} */ ([raised]), /** @type {any} */ (logs));
+    expect(row.cells.map((cell) => cell.state)).toEqual(['full', 'full', 'high', 'full']);
+    expect(row.cells.map((cell) => cell.target)).toEqual([8, 8, 10, 10]);
+  });
+
+  it('rates the habit day by day against the target each day had', () => {
+    // (8/8 + 8/8 + 8/10 + 10/10) / 4
+    expect(ratesByHabit(/** @type {any} */ ([raised]), /** @type {any} */ (logs)).habit_water).toBeCloseTo(0.95);
+  });
+
+  it('counts the days before it as perfect in the summary', () => {
+    const summary = windowSummary(/** @type {any} */ ([raised]), /** @type {any} */ (logs));
+    expect(summary.perfectDays).toBe(3);
+    expect(summary.completion).toBeCloseTo(0.95);
+  });
+
+  it('fires the tick on the target of the day written', () => {
+    expect(justCompleted(/** @type {any} */ (raised), '2026-01-02', 7, 8)).toBe(true);
+    expect(justCompleted(/** @type {any} */ (raised), '2026-01-04', 7, 8)).toBe(false);
   });
 });

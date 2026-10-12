@@ -80,7 +80,7 @@ describe('POST /api/habits', () => {
 
   it('creates a counter habit with its target', async () => {
     const response = await post({ label: 'Pages read', type: 'counter', target: 20 });
-    expect((await response.json()).habit.target).toBe(20);
+    expect((await response.json()).habit.periods.at(-1).target).toBe(20);
   });
 
   it('rejects a bad label, type or target', async () => {
@@ -105,7 +105,7 @@ describe('PATCH /api/habits/[id]', () => {
 
     const saved = await habits();
     expect(saved.find((habit) => habit.id === 'habit_move')?.label).toBe('Move for 45 minutes');
-    expect(saved.find((habit) => habit.id === 'habit_water')?.target).toBe(10);
+    expect(saved.find((habit) => habit.id === 'habit_water')?.periods.at(-1)?.target).toBe(10);
   });
 
   it('rejects a change of type', async () => {

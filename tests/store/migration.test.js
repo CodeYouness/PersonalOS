@@ -138,7 +138,7 @@ describe('migration v1 to v2', () => {
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.profile.baseCurrency).toBe('EUR');
     expect(migrated.profile.habits[0].archived).toBeUndefined();
-    expect(migrated.profile.habits[0].periods).toEqual([{ from: '2026-01-05', to: null }]);
+    expect(migrated.profile.habits[0].periods).toMatchObject([{ from: '2026-01-05', to: null }]);
   });
 
   it('keeps the daily logs untouched', () => {
@@ -256,7 +256,7 @@ describe('migration v4 to v5', () => {
     const migrated = migrate(v4Document());
     const move = migrated.profile.habits.find((/** @type {any} */ habit) => habit.id === 'habit_move');
 
-    expect(move.periods).toEqual([{ from: '2026-01-04', to: null }]);
+    expect(move.periods).toMatchObject([{ from: '2026-01-04', to: null }]);
     expect(move.archived).toBeUndefined();
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
   });
@@ -265,14 +265,14 @@ describe('migration v4 to v5', () => {
     const migrated = migrate(v4Document());
     const water = migrated.profile.habits.find((/** @type {any} */ habit) => habit.id === 'habit_water');
 
-    expect(water.periods).toEqual([{ from: '2026-01-05', to: '2026-09-15' }]);
+    expect(water.periods).toMatchObject([{ from: '2026-01-05', to: '2026-09-15' }]);
   });
 
   it('opens a never-recorded habit\'s period today', () => {
     const migrated = migrate(v4Document());
     const fresh = migrated.profile.habits.find((/** @type {any} */ habit) => habit.id === 'habit_new');
 
-    expect(fresh.periods).toEqual([{ from: '2026-09-15', to: null }]);
+    expect(fresh.periods).toMatchObject([{ from: '2026-09-15', to: null }]);
   });
 
   it('is idempotent', () => {
@@ -781,6 +781,65 @@ describe('migration v14 to v15', () => {
 
   it('is idempotent', () => {
     const once = migrate(v14Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});
+
+describe('migration v15 to v16', () => {
+  /** A v15 document: a habit's target is its own, and a period is a range only. */
+  const v15Document = () => {
+    const migrated = migrate(v12Document());
+    return {
+      ...migrated,
+      schemaVersion: 15,
+      profile: {
+        ...migrated.profile,
+        habits: [
+          {
+            id: 'habit_move', label: 'Move', type: 'check', target: null,
+            periods: [{ from: '2026-01-01', to: '2026-02-01' }, { from: '2026-03-01', to: null }],
+          },
+          { id: 'habit_water', label: 'Water', type: 'counter', target: 8, periods: [{ from: '2026-01-01', to: null }] },
+        ],
+      },
+      dailyLogs: {
+        '2026-01-05': { date: '2026-01-05', habits: { habit_move: true, habit_water: 8 }, meals: [], measurements: [], notes: [] },
+      },
+    };
+  };
+
+  it('gives every period all seven days and the habit\'s target, and takes the target off the habit', () => {
+    const migrated = migrate(v15Document());
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.profile.habits).toEqual([
+      {
+        id: 'habit_move', label: 'Move', type: 'check',
+        periods: [
+          { from: '2026-01-01', to: '2026-02-01', days: [1, 2, 3, 4, 5, 6, 7], target: null },
+          { from: '2026-03-01', to: null, days: [1, 2, 3, 4, 5, 6, 7], target: null },
+        ],
+      },
+      {
+        id: 'habit_water', label: 'Water', type: 'counter',
+        periods: [{ from: '2026-01-01', to: null, days: [1, 2, 3, 4, 5, 6, 7], target: 8 }],
+      },
+    ]);
+  });
+
+  it('changes nothing else', () => {
+    const before = v15Document();
+    const { profile, schemaVersion, ...rest } = migrate(before);
+    const { profile: profileBefore, schemaVersion: versionBefore, ...restBefore } = before;
+
+    expect(rest).toEqual(restBefore);
+    const { habits, ...profileRest } = profile;
+    const { habits: habitsBefore, ...profileRestBefore } = profileBefore;
+    expect(profileRest).toEqual(profileRestBefore);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v15Document());
     expect(migrate(once)).toEqual(once);
   });
 });

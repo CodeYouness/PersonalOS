@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { isActiveOn } from '@/lib/domain/derive/habits.js';
+import { currentPeriod, isActiveOn } from '@/lib/domain/derive/habits.js';
 
 /**
  * The Habits screen's management card, ported from design/mockup.html's
@@ -198,11 +198,14 @@ export default function HabitsManager({ habits, todayKey }) {
 }
 
 /**
+ * The current target: the open period's, or the last one's when archived --
+ * what a restore reopens with (ADR 0029).
+ *
  * @param {import('@/lib/domain/types.js').Habit} habit
  * @returns {string}
  */
 function describeType(habit) {
-  return habit.type === 'check' ? 'check' : 'counter · target ' + habit.target;
+  return habit.type === 'check' ? 'check' : 'counter · target ' + currentPeriod(habit).target;
 }
 
 /**
@@ -222,7 +225,7 @@ function describeType(habit) {
  */
 function HabitEditor({ habit, isPending, disabled, onCancel, onSave }) {
   const [label, setLabel] = useState(habit.label);
-  const [target, setTarget] = useState(String(habit.target ?? ''));
+  const [target, setTarget] = useState(String(currentPeriod(habit).target ?? ''));
 
   return (
     <form
