@@ -638,11 +638,69 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .link-btn { color: var(--primary-hover); font-size: 12px; padding: 3px 6px; border-radius: var(--r-xs); }
 .link-btn:hover { background: var(--surface-3); }
 
-.state-legend { display: flex; justify-content: center; gap: var(--s-xs); margin-top: var(--s-xs); }
+/* --- Ask mode. A toggle in the bar; what you type is a question. ---------
+   The bar never guesses: with the toggle off a sentence is a capture. A
+   leading "?" turns it on and is not part of the question. */
+.ask-toggle { padding: 4px 10px; font-size: 12px; flex: none; }
+#capture-bar[data-mode="ask"] .ask-toggle {
+  border-color: var(--primary-hover); color: var(--primary-hover);
+}
+#capture-bar[data-mode="ask"] .capture-shell { border-color: var(--primary-hover); }
+#capture-bar[data-state="asking"] .capture-shell { border-color: var(--primary-hover); }
+#capture-bar[data-state="asking"] .status-asking { display: flex; color: var(--primary-hover); }
+#capture-bar[data-state="asking"] .capture-hint { display: none; }
+
+/* --- The answer panel. Above the bar, until you close it. ---------------
+   Statements, each followed by what it rests on. The panel belongs to the
+   bar, so it stays open when you follow a citation to another screen. */
+.answer {
+  display: none;
+  margin-bottom: var(--s-xs);
+  padding: var(--s-sm) var(--s-md);
+  max-height: 50vh; overflow-y: auto;
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-lg);
+}
+#capture-bar[data-answer="open"] .answer { display: block; }
+.answer-head { display: flex; align-items: center; gap: var(--s-xs); }
+.answer-head .eyebrow { flex: 1; }
+.answer-question { color: var(--ink-tertiary); font-size: 12px; margin: 3px 0 var(--s-sm); }
+.answer-outcome { display: none; }
+.answer[data-outcome="answer"] .outcome-answer,
+.answer[data-outcome="not-in-data"] .outcome-not-in-data,
+.answer[data-outcome="no-model"] .outcome-no-model,
+.answer[data-outcome="failed"] .outcome-failed,
+.answer[data-outcome="too-large"] .outcome-too-large { display: block; }
+.statement { padding: var(--s-xs) 0; border-bottom: 1px solid var(--hairline); }
+.statement:last-of-type { border-bottom: none; }
+.statement > p { font-size: 14px; }
+.cites { display: flex; flex-wrap: wrap; gap: var(--s-xxs); margin-top: 6px; }
+.cite {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 8px 2px 4px; border-radius: var(--r-xs);
+  border: 1px solid var(--hairline); background: var(--surface-2);
+  font-size: 12px; color: var(--ink-muted);
+}
+a.cite { text-decoration: none; }
+.cite:hover { border-color: var(--hairline-strong); color: var(--ink); }
+.cite[aria-expanded="true"] { border-color: var(--hairline-strong); background: var(--surface-3); }
+/* A citation with a screen is a link; one without expands in place. */
+.cite-detail {
+  display: none; margin-top: 6px; padding: var(--s-xs) var(--s-sm);
+  background: var(--surface-2); border-radius: var(--r-md);
+  font-size: 12px; color: var(--ink-subtle);
+}
+.answer[data-expanded="true"] .cite-detail { display: block; }
+.answer-note { display: none; margin-top: var(--s-xs); }
+.answer[data-left-out="true"] .note-left-out,
+.answer[data-summarised="true"] .note-summarised { display: block; }
+
+.state-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-xs); margin-top: var(--s-xs); }
 .state-legend button {
   padding: 3px 9px; border-radius: var(--r-xs);
   font-size: 10px; letter-spacing: 0.4px; text-transform: uppercase;
-  color: var(--ink-tertiary); border: 1px solid transparent;
+  color: var(--ink-tertiary); border: 1px solid transparent; white-space: nowrap;
 }
 .state-legend button:hover { color: var(--ink-subtle); border-color: var(--hairline); }
 .state-legend button.is-on { color: var(--ink-muted); border-color: var(--hairline-strong); background: var(--surface-2); }
@@ -1717,7 +1775,68 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 <!-- ===================================================================== -->
 <!-- CAPTURE BAR                                                           -->
 <!-- ===================================================================== -->
-<div id="capture-bar" data-state="idle">
+<div id="capture-bar" data-state="idle" data-mode="capture" data-answer="closed">
+
+  <!-- The answer: a list of statements, each with its citations. Mounted
+       once with the bar, so it survives moving between screens. -->
+  <div class="answer" id="answer" data-outcome="answer" data-expanded="false" data-left-out="false" data-summarised="false" role="region" aria-label="Answer">
+    <div class="answer-head">
+      <span class="eyebrow">Answer</span>
+      <button class="icon-btn" id="answer-close" aria-label="Close the answer">
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <p class="answer-question">&ldquo;How much did I spend on restaurants in September?&rdquo;</p>
+
+    <div class="answer-outcome outcome-answer">
+      <div class="statement">
+        <p>You spent &euro;212 on restaurants in September.</p>
+        <div class="cites">
+          <a class="cite" href="#"><span class="badge badge-est">Figure</span>Restaurants, Sep 2026</a>
+        </div>
+      </div>
+      <div class="statement">
+        <p>In August you spent &euro;180 on restaurants.</p>
+        <div class="cites">
+          <a class="cite" href="#"><span class="badge badge-est">Figure</span>Restaurants, Aug 2026</a>
+        </div>
+      </div>
+      <div class="statement">
+        <p>One of them was a table for Marta&rsquo;s birthday.</p>
+        <div class="cites">
+          <a class="cite" href="#"><span class="badge badge-tag">Transaction</span>Trattoria da Gino, 21 Sep</a>
+          <button class="cite" id="cite-expand" aria-expanded="false"><span class="badge badge-cold">Person</span>Marta Oliveira</button>
+        </div>
+        <!-- A citation with a screen is a link and the panel stays open behind it; a
+             record with no screen of its own (a capture, a person, a balance, an
+             event, the profile) expands in place. -->
+        <div class="cite-detail">Marta Oliveira &middot; client</div>
+      </div>
+      <div class="statement">
+        <p>You used to avoid calls before ten in the morning.</p>
+        <div class="cites">
+          <a class="cite" href="#"><span class="badge badge-warm">Memory &middot; expired</span>No calls before ten</a>
+          <a class="cite" href="#"><span class="badge badge-tag">Journal</span>3 Oct</a>
+        </div>
+      </div>
+      <div class="statement">
+        <p>The revised quote is still to send.</p>
+        <div class="cites">
+          <a class="cite" href="#"><span class="badge badge-tag">Task</span>Send the revised quote</a>
+        </div>
+      </div>
+      <p class="caption answer-note note-left-out">One statement was left out: it cited nothing.</p>
+      <p class="caption answer-note note-summarised">Transactions before June 2026 were read as monthly totals.</p>
+    </div>
+
+    <p class="caption answer-outcome outcome-not-in-data">Not in your data</p>
+    <p class="caption answer-outcome outcome-no-model">No model configured</p>
+    <p class="caption answer-outcome outcome-failed">
+      <span class="down">The model didn&rsquo;t answer.</span>
+      <button class="link-btn">Try again</button>
+    </p>
+    <p class="caption answer-outcome outcome-too-large">Too much data to ask over, even summarised. Nothing was sent.</p>
+  </div>
 
   <!-- The receipt: what was created, where, and who decided. -->
   <div class="receipt">
@@ -1738,11 +1857,13 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
         <path d="M3 7.5a5 5 0 0 0 10 0M8 12.5V14.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
       </svg>
     </button>
+    <button class="btn-ghost ask-toggle" id="ask-toggle" aria-pressed="false">Ask</button>
     <input class="capture-input" id="capture-input" placeholder="Say it once — or ask a question">
 
     <div class="capture-hint"><span class="kbd">↵</span></div>
     <div class="capture-status status-listening"><i class="pulse"></i>Listening</div>
     <div class="capture-status status-processing"><i class="spinner"></i>Filing</div>
+    <div class="capture-status status-asking"><i class="spinner"></i>Asking</div>
     <div class="capture-status status-done">
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
         <path d="M2 6.3l2.7 2.7L10 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1758,6 +1879,17 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
     <button data-set="listening">listening</button>
     <button data-set="processing">processing</button>
     <button data-set="done">done</button>
+  </div>
+  <div class="state-legend" id="ask-legend">
+    <button data-ask="asking">asking</button>
+    <button data-ask="answer">answer</button>
+    <button data-ask="expanded">citation expanded</button>
+    <button data-ask="left-out">left out</button>
+    <button data-ask="summarised">summarised</button>
+    <button data-ask="not-in-data">not in your data</button>
+    <button data-ask="no-model">no model</button>
+    <button data-ask="failed">failed</button>
+    <button data-ask="too-large">too large</button>
   </div>
 </div>
 
@@ -1818,8 +1950,80 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
     setTimeout(function () { setState('idle'); }, 6600);
   });
 
-  document.getElementById('capture-input').addEventListener('keydown', function (event) {
+  // Ask mode: a toggle, or a leading "?" -- never guessed from the sentence.
+  var input = document.getElementById('capture-input');
+  var toggle = document.getElementById('ask-toggle');
+  var answer = document.getElementById('answer');
+  var askLegend = document.getElementById('ask-legend');
+
+  function setMode(mode) {
+    bar.dataset.mode = mode;
+    toggle.setAttribute('aria-pressed', String(mode === 'ask'));
+  }
+  toggle.addEventListener('click', function () {
+    setMode(bar.dataset.mode === 'ask' ? 'capture' : 'ask');
+  });
+  input.addEventListener('input', function () {
+    if (bar.dataset.mode !== 'ask' && input.value.charAt(0) === '?') {
+      setMode('ask');
+      input.value = input.value.slice(1);
+    }
+  });
+
+  // The answer states. In the app they are the outcome of one questions
+  // request; "expanded", "left out" and "summarised" are variations of an
+  // answer, so one outcome can wear several.
+  function showAnswer(which) {
+    var outcome = ['not-in-data', 'no-model', 'failed', 'too-large'].indexOf(which) >= 0 ? which : 'answer';
+    answer.dataset.outcome = outcome;
+    answer.dataset.expanded = String(which === 'expanded');
+    answer.dataset.leftOut = String(which === 'left-out');
+    answer.dataset.summarised = String(which === 'summarised');
+    document.getElementById('cite-expand').setAttribute('aria-expanded', String(which === 'expanded'));
+    bar.dataset.answer = 'open';
+    setMode('capture');
+    setState('idle');
+    askLegend.querySelectorAll('button').forEach(function (button) {
+      button.classList.toggle('is-on', button.dataset.ask === which);
+    });
+  }
+  askLegend.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-ask]');
+    if (!button) return;
+    if (button.dataset.ask === 'asking') {
+      setMode('ask');
+      setState('asking');
+      askLegend.querySelectorAll('button').forEach(function (other) {
+        other.classList.toggle('is-on', other === button);
+      });
+    } else {
+      showAnswer(button.dataset.ask);
+    }
+  });
+  document.getElementById('cite-expand').addEventListener('click', function () {
+    showAnswer(answer.dataset.expanded === 'true' ? 'answer' : 'expanded');
+  });
+  answer.querySelector('.outcome-failed .link-btn').addEventListener('click', function () {
+    setMode('ask');
+    setState('asking');
+    setTimeout(function () { showAnswer('answer'); }, 1200);
+  });
+  answer.addEventListener('click', function (event) {
+    if (event.target.closest('a.cite')) event.preventDefault(); // mockup: no screen to open
+  });
+  document.getElementById('answer-close').addEventListener('click', function () {
+    bar.dataset.answer = 'closed';
+    askLegend.querySelectorAll('button').forEach(function (button) { button.classList.remove('is-on'); });
+  });
+
+  input.addEventListener('keydown', function (event) {
     if (event.key !== 'Enter') return;
+    if (bar.dataset.mode === 'ask') {
+      if (!input.value.trim()) return; // an empty question is refused
+      setState('asking');
+      setTimeout(function () { showAnswer('answer'); }, 1200);
+      return;
+    }
     setState('processing');
     setTimeout(function () { setState('done'); }, 1200);
     setTimeout(function () { setState('idle'); }, 5200);
