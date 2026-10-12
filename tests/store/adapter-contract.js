@@ -190,6 +190,20 @@ export function runAdapterContract(label, load) {
         expect(second.periods.at(-1)).toEqual({ ...first.periods.at(-1), target: 12 });
       });
 
+      it('changing the target back on the same day leaves the habit as it was that morning', async () => {
+        const before = (await store.getProfile()).habits.find((habit) => habit.id === 'habit_water');
+        const target = /** @type {number} */ (before?.periods.at(-1)?.target);
+
+        await store.updateHabit('habit_water', { target: target + 2 });
+        expect(await store.updateHabit('habit_water', { target })).toEqual(before);
+      });
+
+      it('refuses a change and an archive or a restore in one patch: restore first, then change', async () => {
+        await expect(store.updateHabit('habit_water', { archived: true, target: 10 })).rejects.toThrow(/restore/);
+        await store.updateHabit('habit_water', { archived: true });
+        await expect(store.updateHabit('habit_water', { archived: false, target: 10 })).rejects.toThrow(/restore/);
+      });
+
       it('saving the target already there changes nothing', async () => {
         const before = (await store.getProfile()).habits.find((habit) => habit.id === 'habit_water');
         const current = before?.periods.at(-1)?.target;

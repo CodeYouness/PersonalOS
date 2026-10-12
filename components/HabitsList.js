@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { periodOn } from '@/lib/domain/derive/habits.js';
+import { targetOn } from '@/lib/domain/derive/habits.js';
 
 /**
  * The compact Habits card's tap targets, ported from design/mockup.html's
@@ -74,7 +74,7 @@ export default function HabitsList({ habits, todayKey, values: initialValues }) 
           <CounterRow
             key={habit.id}
             habit={habit}
-            target={periodOn(habit, todayKey)?.target ?? 0}
+            target={targetOn(habit, todayKey)}
             count={typeof value === 'number' ? value : 0}
             disabled={isPending}
             onChange={save}

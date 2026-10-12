@@ -623,8 +623,10 @@ counter, the target it is measured against. Changing either closes the current
 period and opens a new one, so a past day is always measured against the
 schedule and the target it had — never against today's (ADR 0029). A change
 counts from today, like archiving and restoring; a second change on the same
-day amends the period opened today rather than leaving an empty one behind.
-Restoring reopens with the last period's days and target.
+day amends the period opened today rather than leaving an empty one behind,
+and changing it back that day leaves the habit as it was that morning.
+Restoring reopens with the last period's days and target; a habit is restored
+first and changed after, never both in one write.
 
 Three words for a habit on a given day:
 
