@@ -774,6 +774,20 @@ export function runAdapterContract(label, load) {
         expect(logs[0].meals).toEqual([]);
       });
 
+      it('lists every day that holds a log, oldest first, so a reader can take the whole archive', async () => {
+        // The seed holds days of its own; a day written later sorts among them.
+        await store.updateDailyLog('2026-04-02', { habits: { habit_move: true } });
+        await store.updateDailyLog('2026-03-30', { habits: { habit_move: true } });
+        const days = await store.getLoggedDays();
+
+        expect(days).toEqual([...days].sort());
+        expect(days).toEqual(expect.arrayContaining(['2026-03-30', '2026-04-02']));
+        expect(days.indexOf('2026-03-30')).toBeLessThan(days.indexOf('2026-04-02'));
+        expect(await store.getDailyLogs(days[0], days[days.length - 1])).toHaveLength(
+          (Date.parse(days[days.length - 1]) - Date.parse(days[0])) / 86_400_000 + 1
+        );
+      });
+
       it('rejects an unknown field in a patch', async () => {
         await expect(
           store.updateDailyLog('2026-04-02', { mood: 'good' })

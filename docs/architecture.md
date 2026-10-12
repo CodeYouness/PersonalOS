@@ -113,20 +113,41 @@ throws if it is.
 - **Cards.** Each owns a screen section and its own API route, and never
   reaches into another card's data.
 
+## The AI context layer
+
+`lib/ai/context/` (#172, ADR 0028) is what the model is allowed to know when
+it answers. It is built for questions first; the classifier and extraction
+keep their own prompts until they move. One entry point:
+
+```
+buildContext('question') -> { today, week: { from, to }, timezone, trackedSince, items }
+item = { id, type, label, content, labels }
+```
+
+An item is one thing a screen shows, written as plain text and cited by `id`:
+the record's own reference, or `profile`. `read.js` reads every collection
+whole through `lib/store.js` -- no default page, no window -- because "not in
+your data" is a claim about the whole archive; `getLoggedDays` exists so the
+day-keyed daily logs can be read that way. `build.js` is pure: links become
+words on the records they join, a capture that filed a record rides on it, a
+memory that only repeats its capture is left out, and `labels` say how a
+record stands (`done`, `archived`, `expired`, `unconfirmed`). A computed
+number is never written a second time: an account's value comes from
+`accountValueOn` (rule 6). Event payloads are not sent beyond a short list of
+vocabulary keys, since one of them holds the sentence of a deleted capture.
+
+The route is `POST /api/questions`: it validates the question
+(`limits.questionMaxChars`), builds the context, and hands both to
+`lib/answer.js`, which asks the model through one forced tool and checks what
+comes back. It writes nothing. Loading a page never reaches it (rule 3).
+
+The rule the layer exists to establish: **no feature builds its own prompt.**
+A feature asks for context and passes it to a prompt module. Without that,
+every new card invents its own retrieval and its own token budget, and
+changing what the AI knows means editing fifteen files. Still to come: the
+token budget and summarising (#175), computed figures (#174).
+
 ## Planned, not built
-
-**AI context layer.** A future `lib/ai/context/`, built for questions first
-(#170, ADR 0028); the classifier and extraction keep their own prompts until
-they move. One entry point:
-
-```
-buildContext(intent, options) -> { profile, entities, memories, events, journal }
-```
-
-The rule it exists to establish: **no feature builds its own prompt.** A
-feature asks for context and passes it to a prompt module. Without that, every
-new card invents its own retrieval and its own token budget, and changing what
-the AI knows means editing fifteen files.
 
 **Demo mode.** `PERSONALOS_MODE=demo` pointing `DATA_DIR` at a read-only demo
 dataset with integrations disabled, so the difference between a demo and a

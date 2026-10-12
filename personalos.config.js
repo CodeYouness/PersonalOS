@@ -256,6 +256,19 @@ export const limits = Object.freeze({
    * like a bug.
    */
   answerMaxTokens: 3000,
+  /**
+   * The longest question the questions route takes (#172). A question is a
+   * sentence, not a document: the cap keeps a pasted page from becoming a
+   * model call, and is checked at the route, never by what the text says.
+   */
+  questionMaxChars: 1000,
+  /**
+   * How long the capture bar waits for an answer before it gives up (#172).
+   * A question reads the whole archive, so it is far slower than a capture;
+   * without a limit one that never settles would lock the bar -- captures
+   * included -- until the page is reloaded.
+   */
+  questionTimeoutMs: 90_000,
 });
 
 /**
