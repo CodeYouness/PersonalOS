@@ -115,8 +115,9 @@ before pushing. Git history does not forget.
 - A transfer between your own accounts is not spending. Aggregations exclude
   it, or your month doubles.
 - An account with no observation is unknown, not zero.
-- iCloud sync-conflict copies (`route 2.js`) are gitignored and skipped by the
-  checks, but `grep -r` reads them: search with `git grep`.
+- iCloud sync-conflict copies (`route 2.js`) are gitignored; lint and typecheck
+  skip them and `check:secrets` rejects a tracked one. `grep -r` still reads
+  them: search with `git grep`.
 - Next 16 changed APIs since most training data. If code that "should work"
   will not compile, read `node_modules/next/dist/docs/` before retrying.
 

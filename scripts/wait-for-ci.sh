@@ -9,11 +9,12 @@
 #
 #   scripts/wait-for-ci.sh <pr-number> <head-sha>     (abbreviated is fine)
 #
-# Read-only: it only calls gh (and git rev-parse). Exits 0 once at least one check run exists on
-# <head-sha>, every one has completed as success, skipped or neutral, and
-# the PR is CLEAN. Exits 1 on a failed check, conflicts, a PR head that is
-# still not <head-sha> after a minute, or WAIT_FOR_CI_TIMEOUT seconds
-# (default 1200). A gh call that fails -- a network blip -- is retried.
+# Read-only: it only calls gh (and git rev-parse). Exits 0 once at least one
+# check run exists on <head-sha>, every one has completed as success, skipped
+# or neutral, and the PR is CLEAN. Exits 1 on a failed check, conflicts, a PR
+# head that is still not <head-sha> after a minute, or WAIT_FOR_CI_TIMEOUT
+# seconds (default 1200). A gh call that fails -- a network blip -- is
+# retried.
 set -uo pipefail
 
 if [ "$#" -ne 2 ]; then

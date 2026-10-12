@@ -1,9 +1,11 @@
 import { fileURLToPath } from 'node:url';
 
-// `transformWithOxc` is only exported by vite, which vitest brings in; the
-// lockfile pins it, and it is the transform vitest itself runs on.
+// `transformWithOxc` is only exported by vite, so vite is a dependency of its
+// own here, and it is the transform vitest itself runs on.
 import { transformWithOxc } from 'vite';
 import { defineConfig } from 'vitest/config';
+
+const root = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   plugins: [
@@ -17,7 +19,7 @@ export default defineConfig({
       name: 'jsx-in-js',
       enforce: 'pre',
       transform(code, id) {
-        if (!/\/(components|app)\/[^?]*\.js$/.test(id)) return null;
+        if (!/\.js$/.test(id) || !['components/', 'app/'].some((dir) => id.startsWith(root + dir))) return null;
         return transformWithOxc(code, id, { lang: 'jsx', jsx: { runtime: 'automatic' } });
       },
     },
@@ -26,7 +28,7 @@ export default defineConfig({
     // Mirrors the "@/*" alias in jsconfig.json so tests import modules by the
     // same path the application does.
     alias: {
-      '@': fileURLToPath(new URL('.', import.meta.url)),
+      '@': root,
     },
   },
   test: {

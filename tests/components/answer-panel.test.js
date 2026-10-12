@@ -54,7 +54,7 @@ describe('AnswerPanel', () => {
     ['an address on another site', 'https://example.com/x'],
     ['a protocol-relative address', '//example.com/x'],
     ['a script', 'javascript:alert(1)'],
-  ])('never links %s: the citation expands in place instead', (_name, opens) => {
+  ])('never links %s: the citation is a closed button', (_name, opens) => {
     const html = render(answered([{ id: 'x_1', type: 'capture', label: 'A sentence', labels: [], opens, content: 'c' }]));
 
     expect(html).not.toContain('href=');
