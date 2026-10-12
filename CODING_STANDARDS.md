@@ -44,6 +44,13 @@ block) and `tests/app/route-conventions.test.js` (every route and page is
   the second component imports a card it has nothing to do with, and the
   helper is found only by remembering who wrote it first.
 
+- **A component that decides what to render has a render test.** A link or
+  a button, a note shown only sometimes, a retry offered only for some
+  failures: `renderToStaticMarkup`, as in `tests/components/answer-panel.test.js`.
+  Logic worth testing apart from the markup lives in a plain module next to
+  the component (`components/answerNotes.js`), but the markup that picks
+  between branches is tested where it is.
+
 - **A selection is tracked by id**, in the address (`?task=<id>`,
   `?goal=<id>`), never by index in a list: a capture can insert a row while
   a panel is open.

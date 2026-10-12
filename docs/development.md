@@ -54,6 +54,11 @@ Not a large suite. A net under the things that lie silently when they break:
 4. **Route handlers** -- called as functions against a real store pointed at
    a sandboxed, throwaway data directory. No HTTP server, no real model
    calls.
+5. **What a component renders** -- `renderToStaticMarkup` from
+   `react-dom/server`, no DOM: a link or a button, an aria attribute, a note
+   shown only sometimes (`tests/components/answer-panel.test.js`). `vitest.config.js`
+   lets a test import a component's JSX. It shows the first render only: what
+   happens after a click is still a check in the browser.
 
 Not tested: pixels, real model calls, coverage as a target.
 

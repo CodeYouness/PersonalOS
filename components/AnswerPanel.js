@@ -115,9 +115,11 @@ export default function AnswerPanel({ answer, onClose, onRetry }) {
           ))}
           {/* A statement the system would not stand behind is dropped, and the
               panel says so rather than letting the answer look complete. */}
-          <p className="caption answer-note note-left-out">
-            Something was left out: a statement cited nothing the system was shown.
-          </p>
+          {answer.leftOut === true && (
+            <p className="caption answer-note note-left-out">
+              Something was left out: a statement cited nothing the system was shown.
+            </p>
+          )}
           {summarised && <p className="caption answer-note note-summarised">{summarised}</p>}
         </div>
       )}
