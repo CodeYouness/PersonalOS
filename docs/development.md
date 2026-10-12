@@ -74,10 +74,10 @@ that matched nothing produces, and the default is your real data.
 `npm run dev:sandbox -- -p 3100`, driven with the Playwright MCP. What the
 tool will not tell you:
 
-- **The days.** The demo habit history is moved forward by whole weeks to end
-  in the week before today (`scripts/sandbox-seed.js`), so each day keeps its
-  weekday and Deep work's weekends stay days off. Meals, weights and notes
-  stay on their January days.
+- **The days.** The demo habit history is moved to end yesterday
+  (`scripts/sandbox-seed.js`), so the streak runs up to today and the weekends
+  in it are Deep work's days off. Meals, weights and notes stay on their
+  January days.
 - **One theme.** The app and the mockup are dark only; a light theme has
   nothing to check.
 - **The model.** The banner says `model: on` or `off`, and a key exported in

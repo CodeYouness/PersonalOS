@@ -8,6 +8,10 @@ month or day key sliced by hand outside `lib/domain/dates.js`, no empty
 block) and `tests/app/route-conventions.test.js` (every route and page is
 `force-dynamic`). `tests/lint/` holds the config's date rules in place. The non-negotiable rules in `CLAUDE.md` apply as well.
 
+A spec decides what a change does and what it proves; these standards decide
+how, and hold whatever a spec says -- a spec's testing section that names
+only the browser still leaves a new component its render test.
+
 ## Where a rule lives
 
 - **A domain refusal lives in the store or the adapter.** A route checks the
@@ -61,9 +65,7 @@ block) and `tests/app/route-conventions.test.js` (every route and page is
 - **A new component that decides what to render has a render test.** A link
   or a button, a note shown only sometimes, a retry offered only for some
   failures: `renderToStaticMarkup`, as in `tests/components/answer-panel.test.js`.
-  An older one gets its test when it is next changed. This holds whatever a
-  spec's testing section says: the spec decides what to prove, this decides
-  where.
+  An older one gets its test when it is next changed.
 
 - **A selection is tracked by id**, in the address (`?task=<id>`,
   `?goal=<id>`), never by index in a list: a capture can insert a row while
