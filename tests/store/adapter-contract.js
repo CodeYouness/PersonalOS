@@ -12,7 +12,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ADAPTER_METHODS } from '@/lib/adapters/contract.js';
-import { shiftDayKey, today } from '@/lib/domain/dates.js';
+import { shiftDayKey, today, weekdayOf } from '@/lib/domain/dates.js';
 import { isActiveOn } from '@/lib/domain/derive/habits.js';
 
 /** Every weekday, ISO 1 (Monday) to 7 (Sunday): a period that has no day off. */
@@ -150,6 +150,52 @@ export function runAdapterContract(label, load) {
       it('creates a counter habit with its target', async () => {
         const habit = await store.createHabit({ label: 'Pages read', type: 'counter', target: 20 });
         expect(habit.periods).toEqual([{ from: today(), to: null, days: ALL_DAYS, target: 20 }]);
+      });
+
+      it('creates a habit on the days it names, stored Monday first', async () => {
+        const habit = await store.createHabit({ label: 'Gym', type: 'check', target: null, days: [5, 1, 3] });
+        expect(habit.periods).toEqual([{ from: today(), to: null, days: [1, 3, 5], target: null }]);
+      });
+
+      it('refuses a create on no day, a weekday outside 1-7 or a repeated one', async () => {
+        for (const days of [[], [0], [8], [1, 1], [2.5], 'weekdays']) {
+          await expect(
+            store.createHabit(/** @type {any} */ ({ label: 'Gym', type: 'check', target: null, days }))
+          ).rejects.toThrow(/days/);
+        }
+      });
+
+      it('a change of days opens one period from today; days and target together are still one', async () => {
+        const before = (await store.getProfile()).habits.find((habit) => habit.id === 'habit_water');
+        const opened = before?.periods.at(-1);
+        if (opened === undefined || opened.from === today()) throw new Error('the seed water habit must start before today');
+
+        const changed = await store.updateHabit('habit_water', { days: [1, 3, 5], target: 10 });
+        expect(changed.periods).toEqual([
+          ...(before?.periods.slice(0, -1) ?? []),
+          { ...opened, to: today() },
+          { from: today(), to: null, days: [1, 3, 5], target: 10 },
+        ]);
+      });
+
+      it('a second change of days on the same day amends the period opened today', async () => {
+        const first = await store.updateHabit('habit_move', { days: [1, 3, 5] });
+        const second = await store.updateHabit('habit_move', { days: [2, 4] });
+
+        expect(second.periods).toHaveLength(first.periods.length);
+        expect(second.periods.at(-1)).toEqual({ ...first.periods.at(-1), days: [2, 4] });
+      });
+
+      it('saving the days already there, in any order, changes nothing', async () => {
+        const before = (await store.getProfile()).habits.find((habit) => habit.id === 'habit_move');
+        expect(await store.updateHabit('habit_move', { days: [7, 6, 5, 4, 3, 2, 1] })).toEqual(before);
+      });
+
+      it('refuses a change of days on an archived habit, and a malformed set of days', async () => {
+        await expect(store.updateHabit('habit_read', { days: [] })).rejects.toThrow(/days/);
+        await expect(store.updateHabit('habit_read', { days: [1, 1] })).rejects.toThrow(/days/);
+        await store.updateHabit('habit_read', { archived: true });
+        await expect(store.updateHabit('habit_read', { days: [1, 3, 5] })).rejects.toThrow(/restore/);
       });
 
       it('rejects a create with a bad label, type or target', async () => {
@@ -928,6 +974,24 @@ export function runAdapterContract(label, load) {
         await expect(
           store.logHabitValue({ date: tomorrow, habitId: 'habit_move', value: true })
         ).rejects.toThrow();
+      });
+
+      it('accepts a tick on a day off -- it happened -- and fires habit.ticked as on any day', async () => {
+        const dayOff = shiftDayKey(today(), -1);
+        const scheduled = [1, 2, 3, 4, 5, 6, 7].filter((day) => day !== weekdayOf(dayOff));
+        await store.updateProfile({
+          habits: [
+            {
+              id: 'habit_gym', label: 'Gym', type: 'check',
+              periods: [{ from: shiftDayKey(today(), -30), to: null, days: scheduled, target: null }],
+            },
+          ],
+        });
+
+        const log = await store.logHabitValue({ date: dayOff, habitId: 'habit_gym', value: true });
+        expect(log.habits).toEqual({ habit_gym: true });
+        const events = await store.getEvents({});
+        expect(events.filter((event) => event.type === 'habit.ticked' && event.subject === 'habit_gym')).toHaveLength(1);
       });
 
       it('rejects a day the habit was not active', async () => {

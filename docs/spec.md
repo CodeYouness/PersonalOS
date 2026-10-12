@@ -68,9 +68,18 @@ Rules that hold for all of them:
 "Where am I today", answered twice: a compact card on the home screen, and a
 Habits screen for managing the list and reading the history.
 
-**Every active habit, every day.** A habit is daily by definition; there is no
-per-weekday schedule. The home card shows all of them, with today's completion
-as a ring and the streak beside it.
+**A habit is kept on set days of the week** -- every day unless you say
+otherwise, the gym on Monday, Wednesday and Friday. On those days it is
+**scheduled**; on the others it has a **day off**: it exists, nothing is
+expected of it, and nothing counts against it (ADR 0029). The home card shows
+every active habit, with today's completion as a ring and the streak beside
+it.
+
+**A habit is measured only on the days it is scheduled.** Completion, perfect
+days, each habit's rate, the summary and the streak all count a habit only on
+its scheduled days. A tick on a day off is recorded and shown, because it
+happened, and counts toward nothing. A day with nothing scheduled neither
+extends nor breaks the streak.
 
 **Ticking.** A `check` flips on a tap. A `counter` goes +1 on a tap, with a
 separate "−" once it is above zero. It may go past its target -- ten glasses
@@ -85,18 +94,21 @@ habit was not active cannot be ticked.
 **A habit is active over periods of days.** Creating it opens a period;
 archiving closes it, the archive day excluded; restoring opens a new one. Every
 number -- completion, streak, rates, the heatmap -- counts a habit only on the
-days it was active, so archiving never rewrites the past, and the days a
-habit spent archived stay out of it after a restore. Nothing is deleted.
+days it was scheduled inside a period, so archiving never rewrites the past,
+and the days a habit spent archived stay out of it after a restore. Nothing is
+deleted.
 
-**What you can change from the screen:** add a habit (label, type, target),
-rename it, change a counter's target, archive or restore it, and move it up or
-down. The type never changes after creation -- archive it and make a new one.
-A new target counts from today: every day before it keeps the target it was
-measured against (ADR 0029).
+**What you can change from the screen:** add a habit (label, type, its days,
+target), rename it, change its days or a counter's target, archive or restore
+it, and move it up or down. The type never changes after creation -- archive
+it and make a new one. New days or a new target count from today: every day
+before keeps the days and the target it was measured against (ADR 0029). A
+habit needs at least one day; one expected on no day is archived instead.
 
 **History** is the last 30 days: one row per habit, one cell per day, and the
 rate for that row. A day with nothing recorded for any habit is drawn as "not
-recorded", never as a failure. The summary above it gives completion, perfect
+recorded", never as a failure, and a day off as a day off -- with or without
+something done on it. The summary above it gives completion, perfect
 days and days recorded over the same 30 days -- and the current streak, which
 is the running one the home card shows, not a number cut down to the window.
 
@@ -106,7 +118,10 @@ renaming and archiving a habit is configuration, not something that happened
 to you, and writes no event.
 
 Not yet: a period selector, the longest streak, per-habit streaks, ticking a
-habit from the capture bar, and linking a habit to a goal from the UI.
+habit from the capture bar, linking a habit to a goal from the UI and goal
+progress derived from a habit, a number of times per week ("three times, any
+days" -- not a schedule, by decision, ADR 0029), a day off on a date rather
+than a weekday, and showing a habit's past schedules.
 
 ## CRM
 

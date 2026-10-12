@@ -5,9 +5,10 @@ import { updateHabit } from '@/lib/store.js';
 export const dynamic = 'force-dynamic';
 
 /**
- * Rename a habit, change a counter's target, or archive and restore it
- * (#38). `type` is not among the fields the store accepts here and a patch
- * naming it is rejected, not ignored -- see HABIT_PATCH_FIELDS.
+ * Rename a habit, change its days (#185) or a counter's target -- from today,
+ * ADR 0029 -- or archive and restore it (#38). `type` is not among the
+ * fields the store accepts here and a patch naming it is rejected, not
+ * ignored -- see HABIT_PATCH_FIELDS.
  *
  * @param {Request} request
  * @param {{ params: Promise<{ id: string }> }} context

@@ -10,6 +10,7 @@ import * as shared from '@/lib/domain/format.js';
 describe('the formats the screens and the figures share', () => {
   it.each([
     'dayKeyToUtcDate',
+    'daysLabel',
     'formatChange',
     'formatCount',
     'formatPercentChange',
@@ -31,5 +32,11 @@ describe('the formats the screens and the figures share', () => {
 
   it('names a month in full', () => {
     expect(shared.monthLabel('2026-09')).toBe('September 2026');
+  });
+
+  it('names a habit\'s days Monday first, or says every day', () => {
+    expect(shared.daysLabel([1, 2, 3, 4, 5, 6, 7])).toBe('Every day');
+    expect(shared.daysLabel([1, 3, 5])).toBe('Mon Wed Fri');
+    expect(shared.daysLabel([6, 7])).toBe('Sat Sun');
   });
 });

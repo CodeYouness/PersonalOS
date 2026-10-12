@@ -379,7 +379,9 @@ button:disabled { cursor: not-allowed; }
 .habit-manage .actions { display: flex; gap: 4px; margin-left: auto; }
 .habit-manage .move { display: flex; flex-direction: column; gap: 1px; flex: none; }
 .habit-manage.is-archived .habit-name { color: var(--ink-subtle); }
-.habit-manage.is-editing { gap: var(--s-xs); }
+.habit-manage.is-editing { flex-wrap: wrap; gap: var(--s-xs); }
+.habit-manage.is-editing .input:not(.input-target) { flex: 1; min-width: 140px; }
+.edit-note { flex-basis: 100%; }
 .icon-btn {
   width: 26px; height: 26px; border-radius: var(--r-sm);
   display: flex; align-items: center; justify-content: center;
@@ -391,9 +393,22 @@ button:disabled { cursor: not-allowed; }
 .icon-btn:disabled { opacity: 0.35; }
 .habit-manage .move .icon-btn { height: 16px; }
 .add-habit {
-  display: flex; gap: var(--s-xs); align-items: center; margin-top: var(--s-sm);
+  display: flex; flex-wrap: wrap; gap: var(--s-xs); align-items: center; margin-top: var(--s-sm);
   padding-top: var(--s-sm); border-top: 1px solid var(--hairline);
 }
+.add-habit .input:not(.input-target) { flex: 1; min-width: 160px; }
+/* The weekday picker, Monday to Sunday (#185). It takes a line of its own in
+   the add form and the editor; the last day on is disabled, because a habit
+   expected on no day is an archived one (ADR 0029). */
+.weekdays { display: flex; gap: 2px; flex-basis: 100%; }
+.weekdays button {
+  flex: 1; max-width: 44px; height: 26px; padding: 0; border-radius: var(--r-xs);
+  border: 1px solid var(--hairline); background: none;
+  font-size: 11px; color: var(--ink-tertiary);
+}
+.weekdays button:hover:not(:disabled) { border-color: var(--hairline-strong); color: var(--ink-subtle); }
+.weekdays button[aria-pressed="true"] { background: var(--surface-3); border-color: var(--hairline-strong); color: var(--ink); }
+.weekdays button:disabled { cursor: default; }
 .input-target { width: 72px; flex: none; text-align: right; }
 .manage-note { margin-top: var(--s-sm); }
 .caption.is-error { color: var(--danger); margin-bottom: var(--s-sm); }
@@ -428,12 +443,22 @@ button:disabled { cursor: not-allowed; }
 .heat-cell[data-v="mid"]  { background: rgba(89,212,153,0.40); }
 .heat-cell[data-v="high"] { background: rgba(89,212,153,0.62); }
 .heat-cell[data-v="full"] { background: var(--success); }
+/* A day off is hatched -- unlike a day the habit did not exist (blank) or a
+   day nothing was recorded (outlined). Something done on a day off keeps the
+   hatching and gains a green outline: it happened, and it is not filled
+   because it counts toward nothing (ADR 0029). */
+.heat-cell[data-v="off"],
+.heat-cell[data-v="off-done"] {
+  background: repeating-linear-gradient(135deg, var(--hairline-strong) 0 1px, transparent 1px 4px);
+}
+.heat-cell[data-v="off-done"] { box-shadow: inset 0 0 0 1px var(--success); }
 button.heat-cell:hover:not(:disabled) { box-shadow: 0 0 0 1px var(--hairline-strong); }
 button.heat-cell:focus-visible { outline: 2px solid var(--hairline-strong); outline-offset: 1px; }
 button.heat-cell:disabled { opacity: 0.45; }
 .heat-rate { width: 44px; flex: none; font-size: 13px; text-align: right; }
 .heat-legend { display: flex; align-items: center; gap: var(--s-xs); font-size: 11px; color: var(--ink-tertiary); }
 .heat-legend .heat-cell { width: 12px; height: 12px; flex: none; }
+.heat-legend .sep { width: 1px; height: 12px; background: var(--hairline); margin: 0 2px; }
 .heat-pop {
   position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
   z-index: 20; display: flex; align-items: center; gap: var(--s-xs);

@@ -12,6 +12,7 @@ import {
   shiftMonth,
   toDayKey,
   weekDayKeys,
+  weekdayOf,
 } from '@/lib/domain/dates.js';
 
 describe('toDayKey', () => {
@@ -138,6 +139,23 @@ describe('weekDayKeys', () => {
 
   it('rejects an invalid day key', () => {
     expect(() => weekDayKeys('2026-02-30')).toThrow();
+  });
+});
+
+describe('weekdayOf', () => {
+  it('numbers the weekday the ISO way, 1 for Monday to 7 for Sunday', () => {
+    expect(weekdayOf('2026-10-12')).toBe(1);
+    expect(weekdayOf('2026-10-14')).toBe(3);
+    expect(weekdayOf('2026-10-18')).toBe(7);
+  });
+
+  it('depends on the day key alone, across a daylight saving change', () => {
+    expect(weekdayOf('2026-10-25')).toBe(7);
+    expect(weekdayOf('2026-10-26')).toBe(1);
+  });
+
+  it('refuses something that is not a day key', () => {
+    expect(() => weekdayOf('2026-13-01')).toThrow();
   });
 });
 
