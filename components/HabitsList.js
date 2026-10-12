@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { periodOn } from '@/lib/domain/derive/habits.js';
+
 /**
  * The compact Habits card's tap targets, ported from design/mockup.html's
  * `#card-habits` list. A tap updates this row's value immediately, then PUTs
@@ -72,6 +74,7 @@ export default function HabitsList({ habits, todayKey, values: initialValues }) 
           <CounterRow
             key={habit.id}
             habit={habit}
+            target={periodOn(habit, todayKey)?.target ?? 0}
             count={typeof value === 'number' ? value : 0}
             disabled={isPending}
             onChange={save}
@@ -120,15 +123,17 @@ function CheckRow({ habit, done, disabled, onToggle }) {
 }
 
 /**
+ * `target` is today's -- the one today is counted against (ADR 0029).
+ *
  * @param {{
  *   habit: import('@/lib/domain/types.js').Habit,
+ *   target: number,
  *   count: number,
  *   disabled: boolean,
  *   onChange: (habitId: string, value: number) => void,
  * }} props
  */
-function CounterRow({ habit, count, disabled, onChange }) {
-  const target = habit.target ?? 0;
+function CounterRow({ habit, target, count, disabled, onChange }) {
   const done = target > 0 && count >= target;
   const percent = target > 0 ? Math.min((count / target) * 100, 100) : 0;
 
