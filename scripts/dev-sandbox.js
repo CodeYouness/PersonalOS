@@ -10,6 +10,8 @@
  *
  * Arguments pass through to `next dev`: `npm run dev:sandbox -- -p 3100`.
  *
+ * The sandbox's demo habit history ends yesterday: scripts/sandbox-seed.js.
+ *
  * The sandbox follows data/seed.json. When it changes -- a branch switch to
  * another schema version, an edit to the demo data -- the new seed is copied
  * in and the working copy dropped, so the next request rebuilds from it.
@@ -19,17 +21,15 @@
 
 import { spawn } from 'node:child_process';
 import { unwatchFile, watchFile } from 'node:fs';
-import { copyFile, mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import nextEnv from '@next/env';
 
-import { readModelSettings } from '../lib/config/variables.js';
-
-const sandbox = await mkdtemp(path.join(tmpdir(), 'personalos-sandbox-'));
-await copyFile('data/seed.json', path.join(sandbox, 'seed.json'));
-console.log('sandboxed data in ' + sandbox);
+import { readModelSettings, readTimezone } from '../lib/config/variables.js';
+import { today } from '../lib/domain/dates.js';
+import { seedForSandbox } from './sandbox-seed.js';
 
 // The shell's variables, before .env* files are read into this process:
 // they are what the server starts with, and it reads .env* itself.
@@ -40,14 +40,34 @@ const shellEnv = { ...process.env };
 // in .env.local, and a browser check of a model path then calls the real API.
 const { combinedEnv } = nextEnv.loadEnvConfig(process.cwd(), true, { info: () => {}, error: console.error });
 const model = readModelSettings(combinedEnv);
+// The server's zone, so the moved history ends on its yesterday.
+const timezone = readTimezone(combinedEnv);
+const sandbox = await mkdtemp(path.join(tmpdir(), 'personalos-sandbox-'));
+
+/**
+ * Writes the seed the sandbox runs on: data/seed.json, its habit history
+ * moved to end the day before the day it is written.
+ *
+ * @returns {Promise<string>} that day
+ */
+async function writeSandboxSeed() {
+  const todayKey = today(timezone);
+  const seed = JSON.parse(await readFile('data/seed.json', 'utf8'));
+  await writeFile(path.join(sandbox, 'seed.json'), JSON.stringify(seedForSandbox(seed, todayKey)));
+  return todayKey;
+}
+
+const startedOn = await writeSandboxSeed();
+console.log('sandboxed data in ' + sandbox);
 console.log(model.anthropicApiKey === null ? 'model: off' : 'model: on (' + model.anthropicModel + ')');
+console.log('habit history moved to end the day before ' + startedOn);
 
 // Polled rather than fs.watch: a checkout replaces the file, and a watch on
 // the old one would go quiet.
 watchFile('data/seed.json', { interval: 1000 }, async (current, previous) => {
   if (current.mtimeMs === previous.mtimeMs || current.size === 0) return;
   try {
-    await copyFile('data/seed.json', path.join(sandbox, 'seed.json'));
+    await writeSandboxSeed();
     for (const file of await readdir(sandbox)) {
       if (file.startsWith('personalos.json')) await rm(path.join(sandbox, file), { force: true });
     }

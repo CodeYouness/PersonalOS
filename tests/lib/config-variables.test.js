@@ -7,8 +7,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { readModelSettings } from '@/lib/config/variables.js';
-import { defaultModel } from '@/personalos.config.js';
+import { readModelSettings, readTimezone } from '@/lib/config/variables.js';
+import { defaultModel, defaultTimezone } from '@/personalos.config.js';
 
 describe('readModelSettings', () => {
   it('reads the key and the model, trimmed', () => {
@@ -24,5 +24,16 @@ describe('readModelSettings', () => {
       anthropicApiKey: null,
       anthropicModel: defaultModel,
     });
+  });
+});
+
+describe('readTimezone', () => {
+  it('reads the zone, trimmed, and no zone as the default', () => {
+    expect(readTimezone({ USER_TIMEZONE: ' America/New_York ' })).toBe('America/New_York');
+    expect(readTimezone({})).toBe(defaultTimezone);
+  });
+
+  it('refuses a zone the platform cannot resolve, by name', () => {
+    expect(() => readTimezone({ USER_TIMEZONE: 'Mars/Olympus' })).toThrow(/USER_TIMEZONE is not a valid IANA timezone/);
   });
 });
