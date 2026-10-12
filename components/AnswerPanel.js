@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useId, useState } from 'react';
 
-import { citationDetailId, citationKey, citationTarget } from './answerCitations.js';
+import { citationBadgeText, citationBadgeTone, citationDetailId, citationKey, citationTarget } from './answerCitations.js';
 
 /**
  * The answer panel above the capture bar, ported from design/mockup.html's
@@ -65,7 +65,7 @@ export default function AnswerPanel({ answer, onClose, onRetry }) {
                   const target = citationTarget(citation);
                   const chip = (
                     <>
-                      <span className={'badge ' + badgeTone(citation)}>{badgeText(citation)}</span>
+                      <span className={'badge ' + citationBadgeTone(citation)}>{citationBadgeText(citation)}</span>
                       {citation.label}
                     </>
                   );
@@ -132,28 +132,4 @@ export default function AnswerPanel({ answer, onClose, onRetry }) {
       )}
     </div>
   );
-}
-
-/**
- * "Memory · expired": the type as the context named it, and how the record
- * stands when it is not simply current -- what the model was told to say.
- *
- * @param {import('./captureBarReducer.js').CitationChip} citation
- */
-function badgeText(citation) {
-  const type = citation.type.charAt(0).toUpperCase() + citation.type.slice(1);
-  const labels = citation.labels ?? [];
-  return labels.length === 0 ? type : type + ' \u00b7 ' + labels.join(', ');
-}
-
-/**
- * The mockup's tones: warm for a record that is past or unconfirmed -- not
- * what is true now -- cold for a person, plain for the rest.
- *
- * @param {import('./captureBarReducer.js').CitationChip} citation
- */
-function badgeTone(citation) {
-  const labels = citation.labels ?? [];
-  if (labels.includes('expired') || labels.includes('unconfirmed')) return 'badge-warm';
-  return citation.type === 'person' ? 'badge-cold' : 'badge-tag';
 }

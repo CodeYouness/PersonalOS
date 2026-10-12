@@ -216,6 +216,17 @@ describe('history heatmap', () => {
     expect(row.cells.map((cell) => cell.value)).toEqual([true, false, false, true, true]);
   });
 
+  it('counts the days a rate rests on: recorded and active, so a rate of nothing can be told from 0%', () => {
+    const [water] = historyRows(/** @type {any} */ ([habits[1]]), /** @type {any} */ (windowLogs));
+    expect(water.ratedDays).toBe(4);
+
+    // Active on the window's last day, but that day holds nothing recorded.
+    const born = { id: 'habit_new', label: 'New', type: 'check', target: null, periods: open('2026-01-03') };
+    const [row] = historyRows(/** @type {any} */ ([born]), /** @type {any} */ ([log('2026-01-03', {}), log('2026-01-04', {})]));
+    expect(row.ratedDays).toBe(0);
+    expect(row.rate).toBe(0);
+  });
+
   it('dates every cell, so a correction is tracked by habit and day', () => {
     const [row] = historyRows(/** @type {any} */ ([habits[0]]), /** @type {any} */ (windowLogs));
     expect(row.cells.map((cell) => cell.date)).toEqual(windowLogs.map((entry) => entry.date));

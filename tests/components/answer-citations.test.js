@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { citationDetailId, citationKey, citationTarget } from '@/components/answerCitations.js';
+import {
+  citationBadgeText,
+  citationBadgeTone,
+  citationDetailId,
+  citationKey,
+  citationTarget,
+} from '@/components/answerCitations.js';
 
 describe('citationTarget', () => {
   it('is a link when the context gave the citation an address', () => {
@@ -52,5 +58,28 @@ describe('citationDetailId', () => {
     expect(citationDetailId('a', 0, 'p1')).not.toBe(citationDetailId('a', 1, 'p1'));
     expect(citationDetailId('a', 0, 'p1')).not.toBe(citationDetailId('a', 0, 'p2'));
     expect(citationDetailId('a', 0, 'p1')).not.toBe(citationDetailId('b', 0, 'p1'));
+  });
+});
+
+describe('the chip badge', () => {
+  const figure = { id: 'figure:spending:2026-09', type: 'figure', label: 'Spending, September 2026', labels: [] };
+
+  it('names a figure Figure, in the mockup\'s blue', () => {
+    expect(citationBadgeText(figure)).toBe('Figure');
+    expect(citationBadgeTone(figure)).toBe('badge-est');
+  });
+
+  it('says a task is overdue, in the board\'s hot tone', () => {
+    const task = { id: 'task_1', type: 'task', label: 'Send the quote', labels: ['overdue'] };
+    expect(citationBadgeText(task)).toBe('Task \u00b7 overdue');
+    expect(citationBadgeTone(task)).toBe('badge-hot');
+  });
+
+  it('keeps the warm tone for what is not true now, the cold one for a person, and the plain one otherwise', () => {
+    expect(citationBadgeTone({ id: 'm', type: 'memory', label: 'x', labels: ['expired'] })).toBe('badge-warm');
+    expect(citationBadgeTone({ id: 'm', type: 'memory', label: 'x', labels: ['unconfirmed'] })).toBe('badge-warm');
+    expect(citationBadgeTone({ id: 'p', type: 'person', label: 'x' })).toBe('badge-cold');
+    expect(citationBadgeTone({ id: 'j', type: 'journal', label: 'x', labels: [] })).toBe('badge-tag');
+    expect(citationBadgeText({ id: 'j', type: 'journal', label: 'x' })).toBe('Journal');
   });
 });

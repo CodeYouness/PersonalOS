@@ -243,11 +243,48 @@ system derives, such as net worth at a month-end or a month's spending. Not
 on. A statement citing nothing, or citing something the system was not shown,
 is left out, and the answer says something was.
 
-An answer does no arithmetic. A total exists only as a computed figure; one
-the system did not compute is not stated. The computed figures are the ones
-a screen already shows -- a number is built for a screen first, and only
-then can an answer cite it. The profile -- who you are and what today is
-about -- is citable too.
+An answer does no arithmetic. A total, difference, average, rate or
+comparison exists only as a computed figure; one the system did not compute
+is not stated, and the model is told to say what the items say and stop. The
+profile -- who you are and what today is about -- is citable too. A citation
+id is a record reference, `profile`, or a figure id; one shaped like none of
+them is dropped before the context is even consulted.
+
+**Computed figure** -- a number a screen already shows, computed by its one
+implementation in `lib/domain/derive/` (rule 6) and handed to the model as a
+citable item of type `figure`, so the number in an answer is the number on
+the screen. A number is built for a screen first, and only then can an answer
+cite it: the context calls the same derivation with the same arguments the
+screen calls, adds no arithmetic of its own, and a number no screen shows is
+no figure. Its id is `figure:<what>:<period>[:<detail>]` -- colon separated,
+never a record reference -- and names its period as an explicit month
+(`2026-09`), a day, or a fixed window (`30d`), never "now" for a month. Its
+content says what the number is, for which period, its value, and in words
+how it counts ("a refund reduces it", "an account with no balance is left
+out, not zero"). Where a screen shows "--" there is no figure: an unknown is
+omitted, never written as zero. A figure carries no labels and opens the
+screen that shows it. It does not repeat a record: the record stays an item
+of its own.
+
+| Figure id | What | Opens |
+| --- | --- | --- |
+| `figure:net-worth:now`, `:change-30d`, `:change-1y` | net worth as of today and its two changes | Finances |
+| `figure:net-worth:<YYYY-MM>` | month-end net worth (the running month is today's), with the change on the month before | Finances |
+| `figure:income:`, `spending:`, `left:`, `fixed:`, `variable:<YYYY-MM>` | the month's flows | Finances, that month |
+| `figure:savings-rate:<YYYY-MM>`, `savings-rate-12m:<YYYY-MM>` | the month's rate, and the 12 months ending with it | Finances, that month |
+| `figure:category:<YYYY-MM>:<line id>` | one line of the category table: total, share, change on the month before | Finances, that month |
+| `figure:habit-streak:now` | the current streak | Habits |
+| `figure:habit-completion:30d` | completion, perfect days and days recorded over 30 days | Habits |
+| `figure:habit-rate:<habit id>:30d` | one habit's rate over 30 days | Habits |
+| `figure:health-calories-avg:30d`, `health-protein-avg:`, `health-carbs-avg:`, `health-fat-avg:` | averages over the recorded days of the Health window | Nutrition & Health |
+| `figure:weight:latest`, `figure:weight-change:30d` | latest weight and its change | Nutrition & Health |
+| `figure:calories:today`, `protein:`, `carbs:`, `fat:` | today's totals | Nutrition & Health |
+| `figure:goal-progress:<goal id>`, `figure:goal-slip:<goal id>` | an open goal's progress (the one stored on the goal) and the period it has slipped to | Goals, that goal |
+
+Finance figures follow "tracked since" exactly as the screens do: only the
+months on offer, the history and the 1-year change as the Finances screen
+shows them. Spending per person, per tag and gain or loss per holding are not
+figures: no screen shows them.
 
 A citation opens what it cites. The context decides where, from the record --
 never the model: a task on the CRM screen, a goal on Goals, a journal entry on
@@ -265,7 +302,9 @@ not a citation of its own.
 The past is citable as the past. A memory past its `validUntil`, or one
 nobody confirmed, is what you *used to* hold or what is *unconfirmed* --
 never what is true now. A done task or goal, an archived account or habit,
-is cited as done or archived. A deleted record is gone and is never cited.
+is cited as done or archived, and an open task chosen for a day that has
+passed as **overdue** -- a label derived from `isOverdue`, never stored. A
+deleted record is gone and is never cited.
 Events are the dated timeline: when something happened, citable. What an
 event's payload holds is not shown to the model beyond vocabulary and counts:
 a deleted capture's event keeps its sentence, and that is the one thing a
