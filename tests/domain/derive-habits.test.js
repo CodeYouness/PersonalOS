@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { completionRatio, habitsForDay, historyRows, isActiveOn, isScheduledOn, justCompleted, ratesByHabit, streak, windowSummary } from '@/lib/domain/derive/habits.js';
+import { completionRatio, dayCompletion, habitsForDay, historyRows, isActiveOn, isScheduledOn, justCompleted, ratesByHabit, streak, windowSummary } from '@/lib/domain/derive/habits.js';
 import { averagesOverRecordedDays, caloriesFromMacros, dayTotals } from '@/lib/domain/derive/nutrition.js';
 
 /** Every weekday, ISO 1 (Monday) to 7 (Sunday): a habit kept every day. */
@@ -592,6 +592,14 @@ describe('today on the home card', () => {
     const { scheduled, off } = habitsForDay(/** @type {any} */ ([gym, move, stretch, gone]), TUE);
     expect(ids(scheduled)).toEqual(['habit_move']);
     expect(ids(off)).toEqual(['habit_gym', 'habit_stretch']);
+  });
+
+  it('has no completion on a day nothing is scheduled, so the ring can say "Day off" instead of 0%', () => {
+    expect(dayCompletion(/** @type {any} */ ([gym, stretch]), /** @type {any} */ (log(TUE, { habit_gym: true })))).toBeNull();
+    expect(dayCompletion(/** @type {any} */ ([gym, move]), /** @type {any} */ (log(TUE, { habit_gym: true })))).toBe(0);
+    expect(dayCompletion(/** @type {any} */ ([gym, stretch]), /** @type {any} */ (log(MON, { habit_gym: true })))).toBe(0.5);
+    // With no habit at all there is no day to be off.
+    expect(dayCompletion([], /** @type {any} */ (log(TUE, {})))).toBe(0);
   });
 
   it('leaves out a habit that is not active that day', () => {

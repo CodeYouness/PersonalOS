@@ -4,7 +4,7 @@ import { streakLabel } from '@/components/format.js';
 import HabitsList from '@/components/HabitsList.js';
 import HabitsRing from '@/components/HabitsRing.js';
 import { dayKeysEndingAt, today } from '@/lib/domain/dates.js';
-import { completionRatio, habitsForDay, STREAK_WINDOW_DAYS, streak } from '@/lib/domain/derive/habits.js';
+import { dayCompletion, habitsForDay, STREAK_WINDOW_DAYS, streak } from '@/lib/domain/derive/habits.js';
 import { getDailyLogs, getProfile } from '@/lib/store.js';
 
 /**
@@ -22,21 +22,18 @@ import { getDailyLogs, getProfile } from '@/lib/store.js';
 export default async function HabitsCard() {
   const profile = await getProfile();
   const todayKey = today();
-  // Only today's active habits are shown in the list, but the streak looks
-  // back 365 days -- a habit archived since must still count for the days
-  // it *was* scheduled, so streak() gets every habit, not just today's.
+  // The list is today's active habits, split into scheduled and off. The
+  // streak looks back 365 days -- a habit archived since must still count
+  // for the days it *was* scheduled, so streak() gets every habit.
   const { scheduled, off } = habitsForDay(profile.habits, todayKey);
-  const shown = [...scheduled, ...off];
 
   const windowStart = dayKeysEndingAt(STREAK_WINDOW_DAYS, todayKey)[0];
   const windowLogs = await getDailyLogs(windowStart, todayKey);
   const todayLog = windowLogs[windowLogs.length - 1];
 
-  // completionRatio counts only the habits scheduled today, so a tick on a
-  // day off never moves the ring. With habits but none scheduled, the ring
-  // says "Day off"; with no habits at all there is no day to be off.
-  const ratio =
-    scheduled.length === 0 && off.length > 0 ? null : completionRatio(profile.habits, todayLog);
+  // Only today's scheduled habits count, so a tick on a day off never moves
+  // the ring; null, with nothing scheduled, is the ring's "Day off".
+  const ratio = dayCompletion(profile.habits, todayLog);
   const streakDays = streak(profile.habits, windowLogs, todayKey);
 
   return (
@@ -55,13 +52,13 @@ export default async function HabitsCard() {
             <div className="caption">day streak</div>
           </div>
         </div>
-        {shown.length === 0 ? (
+        {scheduled.length + off.length === 0 ? (
           <p className="caption">No active habits.</p>
         ) : (
           <HabitsList
             key={JSON.stringify(todayLog.habits)}
-            habits={shown}
-            offIds={off.map((habit) => habit.id)}
+            scheduled={scheduled}
+            off={off}
             todayKey={todayKey}
             values={todayLog.habits}
           />

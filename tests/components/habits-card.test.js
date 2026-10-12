@@ -43,8 +43,8 @@ describe('HabitsList', () => {
   };
   const html = renderToStaticMarkup(
     createElement(HabitsList, {
-      habits: /** @type {any} */ ([move, gym, sets]),
-      offIds: ['habit_gym', 'habit_sets'],
+      scheduled: /** @type {any} */ ([move]),
+      off: /** @type {any} */ ([gym, sets]),
       todayKey: '2026-10-13',
       values: { habit_gym: true },
     })

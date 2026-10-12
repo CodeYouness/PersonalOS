@@ -20,17 +20,18 @@ import { targetOn } from '@/lib/domain/derive/habits.js';
  * `router.refresh()` so `HabitsCard`'s ring and streak (which this
  * component does not track locally) catch up to the real state.
  *
- * A habit in `offIds` has a day off today: faded and labelled, but ticked
- * like any other -- it is recorded, and counts toward nothing (ADR 0029).
+ * The habits scheduled today come first; those in `off` have a day off and
+ * follow, faded and labelled, but ticked like any other -- it is recorded,
+ * and counts toward nothing (ADR 0029).
  *
  * @param {{
- *   habits: import('@/lib/domain/types.js').Habit[],
- *   offIds: string[],
+ *   scheduled: import('@/lib/domain/types.js').Habit[],
+ *   off: import('@/lib/domain/types.js').Habit[],
  *   todayKey: string,
  *   values: Record<string, boolean | number>,
  * }} props
  */
-export default function HabitsList({ habits, offIds, todayKey, values: initialValues }) {
+export default function HabitsList({ scheduled, off, todayKey, values: initialValues }) {
   const [values, setValues] = useState(initialValues);
   const [pending, setPending] = useState(/** @type {Set<string>} */ (new Set()));
   const router = useRouter();
@@ -67,33 +68,32 @@ export default function HabitsList({ habits, offIds, todayKey, values: initialVa
     router.refresh();
   }
 
+  /**
+   * @param {import('@/lib/domain/types.js').Habit} habit
+   * @param {boolean} isOff
+   */
+  function row(habit, isOff) {
+    const value = values[habit.id];
+    const isPending = pending.has(habit.id);
+    return habit.type === 'check' ? (
+      <CheckRow key={habit.id} habit={habit} done={value === true} isOff={isOff} disabled={isPending} onToggle={save} />
+    ) : (
+      <CounterRow
+        key={habit.id}
+        habit={habit}
+        target={targetOn(habit, todayKey)}
+        count={typeof value === 'number' ? value : 0}
+        isOff={isOff}
+        disabled={isPending}
+        onChange={save}
+      />
+    );
+  }
+
   return (
     <ul>
-      {habits.map((habit) => {
-        const value = values[habit.id];
-        const isPending = pending.has(habit.id);
-        const isOff = offIds.includes(habit.id);
-        return habit.type === 'check' ? (
-          <CheckRow
-            key={habit.id}
-            habit={habit}
-            done={value === true}
-            isOff={isOff}
-            disabled={isPending}
-            onToggle={save}
-          />
-        ) : (
-          <CounterRow
-            key={habit.id}
-            habit={habit}
-            target={targetOn(habit, todayKey)}
-            count={typeof value === 'number' ? value : 0}
-            isOff={isOff}
-            disabled={isPending}
-            onChange={save}
-          />
-        );
-      })}
+      {scheduled.map((habit) => row(habit, false))}
+      {off.map((habit) => row(habit, true))}
     </ul>
   );
 }
