@@ -218,6 +218,62 @@ keep asserting it forever.
 
 ---
 
+## Question
+
+**Is** something you ask the system about your own data, on purpose: you
+say you are asking. A sentence is never guessed to be a question -- in doubt
+it is a capture, because a capture mistaken for a question would be lost.
+
+**Is not** a capture, and not a conversation. One question, one answer; a
+follow-up is asked again in full.
+
+A question is never stored, and neither is its answer. An answer can always
+be asked for again, and one that was kept could be cited by a later answer
+-- the system quoting itself instead of your data. An answer never becomes a
+memory.
+
+### Answer
+
+**Is** a set of **statements**, each one a claim with its **citations**.
+
+**Citation** -- what a statement rests on: a record, named by its reference
+(`task_…`, `journal_…`, `memory_…`), or a **computed figure** -- a number the
+system derives, such as net worth at a month-end or a month's spending. Not
+`source`: `source` is who created a record, a citation is what a claim stands
+on. A statement citing nothing, or citing something the system was not shown,
+is left out, and the answer says something was.
+
+An answer does no arithmetic. A total exists only as a computed figure; one
+the system did not compute is not stated. The computed figures are the ones
+a screen already shows -- a number is built for a screen first, and only
+then can an answer cite it. The profile -- who you are and what today is
+about -- is citable too.
+
+One fact is cited once. A record filed from a capture is cited as the
+record, carrying the capture's sentence; a capture that filed nothing is
+cited as the capture. A memory that only repeats its capture's sentence is
+not a citation of its own.
+
+The past is citable as the past. A memory past its `validUntil`, or one
+nobody confirmed, is what you *used to* hold or what is *unconfirmed* --
+never what is true now. A done task or goal, an archived account or habit,
+is cited as done or archived. A deleted record is gone and is never cited.
+Events are the dated timeline: when something happened, citable.
+
+An answer may be **not in your data** -- a real answer, not a failure. With
+no model there is no answer at all, and the system says so: nothing rule-based
+can answer a question honestly.
+
+When the archive is too large to ask over whole, old detail is shown as its
+computed figures, and the answer says what was summarised. Nothing is left
+out silently: a record missing from what was asked over would make "not in
+your data" a lie.
+If it is still too large once summarised, the question is refused and the
+model is not called: an honest "too large" is better than an archive cut
+silently.
+
+---
+
 ## Event
 
 **Is** something that happened, at a time. The timeline is a query over these.

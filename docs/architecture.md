@@ -115,7 +115,9 @@ throws if it is.
 
 ## Planned, not built
 
-**AI context layer.** A future `lib/ai/context/` with one entry point:
+**AI context layer.** A future `lib/ai/context/`, built for questions first
+(#170, ADR 0028); the classifier and extraction keep their own prompts until
+they move. One entry point:
 
 ```
 buildContext(intent, options) -> { profile, entities, memories, events, journal }
