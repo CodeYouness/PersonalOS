@@ -313,14 +313,17 @@ export const dashboard = Object.freeze({ screens: [] });
  * for all: answering is long reasoning over the whole context, filing a
  * capture is a cheap pick between closed options (ADR 0030). Model names
  * change; the variables are the real control. See docs/development.md.
+ *
+ * A model here must accept a forced tool_choice: every call forces its one
+ * tool. Sonnet 5.5 refuses it, and as a default would fail every call.
  */
 export const defaultModels = Object.freeze({
   /** Filing a capture, Refile included: lib/classify.js. */
-  classify: 'claude-sonnet-5-5',
+  classify: 'claude-sonnet-5',
   /** What is worth remembering from one journal entry: lib/extract.js. */
-  extract: 'claude-sonnet-5-5',
+  extract: 'claude-sonnet-5',
   /** A question over everything recorded: lib/answer.js. */
-  answer: 'claude-sonnet-5-5',
+  answer: 'claude-sonnet-5',
 });
 
 /** Fallback timezone, used only when USER_TIMEZONE is unset. */
