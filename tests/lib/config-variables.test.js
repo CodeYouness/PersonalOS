@@ -45,11 +45,13 @@ describe('readModelSettings', () => {
 });
 
 describe('defaultModels', () => {
-  it('names a model for every call type, on Sonnet 5.5 until the switch (#198)', () => {
+  // Sonnet 5.5 refuses a forced tool_choice, which every model call uses: as
+  // a default it would fail them all (found by the first eval run, #197).
+  it('names a model for every call type, on Sonnet 5 until the switch (#198)', () => {
     expect(defaultModels).toEqual({
-      classify: 'claude-sonnet-5-5',
-      extract: 'claude-sonnet-5-5',
-      answer: 'claude-sonnet-5-5',
+      classify: 'claude-sonnet-5',
+      extract: 'claude-sonnet-5',
+      answer: 'claude-sonnet-5',
     });
   });
 });

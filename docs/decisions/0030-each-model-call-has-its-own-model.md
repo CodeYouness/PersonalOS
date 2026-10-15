@@ -43,9 +43,12 @@ unset.
 An override for all three would let one leftover line quietly undo the split,
 and the split is the point.
 
-The defaults are `claude-sonnet-5-5` for all three until a fixed set of
-sentences has scored the classifier on a cheaper model (#197); moving them is
-its own change (#198), recorded here when it lands.
+The defaults stay `claude-sonnet-5` for all three -- the model every call
+already ran on -- until a fixed set of sentences has scored the classifier on
+a cheaper model (#197); moving them is its own change (#198), recorded here
+when it lands. They are not `claude-sonnet-5-5`: it refuses a forced
+`tool_choice`, which every one of the three calls uses, so as a default it
+would have failed them all. The first run of #197 found it.
 
 ## Consequences
 
@@ -60,3 +63,5 @@ its own change (#198), recorded here when it lands.
 - Model ids belong to the provider. They are configuration values, not a
   closed vocabulary: nothing validates them at the store boundary, and a
   retired id fails at the call, where capture falls back to the rules (rule 2).
+- A model chosen for a call type must accept a forced `tool_choice`. Not all
+  do; `npm run eval:classify` says so in one line before anything moves.
