@@ -95,6 +95,9 @@ tool will not tell you:
   it when done.
 - **Screenshots** are written only under the repo. Use `.playwright-mcp/`,
   which git ignores, and delete it afterwards.
+- **The console.** Read it with `browser_console_messages` at level `error`,
+  as a call of its own, before stopping the server: once the server is down
+  the page logs HMR connection errors that are not the app's.
 
 ## Debugging
 
