@@ -27,9 +27,9 @@ answers on a stronger model keeps captures expensive. Three ways out:
 - one variable per call type, and no override for all three.
 
 A second provider (an open model behind a router) was considered and left
-out: Haiku 5.5 already costs about a twentieth of Sonnet on input, and a
-second provider means an adapter, a second key and a second output to
-validate.
+out: Haiku 5.5 already costs about a twentieth of Sonnet on input (the
+official pricing page, read 2026-10-11), and a second provider means an
+adapter, a second key and a second output to validate.
 
 ## Decision
 
@@ -52,7 +52,8 @@ its own change (#198), recorded here when it lands.
 - A call type can move to a cheaper model, or back to a stronger one, without
   touching the other two -- and without a code change.
 - Every new model call names its call type. A fourth one adds an entry to
-  `defaultModels` and a variable, not a reuse of an existing one.
+  `defaultModels`, its variable in `readModelSettings` and the `Models`
+  type -- never a reuse of an existing one.
 - An `.env.local` that still sets `ANTHROPIC_MODEL` changes nothing, silently.
   The development guide says so; the sandbox banner shows the models actually
   in use.

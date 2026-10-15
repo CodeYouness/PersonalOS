@@ -62,7 +62,7 @@ console.log('sandboxed data in ' + sandbox);
 console.log(
   model.anthropicApiKey === null
     ? 'model: off'
-    : 'model: on (classify ' + model.models.classify + ', extract ' + model.models.extract + ', answer ' + model.models.answer + ')'
+    : 'model: on (' + Object.entries(model.models).map(([callType, name]) => callType + ' ' + name).join(', ') + ')'
 );
 console.log('habit history moved to end the day before ' + startedOn);
 
