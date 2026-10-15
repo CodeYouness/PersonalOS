@@ -437,6 +437,8 @@ describe('classifyWithModel (#197)', () => {
 
   afterEach(() => {
     delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_MODEL_CLASSIFY;
+    vi.restoreAllMocks();
   });
 
   it('asks the model it is given and returns the checked fields with the usage', async () => {
@@ -501,7 +503,27 @@ describe('classifyWithModel (#197)', () => {
 
     expect(mockCreate.mock.calls[0][0].model).toBe('claude-test-classify');
     expect(result).toEqual({ destination: 'health', route: 'rules', fields: { weight: 74.6 } });
-    delete process.env.ANTHROPIC_MODEL_CLASSIFY;
-    vi.restoreAllMocks();
+  });
+
+  it('throws when the reply was cut off at max_tokens: a short tool call is not an answer', async () => {
+    mockCreate.mockResolvedValueOnce({
+      stop_reason: 'max_tokens',
+      content: [{ type: 'tool_use', input: { destination: 'nutrition', title: 'Carbonara', calories: 7 } }],
+      usage: { input_tokens: 1800, output_tokens: 200 },
+    });
+    const { classifyWithModel } = await import('@/lib/classify.js');
+
+    await expect(classifyWithModel('had a carbonara', { model: 'claude-test-eval', saidOn: '2026-09-24' })).rejects.toThrow(
+      /cut off at max_tokens/
+    );
+  });
+
+  it('reports no usage, rather than none used, when the reply carries none', async () => {
+    mockCreate.mockResolvedValueOnce({ content: [{ type: 'tool_use', input: { destination: 'memory' } }] });
+    const { classifyWithModel } = await import('@/lib/classify.js');
+
+    const { usage } = await classifyWithModel('the bakery is closed on Mondays', { model: 'claude-test-eval', saidOn: '2026-09-24' });
+
+    expect(usage).toBeNull();
   });
 });

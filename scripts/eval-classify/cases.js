@@ -7,8 +7,13 @@
  * 24th, "domani" the 23rd and "ieri" the 21st. A case names only the fields
  * worth scoring: a title is free text and never scored, and a meal's numbers
  * are a hand estimate a model passes within 25% of. A date of null means
- * "on the day it was said": the model placed it nowhere else.
+ * "on the day it was said", whether the model names that day or no day.
+ *
+ * There are no accounts to offer: the classifier is told your categories
+ * only, and reads an account as the sentence says it (ADR 0026).
  */
+
+import { TASK_DESTINATIONS } from '../../personalos.config.js';
 
 /** @typedef {import('./score.js').Case} Case */
 
@@ -25,7 +30,7 @@ export const CATEGORIES = Object.freeze([
 ]);
 
 /** Task and people file the same record: a task, linked to whoever it names. */
-const TASK = ['task', 'people'];
+const TASK = TASK_DESTINATIONS;
 
 /** @type {readonly { text: string, expected: import('./score.js').Expected }[]} */
 const SENTENCES = [
@@ -98,7 +103,7 @@ const SENTENCES = [
     text: 'ieri 12,50 di taxi',
     expected: { destination: 'finance', amount: 1250, direction: 'out', categoryId: 'cat_transport', date: '2026-09-21' },
   },
-  { text: 'dinner at Da Mario, paid 54', expected: { destination: 'finance', amount: 5400, direction: 'out', categoryId: 'cat_restaurants' } },
+  { text: 'paid the restaurant bill at Da Mario, 54', expected: { destination: 'finance', amount: 5400, direction: 'out', categoryId: 'cat_restaurants' } },
   // No amount to believe: still finance, with nothing made up.
   { text: 'ho pagato il meccanico', expected: { destination: 'finance', amount: null } },
 ];

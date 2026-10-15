@@ -20,11 +20,13 @@ import { formatMicros, summarise } from './eval-classify/score.js';
 /** Compared when no --model is given: the cheap candidate and the one it would replace. */
 const DEFAULT_MODELS = ['claude-haiku-5-5', 'claude-sonnet-5-5'];
 
+/** When and where PRICES were read, printed with the report so stale figures show. */
+const PRICES_READ = '2026-10-15 from https://platform.claude.com/docs/en/about-claude/pricing';
+
 /**
- * Micro-dollars per million tokens, from the official pricing page
- * (https://platform.claude.com/docs/en/about-claude/pricing), read
- * 2026-10-15. Haiku 5.5 is the price for prompts up to 100,000 tokens: a
- * capture is a few thousand. A model missing here is still scored.
+ * Micro-dollars per million tokens. Haiku 5.5 is the price for prompts up to
+ * 100,000 tokens: a capture is a few thousand. Sonnet 5 is what captures ran
+ * on before #196. A model missing here is still scored.
  *
  * @type {Record<string, import('./eval-classify/score.js').Price>}
  */
@@ -85,10 +87,11 @@ if (readModelSettings(combinedEnv).anthropicApiKey === null) {
     process.stderr.write('\n');
   }
 
+  console.log('\n' + CASES.length + ' sentences; prices read ' + PRICES_READ);
   for (const run of summarise(results, PRICES)) {
     // A refused key, an empty balance or a retired model fails every call the
     // same way: say it once, not once a sentence -- nothing was scored.
-    if (run.failing.length === run.cases && run.failing.every((miss) => miss.got === null)) {
+    if (run.answered === 0) {
       console.log('\n' + run.model + ' -- every call failed, nothing scored. The first: ' + run.failing[0].error);
       process.exitCode = 1;
       continue;

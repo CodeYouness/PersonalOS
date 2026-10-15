@@ -55,6 +55,16 @@ describe('scoreCase', () => {
     });
   });
 
+  it('reads the day the sentence was said and no date as the same day, on either side', () => {
+    // A meal the model places on today files on today, exactly as one it places nowhere.
+    expect(scoreCase({ destination: 'nutrition', date: null }, filed('nutrition', { date: '2026-09-22' }), '2026-09-22').date).toBe(true);
+    // An appointment expected today passes when the model names today.
+    expect(scoreCase({ destination: 'appointment', date: '2026-09-22' }, filed('appointment', { date: '2026-09-22' }), '2026-09-22').date).toBe(
+      true
+    );
+    expect(scoreCase({ destination: 'nutrition', date: null }, filed('nutrition', { date: '2026-09-21' }), '2026-09-22').date).toBe(false);
+  });
+
   it('matches the account as said, ignoring case and spaces around it', () => {
     expect(scoreCase({ destination: 'finance', account: 'Revolut' }, filed('finance', { account: ' revolut ' })).account).toBe(true);
     expect(scoreCase({ destination: 'finance', account: 'Revolut' }, filed('finance', { account: null })).account).toBe(false);
@@ -129,6 +139,7 @@ describe('summarise', () => {
     expect(cheap).toMatchObject({
       model: 'claude-test-cheap',
       cases: 3,
+      answered: 2,
       passed: 1,
       fields: {
         destination: { passed: 2, total: 3 },
