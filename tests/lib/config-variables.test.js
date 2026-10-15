@@ -8,21 +8,48 @@
 import { describe, expect, it } from 'vitest';
 
 import { readModelSettings, readTimezone } from '@/lib/config/variables.js';
-import { defaultModel, defaultTimezone } from '@/personalos.config.js';
+import { defaultModels, defaultTimezone } from '@/personalos.config.js';
 
 describe('readModelSettings', () => {
-  it('reads the key and the model, trimmed', () => {
-    expect(readModelSettings({ ANTHROPIC_API_KEY: ' sk-test ', ANTHROPIC_MODEL: ' claude-test-1 ' })).toEqual({
+  it('reads the key and a model per call type, trimmed', () => {
+    expect(
+      readModelSettings({
+        ANTHROPIC_API_KEY: ' sk-test ',
+        ANTHROPIC_MODEL_CLASSIFY: ' claude-test-classify ',
+        ANTHROPIC_MODEL_EXTRACT: ' claude-test-extract ',
+        ANTHROPIC_MODEL_ANSWER: ' claude-test-answer ',
+      })
+    ).toEqual({
       anthropicApiKey: 'sk-test',
-      anthropicModel: 'claude-test-1',
+      models: { classify: 'claude-test-classify', extract: 'claude-test-extract', answer: 'claude-test-answer' },
     });
   });
 
-  it('reads no key as null, an empty one too, and no model as the default', () => {
-    expect(readModelSettings({})).toEqual({ anthropicApiKey: null, anthropicModel: defaultModel });
-    expect(readModelSettings({ ANTHROPIC_API_KEY: '  ', ANTHROPIC_MODEL: '' })).toEqual({
-      anthropicApiKey: null,
-      anthropicModel: defaultModel,
+  it('reads no key as null, an empty one too, and a missing or empty model as its default', () => {
+    expect(readModelSettings({})).toEqual({ anthropicApiKey: null, models: defaultModels });
+    expect(
+      readModelSettings({ ANTHROPIC_API_KEY: '  ', ANTHROPIC_MODEL_CLASSIFY: '', ANTHROPIC_MODEL_ANSWER: ' ' })
+    ).toEqual({ anthropicApiKey: null, models: defaultModels });
+  });
+
+  it('overrides one call type without moving the others', () => {
+    expect(readModelSettings({ ANTHROPIC_MODEL_ANSWER: 'claude-test-answer' }).models).toEqual({
+      ...defaultModels,
+      answer: 'claude-test-answer',
+    });
+  });
+
+  it('no longer reads ANTHROPIC_MODEL: one leftover line cannot undo the split (ADR 0030)', () => {
+    expect(readModelSettings({ ANTHROPIC_MODEL: 'claude-test-1' }).models).toEqual(defaultModels);
+  });
+});
+
+describe('defaultModels', () => {
+  it('names a model for every call type, on Sonnet 5.5 until the switch (#198)', () => {
+    expect(defaultModels).toEqual({
+      classify: 'claude-sonnet-5-5',
+      extract: 'claude-sonnet-5-5',
+      answer: 'claude-sonnet-5-5',
     });
   });
 });

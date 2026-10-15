@@ -39,6 +39,10 @@ beforeAll(async () => {
   await cp('data/seed.json', path.join(sandbox, 'seed.json'));
   process.env.DATA_DIR = sandbox;
   process.env.ANTHROPIC_API_KEY = 'test-key';
+  // Three different models, so a call wired to the wrong one fails (ADR 0030).
+  process.env.ANTHROPIC_MODEL_CLASSIFY = 'claude-test-classify';
+  process.env.ANTHROPIC_MODEL_EXTRACT = 'claude-test-extract';
+  process.env.ANTHROPIC_MODEL_ANSWER = 'claude-test-answer';
   route = await import('@/app/api/journal/[id]/extract/route.js');
   dayRoute = await import('@/app/api/journal/route.js');
   store = await import('@/lib/store.js');
@@ -46,6 +50,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_MODEL_CLASSIFY;
+  delete process.env.ANTHROPIC_MODEL_EXTRACT;
+  delete process.env.ANTHROPIC_MODEL_ANSWER;
   await rm(sandbox, { recursive: true, force: true });
 });
 
@@ -154,6 +161,14 @@ describe('POST /api/journal/[id]/extract with a model', () => {
     modelProposes([]);
 
     expect(await (await extract(ENTRY)).json()).toMatchObject({ ok: true, outcome: 'proposals', proposals: [] });
+  });
+
+  it('asks the extract model, not the one for filing or answers', async () => {
+    modelProposes([]);
+
+    await extract(ENTRY);
+
+    expect(mockCreate.mock.calls[0][0].model).toBe('claude-test-extract');
   });
 
   it('gives the model the entry and the memories already drawn from it', async () => {

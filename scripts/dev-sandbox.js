@@ -59,7 +59,11 @@ async function writeSandboxSeed() {
 
 const startedOn = await writeSandboxSeed();
 console.log('sandboxed data in ' + sandbox);
-console.log(model.anthropicApiKey === null ? 'model: off' : 'model: on (' + model.anthropicModel + ')');
+console.log(
+  model.anthropicApiKey === null
+    ? 'model: off'
+    : 'model: on (classify ' + model.models.classify + ', extract ' + model.models.extract + ', answer ' + model.models.answer + ')'
+);
 console.log('habit history moved to end the day before ' + startedOn);
 
 // Polled rather than fs.watch: a checkout replaces the file, and a watch on

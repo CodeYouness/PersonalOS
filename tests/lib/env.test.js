@@ -6,7 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { defaultModel, defaultTimezone } from '@/personalos.config.js';
+import { defaultModels, defaultTimezone } from '@/personalos.config.js';
 
 beforeEach(() => {
   vi.resetModules();
@@ -52,12 +52,26 @@ describe('DATA_DIR', () => {
 describe('the other variables', () => {
   it('still fall back to their defaults when empty', async () => {
     vi.stubEnv('DATA_DIR', '/tmp/personalos-sandbox-x');
-    vi.stubEnv('ANTHROPIC_MODEL', '');
+    vi.stubEnv('ANTHROPIC_MODEL_CLASSIFY', '');
+    vi.stubEnv('ANTHROPIC_MODEL_EXTRACT', '');
+    vi.stubEnv('ANTHROPIC_MODEL_ANSWER', '');
     vi.stubEnv('USER_TIMEZONE', '');
 
     const { env } = await import('@/lib/config/env.js');
 
-    expect(env.anthropicModel).toBe(defaultModel);
+    expect(env.models).toEqual(defaultModels);
     expect(env.timezone).toBe(defaultTimezone);
+  });
+
+  it('give each call type the model its own variable names', async () => {
+    vi.stubEnv('DATA_DIR', '/tmp/personalos-sandbox-x');
+    vi.stubEnv('ANTHROPIC_MODEL', 'claude-test-ignored');
+    vi.stubEnv('ANTHROPIC_MODEL_CLASSIFY', 'claude-test-classify');
+    vi.stubEnv('ANTHROPIC_MODEL_EXTRACT', '');
+    vi.stubEnv('ANTHROPIC_MODEL_ANSWER', 'claude-test-answer');
+
+    const { env } = await import('@/lib/config/env.js');
+
+    expect(env.models).toEqual({ classify: 'claude-test-classify', extract: defaultModels.extract, answer: 'claude-test-answer' });
   });
 });

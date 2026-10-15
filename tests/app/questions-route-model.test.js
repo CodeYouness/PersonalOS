@@ -54,6 +54,10 @@ beforeAll(async () => {
   seed = JSON.parse(await readFile('data/seed.json', 'utf8'));
   process.env.DATA_DIR = sandbox;
   process.env.ANTHROPIC_API_KEY = 'test-key';
+  // Three different models, so a call wired to the wrong one fails (ADR 0030).
+  process.env.ANTHROPIC_MODEL_CLASSIFY = 'claude-test-classify';
+  process.env.ANTHROPIC_MODEL_EXTRACT = 'claude-test-extract';
+  process.env.ANTHROPIC_MODEL_ANSWER = 'claude-test-answer';
   route = await import('@/app/api/questions/route.js');
   dayRoute = await import('@/app/api/journal/route.js');
   store = await import('@/lib/store.js');
@@ -61,6 +65,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_MODEL_CLASSIFY;
+  delete process.env.ANTHROPIC_MODEL_EXTRACT;
+  delete process.env.ANTHROPIC_MODEL_ANSWER;
   await rm(sandbox, { recursive: true, force: true });
 });
 
@@ -118,6 +125,14 @@ function sentRequest() {
   const json = data.slice(data.indexOf('<context>') + '<context>'.length, data.indexOf('</context>'));
   return { request, blocks, context: /** @type {Context} */ (JSON.parse(json)) };
 }
+
+describe('POST /api/questions: the model', () => {
+  it('asks the answer model, not the one for filing or extraction', async () => {
+    await contextSent();
+
+    expect(sentRequest().request.model).toBe('claude-test-answer');
+  });
+});
 
 /** Asks one question the model answers with nothing, and returns what it was sent. */
 async function contextSent() {

@@ -308,10 +308,20 @@ export const features = Object.freeze({
 export const dashboard = Object.freeze({ screens: [] });
 
 /**
- * Fallback model name, used only when ANTHROPIC_MODEL is unset. Model names
- * change; the variable is the real control. See docs/development.md.
+ * The model each call type runs on when its variable is unset
+ * (ANTHROPIC_MODEL_CLASSIFY, _EXTRACT, _ANSWER). One per call type, never one
+ * for all: answering is long reasoning over the whole context, filing a
+ * capture is a cheap pick between closed options (ADR 0030). Model names
+ * change; the variables are the real control. See docs/development.md.
  */
-export const defaultModel = 'claude-sonnet-5';
+export const defaultModels = Object.freeze({
+  /** Filing a capture, Refile included: lib/classify.js. */
+  classify: 'claude-sonnet-5-5',
+  /** What is worth remembering from one journal entry: lib/extract.js. */
+  extract: 'claude-sonnet-5-5',
+  /** A question over everything recorded: lib/answer.js. */
+  answer: 'claude-sonnet-5-5',
+});
 
 /** Fallback timezone, used only when USER_TIMEZONE is unset. */
 export const defaultTimezone = 'Europe/Rome';
