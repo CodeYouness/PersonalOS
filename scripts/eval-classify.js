@@ -18,8 +18,8 @@ import { CASES, CATEGORIES } from './eval-classify/cases.js';
 import { formatMicros, summarise } from './eval-classify/score.js';
 
 /**
- * Compared when no --model is given: the cheap candidate and the model every
- * call runs on today. Not Sonnet 5.5, which refuses the forced tool_choice
+ * Compared when no --model is given: Haiku 5.5, the default since #198, and
+ * Sonnet 5, every call's model before it. Not Sonnet 5.5, which refuses the forced tool_choice
  * the classifier uses.
  */
 const DEFAULT_MODELS = ['claude-haiku-5-5', 'claude-sonnet-5'];
@@ -30,7 +30,7 @@ const PRICES_READ = '2026-10-15 from https://platform.claude.com/docs/en/about-c
 /**
  * Micro-dollars per million tokens. Haiku 5.5 is the price for prompts up to
  * 100,000 tokens: a capture is a few thousand. Sonnet 5 is what every call
- * runs on today; Sonnet 5.5 refuses the classifier's forced tool, so a run
+ * ran on before #198; Sonnet 5.5 refuses the classifier's forced tool, so a run
  * of it reports that in one line. A model missing here is still scored.
  *
  * @type {Record<string, import('./eval-classify/score.js').Price>}

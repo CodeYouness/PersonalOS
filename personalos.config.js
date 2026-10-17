@@ -323,14 +323,16 @@ export const dashboard = Object.freeze({ screens: [] });
  *
  * A model here must accept a forced tool_choice: every call forces its one
  * tool. Sonnet 5.5 refuses it, and as a default would fail every call.
+ * All three are on Haiku 5.5: classify was scored by npm run eval:classify
+ * (#197), extract and answer follow it (ADR 0030).
  */
 export const defaultModels = Object.freeze({
   /** Filing a capture, Refile included: lib/classify.js. */
-  classify: 'claude-sonnet-5',
+  classify: 'claude-haiku-5-5',
   /** What is worth remembering from one journal entry: lib/extract.js. */
-  extract: 'claude-sonnet-5',
+  extract: 'claude-haiku-5-5',
   /** A question over everything recorded: lib/answer.js. */
-  answer: 'claude-sonnet-5',
+  answer: 'claude-haiku-5-5',
 });
 
 /** Fallback timezone, used only when USER_TIMEZONE is unset. */
