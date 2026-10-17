@@ -22,7 +22,8 @@
     "data:reset": "node scripts/reset-data.js",
     "data:remove-demo-finance": "node scripts/remove-demo-finance.js",
     "data:import-sheet": "node scripts/import-sheet.js",
-    "sync:calendar": "node scripts/sync-calendar.js"
+    "sync:calendar": "node scripts/sync-calendar.js",
+    "eval:classify": "node scripts/eval-classify.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

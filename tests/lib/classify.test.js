@@ -427,3 +427,103 @@ describe('classify (model path)', () => {
     });
   });
 });
+
+describe('classifyWithModel (#197)', () => {
+  beforeEach(() => {
+    mockCreate.mockReset();
+    vi.resetModules();
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+  });
+
+  afterEach(() => {
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_MODEL_CLASSIFY;
+    vi.restoreAllMocks();
+  });
+
+  it('asks the model it is given and returns the checked fields with the usage', async () => {
+    mockCreate.mockResolvedValueOnce({
+      content: [{ type: 'tool_use', input: { destination: 'finance', amount: 18.4, categoryId: 'cat_invented', date: '2026-09-23' } }],
+      usage: { input_tokens: 1834, output_tokens: 61 },
+    });
+    const { classifyWithModel } = await import('@/lib/classify.js');
+
+    const result = await classifyWithModel('ieri 18,40 al supermercato', {
+      model: 'claude-test-eval',
+      saidOn: '2026-09-24',
+      context: { categories: [{ id: 'cat_food', name: 'Food' }] },
+    });
+
+    expect(mockCreate.mock.calls[0][0].model).toBe('claude-test-eval');
+    expect(result).toEqual({
+      classification: {
+        destination: 'finance',
+        route: 'model',
+        // The invented category is dropped, as it would be on filing.
+        fields: { title: 'ieri 18,40 al supermercato', amount: 1840, direction: 'out', account: null, categoryId: null, date: '2026-09-23' },
+      },
+      usage: { inputTokens: 1834, outputTokens: 61 },
+    });
+  });
+
+  it('offers only the destinations it is given', async () => {
+    mockCreate.mockResolvedValueOnce({ content: [{ type: 'tool_use', input: { destination: 'health', weight: 74.2 } }] });
+    const { classifyWithModel } = await import('@/lib/classify.js');
+
+    await classifyWithModel('settantaquattro e due', { model: 'claude-test-eval', saidOn: '2026-09-24', destinations: ['health'] });
+
+    expect(mockCreate.mock.calls[0][0].tools[0].input_schema.properties.destination.enum).toEqual(['health']);
+  });
+
+  it('throws, and never falls back to the rules, when the call fails', async () => {
+    mockCreate.mockRejectedValueOnce(new Error('model not found'));
+    const { classifyWithModel } = await import('@/lib/classify.js');
+
+    await expect(classifyWithModel('weighed 74.6 kg', { model: 'claude-retired', saidOn: '2026-09-24' })).rejects.toThrow(
+      'model not found'
+    );
+  });
+
+  it('throws when the model chooses a destination outside the closed vocabulary', async () => {
+    mockCreate.mockResolvedValueOnce({ content: [{ type: 'tool_use', input: { destination: 'shopping' } }] });
+    const { classifyWithModel } = await import('@/lib/classify.js');
+
+    await expect(classifyWithModel('buy milk', { model: 'claude-test-eval', saidOn: '2026-09-24' })).rejects.toThrow(
+      /outside the closed vocabulary/
+    );
+  });
+
+  it('is what classify asks, on the classify model, and classify still falls back when it throws', async () => {
+    process.env.ANTHROPIC_MODEL_CLASSIFY = 'claude-test-classify';
+    mockCreate.mockRejectedValueOnce(new Error('overloaded'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { classify } = await import('@/lib/classify.js');
+
+    const result = await classify('weighed 74.6 kg this morning');
+
+    expect(mockCreate.mock.calls[0][0].model).toBe('claude-test-classify');
+    expect(result).toEqual({ destination: 'health', route: 'rules', fields: { weight: 74.6 } });
+  });
+
+  it('throws when the reply was cut off at max_tokens: a short tool call is not an answer', async () => {
+    mockCreate.mockResolvedValueOnce({
+      stop_reason: 'max_tokens',
+      content: [{ type: 'tool_use', input: { destination: 'nutrition', title: 'Carbonara', calories: 7 } }],
+      usage: { input_tokens: 1800, output_tokens: 200 },
+    });
+    const { classifyWithModel } = await import('@/lib/classify.js');
+
+    await expect(classifyWithModel('had a carbonara', { model: 'claude-test-eval', saidOn: '2026-09-24' })).rejects.toThrow(
+      /cut off at max_tokens/
+    );
+  });
+
+  it('reports no usage, rather than none used, when the reply carries none', async () => {
+    mockCreate.mockResolvedValueOnce({ content: [{ type: 'tool_use', input: { destination: 'memory' } }] });
+    const { classifyWithModel } = await import('@/lib/classify.js');
+
+    const { usage } = await classifyWithModel('the bakery is closed on Mondays', { model: 'claude-test-eval', saidOn: '2026-09-24' });
+
+    expect(usage).toBeNull();
+  });
+});
