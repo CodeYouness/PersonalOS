@@ -45,13 +45,14 @@ describe('readModelSettings', () => {
 });
 
 describe('defaultModels', () => {
-  // Sonnet 5.5 refuses a forced tool_choice, which every model call uses: as
-  // a default it would fail them all (found by the first eval run, #197).
-  it('names a model for every call type, on Sonnet 5 until the switch (#198)', () => {
+  // Haiku 5.5 filed 28 of 32 sentences right against Sonnet 5's 29, at a
+  // twentieth of the cost (#197); a full question fits under its price step
+  // (#204). Sonnet 5.5 refuses the forced tool_choice every call uses.
+  it('names a model for every call type, all on Haiku 5.5 (#198)', () => {
     expect(defaultModels).toEqual({
-      classify: 'claude-sonnet-5',
-      extract: 'claude-sonnet-5',
-      answer: 'claude-sonnet-5',
+      classify: 'claude-haiku-5-5',
+      extract: 'claude-haiku-5-5',
+      answer: 'claude-haiku-5-5',
     });
   });
 });

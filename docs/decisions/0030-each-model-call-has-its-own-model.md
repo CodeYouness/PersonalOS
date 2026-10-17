@@ -43,10 +43,9 @@ unset.
 An override for all three would let one leftover line quietly undo the split,
 and the split is the point.
 
-The defaults stay `claude-sonnet-5` for all three -- the model every call
-already ran on -- until a fixed set of sentences has scored the classifier on
-a cheaper model (#197); moving them is its own change (#198), recorded here
-when it lands. They are not `claude-sonnet-5-5`: it refuses a forced
+The defaults stayed `claude-sonnet-5` for all three -- the model every call
+already ran on -- until a fixed set of sentences had scored the classifier on
+a cheaper model (#197); moving them was its own change (#198), recorded below. They are not `claude-sonnet-5-5`: it refuses a forced
 `tool_choice`, which every one of the three calls uses, so as a default it
 would have failed them all. The first run of #197 found it.
 
@@ -105,3 +104,36 @@ context is summarised or refused does not change (ADR 0028).
 90,000`, so raising the limit cannot cross the step unnoticed. When the answer
 model or a kind of record changes, `measure:context` is run again and the two
 constants move with what it prints.
+
+## The defaults move to Haiku 5.5 (#198, 2026-10-17)
+
+**All three defaults -- `classify`, `extract` and `answer` -- are
+`claude-haiku-5-5`.** Each can still be moved back with its own variable.
+
+The first run of `npm run eval:classify`, 2026-10-15, on 32 made-up sentences
+(PR #200):
+
+| Field | Haiku 5.5 | Sonnet 5 |
+|---|---|---|
+| sentences filed right | 28 / 32 | 29 / 32 |
+| destination | 29 / 32 | 29 / 32 |
+| date | 14 / 14 | 14 / 14 |
+| startTime / endTime / time | 4/4, 1/1, 1/1 | 4/4, 1/1, 1/1 |
+| calories | 5 / 6 | 6 / 6 |
+| protein / carbs / fat | 4/4, 2/2, 3/3 | 4/4, 2/2, 3/3 |
+| weight | 4 / 4 | 4 / 4 |
+| amount / direction / categoryId / account | 7/7, 6/6, 5/5, 1/1 | 7/7, 6/6, 5/5, 1/1 |
+| **cost per capture** | **$0.000217** | **$0.004520** |
+
+Haiku costs about a twentieth as much a capture. Its one extra miss is a
+calorie estimate scored against a hand estimate with no source. **Both models
+miss the same three sentences** -- two facts about a person filed as `people`
+instead of `memory`, and a lift filed as `goals` -- so the cause is the prompt,
+which names the destinations without saying what they mean, not the model.
+That is its own change (#203).
+
+`extract` and `answer` were not scored by a set of their own. They move with
+`classify` because each forces one tool whose output is checked before
+anything is stored or shown, a question now fits under Haiku's price step (#204, above), and
+a call type that turns out worse moves back with its variable, without a code
+change.
