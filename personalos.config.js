@@ -255,6 +255,13 @@ export const limits = Object.freeze({
    */
   answerMaxTokens: 3000,
   /**
+   * A classification is one tool call and no text, but a meal with every
+   * field and a time measured 205 tokens on Haiku 5.5: at 200 it was cut
+   * off and filed by the rules, with no estimate (#207). Twice that and
+   * some. A call is billed for the tokens it uses, not this ceiling.
+   */
+  classifyMaxTokens: 512,
+  /**
    * The longest question the questions route takes (#172). A question is a
    * sentence, not a document: the cap keeps a pasted page from becoming a
    * model call, and is checked at the route, never by what the text says.

@@ -475,6 +475,17 @@ describe('classifyWithModel (#197)', () => {
     expect(mockCreate.mock.calls[0][0].tools[0].input_schema.properties.destination.enum).toEqual(['health']);
   });
 
+  it('leaves room for the largest classification it asks for (#207)', async () => {
+    mockCreate.mockResolvedValueOnce({ content: [{ type: 'tool_use', input: { destination: 'nutrition' } }] });
+    const { classifyWithModel } = await import('@/lib/classify.js');
+
+    await classifyWithModel('ieri a pranzo insalata con tonno e mais', { model: 'claude-test-eval', saidOn: '2026-09-22' });
+
+    // A meal with every field, time included, measured 205 output tokens on
+    // Haiku 5.5: the ceiling keeps twice that.
+    expect(mockCreate.mock.calls[0][0].max_tokens).toBeGreaterThanOrEqual(2 * 205);
+  });
+
   it('throws, and never falls back to the rules, when the call fails', async () => {
     mockCreate.mockRejectedValueOnce(new Error('model not found'));
     const { classifyWithModel } = await import('@/lib/classify.js');
