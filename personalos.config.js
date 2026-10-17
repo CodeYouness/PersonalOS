@@ -269,14 +269,20 @@ export const limits = Object.freeze({
   questionTimeoutMs: 90_000,
   /**
    * The most characters a question sends the model as its context block
-   * (#175, ADR 0028) -- about 75k tokens, so a long archive still fits the
-   * model's window with room for the question, the instructions and the
-   * answer. Measured on what is SENT (`serializeContext`), not on the records.
-   * The demo data is about an eighth of it, so today's archive never meets it.
-   * Over it, old transactions are replaced by their monthly figures; still
-   * over, the question is refused and nothing is sent.
+   * (#175, ADR 0028). Measured on what is SENT (`serializeContext`), not on
+   * the records. Over it, old transactions are replaced by their monthly
+   * figures; still over, the question is refused and nothing is sent.
+   *
+   * Sized to a price, not to the model's window (#204, ADR 0030). Above
+   * 100,000 prompt tokens Haiku 5.5 charges five times as much on the WHOLE
+   * prompt, cached parts included. On `claude-haiku-5-5` the worst mix,
+   * transactions only, is about 0.52 tokens a character, and the fixed part
+   * of a question (instructions, tool, a short question) about 1,500 tokens:
+   * a full question stays at or under a 90,000-token ceiling, ten thousand
+   * below the step. tests/lib/context-limit.test.js holds it there, and
+   * `npm run measure:context` re-measures both numbers.
    */
-  contextMaxChars: 300_000,
+  contextMaxChars: 170_000,
   /**
    * How many of the newest calendar months holding transactions are always
    * sent in full (#175). Recent detail is what "this month" and "last week"

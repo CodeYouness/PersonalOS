@@ -318,7 +318,9 @@ When the archive is too large to ask over whole, old detail is shown as its
 computed figures, and the answer says what was summarised. Nothing is left
 out silently: a record missing from what was asked over would make "not in
 your data" a lie. "Too large" is measured on what is sent to the model
-(`limits.contextMaxChars`, about 75k tokens; the demo data is an eighth of it),
+(`limits.contextMaxChars`, kept under 90,000 tokens so a question never
+crosses Haiku 5.5's 100K-token price step -- ADR 0030; the demo data is a
+fifth of it),
 and what is **summarised** is only ever transactions: a month's transactions
 are replaced by that month's monthly figures (income, spending, what is left,
 the rates, fixed and variable, the category lines), oldest month first, until
