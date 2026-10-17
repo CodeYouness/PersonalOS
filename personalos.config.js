@@ -275,10 +275,11 @@ export const limits = Object.freeze({
    *
    * Sized to a price, not to the model's window (#204, ADR 0030). Above
    * 100,000 prompt tokens Haiku 5.5 charges five times as much on the WHOLE
-   * prompt, cached parts included. On `claude-haiku-5-5` the worst mix,
-   * transactions only, is about 0.52 tokens a character, and the fixed part
-   * of a question (instructions, tool, a short question) about 1,500 tokens:
-   * a full question stays at or under a 90,000-token ceiling, ten thousand
+   * prompt, cached parts included. Measured on `claude-haiku-5-5`
+   * (2026-10-17), the worst mix an importer writes, transactions only, is
+   * 0.488 tokens a character, and the fixed part of a question (instructions,
+   * tool, a short question) 1,438 tokens. Rounded up to 0.52 and 1,500, a
+   * full question stays at or under a 90,000-token ceiling, ten thousand
    * below the step. tests/lib/context-limit.test.js holds it there, and
    * `npm run measure:context` re-measures both numbers.
    */

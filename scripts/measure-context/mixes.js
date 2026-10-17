@@ -32,6 +32,7 @@ import { shiftDayKey, weekDayKeys } from '../../lib/domain/dates.js';
 /** A day the made-up records count back from: fixed, so runs agree. */
 const TODAY = '2026-10-17';
 const TIMEZONE = 'Europe/Rome';
+const WHEN = { today: TODAY, timezone: TIMEZONE };
 
 /**
  * Descriptions the way the sheet import writes them: the row's note, or its
@@ -50,6 +51,26 @@ const DESCRIPTIONS = [
   'Regalo compleanno Giulia',
   'Benzina',
   'Libri',
+];
+
+/**
+ * Lines the way a bank statement writes them: upper case, codes, places. No
+ * importer writes these yet; measured so a bank import knows where it lands
+ * (ADR 0030).
+ */
+const STATEMENT_LINES = [
+  'PAGAMENTO POS ESSELUNGA 4127 MILANO',
+  'PAGAMENTO POS CONAD CITY VIA PADOVA',
+  'ADDEBITO SDD ENEL ENERGIA SPA FATT. N. 0042',
+  'BONIFICO A FAVORE DI ROSSI MARIO AFFITTO',
+  'PAGAMENTO CARTA AMAZON EU SARL LUSSEMBURGO',
+  'PRELIEVO BANCOMAT INTESA SANPAOLO ATM 0193',
+  'PAGAMENTO POS FARMACIA SAN BABILA',
+  'ADDEBITO SDD TIM SPA TELEFONIA FISSA',
+  'PAGAMENTO CARTA TRENITALIA FRECCIAROSSA',
+  'BONIFICO DA NORDIS SRL COMPENSO CONSULENZA',
+  'PAGAMENTO POS BAR PASTICCERIA MARCHESI',
+  'COMMISSIONI TENUTA CONTO',
 ];
 
 /** Italian free text: a journal entry, a sentence at a time. */
@@ -161,13 +182,12 @@ function contextOf(items) {
 }
 
 /**
- * The worst mix: imported transactions only, the densest records there are.
+ * Transactions only, the densest records there are, described by `lines`.
  *
- * @param {Archive} seed
- * @param {number} count
- * @returns {Archive}
+ * @param {string[]} lines
+ * @returns {(seed: Archive, count: number) => Archive}
  */
-function withTransactions(seed, count) {
+const withTransactions = (lines) => (seed, count) => {
   const next = random(204);
   const categories = seed.profile.financeCategories.map((category) => category.id);
   const accounts = seed.accounts.map((account) => account.id);
@@ -180,7 +200,7 @@ function withTransactions(seed, count) {
       date,
       amount: next() < 0.1 ? -amount * 20 : amount,
       currency: 'EUR',
-      description: pick(DESCRIPTIONS, next),
+      description: pick(lines, next),
       accountId: pick(accounts, next),
       counterAccountId: null,
       categoryId: next() < 0.15 ? null : pick(categories, next),
@@ -199,7 +219,7 @@ function withTransactions(seed, count) {
     };
   });
   return { ...bare(seed), transactions };
-}
+};
 
 /**
  * A free-text mix: Italian journal entries, and memories drawn from them.
@@ -251,16 +271,16 @@ function withFreeText(seed, count) {
  * @returns {QuestionContext}
  */
 export function seedContext(seed) {
-  const when = { today: TODAY, timezone: TIMEZONE };
   return {
-    ...contextOf([...buildItems(seed, when), ...financeFigures(seed, when), ...lifeFigures(seed, when)]),
+    ...contextOf([...buildItems(seed, WHEN), ...financeFigures(seed, WHEN), ...lifeFigures(seed, WHEN)]),
     trackedSince: seed.profile.financeTrackedSince,
   };
 }
 
 /** The two made-up mixes, by name. */
 export const MIXES = /** @type {const} */ ({
-  'transactions only (worst)': withTransactions,
+  'transactions only, as the sheet import writes them (worst today)': withTransactions(DESCRIPTIONS),
+  'transactions only, as bank statement lines (no importer yet)': withTransactions(STATEMENT_LINES),
   'free text (journal, memories)': withFreeText,
 });
 
@@ -274,9 +294,8 @@ export const MIXES = /** @type {const} */ ({
  * @returns {QuestionContext}
  */
 export function fill(mix, seed, maxChars) {
-  const when = { today: TODAY, timezone: TIMEZONE };
   /** @param {number} count */
-  const build = (count) => contextOf(buildItems(mix(seed, count), when));
+  const build = (count) => contextOf(buildItems(mix(seed, count), WHEN));
   // Double until over, then halve the gap: a few dozen builds, not thousands.
   let fits = 0;
   let over = 1;
