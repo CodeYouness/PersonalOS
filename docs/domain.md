@@ -95,6 +95,9 @@ against that list, never trusted from the model.
 | `memory` | something worth knowing and nothing to do: a fact, a preference, a decision -- about you, a person or a place | |
 | `appointment` | a thing happening at a stated day and time | a deadline with no time ("by Friday" is a `task`) |
 
+The classifier is told these same meanings (`lib/classify.js`): a row changed
+here changes there.
+
 `route` records **how** the destination was decided: `model` or `rules`. This
 field exists because a silent fallback is a lie. Without it, an expired API
 key looks like a model that quietly got worse, and you would not find out for

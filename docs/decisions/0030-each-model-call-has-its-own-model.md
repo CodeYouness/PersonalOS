@@ -131,7 +131,8 @@ calorie estimate scored against a hand estimate with no source. **Both models
 miss the same three sentences** -- two facts about a person filed as `people`
 instead of `memory`, and a lift filed as `goals` -- so the cause is the prompt,
 which names the destinations without saying what they mean, not the model.
-That is its own change (#203).
+That is its own change (#203), since made: the tool now says what each
+destination means, and the meal cases carry sourced numbers.
 
 `extract` and `answer` were not scored by a set of their own. They move with
 `classify` because each forces one tool whose output is checked before

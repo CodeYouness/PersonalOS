@@ -496,8 +496,9 @@ describe('classifyWithModel (#197)', () => {
 
     const all = mockCreate.mock.calls[0][0].tools[0].input_schema.properties.destination.description;
     // One "; " between meanings and none inside one, or a meaning reads as two.
-    expect(all.split('; ').map((/** @type {string} */ meaning) => meaning.split(' = ')[0])).toEqual([...DESTINATIONS]);
-    for (const meaning of all.split('; ')) expect(meaning).toMatch(/^\w+ = \S/);
+    const meanings = all.split('; ');
+    expect(meanings.map((/** @type {string} */ meaning) => meaning.split(' = ')[0])).toEqual([...DESTINATIONS]);
+    for (const meaning of meanings) expect(meaning).toMatch(/^\w+ = (?!undefined$)\S/);
     const one = mockCreate.mock.calls[1][0].tools[0].input_schema.properties.destination.description;
     expect(one).toMatch(/^health = \S[^;]*$/);
   });

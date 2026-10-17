@@ -10,10 +10,12 @@
  * was said", whether the model names that day or no day.
  *
  * A meal's numbers are CREA's (Tabelle di composizione degli alimenti,
- * https://www.alimentinutrizione.it/tabelle-nutrizionali/<code>), for the
- * foods the sentence names and nothing it does not -- no dressing, no sugar
- * -- at CREA's standard portion unless the sentence says a weight (#203).
- * Each case names its codes and grams.
+ * https://www.alimentinutrizione.it/tabelle-nutrizionali/<code>) where it
+ * has the food, else USDA FoodData Central's
+ * (https://fdc.nal.usda.gov/food-details/<fdcId>), for the foods the
+ * sentence names and nothing it does not -- no dressing, no sugar -- at the
+ * source's standard portion unless the sentence says a weight (#203). Each
+ * case names its codes and grams.
  *
  * There are no accounts to offer: the classifier is told your categories
  * only, and reads an account as the sentence says it (ADR 0026).
@@ -68,32 +70,31 @@ const SENTENCES = [
   { text: 'dopodomani alle 18 aperitivo con Paolo', expected: { destination: 'appointment', date: '2026-09-24', startTime: '18:00' } },
 
   // A meal: an estimate, and the day it was eaten when not today.
-  // PC0037 Pasta alla carbonara, 230 g.
+  // CREA PC0037 Pasta alla carbonara, 230 g.
   {
     text: 'had a carbonara for lunch',
     expected: { destination: 'nutrition', date: null, calories: 564, protein: 25, carbs: 65, fat: 24 },
   },
-  // PC0001 Pizza Napoletana Margherita STG, the whole pizza: 462 g.
+  // CREA PC0001 Pizza Napoletana Margherita STG, the whole pizza: 462 g.
   {
     text: 'ieri sera una pizza margherita intera',
     expected: { destination: 'nutrition', date: '2026-09-21', calories: 1086, protein: 49, carbs: 127, fat: 43 },
   },
-  // 002500 Cornetti, 50 g, and 135010 whole milk, 125 g. CREA has no
-  // espresso; a cup is a couple of kcal.
-  { text: 'alle 8 cappuccino e cornetto', expected: { destination: 'nutrition', date: null, time: '08:00', calories: 282 } },
-  // 106506 Pollo, petto, cotto, in padella, 200 g: CREA has no grilled
-  // breast. Its 2 g of fat is not scored -- a quarter of it is half a gram.
+  // CREA 002500 Cornetti, 50 g, and 135010 whole milk, 125 g; USDA 171891
+  // espresso, 30 g.
+  { text: 'alle 8 cappuccino e cornetto', expected: { destination: 'nutrition', date: null, time: '08:00', calories: 284 } },
+  // USDA 2705968 Chicken breast, grilled without sauce, skin not eaten, 200 g.
   {
     text: '200 g di petto di pollo alla griglia',
-    expected: { destination: 'nutrition', date: null, calories: 258, protein: 60 },
+    expected: { destination: 'nutrition', date: null, calories: 352, protein: 59, fat: 11 },
   },
-  // 181105 Uova di gallina, intero, sodo, 2 x 50 g, and 000530 Pane bianco,
-  // 50 g: CREA has no toast.
+  // CREA 181105 Uova di gallina, intero, sodo, 2 x 50 g, and USDA 2707599
+  // Bread, white, toasted, a regular slice: 25 g.
   {
     text: 'two boiled eggs and a slice of toast for breakfast',
-    expected: { destination: 'nutrition', date: null, calories: 262, protein: 16 },
+    expected: { destination: 'nutrition', date: null, calories: 201, protein: 15 },
   },
-  // 005410 Lattuga, 80 g, 123610 Tonno sott'olio, sgocciolato, 50 g, and
+  // CREA 005410 Lattuga, 80 g, 123610 Tonno sott'olio, sgocciolato, 50 g, and
   // 000070 Mais dolce in scatola, 30 g. Undressed: the sentence names no oil.
   { text: 'ieri a pranzo insalata con tonno e mais', expected: { destination: 'nutrition', date: '2026-09-21', calories: 145 } },
 
