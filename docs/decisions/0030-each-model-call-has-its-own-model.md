@@ -45,9 +45,10 @@ and the split is the point.
 
 The defaults stayed `claude-sonnet-5` for all three -- the model every call
 already ran on -- until a fixed set of sentences had scored the classifier on
-a cheaper model (#197); moving them was its own change (#198), recorded below. They are not `claude-sonnet-5-5`: it refuses a forced
-`tool_choice`, which every one of the three calls uses, so as a default it
-would have failed them all. The first run of #197 found it.
+a cheaper model (#197); moving them was its own change (#198), recorded
+below. They are not `claude-sonnet-5-5`: it refuses a forced `tool_choice`,
+which every one of the three calls uses, so as a default it would have
+failed them all. The first run of #197 found it.
 
 ## Consequences
 
@@ -134,6 +135,6 @@ That is its own change (#203).
 
 `extract` and `answer` were not scored by a set of their own. They move with
 `classify` because each forces one tool whose output is checked before
-anything is stored or shown, a question now fits under Haiku's price step (#204, above), and
-a call type that turns out worse moves back with its variable, without a code
-change.
+anything is stored or shown, a question now fits under Haiku's price step
+(#204, above), and a call type that turns out worse moves back with its
+variable, without a code change.

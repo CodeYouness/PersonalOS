@@ -45,9 +45,7 @@ describe('readModelSettings', () => {
 });
 
 describe('defaultModels', () => {
-  // Haiku 5.5 filed 28 of 32 sentences right against Sonnet 5's 29, at a
-  // twentieth of the cost (#197); a full question fits under its price step
-  // (#204). Sonnet 5.5 refuses the forced tool_choice every call uses.
+  // Why Haiku 5.5 for all three is in ADR 0030 (#198).
   it('names a model for every call type, all on Haiku 5.5 (#198)', () => {
     expect(defaultModels).toEqual({
       classify: 'claude-haiku-5-5',
