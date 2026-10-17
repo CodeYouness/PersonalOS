@@ -65,3 +65,43 @@ would have failed them all. The first run of #197 found it.
   retired id fails at the call, where capture falls back to the rules (rule 2).
 - A model chosen for a call type must accept a forced `tool_choice`. Not all
   do; `npm run eval:classify` says so in one line before anything moves.
+
+## A question stays under the 100K-token price step (#204, 2026-10-17)
+
+Above 100,000 prompt tokens, Haiku 5.5 charges five times as much -- $0.50 /
+$2.50 instead of $0.10 / $0.50 per MTok -- on the whole prompt, not on the
+part over, and cached reads and writes count toward the length. Nothing
+errors; the bill jumps. The question context was limited to 300,000
+characters, a figure from an older tokenizer ("about 75k tokens"). Before
+`answer` can move to Haiku (#198), a full question has to fit under the step.
+
+**Measured** with `npm run measure:context` on `claude-haiku-5-5`, 2026-10-17,
+on made-up records built by the context builder and sent in the request the
+answer module sends:
+
+| What is sent | Tokens a character |
+|---|---|
+| transactions as the sheet import writes them (the worst mix today) | 0.488 |
+| Italian journal text and memories | 0.471 |
+| the seed's own context | 0.414 |
+| transactions with upper-case bank-statement lines (no importer writes these yet) | 0.536 |
+
+The fixed part of a question -- instructions, tool, a short question and an
+empty context -- is 1,438 tokens. At 300,000 characters a full question would
+have been over 150,000 tokens.
+
+**The limit goes down to 170,000 characters, and still counts characters.**
+At 0.52 tokens a character and a 1,500-token fixed part, a full question is at
+most 89,900 tokens: ten thousand below the step. 0.52 sits above every mix an
+importer writes today; a bank import with statement lines would measure about
+0.54 and land near 92,000 -- over the ceiling, still under the step -- so a
+new importer re-measures before it lands. Counting tokens would be exact, but
+it needs a model call on every question to size a context that is built
+without one (rule 3); characters are measured on the same string that is
+sent, for free. Today's archive is about a fifth of the limit, and how a
+context is summarised or refused does not change (ADR 0028).
+
+`tests/lib/context-limit.test.js` holds `contextMaxChars × 0.52 + 1,500 ≤
+90,000`, so raising the limit cannot cross the step unnoticed. When the answer
+model or a kind of record changes, `measure:context` is run again and the two
+constants move with what it prints.
