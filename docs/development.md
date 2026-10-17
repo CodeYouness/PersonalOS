@@ -12,6 +12,13 @@ npm run dev
 Everything in `.env.local` is optional on a fresh clone. The app runs on seed
 data with no key set; each variable switches on the feature next to it.
 
+Each model call has its own model (ADR 0030): `ANTHROPIC_MODEL_CLASSIFY` files
+a capture, Refile included; `ANTHROPIC_MODEL_EXTRACT` reads a journal entry
+for what is worth remembering; `ANTHROPIC_MODEL_ANSWER` answers a question.
+Unset, each falls back to its entry in `defaultModels` in
+`personalos.config.js`. `ANTHROPIC_MODEL` is gone and no longer read -- delete
+it from an old `.env.local`, it changes nothing.
+
 ## Commands
 
 | Command | What it does |
@@ -80,9 +87,9 @@ tool will not tell you:
   January days.
 - **One theme.** The app and the mockup are dark only; a light theme has
   nothing to check.
-- **The model.** The banner says `model: on` or `off`, and a key exported in
-  your shell counts. Off, a question answers "No model configured". To see a
-  path that returns before the model is called, start it with a fake key
+- **The model.** The banner says `model: off`, or `model: on` with the model
+  each call type will use, and a key exported in your shell counts. Off, a
+  question answers "No model configured". To see a path that returns before the model is called, start it with a fake key
   (`ANTHROPIC_API_KEY=sk-ant-fake npm run dev:sandbox`): it works end to end,
   and a call that did reach the model would fail with a 502. To see an answer,
   stub the route with `page.route`.

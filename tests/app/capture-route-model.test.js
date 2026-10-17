@@ -36,6 +36,10 @@ beforeAll(async () => {
   await cp('data/seed.json', path.join(sandbox, 'seed.json'));
   process.env.DATA_DIR = sandbox;
   process.env.ANTHROPIC_API_KEY = 'test-key';
+  // Three different models, so a call wired to the wrong one fails (ADR 0030).
+  process.env.ANTHROPIC_MODEL_CLASSIFY = 'claude-test-classify';
+  process.env.ANTHROPIC_MODEL_EXTRACT = 'claude-test-extract';
+  process.env.ANTHROPIC_MODEL_ANSWER = 'claude-test-answer';
   route = await import('@/app/api/capture/route.js');
   captureIdRoute = await import('@/app/api/captures/[id]/route.js');
   store = await import('@/lib/store.js');
@@ -43,6 +47,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_MODEL_CLASSIFY;
+  delete process.env.ANTHROPIC_MODEL_EXTRACT;
+  delete process.env.ANTHROPIC_MODEL_ANSWER;
   await rm(sandbox, { recursive: true, force: true });
 });
 
@@ -75,6 +82,14 @@ async function post(text) {
 }
 
 describe('POST /api/capture with a model', () => {
+  it('files on the classify model, not the one for extraction or answers', async () => {
+    modelSays({ destination: 'task', title: 'Call the plumber' });
+
+    await post('call the plumber');
+
+    expect(mockCreate.mock.calls[0][0].model).toBe('claude-test-classify');
+  });
+
   it('files a weight the model read on yesterday, with no time', async () => {
     modelSays({ destination: 'health', weight: 74.2, date: '2026-09-23' });
 
@@ -152,6 +167,7 @@ describe('Refile into health with a model', () => {
 
     const body = await (await refile(capture.id, 'health')).json();
 
+    expect(mockCreate.mock.calls[0][0].model).toBe('claude-test-classify');
     expect(mockCreate.mock.calls[0][0].tools[0].input_schema.properties.destination.enum).toEqual(['health']);
     expect((await store.getDailyLog('2026-09-23')).measurements).toEqual([
       expect.objectContaining({ id: body.recordId, value: 74.2, recordedAt: null }),
