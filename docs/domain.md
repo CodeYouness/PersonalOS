@@ -84,6 +84,21 @@ the record. They were one field in v1 and confusing everybody.
 `finance`, `nutrition`, `health`, `goals`, `memory`, `appointment`. Validated
 against that list, never trusted from the model.
 
+| destination | What belongs there | What does not |
+| --- | --- | --- |
+| `task` | something to do | a thing at a set day and time (`appointment`) |
+| `people` | something to do that is owed to, or involves, a person the sentence names | a fact about a person (`memory`) |
+| `finance` | money that moved: spent, paid, received, refunded | |
+| `nutrition` | something eaten or drunk | |
+| `health` | your body: your weight on a scale, training done -- kilos lifted are training, not your weight -- sleep, a symptom | |
+| `goals` | a promise to yourself: something you mean to achieve | something already done |
+| `memory` | something worth knowing and nothing to do: a fact, a preference, a decision -- about you, a person or a place | |
+| `appointment` | a thing happening at a stated day and time | a deadline with no time ("by Friday" is a `task`) |
+
+The classifier is told these same meanings, in its own words
+(`lib/classify.js`). Nothing keeps the two in step: a row changed here is
+changed there by hand.
+
 `route` records **how** the destination was decided: `model` or `rules`. This
 field exists because a silent fallback is a lie. Without it, an expired API
 key looks like a model that quietly got worse, and you would not find out for

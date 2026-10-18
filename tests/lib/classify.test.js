@@ -486,6 +486,23 @@ describe('classifyWithModel (#197)', () => {
     expect(mockCreate.mock.calls[0][0].max_tokens).toBeGreaterThanOrEqual(2 * 205);
   });
 
+  it('says what each destination it offers means, and only those (#203)', async () => {
+    const { DESTINATIONS } = await import('@/personalos.config.js');
+    mockCreate.mockResolvedValue({ content: [{ type: 'tool_use', input: { destination: 'health' } }] });
+    const { classifyWithModel } = await import('@/lib/classify.js');
+
+    await classifyWithModel('benched 100kg today', { model: 'claude-test-eval', saidOn: '2026-09-24' });
+    await classifyWithModel('benched 100kg today', { model: 'claude-test-eval', saidOn: '2026-09-24', destinations: ['health'] });
+
+    const all = mockCreate.mock.calls[0][0].tools[0].input_schema.properties.destination.description;
+    // One "; " between meanings and none inside one, or a meaning reads as two.
+    const meanings = all.split('; ');
+    expect(meanings.map((/** @type {string} */ meaning) => meaning.split(' = ')[0])).toEqual([...DESTINATIONS]);
+    for (const meaning of meanings) expect(meaning).toMatch(/^\w+ = (?!undefined$)\S/);
+    const one = mockCreate.mock.calls[1][0].tools[0].input_schema.properties.destination.description;
+    expect(one).toMatch(/^health = \S[^;]*$/);
+  });
+
   it('throws, and never falls back to the rules, when the call fails', async () => {
     mockCreate.mockRejectedValueOnce(new Error('model not found'));
     const { classifyWithModel } = await import('@/lib/classify.js');
