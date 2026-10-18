@@ -90,13 +90,14 @@ against that list, never trusted from the model.
 | `people` | something to do that is owed to, or involves, a person the sentence names | a fact about a person (`memory`) |
 | `finance` | money that moved: spent, paid, received, refunded | |
 | `nutrition` | something eaten or drunk | |
-| `health` | your body: your weight on a scale, training done, sleep, a symptom | kilos lifted (training, not your weight) |
+| `health` | your body: your weight on a scale, training done -- kilos lifted are training, not your weight -- sleep, a symptom | |
 | `goals` | a promise to yourself: something you mean to achieve | something already done |
 | `memory` | something worth knowing and nothing to do: a fact, a preference, a decision -- about you, a person or a place | |
 | `appointment` | a thing happening at a stated day and time | a deadline with no time ("by Friday" is a `task`) |
 
-The classifier is told these same meanings (`lib/classify.js`): a row changed
-here changes there.
+The classifier is told these same meanings, in its own words
+(`lib/classify.js`). Nothing keeps the two in step: a row changed here is
+changed there by hand.
 
 `route` records **how** the destination was decided: `model` or `rules`. This
 field exists because a silent fallback is a lie. Without it, an expired API
