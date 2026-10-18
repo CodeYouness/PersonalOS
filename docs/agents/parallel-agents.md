@@ -30,10 +30,3 @@ report. Each prompt names this file instead of repeating it.
   `tests/app/questions-route-model.test.js`. `data/personalos.json` and
   `.env.local` are the user's, never opened.
 - Fixtures are the seed's made-up records. The repository is public.
-
-## The repository is in iCloud
-
-- A file that hangs a command may be evicted: `ls -lO <file>` shows
-  `dataless`.
-- Sync-conflict copies named like `route 2.js` are gitignored and skipped by
-  lint, typecheck and vitest. Search with `git grep`; `grep -r` reads them.
