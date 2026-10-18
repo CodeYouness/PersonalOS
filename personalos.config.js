@@ -232,10 +232,10 @@ export const OBSERVATION_KINDS = Object.freeze(['balance', 'position']);
 export const MEASUREMENT_METRICS = Object.freeze({ weight: 'kg' });
 
 /**
- * Numbers that are decisions, not accidents, for cards and routes not built
- * yet -- none of them belongs inline in a component once it exists. Not read
- * by any code today: each is claimed by the feature named next to it, and
- * stays here rather than being invented again when that feature lands.
+ * Numbers that are decisions, not accidents -- none of them belongs inline in
+ * the code that reads it. Some are read today; the rest are claimed by the
+ * feature named next to them, and stay here rather than being invented again
+ * when that feature lands.
  */
 export const limits = Object.freeze({
   /** Three is a decision, ten is a list. Shown by the Session card. */
@@ -254,6 +254,13 @@ export const limits = Object.freeze({
    * like a bug.
    */
   answerMaxTokens: 3000,
+  /**
+   * A classification is one tool call and no text, but a meal with every
+   * field and a time measured 205 tokens on Haiku 5.5: at 200 it was cut
+   * off and filed by the rules, with no estimate (#207). Twice that and
+   * some. A call is billed for the tokens it uses, not this ceiling.
+   */
+  classifyMaxTokens: 512,
   /**
    * The longest question the questions route takes (#172). A question is a
    * sentence, not a document: the cap keeps a pasted page from becoming a
