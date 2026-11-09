@@ -269,6 +269,7 @@ button:disabled { cursor: not-allowed; }
 .badge-warm  { background: var(--warning-soft); color: var(--warning); }
 .badge-cold  { background: var(--surface-3);    color: var(--ink-subtle); }
 .badge-ok    { background: var(--success-soft); color: var(--success); }
+.badge-origin { background: var(--surface-3); color: var(--ink-subtle); }
 .badge-route-model { background: var(--surface-3);    color: var(--ink-subtle); }
 .badge-route-rules { background: var(--warning-soft); color: var(--warning); }
 .badge-est   { background: var(--info-soft);    color: var(--info); }

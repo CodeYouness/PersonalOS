@@ -662,6 +662,16 @@ export function runAdapterContract(label, load) {
         expect(capture.destination).toBe('finance');
       });
 
+      it('refuses an origin outside the vocabulary and defaults a missing one to bar', async () => {
+        await expect(
+          store.createCapture({ text: 'something', destination: 'memory', origin: 'fax' })
+        ).rejects.toThrow();
+        const bare = await store.createCapture({ text: 'something', destination: 'memory' });
+        expect(bare.origin).toBe('bar');
+        const phone = await store.createCapture({ text: 'something', destination: 'memory', origin: 'shortcut' });
+        expect(phone.origin).toBe('shortcut');
+      });
+
       it('refuses a destination that is not in the canonical list', async () => {
         await expect(
           store.createCapture({ text: 'something', destination: 'errands' })
