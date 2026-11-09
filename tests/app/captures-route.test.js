@@ -49,7 +49,7 @@ beforeEach(async () => {
 
 /** @returns {Promise<{ captures: CaptureRow[] }>} */
 async function get() {
-  const response = await route.GET();
+  const response = await route.GET(new Request('http://localhost/api/captures'));
   return response.json();
 }
 

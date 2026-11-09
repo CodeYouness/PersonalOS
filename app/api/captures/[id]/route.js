@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { classify } from '@/lib/classify.js';
 import { toDayKey } from '@/lib/domain/dates.js';
+import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
 import { deleteCaptureCascade, getClassifyContext, refileCapture } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,9 @@ export const dynamic = 'force-dynamic';
  * @param {{ params: Promise<{ id: string }> }} context
  */
 export async function DELETE(request, { params }) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const { id } = await params;
   try {
     await deleteCaptureCascade(id);
@@ -37,6 +41,9 @@ export async function DELETE(request, { params }) {
  * @param {{ params: Promise<{ id: string }> }} context
  */
 export async function PATCH(request, { params }) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const { id } = await params;
   const body = await request.json().catch(() => null);
   const destination = typeof body?.destination === 'string' ? body.destination : '';

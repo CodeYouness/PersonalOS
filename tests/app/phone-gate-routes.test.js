@@ -52,6 +52,9 @@ async function load(token) {
     capture: await import('@/app/api/capture/route.js'),
     journal: await import('@/app/api/journal/route.js'),
     journalEntry: await import('@/app/api/journal/[id]/route.js'),
+    captures: await import('@/app/api/captures/route.js'),
+    captureById: await import('@/app/api/captures/[id]/route.js'),
+    captureUndo: await import('@/app/api/captures/[id]/undo/route.js'),
   };
 }
 
@@ -218,5 +221,29 @@ describe('the journal route behind the gate', () => {
     );
 
     expect(response.status).toBe(401);
+  });
+});
+
+describe('the capture log routes behind the gate', () => {
+  const ctx = { params: Promise.resolve({ id: 'x' }) };
+
+  it("refuses a proxied read of the log with no token, and answers the Mac's own", async () => {
+    const app = await load(TOKEN);
+
+    expect((await app.captures.GET(new Request('http://localhost/api/captures', { headers: PROXIED }))).status).toBe(401);
+    expect((await app.captures.GET(new Request('http://localhost/api/captures'))).status).toBe(200);
+  });
+
+  it('refuses a proxied delete, refile and undo with no token, and lets the right token through', async () => {
+    const app = await load(TOKEN);
+    const call = (/** @type {string} */ method, /** @type {Record<string, string>} */ headers) =>
+      new Request('http://localhost/api/captures/x', { method, headers });
+
+    expect((await app.captureById.DELETE(call('DELETE', PROXIED), ctx)).status).toBe(401);
+    expect((await app.captureById.PATCH(call('PATCH', PROXIED), ctx)).status).toBe(401);
+    expect((await app.captureUndo.POST(call('POST', PROXIED), ctx)).status).toBe(401);
+    // Past the gate: the unknown id is refused by the store, not by the gate.
+    expect((await app.captureById.DELETE(call('DELETE', { ...PROXIED, ...bearer(TOKEN) }), ctx)).status).not.toBe(401);
+    expect((await app.captureById.DELETE(call('DELETE', {}), ctx)).status).not.toBe(401);
   });
 });
