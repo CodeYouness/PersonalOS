@@ -52,5 +52,29 @@ capture, so nothing already filed moves.
 - The route's response carries `saidOn`, the day the capture was filed on.
 - A refused `saidAt` is the client's to keep: the phone leaves the sentence
   queued rather than dropping it.
-- `clientId` (a resend never files twice) is a separate decision, made when
-  the store learns to deduplicate; it is not part of this one.
+- A retrying client is part of the design (see below).
+
+## A resent capture is filed once
+
+The phone queues a sentence and resends it until it sees a 2xx. If the Mac
+saved the capture but the reply was lost, the resend would file a meal or an
+expense twice. So a capture may carry a `clientId`, an optional string the
+client makes once per sentence (a UUID on the Shortcut).
+
+- **One capture per `(origin, clientId)`.** `createCaptureOnce` checks the pair
+  inside the same serialised write as the create (ADR 0011), so two overlapping
+  resends cannot both land. A repeat writes nothing -- no capture, memory
+  entry, record, link or event -- and returns the existing capture with
+  `created: false`. `createCapture` returns the capture either way.
+- **Scoped to `origin`**, because ids made by different surfaces are not
+  coordinated. A capture without `clientId` is never deduplicated, so the bar
+  is unchanged.
+- **The repeat answer is rebuilt, not stored.** The route answers a repeat with
+  200 and the first response's shape, derived from the stored capture
+  (destination, route, `saidAt`), the record its `about` link points at, and
+  that record's figures (rule 6). Nothing receipt-shaped is added to the
+  capture. If the produced record was deleted since, the answer says no record.
+- **Validated once**: `resolveClientId` (`lib/domain/client-id.js`), a non-blank
+  string of at most `limits.clientIdMaxLength` (200); anything else is 400. The
+  journal route applies the same rule.
+- No migration: `clientId` is optional and absent on every existing capture.

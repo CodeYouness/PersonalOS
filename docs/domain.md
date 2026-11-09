@@ -75,7 +75,7 @@ to do with it.
 **Is not** a task. A capture may produce a task, a meal, a transaction, or
 nothing but a memory entry.
 
-**Has** `text`, `origin`, `destination`, `route`, `saidAt`.
+**Has** `text`, `origin`, `destination`, `route`, `saidAt`, and optionally `clientId`.
 
 `saidAt` is the instant the sentence was said (ADR 0033). `createdAt` is when
 the record was written; they differ when a sentence waited on the phone. Every
@@ -86,6 +86,13 @@ classifier and the keyword rules read "domani" from -- comes from `saidAt` in
 treats one up to `limits.saidAtDriftMinutes` ahead as now, and refuses a later
 or malformed one with 400. The capture log shows the said time when it differs
 from `createdAt` by more than that allowance.
+
+`clientId` is an id a client makes once per sentence (a UUID on the Shortcut), a
+non-blank string of at most `limits.clientIdMaxLength` characters. There is one
+capture per `(origin, clientId)`: a second create with the same pair writes
+nothing and returns the existing capture, and the route answers it with that
+capture's response and a 200 (ADR 0033). A capture without one is never
+deduplicated. The same `clientId` under another `origin` is another capture.
 
 `origin` is the surface the sentence arrived through, one of `CAPTURE_ORIGINS`:
 `bar` (the capture bar, on any device), `shortcut` (the iPhone Shortcut) or

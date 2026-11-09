@@ -264,6 +264,8 @@ export const limits = Object.freeze({
    * this.
    */
   saidAtDriftMinutes: 5,
+  /** The longest `clientId` a client may send (ADR 0033); a UUID is 36. */
+  clientIdMaxLength: 200,
   /**
    * Answers need headroom: the model emits reasoning blocks before the text,
    * and a low ceiling makes the endpoint return an empty string that looks

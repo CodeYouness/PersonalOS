@@ -2,13 +2,15 @@ import { NextResponse } from 'next/server';
 
 import { formatEuro, formatWeight } from '@/components/format.js';
 import { classify } from '@/lib/classify.js';
+import { resolveClientId } from '@/lib/domain/client-id.js';
 import { toDayKey } from '@/lib/domain/dates.js';
 import { formatReceiptLine } from '@/lib/domain/format.js';
 import { resolveSaidAt } from '@/lib/domain/said-at.js';
 import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
 import {
   createAppointment,
-  createCapture,
+  createCaptureOnce,
+  getCaptureProducedRecord,
   createGoal,
   createLink,
   createMemoryEntry,
@@ -76,6 +78,13 @@ export async function POST(request) {
   }
   const saidOn = toDayKey(said.saidAt === null ? new Date() : new Date(said.saidAt));
 
+  // The client's own id for the sentence (ADR 0033), so a resend is filed
+  // once. Checked before anything is written.
+  const client = resolveClientId(body?.clientId);
+  if (!client.ok) {
+    return NextResponse.json({ error: client.error }, { status: 400 });
+  }
+
   // Your categories are enrichment: a store read that fails here must not
   // keep the sentence from being saved (rule 2), so it falls back to none.
   const context = await getClassifyContext().catch((error) => {
@@ -83,7 +92,17 @@ export async function POST(request) {
     return {};
   });
   const { destination, route, fields } = await classify(text, chosen, saidOn, context);
-  const capture = await createCapture({ text, origin, destination, route, saidAt: said.saidAt ?? undefined });
+  const { capture, created } = await createCaptureOnce({
+    text,
+    origin,
+    destination,
+    route,
+    saidAt: said.saidAt ?? undefined,
+    clientId: client.clientId ?? undefined,
+  });
+  // A resend: the store held this (origin, clientId) already and wrote
+  // nothing. Answer with the first receipt, rebuilt from what was filed.
+  if (!created) return NextResponse.json(await receiptOf(capture));
 
   let recordId = null;
   /** @type {string | undefined} what the receipt adds: the weight filed, or that none was */
@@ -148,4 +167,33 @@ export async function POST(request) {
   // weighs -- is kept, and the receipt says so instead of implying a number.
   // `receiptLine` is the receipt as the bar words it, for a client with no bar.
   return NextResponse.json({ destination, route, recordId, note, saidOn, receiptLine: formatReceiptLine(destination, text, note) });
+}
+
+/**
+ * The response a capture got when it was filed, rebuilt from the stored
+ * capture and the record it produced, for a client that sent it twice. The
+ * destination, route and day are on the capture; the record is its `about`
+ * link; the note is read back from that record.
+ *
+ * @param {import('@/lib/domain/types.js').Capture} capture
+ */
+async function receiptOf(capture) {
+  const record = await getCaptureProducedRecord(capture);
+  /** @type {string | undefined} */
+  let note;
+  if (capture.destination === 'health') {
+    const weight = /** @type {import('@/lib/domain/types.js').Measurement | null} */ (record);
+    note = weight === null ? 'no weight filed' : formatWeight(weight.value) + ' ' + weight.unit;
+  } else if (capture.destination === 'finance') {
+    const transaction = /** @type {import('@/lib/domain/types.js').Transaction | null} */ (record);
+    note = transaction === null ? 'no transaction filed' : formatEuro(transaction.amount, { cents: true });
+  }
+  return {
+    destination: capture.destination,
+    route: capture.route,
+    recordId: record?.id ?? null,
+    note,
+    saidOn: toDayKey(new Date(capture.saidAt)),
+    receiptLine: formatReceiptLine(capture.destination, capture.text, note),
+  };
 }
