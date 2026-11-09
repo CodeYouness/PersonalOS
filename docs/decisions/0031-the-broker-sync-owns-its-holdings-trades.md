@@ -99,3 +99,6 @@ logged in; no render ever calls it, and no credential enters the app.
   transfer it depends on exists.
 - The DEGIRO import amends this ADR with the rule for units arriving from
   another broker.
+- The broker's cash is one `cash` account, "Scalable cash" (origin = the
+  portfolio id), with one synced balance per day, a zero kept; its balances
+  are read-only like synced trades. Cash movements are not synced.

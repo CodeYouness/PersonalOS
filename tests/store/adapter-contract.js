@@ -1454,6 +1454,43 @@ export function runAdapterContract(label, load) {
           await expect(store.upsertSyncedPrice({ accountId: etf.id, date: '2026-04-30', price: 1 })).rejects.toThrow(/synced/);
         });
 
+        describe('a synced cash account\'s balances', () => {
+          const syncedCash = () =>
+            store.createAccount({ name: 'Broker cash', kind: 'cash', origin: { source: 'scalable', externalId: 'pf-1', syncedAt: '2026-04-30T08:00:00.000Z', sourceUpdatedAt: null } });
+
+          it('lists upsertSyncedBalance in the contract', () => {
+            expect(ADAPTER_METHODS).toContain('upsertSyncedBalance');
+          });
+
+          it('refuses to type, correct or delete a balance by hand', async () => {
+            const cash = await syncedCash();
+            await expect(store.recordObservation({ accountId: cash.id, amount: 100, date: '2026-04-30' })).rejects.toThrow(/scalable/);
+
+            const balance = await store.upsertSyncedBalance({ accountId: cash.id, date: '2026-04-30', amount: 12345 });
+            await expect(store.updateObservation(balance.id, { amount: 1 })).rejects.toThrow(/synced/);
+            await expect(store.deleteObservation(balance.id)).rejects.toThrow(/synced/);
+            expect(await store.getObservations({ accountId: cash.id })).toEqual([expect.objectContaining({ amount: 12345 })]);
+          });
+
+          it('lets the sync write one balance per day, corrected in place, and a zero is kept', async () => {
+            const cash = await syncedCash();
+            const first = await store.upsertSyncedBalance({ accountId: cash.id, date: '2026-04-30', amount: 12345 });
+            const again = await store.upsertSyncedBalance({ accountId: cash.id, date: '2026-04-30', amount: 0 });
+            await store.upsertSyncedBalance({ accountId: cash.id, date: '2026-05-01', amount: 50 });
+
+            expect(again.id).toBe(first.id);
+            expect(await store.getObservations({ accountId: cash.id })).toEqual([
+              expect.objectContaining({ date: '2026-04-30', amount: 0, kind: 'balance', source: 'integration' }),
+              expect.objectContaining({ date: '2026-05-01', amount: 50 }),
+            ]);
+          });
+
+          it('refuses the sync balance on a hand-made account', async () => {
+            const wallet = await store.createAccount({ name: 'Wallet', kind: 'cash' });
+            await expect(store.upsertSyncedBalance({ accountId: wallet.id, date: '2026-04-30', amount: 1 })).rejects.toThrow(/not synced/);
+          });
+        });
+
         it('changes nothing on a hand-made account', async () => {
           const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
           const trade = await store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 });

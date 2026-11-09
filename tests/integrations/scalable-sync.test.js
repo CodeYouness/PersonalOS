@@ -177,7 +177,8 @@ describe('the Scalable sync: what it leaves alone, out loud', () => {
     });
     const done = await result;
 
-    expect((await store.getAccounts()).map((a) => a.origin?.externalId)).toEqual([ISIN_A]);
+    // (the cash account is the cash part's, tested in scalable-cash.test.js)
+    expect((await store.getAccounts()).filter((a) => a.kind !== 'cash').map((a) => a.origin?.externalId)).toEqual([ISIN_A]);
     const text = done.warnings.join('\n');
     expect(text).toMatch(/OtherCoin/);
     expect(text).not.toMatch(/ExampleCoin/);
