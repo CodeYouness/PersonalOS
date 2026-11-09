@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
 import { deleteJournalEntry, getJournalEntry, updateJournalEntry } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,9 @@ const EDITABLE = ['text', 'date'];
  * @param {{ params: Promise<{ id: string }> }} context
  */
 export async function PATCH(request, { params }) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const { id } = await params;
   const body = await request.json().catch(() => null);
 
@@ -50,10 +54,13 @@ export async function PATCH(request, { params }) {
  * with it, links and all, in the same write (ADR 0027). Nothing else it
  * was linked to is touched.
  *
- * @param {Request} _request
+ * @param {Request} request
  * @param {{ params: Promise<{ id: string }> }} context
  */
-export async function DELETE(_request, { params }) {
+export async function DELETE(request, { params }) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const { id } = await params;
   if ((await getJournalEntry(id)) === null) {
     return NextResponse.json({ status: 'error', message: 'no journal entry with id ' + id }, { status: 404 });

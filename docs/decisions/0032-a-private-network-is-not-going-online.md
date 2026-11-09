@@ -30,6 +30,16 @@ A private network, not a deploy.
   rest of the app is not reachable from the phone.
 - **A token on proxied requests.** The tailnet is the first gate, the token the
   second, so a device that joins the tailnet later does not file captures.
+  The token is `PERSONALOS_PHONE_TOKEN`, read only in `lib/config/env.js`. The
+  check is one helper, `lib/phone-gate.js`, called first in the capture route
+  and the journal handlers, not in Next's request proxy: a request is
+  *proxied* when it carries a header `tailscale serve` adds (`Tailscale-User-*`,
+  `X-Forwarded-For`); a proxied request without the right token gets 401 and
+  writes nothing, compared in constant time; with no token configured every
+  proxied request is refused. A request without those headers is the Mac's own
+  browser and needs none -- only a process on the Mac can forge the headers,
+  and it can already read the data file. The journal path is a prefix, so the
+  handlers under it use the gate too. Setup is in `docs/development.md`.
 - **Every server mode listens on `127.0.0.1`.** `serve`, `dev` and
   `dev:sandbox` pass `-H 127.0.0.1`. Only the Mac, and the local Tailscale
   proxy, reach the port; the Wi-Fi does not.

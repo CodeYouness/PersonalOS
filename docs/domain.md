@@ -75,7 +75,17 @@ to do with it.
 **Is not** a task. A capture may produce a task, a meal, a transaction, or
 nothing but a memory entry.
 
-**Has** `text`, `origin`, `destination`, `route`.
+**Has** `text`, `origin`, `destination`, `route`, `saidAt`.
+
+`saidAt` is the instant the sentence was said (ADR 0033). `createdAt` is when
+the record was written; they differ when a sentence waited on the phone. Every
+day a capture decides -- a meal's, a weight's, a transaction's, the `saidOn` the
+classifier and the keyword rules read "domani" from -- comes from `saidAt` in
+`USER_TIMEZONE`; Refile reads the original capture's. A capture made with no
+`saidAt` has `saidAt` equal to `createdAt`. The route accepts any past instant,
+treats one up to `limits.saidAtDriftMinutes` ahead as now, and refuses a later
+or malformed one with 400. The capture log shows the said time when it differs
+from `createdAt` by more than that allowance.
 
 `origin` is the surface the sentence arrived through, one of `CAPTURE_ORIGINS`:
 `bar` (the capture bar, on any device), `shortcut` (the iPhone Shortcut) or

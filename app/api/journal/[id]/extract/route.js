@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { extractMemories } from '@/lib/extract.js';
+import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
 import { getJournalEntry, getMemoriesDrawnFrom } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
@@ -15,10 +16,13 @@ export const dynamic = 'force-dynamic';
  * No model configured is an answer (200), not an error; a model that did
  * not answer is a 502 the screen offers to retry.
  *
- * @param {Request} _request
+ * @param {Request} request
  * @param {{ params: Promise<{ id: string }> }} context
  */
-export async function POST(_request, { params }) {
+export async function POST(request, { params }) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const { id } = await params;
   const entry = await getJournalEntry(id);
   if (entry === null) {

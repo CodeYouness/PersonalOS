@@ -37,6 +37,7 @@ async function enrichCapture(capture) {
     route: capture.route,
     origin: capture.origin,
     createdAt: capture.createdAt,
+    saidAt: capture.saidAt,
     produced: record && { id: record.id, title: producedTitle(record) },
     locked: record !== null && isCaptureRecordLocked(record),
   };

@@ -45,7 +45,7 @@ export async function PATCH(request, { params }) {
     const recordId = await refileCapture(id, destination, async (capture, chosen) => {
       // Read from the day the sentence was said: "last night" means the
       // night before it was said, not before the refile.
-      const { fields } = await classify(capture.text, chosen, toDayKey(new Date(capture.createdAt)), await getClassifyContext());
+      const { fields } = await classify(capture.text, chosen, toDayKey(new Date(capture.saidAt)), await getClassifyContext());
       return fields;
     });
     return NextResponse.json({ ok: true, recordId });

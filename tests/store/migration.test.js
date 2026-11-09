@@ -843,3 +843,38 @@ describe('migration v15 to v16', () => {
     expect(migrate(once)).toEqual(once);
   });
 });
+
+describe('migration v16 to v17', () => {
+  /** A v16 document with two captures that have no saidAt. */
+  const v16Document = () => {
+    const migrated = migrate(v12Document());
+    return {
+      ...migrated,
+      schemaVersion: 16,
+      captures: [
+        { id: 'capture_a', text: 'call Marta', origin: 'bar', destination: 'task', route: 'rules', createdAt: '2026-03-01T08:00:00.000Z', updatedAt: '2026-03-01T08:00:00.000Z', source: 'capture' },
+        { id: 'capture_b', text: 'a meal', origin: 'shortcut', destination: 'nutrition', route: 'model', createdAt: '2026-03-02T19:30:00.000Z', updatedAt: '2026-03-02T19:31:00.000Z', source: 'capture' },
+      ],
+    };
+  };
+
+  it('gives every capture a saidAt equal to its createdAt and changes nothing else', () => {
+    const before = v16Document();
+    const migrated = migrate(before);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.captures).toEqual(before.captures.map((/** @type {any} */ capture) => ({ ...capture, saidAt: capture.createdAt })));
+    expect({ ...migrated, captures: [], schemaVersion: 0 }).toEqual({ ...before, captures: [], schemaVersion: 0 });
+  });
+
+  it('keeps a saidAt a capture already has', () => {
+    const before = v16Document();
+    before.captures[0].saidAt = '2026-02-28T22:00:00.000Z';
+    expect(migrate(before).captures[0].saidAt).toBe('2026-02-28T22:00:00.000Z');
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v16Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});

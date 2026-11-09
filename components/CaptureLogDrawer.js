@@ -1,4 +1,4 @@
-import { DESTINATIONS } from '@/personalos.config.js';
+import { DESTINATIONS, limits } from '@/personalos.config.js';
 import { formatTime } from '@/components/format.js';
 
 /**
@@ -9,6 +9,7 @@ import { formatTime } from '@/components/format.js';
  * @property {'model'|'rules'} route
  * @property {string} origin
  * @property {string} createdAt
+ * @property {string} saidAt
  * @property {{ id: string, title: string } | null} produced
  * @property {boolean} locked
  */
@@ -82,6 +83,17 @@ export default function CaptureLogDrawer({
 }
 
 /**
+ * A capture said well before it was written -- queued on the phone, say --
+ * shows both times; one written the moment it was said shows one.
+ *
+ * @param {CaptureLogRow} capture
+ */
+function wasSaidEarlier(capture) {
+  const gapMs = new Date(capture.createdAt).getTime() - new Date(capture.saidAt).getTime();
+  return gapMs > limits.saidAtDriftMinutes * 60 * 1000;
+}
+
+/**
  * @param {{
  *   capture: CaptureLogRow,
  *   onDelete: (id: string) => void,
@@ -99,6 +111,11 @@ function LogItem({ capture, onDelete, onUndo, onRefile, isCorrecting }) {
         {capture.origin !== 'bar' && <span className="badge badge-origin">{capture.origin}</span>}
         <span className="log-time">{formatTime(capture.createdAt)}</span>
       </div>
+      {wasSaidEarlier(capture) && (
+        <p className="caption log-said">
+          said {new Date(capture.saidAt).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
       <p className="log-text">&ldquo;{capture.text}&rdquo;</p>
       {capture.produced && (
         <div className="log-dest">
