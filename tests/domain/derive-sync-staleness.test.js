@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { SCALABLE_SYNC_SOURCE, brokerStaleness } from '../../lib/domain/derive/sync-staleness.js';
 
 const TZ = 'Europe/Berlin';
+/** @param {Record<string, unknown>} patch @returns {import('../../lib/domain/types.js').SyncState} */
 const state = (patch) => ({
   integration: SCALABLE_SYNC_SOURCE,
   lastRunAt: null,
@@ -25,7 +26,7 @@ describe('brokerStaleness', () => {
   it('is absent with no SyncState, or one that never ran', () => {
     expect(brokerStaleness([], '2026-11-09', TZ)).toBeNull();
     expect(brokerStaleness([state({})], '2026-11-09', TZ)).toBeNull();
-    const other = { ...state({}), integration: 'google-calendar', status: 'ok', lastRunAt: '2026-11-09T08:00:00Z' };
+    const other = state({ integration: 'google-calendar', status: 'ok', lastRunAt: '2026-11-09T08:00:00Z' });
     expect(brokerStaleness([other], '2026-11-09', TZ)).toBeNull();
   });
 
