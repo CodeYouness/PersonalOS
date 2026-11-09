@@ -19,6 +19,7 @@
 
 import { firstDayUnitsGoNegative } from '../../lib/domain/derive/finance.js';
 import { blockingReasons } from './plan.js';
+import { syncedAccountIds } from './synced.js';
 import {
   backupData,
   createAccount,
@@ -83,6 +84,7 @@ export async function writePlan(plan, mapping, print) {
   print('backed up ' + describeStorage() + ' to ' + backupPath);
   try {
     const accountIds = await writeAccounts(plan, mapping, accounts);
+    for (const [key, id] of syncedAccountIds(mapping, plan, accounts)) accountIds.set(key, id);
     const categoryIds = await writeCategories(mapping, profile.financeCategories);
 
     for (const balance of plan.balances) {
