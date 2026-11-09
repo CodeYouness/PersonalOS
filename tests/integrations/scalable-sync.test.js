@@ -11,7 +11,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { cashRow, fakeSc, nonTrade, savingsPlanBuy, singleBuy, singleDetails } from './scalable-fake.js';
+import { cashRow, fakeSc, savingsPlanBuy, singleBuy, singleDetails } from './scalable-fake.js';
 
 /** @type {string} */
 let sandbox;
@@ -170,7 +170,7 @@ describe('the Scalable sync: what it leaves alone, out loud', () => {
       ],
       transactions: [
         cashRow({ id: 'CASH_1', amount: 500, cash_transaction_type: 'DEPOSIT', last_event_datetime: '2026-01-01T10:00:00.000Z' }),
-        nonTrade({ id: 'NON_TRADE_SWAP_IN_1', isin: ISIN_B, description: 'New fund', amount: 100, quantity: 2, non_trade_security_transaction_type: 'SWAP_IN', last_event_datetime: '2026-02-01T00:00:00.000Z' }),
+        plan('pending', ISIN_B, -100, 2, '2026-02-01T08:00:00.000Z', { status: 'PENDING' }),
         plan('usd', ISIN_B, -50, 1, '2026-01-07T08:00:00.000Z', { currency: 'USD' }),
         plan('p1', ISIN_A, -200, 2.5, '2026-01-05T08:00:00.000Z'),
       ],
@@ -183,7 +183,7 @@ describe('the Scalable sync: what it leaves alone, out loud', () => {
     expect(text).not.toMatch(/ExampleCoin/);
     expect(text).toMatch(/USD/);
     expect(text).toMatch(/cash/i);
-    expect(text).toMatch(/swap/i);
+    expect(text).toMatch(/not yet settled/i);
   });
 
   it('skips the holdings the broker reports in another currency', async () => {

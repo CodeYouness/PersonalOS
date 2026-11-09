@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   accountValueOn,
   allocation,
+  dayUnitsReachedZero,
   financeOverview,
   firstDayUnitsGoNegative,
   flowMonths,
@@ -266,6 +267,32 @@ describe('a holding is valued at its latest price', () => {
     const prices = [price({ id: 'price_1', date: '2025-12-01', price: 9000 })];
 
     expect(valueOn(prices, '2025-12-15')).toBeNull();
+  });
+});
+
+describe('the day a holding ran out of units', () => {
+  it('is the day of the trade that took the last unit, or null while units remain or there are no trades', () => {
+    const buy = trade({ date: '2026-01-02', direction: 'buy', units: 10 });
+    expect(dayUnitsReachedZero([buy, trade({ date: '2026-03-02', direction: 'sell', units: 10 })])).toBe('2026-03-02');
+    expect(dayUnitsReachedZero([buy, trade({ date: '2026-03-02', direction: 'sell', units: 4 })])).toBeNull();
+    expect(dayUnitsReachedZero([])).toBeNull();
+  });
+
+  it('is null again once units come back, and settles a day as a whole', () => {
+    expect(
+      dayUnitsReachedZero([
+        trade({ date: '2026-01-02', direction: 'buy', units: 10 }),
+        trade({ date: '2026-03-02', direction: 'sell', units: 10 }),
+        trade({ date: '2026-04-02', direction: 'buy', units: 1 }),
+      ])
+    ).toBeNull();
+    expect(
+      dayUnitsReachedZero([
+        trade({ date: '2026-01-02', direction: 'buy', units: 10 }),
+        trade({ date: '2026-03-02', direction: 'buy', units: 6 }),
+        trade({ date: '2026-03-02', direction: 'sell', units: 16 }),
+      ])
+    ).toBe('2026-03-02');
   });
 });
 
