@@ -838,6 +838,13 @@ and prices. An account has one answer to
 what it is worth: a balance on a `units` account and a trade on a `balance`
 account are both refused.
 
+**A synced account belongs to its source, except its name** (ADR 0031). An
+account with an `origin` was created by a sync, one holding per security,
+found by `(origin.source, origin.externalId)` -- the ISIN -- and never adopted
+from a hand-made account. Its kind, valuation and currency are the source's;
+the name is yours and survives the next sync. Its trades and prices are
+read-only, and Finances marks them "from <source>".
+
 **Archiving is a day.** An account you closed is archived: `archivedOn` is
 the day, and it leaves the account table and today's net worth while keeping
 its balances. It still counts on every earlier day it had a value, so closing
@@ -890,6 +897,14 @@ updated, never added twice, and it is not corrected or deleted here -- the
 store refuses, and Finances marks it "from <source>" without Correct or
 Delete. A hand-typed trade has `origin: null`. A synced trade is refused, like
 a hand-typed one, when it would leave the holding below zero units on any day.
+
+**The Scalable sync writes a holding's trades as one set**
+(`replaceSyncedTrades`): below zero is judged once after all of them, a trade
+the broker stopped reporting is removed, and an unchanged one is left alone.
+A single order is priced at its market valuation over its units with its fee
+beside it (the broker's amount already includes the fee); a savings plan at
+its amount over its units, fee 0; both rounded half up to the cent, so
+`units x price + fee` can be a few cents off the broker's amount (ADR 0031).
 
 `units` is an integer count of 10^-8 units, so a fraction of an ETF or of a
 coin is exact; `price` (per whole unit) and `fee` are integer minor units. A
@@ -1100,6 +1115,17 @@ from the broker. It turns the warning colour after 7 days and, after a failed
 run, shows the error beside the last successful run; with no run ever it is
 absent. So `lastRunAt` of that SyncState is the last *successful* run: a
 failed run patches only `status` and `error`.
+
+**The Scalable sync** (`lib/integrations/scalable/`, kind `portfolio`, ADR
+0031) reads the broker through its own CLI, `sc ... --json`, and writes one
+holding per security with its settled buys and sells. Only
+`npm run sync:scalable` calls it (`-- --dry-run` writes nothing) -- never a
+request handler (ADR 0010) -- and it needs no credential in the environment:
+`sc` keeps its read-only session in the Keychain. It reads everything before it
+writes anything, so a failed run (an `sc` exit of 1, 10, 20 or 30, or output
+that is not JSON) leaves the data as it was and records a failed SyncState. It
+refuses while the seed's demo finance rows are present, and the first run that
+creates an account backs the data file up.
 
 **ExternalOrigin** is on every synced record: `source`, `externalId`,
 `syncedAt`, `sourceUpdatedAt`. The pair `(source, externalId)` is the

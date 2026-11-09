@@ -1339,6 +1339,65 @@ export function runAdapterContract(label, load) {
           ]);
         });
 
+        describe('replaceSyncedTrades: a source\'s whole set for one holding', () => {
+          /** @param {string} id @param {Record<string, unknown>} [extra] */
+          const row = (id, extra = {}) => ({ externalId: id, date: '2026-04-02', direction: 'buy', units: 100000000, price: 10000, fee: 0, ...extra });
+
+          it('lists replaceSyncedTrades in the contract', () => {
+            expect(ADAPTER_METHODS).toContain('replaceSyncedTrades');
+          });
+
+          it('creates, then changes nothing on a second identical run, syncedAt included', async () => {
+            const etf = await syncedHolding();
+            const set = { accountId: etf.id, source: 'scalable', trades: [row('a'), row('b', { date: '2026-05-02' })] };
+            expect(await store.replaceSyncedTrades(set)).toEqual({ created: 2, updated: 0, removed: 0, unchanged: 0 });
+            const before = await store.getTrades({ accountId: etf.id });
+            expect(await store.replaceSyncedTrades(set)).toEqual({ created: 0, updated: 0, removed: 0, unchanged: 2 });
+            expect(await store.getTrades({ accountId: etf.id })).toEqual(before);
+          });
+
+          it('judges once after the whole set: a sell listed before its buy is fine', async () => {
+            const etf = await syncedHolding();
+            await store.replaceSyncedTrades({
+              accountId: etf.id, source: 'scalable',
+              trades: [row('sell', { direction: 'sell', date: '2026-04-10', units: 100000000 }), row('buy', { date: '2026-04-02' })],
+            });
+            expect(await store.getTrades({ accountId: etf.id })).toHaveLength(2);
+          });
+
+          it('refuses a set that goes below zero on any day and writes nothing', async () => {
+            const etf = await syncedHolding();
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [row('a')] });
+            await expect(
+              store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [row('a'), row('s', { direction: 'sell', units: 200000000, date: '2026-04-03' })] })
+            ).rejects.toThrow(/below zero/);
+            expect(await store.getTrades({ accountId: etf.id })).toHaveLength(1);
+          });
+
+          it('removes a synced trade the source no longer lists, and updates a changed one', async () => {
+            const etf = await syncedHolding();
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [row('a'), row('b', { date: '2026-05-02' })] });
+            const result = await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [row('a', { price: 10100 })] });
+            expect(result).toEqual({ created: 0, updated: 1, removed: 1, unchanged: 0 });
+            expect(await store.getTrades({ accountId: etf.id })).toEqual([expect.objectContaining({ price: 10100 })]);
+          });
+
+          it('leaves another source\'s trades on the holding alone', async () => {
+            const etf = await syncedHolding();
+            await store.upsertTradeByOrigin(brokerBuy(etf.id, { origin: { source: 'degiro', externalId: 'd1' }, date: '2026-01-02' }));
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [row('a')] });
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [] });
+            expect(await store.getTrades({ accountId: etf.id })).toEqual([
+              expect.objectContaining({ origin: expect.objectContaining({ source: 'degiro' }) }),
+            ]);
+          });
+
+          it('refuses an account with no origin', async () => {
+            const hand = await store.createAccount({ name: 'Hand ETF', kind: 'investment', valuation: 'units' });
+            await expect(store.replaceSyncedTrades({ accountId: hand.id, source: 'scalable', trades: [row('a')] })).rejects.toThrow(/not synced/);
+          });
+        });
+
         it('needs an origin, and a holding valued by units', async () => {
           const etf = await syncedHolding();
           await expect(store.upsertTradeByOrigin(brokerBuy(etf.id, { origin: null }))).rejects.toThrow(/origin/);

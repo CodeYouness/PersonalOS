@@ -17,6 +17,13 @@ describe('integration registry', () => {
     expect(integration?.isConfigured()).toBe(false);
   });
 
+  it('lists the Scalable integration as a portfolio, named as its SyncState key', () => {
+    const integration = findIntegration('scalable');
+
+    expect(integration?.kind).toBe('portfolio');
+    expect(integration?.isConfigured()).toBe(true);
+  });
+
   it('reports an unknown integration as absent rather than throwing', () => {
     expect(findIntegration('not-a-real-integration')).toBeNull();
   });
