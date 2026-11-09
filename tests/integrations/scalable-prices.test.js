@@ -11,7 +11,7 @@ import path from 'node:path';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { fakeSc, savingsPlanBuy } from './scalable-fake.js';
+import { fakeSc, nonTrade, savingsPlanBuy } from './scalable-fake.js';
 
 /** @type {string} */
 let sandbox;
@@ -130,13 +130,20 @@ describe('the Scalable sync: prices', () => {
     expect(await pricesOf()).toEqual([['2026-04-15', 12650]]);
   });
 
-  it('prices an archived holding to its archive day only, with no quote', async () => {
-    vi.setSystemTime(new Date('2026-02-10T09:00:00.000Z'));
-    await runSync(scenario());
-    await store.updateAccount(/** @type {string} */ ((await holdingOf())?.id), { archived: true });
-    vi.setSystemTime(TODAY);
-    await runSync(scenario());
-    expect((await pricesOf()).map(([date]) => date)).toEqual(['2026-01-31', '2026-02-10']);
+  it('prices a holding only to the day this run empties it, with no quote (tickets #215, #220)', async () => {
+    const out = nonTrade({ id: 'o1', isin: ISIN_A, description: 'Example ETF 1', amount: -250, quantity: 2, last_event_datetime: '2026-03-02T00:00:00.000Z', non_trade_security_transaction_type: 'TRANSFER_OUT' });
+    await runSync(scenario({ transactions: [...scenario().transactions, out] }));
+    expect((await holdingOf())?.archivedOn).toBe('2026-03-02');
+    expect((await pricesOf()).map(([date]) => date)).toEqual(['2026-01-31', '2026-02-28']);
+  });
+
+  it('prices a holding through today on the run its units come back (tickets #215, #220)', async () => {
+    const out = nonTrade({ id: 'o1', isin: ISIN_A, description: 'Example ETF 1', amount: -250, quantity: 2, last_event_datetime: '2026-03-02T00:00:00.000Z', non_trade_security_transaction_type: 'TRANSFER_OUT' });
+    await runSync(scenario({ transactions: [...scenario().transactions, out] }));
+    const back = nonTrade({ id: 'i1', isin: ISIN_A, description: 'Example ETF 1', amount: 300, quantity: 2, last_event_datetime: '2026-04-01T00:00:00.000Z', non_trade_security_transaction_type: 'TRANSFER_IN' });
+    await runSync(scenario({ transactions: [...scenario().transactions, out, back] }));
+    expect((await holdingOf())?.archivedOn).toBeNull();
+    expect((await pricesOf()).map(([date]) => date)).toEqual(['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-15']);
   });
 
   it('--dry-run reports the prices it would write and writes none', async () => {

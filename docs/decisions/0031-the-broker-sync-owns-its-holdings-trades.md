@@ -90,7 +90,8 @@ records today's quote (`sc broker quote`, `quote_mid_price`, dated today in
 from `sc broker chart --timeframe max`: the last chart point on or before the
 month-end, each point's timestamp read as a day in `USER_TIMEZONE`. A month-end
 before the first trade, before the first chart point, or not yet come gets none.
-An archived holding is priced to its archive day (`archivedOn`) and takes no
+A holding this run empties is priced to the day its trades empty it (not the
+stored `archivedOn`, which is written later in the run) and takes no
 quote. The writes go through `upsertSyncedPrice`, one per holding per day, so
 a second run corrects; only prices that differ are written. A security whose
 chart has no points is skipped with a warning and its trades still count; a
