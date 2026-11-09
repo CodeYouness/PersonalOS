@@ -672,6 +672,23 @@ export function runAdapterContract(label, load) {
         expect(phone.origin).toBe('shortcut');
       });
 
+      it('dates a capture when it was said, which is when it was written unless told otherwise', async () => {
+        const bare = await store.createCapture({ text: 'something', destination: 'memory' });
+        expect(bare.saidAt).toBe(bare.createdAt);
+
+        const late = await store.createCapture({
+          text: 'something else',
+          destination: 'memory',
+          saidAt: '2026-03-01T21:00:00.000Z',
+        });
+        expect(late.saidAt).toBe('2026-03-01T21:00:00.000Z');
+        expect(late.createdAt).not.toBe(late.saidAt);
+
+        await expect(
+          store.createCapture({ text: 'x', destination: 'memory', saidAt: 'last night' })
+        ).rejects.toThrow();
+      });
+
       it('refuses a destination that is not in the canonical list', async () => {
         await expect(
           store.createCapture({ text: 'something', destination: 'errands' })

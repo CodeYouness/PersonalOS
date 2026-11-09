@@ -258,6 +258,13 @@ export const limits = Object.freeze({
   /** How many recent captures the capture log drawer shows. */
   captureLogCount: 20,
   /**
+   * A capture's `saidAt` this far ahead of the server is clock drift and counts
+   * as now; further ahead is refused (ADR 0033). The capture log shows when a
+   * capture was said once it differs from when it was written by more than
+   * this.
+   */
+  saidAtDriftMinutes: 5,
+  /**
    * Answers need headroom: the model emits reasoning blocks before the text,
    * and a low ceiling makes the endpoint return an empty string that looks
    * like a bug.
