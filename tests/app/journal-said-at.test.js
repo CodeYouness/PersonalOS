@@ -68,6 +68,12 @@ describe('POST /api/journal with saidAt', () => {
     expect(await store.getJournalDay('2026-09-10')).toEqual([]);
   });
 
+  it('lets saidAt win when a date comes too: the sentence is never refused', async () => {
+    const response = await post({ text: 'Both', date: '2026-09-01', saidAt: LAST_NIGHT });
+    expect(response.status).toBe(200);
+    expect((await response.json()).entry.date).toBe('2026-09-09');
+  });
+
   it('dates a browser entry by when it was written, as before', async () => {
     const body = await (await post({ text: 'Morning' })).json();
     expect(body.entry.date).toBe('2026-09-10');

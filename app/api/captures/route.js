@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { formatEuro, formatWeight } from '@/components/format.js';
+import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
 import { limits } from '@/personalos.config.js';
 import { getCaptureProducedRecord, getCaptures, isCaptureRecordLocked } from '@/lib/store.js';
 
@@ -12,8 +13,13 @@ export const dynamic = 'force-dynamic';
  * whether that record has been touched since the capture created it. Nothing
  * downstream uses `locked` yet -- Undo and Refile (#22, #23) do -- but
  * computing it here means those tickets never have to revisit this endpoint.
+ *
+ * @param {Request} request
  */
-export async function GET() {
+export async function GET(request) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   try {
     const captures = await getCaptures({ limit: limits.captureLogCount });
     const rows = await Promise.all(captures.map(enrichCapture));

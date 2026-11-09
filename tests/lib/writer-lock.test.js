@@ -69,4 +69,27 @@ describe('the writer lock', () => {
     await writeFile(file, 'not json');
     expect((await acquireLock(file, { pid: 7, isAlive: alive })).acquired).toBe(true);
   });
+
+  it('lets exactly one of two overlapping starts win a free lock', async () => {
+    const results = await Promise.all([
+      acquireLock(file, { pid: 1, isAlive: alive }),
+      acquireLock(file, { pid: 2, isAlive: alive }),
+    ]);
+
+    expect(results.filter((r) => r.acquired)).toHaveLength(1);
+    const loser = results.find((r) => !r.acquired);
+    const winnerPid = results[0].acquired ? 1 : 2;
+    expect(loser).toEqual({ acquired: false, holder: expect.objectContaining({ pid: winnerPid }) });
+    expect(JSON.parse(await readFile(file, 'utf8')).pid).toBe(winnerPid);
+  });
+
+  it('lets exactly one of two overlapping starts take over the same stale lock', async () => {
+    await writeFile(file, JSON.stringify({ pid: 4242, startedAt: '2026-01-01T00:00:00.000Z' }));
+    const isAlive = (/** @type {number} */ pid) => pid !== 4242;
+
+    const results = await Promise.all([acquireLock(file, { pid: 1, isAlive }), acquireLock(file, { pid: 2, isAlive })]);
+
+    expect(results.filter((r) => r.acquired)).toHaveLength(1);
+    expect(JSON.parse(await readFile(file, 'utf8')).pid).toBe(results[0].acquired ? 1 : 2);
+  });
 });

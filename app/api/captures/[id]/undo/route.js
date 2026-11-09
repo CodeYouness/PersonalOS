@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
 import { undoCaptureFiling } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,9 @@ export const dynamic = 'force-dynamic';
  * @param {{ params: Promise<{ id: string }> }} context
  */
 export async function POST(request, { params }) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const { id } = await params;
   try {
     await undoCaptureFiling(id);

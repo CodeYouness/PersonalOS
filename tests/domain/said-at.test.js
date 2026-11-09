@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveSaidAt } from '../../lib/domain/said-at.js';
+import { resolveSaidAt, wasSaidEarlier } from '../../lib/domain/said-at.js';
 
 const NOW = new Date('2026-09-10T10:00:00Z');
 
@@ -29,4 +29,22 @@ describe('resolveSaidAt', () => {
       expect(resolveSaidAt(value, NOW).ok).toBe(false);
     }
   );
+});
+
+describe('wasSaidEarlier', () => {
+  const written = '2026-09-10T10:00:00Z';
+
+  it('is true when said more than the drift before it was written', () => {
+    expect(wasSaidEarlier({ createdAt: written, saidAt: '2026-09-10T09:54:00Z' })).toBe(true);
+    expect(wasSaidEarlier({ createdAt: written, saidAt: '2026-09-09T22:00:00Z' })).toBe(true);
+  });
+
+  it('is false when said at, or within the drift of, the moment it was written', () => {
+    expect(wasSaidEarlier({ createdAt: written, saidAt: written })).toBe(false);
+    expect(wasSaidEarlier({ createdAt: written, saidAt: '2026-09-10T09:55:00Z' })).toBe(false);
+  });
+
+  it('is false for a saidAt after createdAt', () => {
+    expect(wasSaidEarlier({ createdAt: written, saidAt: '2026-09-10T10:03:00Z' })).toBe(false);
+  });
 });

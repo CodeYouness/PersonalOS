@@ -18,7 +18,7 @@ import {
   fileCaptureAsTask,
   fileCaptureAsTransaction,
   fileCaptureAsWeight,
-  getCaptures,
+  findCaptureByClientId,
   getClassifyContext,
   linkPersonNamedIn,
   recordEvent,
@@ -90,8 +90,8 @@ export async function POST(request) {
   // model call. `createCaptureOnce` below stays the guard against two
   // overlapping resends that both get past this look.
   if (client.clientId !== null) {
-    const earlier = (await getCaptures()).find((c) => c.origin === origin && c.clientId === client.clientId);
-    if (earlier !== undefined) return NextResponse.json(await receiptOf(earlier));
+    const earlier = await findCaptureByClientId(origin, client.clientId);
+    if (earlier !== null) return NextResponse.json(await receiptOf(earlier));
   }
 
   // Your categories are enrichment: a store read that fails here must not
@@ -197,13 +197,14 @@ async function receiptOf(capture) {
     const transaction = /** @type {import('@/lib/domain/types.js').Transaction | null} */ (record);
     note = transaction === null ? 'no transaction filed' : formatEuro(transaction.amount, { cents: true });
   }
+  const saidOn = toDayKey(new Date(capture.saidAt));
   return {
     destination: capture.destination,
     route: capture.route,
     recordId: record?.id ?? null,
     note,
-    saidOn: toDayKey(new Date(capture.saidAt)),
-    receiptLine: receiptLineFor(capture.destination, capture.text, note, toDayKey(new Date(capture.saidAt))),
+    saidOn,
+    receiptLine: receiptLineFor(capture.destination, capture.text, note, saidOn),
   };
 }
 

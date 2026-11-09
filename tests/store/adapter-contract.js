@@ -1808,6 +1808,14 @@ export function runAdapterContract(label, load) {
         expect(a.capture.clientId).toBeUndefined();
       });
 
+      it('finds the capture held for an (origin, clientId) pair, and null for any other', async () => {
+        const first = await store.createCaptureOnce({ text: 'find me', origin: 'shortcut', clientId: 'c-5' });
+
+        expect((await store.findCaptureByClientId('shortcut', 'c-5'))?.id).toBe(first.capture.id);
+        expect(await store.findCaptureByClientId('bar', 'c-5')).toBeNull();
+        expect(await store.findCaptureByClientId('shortcut', 'nope')).toBeNull();
+      });
+
       it('createCapture returns the existing capture for a repeated pair', async () => {
         const first = await store.createCapture({ text: 'plain repeat', clientId: 'c-4' });
         const again = await store.createCapture({ text: 'plain repeat', clientId: 'c-4' });

@@ -1,4 +1,5 @@
-import { DESTINATIONS, limits } from '@/personalos.config.js';
+import { wasSaidEarlier } from '@/lib/domain/said-at.js';
+import { DESTINATIONS } from '@/personalos.config.js';
 import { formatTime } from '@/components/format.js';
 
 /**
@@ -80,17 +81,6 @@ export default function CaptureLogDrawer({
       </aside>
     </>
   );
-}
-
-/**
- * A capture said well before it was written -- queued on the phone, say --
- * shows both times; one written the moment it was said shows one.
- *
- * @param {CaptureLogRow} capture
- */
-function wasSaidEarlier(capture) {
-  const gapMs = new Date(capture.createdAt).getTime() - new Date(capture.saidAt).getTime();
-  return gapMs > limits.saidAtDriftMinutes * 60 * 1000;
 }
 
 /**

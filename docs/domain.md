@@ -186,7 +186,8 @@ from the phone, `clientId`.
 written in the browser it equals `createdAt`. An entry sent with a `saidAt`
 (the phone's journal Shortcut) takes its `date` from that instant's day in
 `USER_TIMEZONE`, so one dictated at 23:50 and delivered the next morning stays
-on the evening it belongs to. `clientId` makes a resend write nothing and answer
+on the evening it belongs to. If a `date` comes with it, `saidAt` wins and the
+`date` is ignored: a sentence is never refused for saying too much. `clientId` makes a resend write nothing and answer
 the first entry; see ADR-0033 and `docs/shortcuts.md`.
 
 `date` is the day the entry is about: today or any day before it, never one
