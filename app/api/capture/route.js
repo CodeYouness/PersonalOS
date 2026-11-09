@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 
 import { formatEuro, formatWeight } from '@/components/format.js';
 import { classify } from '@/lib/classify.js';
+import { toDayKey } from '@/lib/domain/dates.js';
+import { resolveSaidAt } from '@/lib/domain/said-at.js';
 import {
   createAppointment,
   createCapture,
@@ -60,14 +62,23 @@ export async function POST(request) {
     return NextResponse.json({ error: 'origin must be one of ' + CAPTURE_ORIGINS.join(', ') }, { status: 400 });
   }
 
+  // When the sentence was said (ADR 0033): any past instant, a few minutes
+  // ahead is now, further ahead or malformed is refused. Checked before
+  // anything is written. Every day the capture decides comes from it.
+  const said = resolveSaidAt(body?.saidAt);
+  if (!said.ok) {
+    return NextResponse.json({ error: said.error }, { status: 400 });
+  }
+  const saidOn = toDayKey(said.saidAt === null ? new Date() : new Date(said.saidAt));
+
   // Your categories are enrichment: a store read that fails here must not
   // keep the sentence from being saved (rule 2), so it falls back to none.
   const context = await getClassifyContext().catch((error) => {
     console.error('[capture] could not read the categories for the classifier:', error);
     return {};
   });
-  const { destination, route, fields } = await classify(text, chosen, undefined, context);
-  const capture = await createCapture({ text, origin, destination, route });
+  const { destination, route, fields } = await classify(text, chosen, saidOn, context);
+  const capture = await createCapture({ text, origin, destination, route, saidAt: said.saidAt ?? undefined });
 
   let recordId = null;
   /** @type {string | undefined} what the receipt adds: the weight filed, or that none was */
@@ -130,5 +141,5 @@ export async function POST(request) {
 
   // A health sentence with no weight to believe -- none said, or one nobody
   // weighs -- is kept, and the receipt says so instead of implying a number.
-  return NextResponse.json({ destination, route, recordId, note });
+  return NextResponse.json({ destination, route, recordId, note, saidOn });
 }
