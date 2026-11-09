@@ -18,7 +18,7 @@
  * plan is unresolved.
  *
  * The run order: remove the demo finance rows, dry run, read the report,
- * stop `npm run dev`, write. The mapping and the report never go into the repository: keep the
+ * stop `npm run serve` (and `dev`, if running), write. The mapping and the report never go into the repository: keep the
  * mapping in `.scratch/`, and read the report in the terminal.
  */
 
