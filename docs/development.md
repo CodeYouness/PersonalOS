@@ -182,9 +182,11 @@ screenshot.
 **The gate** is `lib/phone-gate.js`, called first thing in the capture route
 and in every journal handler:
 
-- A request is *proxied* when it carries a header `tailscale serve` adds
-  (`Tailscale-User-*` or `X-Forwarded-For`). Without the right token it gets
-  401 and nothing is written.
+- A request is *proxied* when it carries what `tailscale serve` adds: a
+  `Tailscale-User-*` header, or an `X-Forwarded-For` naming the phone's
+  tailnet address. Next itself sets `X-Forwarded-For` to `127.0.0.1` (or
+  `::1`) on every local request, so a loopback address is the Mac's own.
+  Without the right token a proxied request gets 401 and nothing is written.
 - With no token configured, every proxied request gets 401: the gate fails
   closed.
 - A request without those headers is the Mac's own browser. It needs no token,

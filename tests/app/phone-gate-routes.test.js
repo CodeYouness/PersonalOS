@@ -131,7 +131,28 @@ describe('POST /api/capture behind the gate', () => {
   it('treats any one of the proxy headers as proxied', async () => {
     const app = await load(TOKEN);
 
-    const response = await app.capture.POST(post('http://localhost/api/capture', CAPTURE, { 'tailscale-user-name': 'x' }));
+    const byUser = await app.capture.POST(post('http://localhost/api/capture', CAPTURE, { 'tailscale-user-name': 'x' }));
+    const byAddress = await app.capture.POST(post('http://localhost/api/capture', CAPTURE, { 'x-forwarded-for': '100.64.0.7' }));
+
+    expect(byUser.status).toBe(401);
+    expect(byAddress.status).toBe(401);
+  });
+
+  // Next's own server sets x-forwarded-for to the socket's address on every
+  // request that arrives without one, so the Mac's own browser reaches the
+  // handler carrying a loopback x-forwarded-for. That is not a proxy.
+  it.each(['127.0.0.1', '::1', '::ffff:127.0.0.1'])("files the Mac's own request as Next delivers it, forwarded for %s, with no token", async (address) => {
+    const app = await load(TOKEN);
+
+    const response = await app.capture.POST(post('http://localhost/api/capture', CAPTURE, { 'x-forwarded-for': address }));
+
+    expect(response.status).toBe(200);
+  });
+
+  it('treats a forwarded chain that names any address off the Mac as proxied', async () => {
+    const app = await load(TOKEN);
+
+    const response = await app.capture.POST(post('http://localhost/api/capture', CAPTURE, { 'x-forwarded-for': '100.64.0.7, 127.0.0.1' }));
 
     expect(response.status).toBe(401);
   });
