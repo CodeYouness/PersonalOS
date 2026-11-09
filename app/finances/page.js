@@ -9,7 +9,8 @@ import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/Fina
 import FinanceTransactions from '@/components/FinanceTransactions.js';
 import { isMonthKey, monthOf, monthRange, today } from '@/lib/domain/dates.js';
 import { financeOverview, flowMonths, lineHolds, monthFlows, monthsWith, savingsRate, yearFlows } from '@/lib/domain/derive/finance.js';
-import { getAccount, getFinanceInputs, getProfile, getTransaction } from '@/lib/store.js';
+import { brokerStaleness } from '@/lib/domain/derive/sync-staleness.js';
+import { getAccount, getFinanceInputs, getProfile, getSyncStates, getTransaction } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,14 +43,16 @@ export const dynamic = 'force-dynamic';
 export default async function FinancesScreen({ searchParams }) {
   const { account: accountParam, month: monthParam, transaction: transactionParam, category: categoryParam } = await searchParams;
   const todayKey = today();
-  const [finance, selected, profile, selectedTransaction] = await Promise.all([
+  const [finance, syncStates, selected, profile, selectedTransaction] = await Promise.all([
     getFinanceInputs(),
+    getSyncStates(),
     typeof accountParam === 'string' ? getAccount(accountParam) : null,
     getProfile(),
     typeof transactionParam === 'string' ? getTransaction(transactionParam) : null,
   ]);
   const { accounts, observations, trades, prices, transactions } = finance;
   const overview = financeOverview(finance, todayKey);
+  const staleness = brokerStaleness(syncStates, todayKey);
   const categories = profile.financeCategories;
   // The month of the selected transaction is on offer even when the section
   // would not (before "tracked since", or after today): a citation links to
@@ -82,6 +85,7 @@ export default async function FinancesScreen({ searchParams }) {
           archived={accounts.filter((account) => account.archivedOn !== null)}
           todayKey={todayKey}
           place={place}
+          staleness={staleness}
         />
         <div className="finance-side span-5">
           {selected === null ? (
