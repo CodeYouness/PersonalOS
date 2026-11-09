@@ -35,6 +35,8 @@ export default function FinanceHoldings({ account, trades, prices, write, refuse
   const [quote, setQuote] = useState('');
   const [quoteDate, setQuoteDate] = useState(todayKey);
   const [editingId, setEditingId] = useState(/** @type {string | null} */ (null));
+  // A synced holding is its broker's (ADR 0031): marked, never typed into.
+  const synced = account.origin !== null;
 
   /** @param {import('react').FormEvent} event */
   async function recordTrade(event) {
@@ -81,8 +83,12 @@ export default function FinanceHoldings({ account, trades, prices, write, refuse
    * Edit and Delete on a trade's or a price's row.
    *
    * @param {string} id @param {string} url @param {string} what as the confirmation names it
+   * @param {string | undefined} from the source of a synced row
    */
-  const rowActions = (id, url, what) => (
+  const rowActions = (id, url, what, from) =>
+    synced ? (
+      <td className="caption finance-row-actions">from {from}</td>
+    ) : (
     <td className="finance-row-actions">
       <button type="button" className="btn-ghost" disabled={isSaving} onClick={() => setEditingId(id)}>
         Edit
@@ -91,10 +97,16 @@ export default function FinanceHoldings({ account, trades, prices, write, refuse
         Delete
       </button>
     </td>
-  );
+    );
 
   return (
     <>
+      {synced ? (
+        <p className="caption">
+          Synced from {account.origin?.source}: its trades and prices are the broker&apos;s and are not corrected here.
+        </p>
+      ) : (
+        <>
       <form onSubmit={recordTrade}>
         <div className="segmented finance-direction" role="group" aria-label="Direction">
           {TRADE_DIRECTIONS.map((choice) => (
@@ -148,6 +160,8 @@ export default function FinanceHoldings({ account, trades, prices, write, refuse
           Record price
         </button>
       </form>
+        </>
+      )}
 
       <div className="divider" />
       {trades.length === 0 ? (
@@ -183,7 +197,7 @@ export default function FinanceHoldings({ account, trades, prices, write, refuse
                   <td className="num">{formatUnits(trade.units)}</td>
                   <td className="num">{formatMoney(trade.price, { cents: true })}</td>
                   <td className="num">{trade.fee === 0 ? '' : formatMoney(trade.fee, { cents: true })}</td>
-                  {rowActions(trade.id, tradeUrl(trade.id), 'the ' + trade.direction + ' of ' + shortDate(trade.date, todayKey))}
+                  {rowActions(trade.id, tradeUrl(trade.id), 'the ' + trade.direction + ' of ' + shortDate(trade.date, todayKey), trade.origin?.source ?? account.origin?.source)}
                 </tr>
               )
             )}
@@ -215,7 +229,7 @@ export default function FinanceHoldings({ account, trades, prices, write, refuse
                 <tr key={row.id}>
                   <td className="num finance-date">{shortDate(row.date, todayKey)}</td>
                   <td className="num">{formatMoney(row.price, { cents: true })}</td>
-                  {rowActions(row.id, priceUrl(row.id), 'the price of ' + shortDate(row.date, todayKey))}
+                  {rowActions(row.id, priceUrl(row.id), 'the price of ' + shortDate(row.date, todayKey), account.origin?.source)}
                 </tr>
               )
             )}

@@ -881,7 +881,15 @@ such as tax set aside, is a liability.
 **Is** a buy or a sell on a holding.
 
 **Has** `accountId` (an account valued by units), `date`, `direction` (`buy`
-or `sell`, `TRADE_DIRECTIONS`), `units`, `price`, `fee`, `currency`.
+or `sell`, `TRADE_DIRECTIONS`), `units`, `price`, `fee`, `currency`, `origin`.
+
+**A synced trade is the broker's.** A trade with an `origin` was reported by a
+source, not typed: the source owns every field of it, `upsertTradeByOrigin`
+matches it on `(origin.source, origin.externalId)` so the same trade is
+updated, never added twice, and it is not corrected or deleted here -- the
+store refuses, and Finances marks it "from <source>" without Correct or
+Delete. A hand-typed trade has `origin: null`. A synced trade is refused, like
+a hand-typed one, when it would leave the holding below zero units on any day.
 
 `units` is an integer count of 10^-8 units, so a fraction of an ETF or of a
 coin is exact; `price` (per whole unit) and `fee` are integer minor units. A
@@ -890,7 +898,7 @@ purchase keeps the holding current with no extra typing. A fee is what you
 paid, never what the holding is worth. A trade that would leave the holding
 with fewer than zero units on any day is refused; a day is settled whole.
 
-A trade can be corrected (any of its fields but its account) or deleted, under
+A hand-typed trade can be corrected (any of its fields but its account) or deleted, under
 the same rule: deleting or reducing a buy that a later sell depends on is
 refused.
 
@@ -910,6 +918,12 @@ value stays flat between two prices -- nothing invents a movement you did not
 record. One Price per holding per day: recording a second for the same day
 corrects the first. A price before the first trade values nothing; a holding's
 history starts at its first trade.
+
+**A synced price is the broker's.** On an account with an `origin` (a synced
+holding) the store refuses to type, correct or delete a price; only the
+sync's own `upsertSyncedPrice` writes there, still one per holding per day.
+Finances marks them "from <source>" and offers no edit. A hand-made holding
+is unchanged.
 
 **A Trade is not a Transaction.** It changes what you hold, not money in or
 out. The cash that paid for a buy -- a transfer from a cash account, never
