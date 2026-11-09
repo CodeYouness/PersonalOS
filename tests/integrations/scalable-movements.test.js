@@ -104,7 +104,9 @@ describe('the Scalable sync: mergers and transfers', () => {
       ],
     });
     expect(await holdingOf(OLD)).toBeUndefined();
-    expect(result.written).toBe(0);
+    // the cash part's own account and balance are the only writes
+    expect(result.written).toBe(2);
+    expect((await store.getTrades()).length).toBe(0);
   });
 
   it('removes a trade the broker no longer reports, and warns', async () => {
