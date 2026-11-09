@@ -82,7 +82,7 @@ watchFile('data/seed.json', { interval: 1000 }, async (current, previous) => {
   }
 });
 
-const server = spawn('npx', ['next', 'dev', ...process.argv.slice(2)], {
+const server = spawn('npx', ['next', 'dev', '-H', '127.0.0.1', ...process.argv.slice(2)], {
   stdio: 'inherit',
   // Hands the shell's environment on to the server, reading nothing from it:
   // lib/config/env.js still validates every value inside `next dev`, which

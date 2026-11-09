@@ -46,7 +46,8 @@ repository entirely.
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Development server |
+| `npm run serve` | Production build on your real data, the one writer, local only |
+| `npm run dev` | Development server (refuses while `serve` runs) |
 | `npm run verify` | lint + typecheck + test + build -- the gate for any change |
 | `npm test` | Tests only |
 | `npm run check:secrets` | Fails if personal data or a credential is tracked |
