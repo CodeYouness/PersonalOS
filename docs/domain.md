@@ -1149,6 +1149,20 @@ that is not JSON) leaves the data as it was and records a failed SyncState. It
 refuses while the seed's demo finance rows are present, and the first run that
 creates an account backs the data file up.
 
+**The broker's cash is one account** (ticket #217). The sync finds or creates
+a `cash` account, "Scalable cash", valued by balance, with `origin { source:
+'scalable', externalId: <portfolio id> }` -- found by origin, never adopted,
+its name the user's after the first run. Each run records `cash_balance` from
+`sc broker cash-breakdown` as that day's balance: one per day, a second run
+the same day writes nothing (or corrects the day's figure in place if the
+broker's moved), a later day adds a balance so the history follows
+(ADR 0022, ADR 0024), and **a balance of 0 is recorded as 0** -- a known zero
+is not unknown. Balances on that account are read-only: the store refuses to
+type, correct or delete one (`recordObservation`, `updateObservation`,
+`deleteObservation`); only the sync's `upsertSyncedBalance` writes there.
+Cash *movements* -- deposits, interest, withdrawals -- are not synced; those
+rows are left alone and listed as a warning.
+
 **ExternalOrigin** is on every synced record: `source`, `externalId`,
 `syncedAt`, `sourceUpdatedAt`. The pair `(source, externalId)` is the
 deduplication key. It is what makes an import idempotent, and what lets a live
