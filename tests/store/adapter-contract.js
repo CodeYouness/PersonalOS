@@ -1398,6 +1398,30 @@ export function runAdapterContract(label, load) {
           });
         });
 
+        describe('setSyncedAccountArchivedOn: a synced holding archived on a given day', () => {
+          it('lists it in the contract', () => {
+            expect(ADAPTER_METHODS).toContain('setSyncedAccountArchivedOn');
+          });
+
+          it('archives on the day given, moves it, and restores with null', async () => {
+            const etf = await syncedHolding();
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [{ externalId: 'a', date: '2026-04-02', direction: 'buy', units: 100000000, price: 100, fee: 0 }] });
+            expect((await store.setSyncedAccountArchivedOn(etf.id, '2026-04-10')).archivedOn).toBe('2026-04-10');
+            expect((await store.setSyncedAccountArchivedOn(etf.id, '2026-04-12')).archivedOn).toBe('2026-04-12');
+            expect((await store.setSyncedAccountArchivedOn(etf.id, null)).archivedOn).toBeNull();
+          });
+
+          it('refuses an account with no origin, a bad day, and a day before a trade on it', async () => {
+            const hand = await store.createAccount({ name: 'Hand ETF', kind: 'investment', valuation: 'units' });
+            await expect(store.setSyncedAccountArchivedOn(hand.id, '2026-04-10')).rejects.toThrow(/not synced/);
+            const etf = await syncedHolding();
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [{ externalId: 'a', date: '2026-04-02', direction: 'buy', units: 100000000, price: 100, fee: 0 }] });
+            await expect(store.setSyncedAccountArchivedOn(etf.id, 'tomorrow')).rejects.toThrow();
+            await expect(store.setSyncedAccountArchivedOn(etf.id, '2026-04-01')).rejects.toThrow(/2026-04-02/);
+            expect((await store.getAccount(etf.id))?.archivedOn).toBeNull();
+          });
+        });
+
         it('needs an origin, and a holding valued by units', async () => {
           const etf = await syncedHolding();
           await expect(store.upsertTradeByOrigin(brokerBuy(etf.id, { origin: null }))).rejects.toThrow(/origin/);

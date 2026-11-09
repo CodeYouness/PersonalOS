@@ -898,6 +898,20 @@ store refuses, and Finances marks it "from <source>" without Correct or
 Delete. A hand-typed trade has `origin: null`. A synced trade is refused, like
 a hand-typed one, when it would leave the holding below zero units on any day.
 
+**A merger or a transfer is a sell and a buy** (ADR 0031). The broker's
+`SWAP_OUT` and `TRANSFER_OUT` become a sell, `SWAP_IN` and `TRANSFER_IN` a
+buy, at the amount the broker reports over the units, fee 0 -- even when the
+units only change custody, so a holding's units match the broker's on every
+day. A merger takes all of the old holding's units out and puts the new
+fund's in on the same day. The value can be a cost rather than a market
+price. A cancellation pair (`is_cancellation` and the row it undoes) writes
+nothing; a synced trade the broker no longer reports as settled is removed on
+the next sync, with a warning. A synced holding that reaches zero units is
+**archived on the day of the trade that emptied it** (`archivedOn`, read by
+anything that prices it: no price after that day), and restored when units
+come back. A holding that would still go below zero units after the whole
+run's trades is left alone with a warning.
+
 **The Scalable sync writes a holding's trades as one set**
 (`replaceSyncedTrades`): below zero is judged once after all of them, a trade
 the broker stopped reporting is removed, and an unchanged one is left alone.

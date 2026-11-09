@@ -74,11 +74,14 @@ written. A holding whose trades would leave it below zero units (a sell of
 units that arrived by a transfer) is set aside with a warning rather than
 failing the run.
 
-**Mergers, transfers, prices and archiving** follow in the same spec:
-mergers and transfers become sells and buys at the value the broker reports,
-and that value can be a cost rather than a market price, so the day of a
-merger can be off until the next month-end price; a holding is archived at
-zero units and restored if units come back. The sync owns its holdings and
+**Mergers, transfers and archiving.** Mergers and transfers become sells and
+buys at the value the broker reports, and that value can be a cost rather
+than a market price, so the day of a merger can be off until the next
+month-end price. A holding is archived at zero units, on the day of the trade
+that emptied it (`setSyncedAccountArchivedOn`, not "today"), and restored if
+units come back. The below-zero set-aside stays: with transfers mapped, a
+holding still below zero means the broker's history is incomplete, which is
+worth a warning, not a guess. The sync owns its holdings and
 the spreadsheet import adapts to it.
 
 **Running it.** `npm run sync:scalable`, `--dry-run` to print the plan and
