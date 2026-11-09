@@ -23,9 +23,6 @@ import { createHash } from 'node:crypto';
 import { dayUnitsReachedZero, firstDayUnitsGoNegative } from '../../lib/domain/derive/finance.js';
 import { monthEndPrices } from '../../lib/integrations/scalable/prices.js';
 
-/** The origin source of DEGIRO holdings and trades. */
-export const DEGIRO_SOURCE = 'degiro';
-
 /**
  * @typedef {import('../../lib/integrations/scalable/map.js').SyncedTrade} PlannedTrade
  * @typedef {{ day: string, price: number }} ChartPoint

@@ -25,7 +25,7 @@
  * A category path is "Parent" or "Parent/Child".
  */
 
-import { ACCOUNT_KINDS, ACCOUNT_VALUATIONS, CATEGORY_KINDS } from '../../personalos.config.js';
+import { ACCOUNT_KINDS, ACCOUNT_VALUATIONS, CATEGORY_KINDS, ORIGIN_SOURCES } from '../../personalos.config.js';
 
 /**
  * @typedef {object} MappedAccount
@@ -201,9 +201,9 @@ export function validateMapping(input) {
  */
 function syncedAccount(input, where) {
   const origin = record(input, where);
-  if (origin.source !== 'scalable') throw new Error(where + '.source must be "scalable", received ' + JSON.stringify(origin.source));
+  if (origin.source !== ORIGIN_SOURCES.scalable) throw new Error(where + '.source must be "' + ORIGIN_SOURCES.scalable + '", received ' + JSON.stringify(origin.source));
   const externalId = nonBlank(origin.externalId, where + '.externalId');
-  return { name: externalId, kind: 'investment', valuation: 'units', origin: { source: 'scalable', externalId } };
+  return { name: externalId, kind: 'investment', valuation: 'units', origin: { source: ORIGIN_SOURCES.scalable, externalId } };
 }
 
 /**

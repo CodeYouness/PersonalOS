@@ -10,7 +10,8 @@
  * everything as it left it and changes nothing -- and takes no backup.
  */
 
-import { DEGIRO_SOURCE } from './plan.js';
+import { ORIGIN_SOURCES } from '../../personalos.config.js';
+import { syncedOrigin } from '../../lib/domain/origin.js';
 import {
   backupData,
   createAccount,
@@ -28,7 +29,7 @@ import {
  * @param {string} isin
  */
 export function findDegiroHolding(accounts, isin) {
-  return accounts.find((account) => account.origin?.source === DEGIRO_SOURCE && account.origin.externalId === isin);
+  return accounts.find((account) => account.origin?.source === ORIGIN_SOURCES.degiro && account.origin.externalId === isin);
 }
 
 /**
@@ -48,7 +49,7 @@ function pendingChanges(plan, accounts, trades, prices) {
       continue;
     }
     if (account.archivedOn !== holding.archivedOn) changes += 1;
-    const mine = new Map(trades.filter((t) => t.accountId === account.id && t.origin?.source === DEGIRO_SOURCE).map((t) => [t.origin?.externalId, t]));
+    const mine = new Map(trades.filter((t) => t.accountId === account.id && t.origin?.source === ORIGIN_SOURCES.degiro).map((t) => [t.origin?.externalId, t]));
     for (const want of holding.trades) {
       const old = mine.get(want.externalId);
       if (old === undefined || old.date !== want.date || old.direction !== want.direction || old.units !== want.units || old.price !== want.price || old.fee !== want.fee) changes += 1;
@@ -89,9 +90,9 @@ export async function writePlan(plan, print) {
         valuation: 'units',
         currency: 'EUR',
         source: 'integration',
-        origin: { source: DEGIRO_SOURCE, externalId: holding.isin, syncedAt: new Date().toISOString(), sourceUpdatedAt: null },
+        origin: syncedOrigin(ORIGIN_SOURCES.degiro, holding.isin),
       });
-      await replaceSyncedTrades({ accountId: account.id, source: DEGIRO_SOURCE, trades: holding.trades });
+      await replaceSyncedTrades({ accountId: account.id, source: ORIGIN_SOURCES.degiro, trades: holding.trades });
       if (account.archivedOn !== holding.archivedOn) await setSyncedAccountArchivedOn(account.id, holding.archivedOn);
       const stored = new Map((await getPrices({ accountId: account.id })).map((p) => [p.date, p.price]));
       for (const price of holding.prices) {
