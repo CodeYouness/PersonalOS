@@ -940,6 +940,14 @@ sync's own `upsertSyncedPrice` writes there, still one per holding per day.
 Finances marks them "from <source>" and offers no edit. A hand-made holding
 is unchanged.
 
+**A synced holding is priced by its broker.** Each Scalable sync writes
+today's quote and one price per month-end since the holding's first trade
+(the last chart point on or before the month-end, in `USER_TIMEZONE`); an
+archived holding is priced only up to its archive day. A second run corrects
+a day, never adds one, so a holding with no trades for months follows the
+month-end prices instead of staying flat. A security the broker has no chart
+for keeps its trades and gets only today's quote, with a warning.
+
 **A Trade is not a Transaction.** It changes what you hold, not money in or
 out. The cash that paid for a buy -- a transfer from a cash account, never
 spending -- belongs to the transactions piece.

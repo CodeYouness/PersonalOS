@@ -78,13 +78,15 @@ export function fakeSc(scenario) {
     }
     if (group === 'broker' && command === 'quote') {
       const isin = flag('--isin') ?? '';
-      const quote = scenario.quotes?.[isin];
+      // A scenario with no `quotes` at all quotes every ISIN at 100.
+      const quote = scenario.quotes === undefined ? { quote_mid_price: 100, quote_timestamp_utc: new Date().toISOString() } : scenario.quotes[isin];
       if (quote === undefined) throw new ScCommandError(10, 'broker_input_invalid');
       return envelope('broker.quote', { ...ACCOUNT, result: { isin, quote_currency: 'EUR', ...quote } });
     }
     if (group === 'broker' && command === 'chart') {
       const isin = flag('--isin') ?? '';
-      const chart = scenario.charts?.[isin];
+      // A scenario with no `charts` at all charts every ISIN as flat at 100 since 2000.
+      const chart = scenario.charts === undefined ? { point_count: 1, data_points: [{ mid_price: 100, timestamp_utc: '2000-01-31T20:00:00.000Z' }] } : scenario.charts[isin];
       if (chart === undefined) throw new ScCommandError(10, 'broker_input_invalid');
       return envelope('broker.chart', { isin, currency: 'EUR', source: 'CONSOLIDATED', timeframe: 'max', ...chart });
     }
