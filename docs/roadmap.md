@@ -76,7 +76,8 @@ gate on that decision and are flagged off in `personalos.config.js`.
 
 **A private network is not going online.** The phone reaches the Mac over
 Tailscale, with `npm run serve` as the one writer and every server on
-`127.0.0.1` (ADR 0032). The gate above still stands before any deploy.
+`127.0.0.1` (ADR 0032). A launchd agent keeps `serve` up from login and a web
+app manifest opens it from the Dock (#227; steps in `docs/development.md`). The gate above still stands before any deploy.
 
 **A graph UI.** The model can represent the graph; nothing needs to draw it
 yet.

@@ -110,6 +110,29 @@ tool will not tell you:
   run at once. Once the server is down, the page logs failed hot-reload (HMR)
   connections that are not the app's errors.
 
+## Always running, and the Dock (ticket #227)
+
+`npm run serve` runs under a launchd user agent, so PersonalOS is up after
+login and comes back when it exits. The definition is generated for this
+checkout (`npm run launchd:plist`), so no path is committed.
+
+```
+mkdir -p ~/Library/Logs/PersonalOS
+npm run --silent launchd:plist > ~/Library/LaunchAgents/personalos.serve.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/personalos.serve.plist
+```
+
+- **Check:** `launchctl print gui/$(id -u)/personalos.serve`, and open
+  http://127.0.0.1:3000.
+- **Remove:** `launchctl bootout gui/$(id -u)/personalos.serve`, then delete the plist.
+- **Rebuild after a change:** `launchctl kickstart -k gui/$(id -u)/personalos.serve`
+  restarts it, and `serve` builds again on start (give it a minute). `bootout`
+  it first before `npm run dev` or any script that writes the data.
+- **Logs:** `~/Library/Logs/PersonalOS/serve.log` and `serve.err.log`
+  (`tail -f`). Build errors land there.
+- **The Dock:** open http://127.0.0.1:3000 in Safari, File > Add to Dock (in
+  Chrome, Install PersonalOS). The window uses the manifest's name and icon.
+
 ## Debugging
 
 Server errors appear in the terminal running `npm run dev`. Browser errors
