@@ -1769,6 +1769,57 @@ export function runAdapterContract(label, load) {
       });
     });
 
+    describe('a capture sent twice', () => {
+      it('keeps the first when the same origin and clientId arrive again, and says so', async () => {
+        const first = await store.createCaptureOnce({ text: 'paid 4 euro for coffee', origin: 'shortcut', clientId: 'c-1' });
+        const again = await store.createCaptureOnce({ text: 'paid 4 euro for coffee', origin: 'shortcut', clientId: 'c-1' });
+
+        expect(first.created).toBe(true);
+        expect(again.created).toBe(false);
+        expect(again.capture.id).toBe(first.capture.id);
+        expect((await store.getCaptures()).filter((c) => c.clientId === 'c-1')).toHaveLength(1);
+      });
+
+      it('keeps one when two resends start before either finishes', async () => {
+        const results = await Promise.all([
+          store.createCaptureOnce({ text: 'overlap sentence', origin: 'shortcut', clientId: 'c-2' }),
+          store.createCaptureOnce({ text: 'overlap sentence', origin: 'shortcut', clientId: 'c-2' }),
+        ]);
+
+        expect(results.map((r) => r.created).sort()).toEqual([false, true]);
+        expect(results[0].capture.id).toBe(results[1].capture.id);
+        expect((await store.getCaptures()).filter((c) => c.clientId === 'c-2')).toHaveLength(1);
+      });
+
+      it('treats the same clientId under another origin as another capture', async () => {
+        const a = await store.createCaptureOnce({ text: 'same id', origin: 'shortcut', clientId: 'c-3' });
+        const b = await store.createCaptureOnce({ text: 'same id', origin: 'bar', clientId: 'c-3' });
+
+        expect(b.created).toBe(true);
+        expect(b.capture.id).not.toBe(a.capture.id);
+      });
+
+      it('never merges captures without a clientId', async () => {
+        const a = await store.createCaptureOnce({ text: 'no id' });
+        const b = await store.createCaptureOnce({ text: 'no id' });
+
+        expect([a.created, b.created]).toEqual([true, true]);
+        expect(a.capture.id).not.toBe(b.capture.id);
+        expect(a.capture.clientId).toBeUndefined();
+      });
+
+      it('createCapture returns the existing capture for a repeated pair', async () => {
+        const first = await store.createCapture({ text: 'plain repeat', clientId: 'c-4' });
+        const again = await store.createCapture({ text: 'plain repeat', clientId: 'c-4' });
+        expect(again.id).toBe(first.id);
+      });
+
+      it('refuses a clientId that is not a short string', async () => {
+        await expect(store.createCapture({ text: 'x', clientId: 5 })).rejects.toThrow(/clientId/);
+        await expect(store.createCapture({ text: 'x', clientId: '' })).rejects.toThrow(/clientId/);
+      });
+    });
+
     describe('reset', () => {
       it('restores the seeded state', async () => {
         // Restoring from the seed is the destructive factory reset this
