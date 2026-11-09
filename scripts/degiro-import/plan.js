@@ -21,7 +21,7 @@
 import { createHash } from 'node:crypto';
 
 import { dayUnitsReachedZero, firstDayUnitsGoNegative } from '../../lib/domain/derive/finance.js';
-import { monthEndPrices } from '../../lib/integrations/scalable/prices.js';
+import { monthEndPrices, pricePerUnit } from '../../lib/domain/derive/pricing.js';
 
 /**
  * @typedef {import('../../lib/integrations/scalable/map.js').SyncedTrade} PlannedTrade
@@ -41,17 +41,6 @@ import { monthEndPrices } from '../../lib/integrations/scalable/prices.js';
  * @property {string[]} warnings
  * @property {string[]} blocking
  */
-
-/**
- * @param {number} cents
- * @param {number} units 10^-8
- * @returns {number} cents per unit, half up, exact
- */
-export function pricePerUnit(cents, units) {
-  const c = BigInt(Math.abs(cents));
-  const u = BigInt(units);
-  return Number((2n * c * 100000000n + u) / (2n * u));
-}
 
 /**
  * @param {import('./parse.js').DegiroRow} row

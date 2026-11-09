@@ -150,4 +150,10 @@ describe('the Scalable sync: mergers and transfers', () => {
     expect(await holdingOf(OLD)).toBeUndefined();
     expect(result.report.join('\n')).toMatch(/archive.*2026-05-04/);
   });
+
+  it('writes nothing and throws on a movement with no usable amount', async () => {
+    const rows = [buy('p1', OLD, -1000, 10, '2026-01-05T08:00:00.000Z'), { ...move('NON_TRADE_SWAP_OUT_1', 'SWAP_OUT', OLD, -1200, 10, '2026-05-04T08:00:00.000Z'), amount: undefined }];
+    await expect(runSync({ transactions: rows })).rejects.toThrow(/amount/);
+    expect((await store.getAccounts()).filter((a) => a.origin !== null)).toEqual([]);
+  });
 });

@@ -228,6 +228,24 @@ describe('the Scalable sync: failing and refusing', () => {
     expect(await snapshot()).toBe(before);
   });
 
+  it.each([
+    ['a missing amount', undefined],
+    ['a non-numeric amount', 'lots'],
+    ['a null amount', null],
+  ])('writes nothing and throws on %s', async (_label, amount) => {
+    const before = await snapshot();
+    const row = { ...plan('p1', ISIN_A, -200, 2.5, '2026-01-05T08:00:00.000Z'), amount };
+    const { result } = runSync({ transactions: [row] });
+    await expect(result).rejects.toThrow(/amount/);
+    expect(await snapshot()).toBe(before);
+  });
+
+  it('prices a trade from its amount in integers: 1 cent over 2.00000002 units is 0, not 1', async () => {
+    await runSync({ transactions: [plan('p1', ISIN_A, -0.01, 2.00000002, '2026-01-05T08:00:00.000Z')] }).result;
+    const account = await holdingOf(ISIN_A);
+    expect((await store.getTrades({ accountId: account?.id }))[0].price).toBe(0);
+  });
+
   it('writes nothing when a details call fails after the transactions were read', async () => {
     const before = await snapshot();
     const { result } = runSync({
