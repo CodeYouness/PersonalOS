@@ -74,12 +74,26 @@ written. A holding whose trades would leave it below zero units (a sell of
 units that arrived by a transfer) is set aside with a warning rather than
 failing the run.
 
-**Mergers, transfers, prices and archiving** follow in the same spec:
+**Mergers, transfers and archiving** follow in the same spec:
 mergers and transfers become sells and buys at the value the broker reports,
 and that value can be a cost rather than a market price, so the day of a
 merger can be off until the next month-end price; a holding is archived at
 zero units and restored if units come back. The sync owns its holdings and
 the spreadsheet import adapts to it.
+
+**Prices (ticket #215).** A synced holding is priced by its broker. Each run
+records today's quote (`sc broker quote`, `quote_mid_price`, dated today in
+`USER_TIMEZONE`) and one price per month-end since the holding's first trade,
+from `sc broker chart --timeframe max`: the last chart point on or before the
+month-end, each point's timestamp read as a day in `USER_TIMEZONE`. A month-end
+before the first trade, before the first chart point, or not yet come gets none.
+An archived holding is priced to its archive day (`archivedOn`) and takes no
+quote. The writes go through `upsertSyncedPrice`, one per holding per day, so
+a second run corrects; only prices that differ are written. A security whose
+chart has no points is skipped with a warning and its trades still count; a
+quote or chart command that fails fails the run, like every other `sc` read.
+The reads happen in the plan stage, so a holding another part contributed is
+priced too, still before anything is written.
 
 **Running it.** `npm run sync:scalable`, `--dry-run` to print the plan and
 write nothing. The first run that would create an account takes a backup of
