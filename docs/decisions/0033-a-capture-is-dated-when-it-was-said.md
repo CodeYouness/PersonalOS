@@ -78,3 +78,17 @@ client makes once per sentence (a UUID on the Shortcut).
   string of at most `limits.clientIdMaxLength` (200); anything else is 400. The
   journal route applies the same rule.
 - No migration: `clientId` is optional and absent on every existing capture.
+
+## The journal (ticket #230)
+
+- A journal entry gets `saidAt` (schema 18 backfills `createdAt`) and an
+  optional `clientId`. With a `saidAt`, `date` is the day of that instant in
+  `USER_TIMEZONE`; sending both `date` and `saidAt` is refused. The screen
+  shows `saidAt`'s time and orders a day by it.
+- `createJournalEntryOnce` checks `clientId` inside the serialised write. The
+  journal has no `origin`, so the key is `clientId` alone. A repeat writes no
+  entry and no `journal.written` event.
+- The journal route answers success with `receiptLine` and every refusal with
+  `error` (still also `status` and `message` for the browser), so the Shortcut
+  tests it exactly as it tests a capture. One queue file holds both kinds, each
+  item tagged `kind`.

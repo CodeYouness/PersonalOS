@@ -179,7 +179,15 @@ Each correction is its own event — `capture.undone`, `capture.refiled`,
 morning thought and an evening one are two things, not a document to be
 merged.
 
-**Has** `date` (day key), `text`, `tags`.
+**Has** `date` (day key), `text`, `tags`, `saidAt` (instant) and, when it came
+from the phone, `clientId`.
+
+`saidAt` is when it was said; the Journal screen shows its time. For an entry
+written in the browser it equals `createdAt`. An entry sent with a `saidAt`
+(the phone's journal Shortcut) takes its `date` from that instant's day in
+`USER_TIMEZONE`, so one dictated at 23:50 and delivered the next morning stays
+on the evening it belongs to. `clientId` makes a resend write nothing and answer
+the first entry; see ADR-0033 and `docs/shortcuts.md`.
 
 `date` is the day the entry is about: today or any day before it, never one
 after. Writing at 01:00 about the evening before is the normal case, not the

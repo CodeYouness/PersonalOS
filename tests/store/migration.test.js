@@ -878,3 +878,36 @@ describe('migration v16 to v17', () => {
     expect(migrate(once)).toEqual(once);
   });
 });
+
+describe('migration v17 to v18', () => {
+  /** A v17 document with an entry written the next morning about the evening before. */
+  const v17Document = () => {
+    const migrated = migrate(v12Document());
+    return {
+      ...migrated,
+      schemaVersion: 17,
+      journal: [
+        { id: 'journal_a', date: '2026-03-01', text: 'evening', tags: [], createdAt: '2026-03-02T07:00:00.000Z', updatedAt: '2026-03-02T07:00:00.000Z', source: 'user' },
+      ],
+    };
+  };
+
+  it('gives every entry a saidAt equal to its createdAt and keeps its date', () => {
+    const before = v17Document();
+    const migrated = migrate(before);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.journal).toEqual([{ ...before.journal[0], saidAt: '2026-03-02T07:00:00.000Z' }]);
+  });
+
+  it('keeps a saidAt an entry already has', () => {
+    const before = v17Document();
+    before.journal[0].saidAt = '2026-03-01T22:00:00.000Z';
+    expect(migrate(before).journal[0].saidAt).toBe('2026-03-01T22:00:00.000Z');
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v17Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});

@@ -42,7 +42,7 @@ import { MEMORY_TYPES } from '@/personalos.config.js';
  * entry loses Correct.
  *
  * @param {{ entry: import('@/lib/store.js').JournalDayEntry, time: string, todayKey: string }} props
- *   `time` is when it was written, read in USER_TIMEZONE on the server
+ *   `time` is when it was said, read in USER_TIMEZONE on the server
  */
 export default function JournalEntry({ entry, time, todayKey }) {
   const router = useRouter();
