@@ -81,6 +81,14 @@ describe('POST /api/capture with clientId', () => {
     expect((await store.getCaptures()).filter((c) => c.clientId === 'resend-4')).toHaveLength(2);
   });
 
+  it('names the day on the receipt line when it was said another day, and only then', async () => {
+    const old = await (await post('call Marta', { origin: 'shortcut', saidAt: '2020-03-04T10:00:00Z' })).json();
+    expect(old.saidOn).toBe('2020-03-04');
+    expect(old.receiptLine).toMatch(/ · said 2020-03-04$/);
+    const now = await (await post('call Anna', { origin: 'shortcut' })).json();
+    expect(now.receiptLine).toBe('task · Filed “call Anna”');
+  });
+
   it('never merges sentences without a clientId', async () => {
     await post('call Marta');
     await post('call Marta');

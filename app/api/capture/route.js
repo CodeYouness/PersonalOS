@@ -18,6 +18,7 @@ import {
   fileCaptureAsTask,
   fileCaptureAsTransaction,
   fileCaptureAsWeight,
+  getCaptures,
   getClassifyContext,
   linkPersonNamedIn,
   recordEvent,
@@ -83,6 +84,14 @@ export async function POST(request) {
   const client = resolveClientId(body?.clientId);
   if (!client.ok) {
     return NextResponse.json({ error: client.error }, { status: 400 });
+  }
+
+  // A resend is answered before the classifier runs: a repeat must cost no
+  // model call. `createCaptureOnce` below stays the guard against two
+  // overlapping resends that both get past this look.
+  if (client.clientId !== null) {
+    const earlier = (await getCaptures()).find((c) => c.origin === origin && c.clientId === client.clientId);
+    if (earlier !== undefined) return NextResponse.json(await receiptOf(earlier));
   }
 
   // Your categories are enrichment: a store read that fails here must not
@@ -166,7 +175,7 @@ export async function POST(request) {
   // A health sentence with no weight to believe -- none said, or one nobody
   // weighs -- is kept, and the receipt says so instead of implying a number.
   // `receiptLine` is the receipt as the bar words it, for a client with no bar.
-  return NextResponse.json({ destination, route, recordId, note, saidOn, receiptLine: formatReceiptLine(destination, text, note) });
+  return NextResponse.json({ destination, route, recordId, note, saidOn, receiptLine: receiptLineFor(destination, text, note, saidOn) });
 }
 
 /**
@@ -194,6 +203,20 @@ async function receiptOf(capture) {
     recordId: record?.id ?? null,
     note,
     saidOn: toDayKey(new Date(capture.saidAt)),
-    receiptLine: formatReceiptLine(capture.destination, capture.text, note),
+    receiptLine: receiptLineFor(capture.destination, capture.text, note, toDayKey(new Date(capture.saidAt))),
   };
+}
+
+/**
+ * The receipt line, naming the day when the sentence was said on another one
+ * (a flushed queue). A same-day capture reads exactly as the bar words it.
+ *
+ * @param {string} destination
+ * @param {string} text
+ * @param {string | undefined} note
+ * @param {string} saidOn
+ */
+function receiptLineFor(destination, text, note, saidOn) {
+  const line = formatReceiptLine(destination, text, note);
+  return saidOn === toDayKey(new Date()) ? line : line + ' · said ' + saidOn;
 }
