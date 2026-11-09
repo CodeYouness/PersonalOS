@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { financesHref, KIND_LABELS } from '@/components/finance.js';
+import FinanceSyncLine from '@/components/FinanceSyncLine.js';
 import { changeClass } from '@/components/FinanceHistory.js';
 import { formatEuro, formatMoney, formatMoneyChange, shortDate } from '@/components/format.js';
 import { allocation } from '@/lib/domain/derive/finance.js';
@@ -33,9 +34,10 @@ const ALLOCATION_PARTS = {
  *   archived: import('@/lib/domain/types.js').FinanceAccount[],
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
+ *   staleness?: import('@/lib/domain/derive/sync-staleness.js').BrokerStaleness | null,
  * }} props
  */
-export default function FinanceBreakdown({ overview, archived, todayKey, place }) {
+export default function FinanceBreakdown({ overview, archived, todayKey, place, staleness = null }) {
   const selectedId = place.account ?? null;
   const parts = allocation(overview).filter((part) => part.amount !== 0);
 
@@ -46,6 +48,7 @@ export default function FinanceBreakdown({ overview, archived, todayKey, place }
       </div>
       <div className="card-body">
         <div className="display num finance-total">{formatEuro(overview.netWorth, { cents: true })}</div>
+        <FinanceSyncLine staleness={staleness} />
         {overview.unmeasuredAccounts > 0 && (
           <p className="caption">
             {overview.unmeasuredAccounts === 1
