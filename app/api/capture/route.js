@@ -16,7 +16,7 @@ import {
   linkPersonNamedIn,
   recordEvent,
 } from '@/lib/store.js';
-import { DESTINATIONS, TASK_DESTINATIONS } from '@/personalos.config.js';
+import { CAPTURE_ORIGINS, DESTINATIONS, TASK_DESTINATIONS } from '@/personalos.config.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +54,12 @@ export async function POST(request) {
     return NextResponse.json({ error: 'destination must be one of ' + DESTINATIONS.join(', ') }, { status: 400 });
   }
 
+  // The surface the sentence came through. No origin is the capture bar.
+  const origin = body?.origin ?? 'bar';
+  if (!CAPTURE_ORIGINS.includes(origin)) {
+    return NextResponse.json({ error: 'origin must be one of ' + CAPTURE_ORIGINS.join(', ') }, { status: 400 });
+  }
+
   // Your categories are enrichment: a store read that fails here must not
   // keep the sentence from being saved (rule 2), so it falls back to none.
   const context = await getClassifyContext().catch((error) => {
@@ -61,7 +67,7 @@ export async function POST(request) {
     return {};
   });
   const { destination, route, fields } = await classify(text, chosen, undefined, context);
-  const capture = await createCapture({ text, origin: 'bar', destination, route });
+  const capture = await createCapture({ text, origin, destination, route });
 
   let recordId = null;
   /** @type {string | undefined} what the receipt adds: the weight filed, or that none was */
