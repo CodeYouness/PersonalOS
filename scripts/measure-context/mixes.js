@@ -242,6 +242,7 @@ function withFreeText(seed, count) {
       date,
       text,
       tags: next() < 0.5 ? ['lavoro'] : [],
+      saidAt: date + 'T21:30:00.000Z',
       createdAt: date + 'T21:30:00.000Z',
       updatedAt: date + 'T21:30:00.000Z',
       source: 'user',
