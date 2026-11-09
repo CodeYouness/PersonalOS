@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 
-import { accountUrl } from '@/components/finance.js';
+import { accountUrl, syncedNote } from '@/components/finance.js';
 import { formatMoney, parseMoney, shortDate } from '@/components/format.js';
+import { isSyncedAccount } from '@/lib/domain/origin.js';
 
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
 /** @typedef {import('@/lib/domain/types.js').FinanceObservation} FinanceObservation */
@@ -29,6 +30,8 @@ export default function FinanceBalances({ account, balances, write, refuse, isSa
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(todayKey);
   const [editingId, setEditingId] = useState(/** @type {string | null} */ (null));
+  // A synced account's balances are its broker's (ADR 0031): marked, never typed into.
+  const synced = isSyncedAccount(account);
 
   /** @param {import('react').FormEvent} event */
   async function recordBalance(event) {
@@ -64,6 +67,9 @@ export default function FinanceBalances({ account, balances, write, refuse, isSa
 
   return (
     <>
+      {synced ? (
+        <p className="caption">{syncedNote(account.origin?.source)}</p>
+      ) : (
       <form className="finance-entry" onSubmit={recordBalance}>
         <div className="field">
           <label className="caption" htmlFor="f-amount">
@@ -93,6 +99,7 @@ export default function FinanceBalances({ account, balances, write, refuse, isSa
           Record
         </button>
       </form>
+      )}
 
       <div className="divider" />
       {balances.length === 0 ? (
@@ -121,14 +128,18 @@ export default function FinanceBalances({ account, balances, write, refuse, isSa
                 <tr key={balance.id}>
                   <td className="num finance-date">{shortDate(balance.date, todayKey)}</td>
                   <td className="num">{formatMoney(balance.amount, { cents: true })}</td>
-                  <td className="finance-row-actions">
-                    <button type="button" className="btn-ghost" disabled={isSaving} onClick={() => setEditingId(balance.id)}>
-                      Edit
-                    </button>
-                    <button type="button" className="btn-ghost" disabled={isSaving} onClick={() => removeBalance(balance)}>
-                      Delete
-                    </button>
-                  </td>
+                  {synced ? (
+                    <td className="caption finance-row-actions">from {balance.origin?.source ?? account.origin?.source}</td>
+                  ) : (
+                    <td className="finance-row-actions">
+                      <button type="button" className="btn-ghost" disabled={isSaving} onClick={() => setEditingId(balance.id)}>
+                        Edit
+                      </button>
+                      <button type="button" className="btn-ghost" disabled={isSaving} onClick={() => removeBalance(balance)}>
+                        Delete
+                      </button>
+                    </td>
+                  )}
                 </tr>
               )
             )}

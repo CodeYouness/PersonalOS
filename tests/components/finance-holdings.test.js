@@ -50,4 +50,12 @@ describe('FinanceHoldings', () => {
     expect(html).not.toContain('Record price');
     expect(html).not.toContain('Record buy');
   });
+
+  it('treats a demo origin as hand-made', () => {
+    const html = render({ origin: { source: 'demo', externalId: 'x', syncedAt: '2026-05-01T00:00:00.000Z', sourceUpdatedAt: null } });
+
+    expect(html).toContain('>Edit<');
+    expect(html).toContain('Record price');
+    expect(html).not.toContain('from demo');
+  });
 });

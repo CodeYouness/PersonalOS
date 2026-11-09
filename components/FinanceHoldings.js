@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 
-import { accountUrl } from '@/components/finance.js';
+import { accountUrl, syncedNote } from '@/components/finance.js';
 import { formatMoney, formatUnits, parseMoney, parseUnits, shortDate } from '@/components/format.js';
+import { isSyncedAccount } from '@/lib/domain/origin.js';
 import { TRADE_DIRECTIONS } from '@/personalos.config.js';
 
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
@@ -36,7 +37,7 @@ export default function FinanceHoldings({ account, trades, prices, write, refuse
   const [quoteDate, setQuoteDate] = useState(todayKey);
   const [editingId, setEditingId] = useState(/** @type {string | null} */ (null));
   // A synced holding is its broker's (ADR 0031): marked, never typed into.
-  const synced = account.origin !== null;
+  const synced = isSyncedAccount(account);
 
   /** @param {import('react').FormEvent} event */
   async function recordTrade(event) {
@@ -103,7 +104,7 @@ export default function FinanceHoldings({ account, trades, prices, write, refuse
     <>
       {synced ? (
         <p className="caption">
-          Synced from {account.origin?.source}: its trades and prices are the broker&apos;s and are not corrected here.
+          {syncedNote(account.origin?.source)}
         </p>
       ) : (
         <>
