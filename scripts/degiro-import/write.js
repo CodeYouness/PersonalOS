@@ -18,7 +18,6 @@ import {
   getAccounts,
   getPrices,
   getTrades,
-  hasDemoFinance,
   replaceSyncedTrades,
   setSyncedAccountArchivedOn,
   upsertSyncedPrice,
@@ -68,9 +67,8 @@ function pendingChanges(plan, accounts, trades, prices) {
  * @returns {Promise<{ backupPath?: string }>}
  */
 export async function writePlan(plan, print) {
-  const refusals = [...plan.blocking];
-  if (await hasDemoFinance()) refusals.unshift('the demo finance rows are still in your data: run `npm run data:remove-demo-finance` first');
-  if (refusals.length > 0) throw new Error('refused, nothing was written:\n  ' + refusals.join('\n  '));
+  // The plan carries every refusal, the demo rows included (the dry run lists them too).
+  if (plan.blocking.length > 0) throw new Error('refused, nothing was written:\n  ' + plan.blocking.join('\n  '));
 
   const accounts = await getAccounts();
   const changes = pendingChanges(plan, accounts, await getTrades(), await getPrices());

@@ -65,13 +65,15 @@ const sortKey = (row) => row.date + ' ' + row.time + ' ' + String(row.line).padS
  *   charts: Map<string, ChartPoint[]>,
  *   today: string,
  *   scalableSynced: boolean,
+ *   demoFinance?: boolean,
  * }} input
  * @returns {DegiroPlan}
  */
-export function planDegiro({ rows, problems = [], transfersIn, charts, today, scalableSynced }) {
+export function planDegiro({ rows, problems = [], transfersIn, charts, today, scalableSynced, demoFinance = false }) {
   /** @type {DegiroPlan} */
   const plan = { holdings: [], skipped: [], warnings: [], blocking: [] };
   for (const problem of problems) plan.blocking.push('line ' + problem.line + ': ' + problem.reason);
+  if (demoFinance) plan.blocking.push('the demo finance rows are still in your data: run `npm run data:remove-demo-finance` first');
   if (!scalableSynced) plan.blocking.push('the Scalable sync has not run: run `npm run sync:scalable` first, the handover needs its arrival day and value');
 
   /** @type {Map<string, import('./parse.js').DegiroRow[]>} */
