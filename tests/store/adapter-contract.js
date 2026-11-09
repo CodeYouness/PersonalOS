@@ -1515,6 +1515,41 @@ export function runAdapterContract(label, load) {
           });
         });
 
+        it('refuses a hand-typed trade on a synced account', async () => {
+          const etf = await syncedHolding();
+          await expect(
+            store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 })
+          ).rejects.toThrow(/synced from scalable/);
+          expect(await store.getTrades({ accountId: etf.id })).toEqual([]);
+        });
+
+        describe('a demo origin does not make an account synced', () => {
+          const demoOrigin = { source: 'demo', externalId: 'sample', syncedAt: '2026-04-30T08:00:00.000Z', sourceUpdatedAt: null };
+
+          it('lets the user type trades, prices and balances there', async () => {
+            const etf = await store.createAccount({ name: 'Demo ETF', kind: 'investment', valuation: 'units', origin: demoOrigin });
+            const trade = await store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 });
+            await store.recordPrice({ accountId: etf.id, date: '2026-04-03', price: 2 });
+            await store.updateTrade(trade.id, { units: 2000 });
+            const cash = await store.createAccount({ name: 'Demo cash', kind: 'cash', origin: demoOrigin });
+            await store.recordObservation({ accountId: cash.id, amount: 100, date: '2026-04-30' });
+          });
+
+          it('refuses the sync-only writers there, as on any hand-made account', async () => {
+            const etf = await store.createAccount({ name: 'Demo ETF 2', kind: 'investment', valuation: 'units', origin: demoOrigin });
+            const cash = await store.createAccount({ name: 'Demo cash 2', kind: 'cash', origin: demoOrigin });
+            await expect(store.upsertSyncedPrice({ accountId: etf.id, date: '2026-04-30', price: 1 })).rejects.toThrow(/not synced/);
+            await expect(store.upsertSyncedBalance({ accountId: cash.id, date: '2026-04-30', amount: 1 })).rejects.toThrow(/not synced/);
+            await expect(store.upsertTradeByOrigin(brokerBuy(etf.id))).rejects.toThrow(/not synced/);
+          });
+        });
+
+        it('rejects an origin whose source is not in the vocabulary', async () => {
+          await expect(
+            store.createAccount({ name: 'X', kind: 'cash', origin: { source: 'made-up', externalId: 'a' } })
+          ).rejects.toThrow(/origin.source/);
+        });
+
         it('changes nothing on a hand-made account', async () => {
           const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
           const trade = await store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 });
@@ -1703,7 +1738,7 @@ export function runAdapterContract(label, load) {
 
         it('upserts an imported transaction without touching what you own', async () => {
           const { current, savings } = await twoAccounts();
-          const origin = { source: 'xlsx', externalId: 'ROW-42', syncedAt: '2026-04-02T00:00:00.000Z' };
+          const origin = { source: 'sheet', externalId: 'ROW-42', syncedAt: '2026-04-02T00:00:00.000Z' };
           const imported = await store.createTransaction({
             date: '2026-04-02', amount: -4500, accountId: current.id, description: 'CAFE LISBOA', origin, source: 'integration',
           });
@@ -1736,7 +1771,7 @@ export function runAdapterContract(label, load) {
 
         it('upserts without touching a counter account you chose', async () => {
           const { current, savings } = await twoAccounts();
-          const origin = { source: 'xlsx', externalId: 'ROW-43', syncedAt: '2026-04-02T00:00:00.000Z' };
+          const origin = { source: 'sheet', externalId: 'ROW-43', syncedAt: '2026-04-02T00:00:00.000Z' };
           const imported = await store.createTransaction({ date: '2026-04-02', amount: -100000, accountId: current.id, origin });
           await store.updateTransaction(imported.id, { counterAccountId: savings.id });
 
@@ -1749,7 +1784,7 @@ export function runAdapterContract(label, load) {
 
         it('refuses an upsert that would make a transfer from an account to itself', async () => {
           const { current, savings } = await twoAccounts();
-          const origin = { source: 'xlsx', externalId: 'ROW-44', syncedAt: '2026-04-02T00:00:00.000Z' };
+          const origin = { source: 'sheet', externalId: 'ROW-44', syncedAt: '2026-04-02T00:00:00.000Z' };
           const imported = await store.createTransaction({
             date: '2026-04-02', amount: -100000, accountId: current.id, counterAccountId: savings.id, origin,
           });

@@ -21,10 +21,7 @@
 import { createHash } from 'node:crypto';
 
 import { dayUnitsReachedZero, firstDayUnitsGoNegative } from '../../lib/domain/derive/finance.js';
-import { monthEndPrices } from '../../lib/integrations/scalable/prices.js';
-
-/** The origin source of DEGIRO holdings and trades. */
-export const DEGIRO_SOURCE = 'degiro';
+import { monthEndPrices, pricePerUnit } from '../../lib/domain/derive/pricing.js';
 
 /**
  * @typedef {import('../../lib/integrations/scalable/map.js').SyncedTrade} PlannedTrade
@@ -44,17 +41,6 @@ export const DEGIRO_SOURCE = 'degiro';
  * @property {string[]} warnings
  * @property {string[]} blocking
  */
-
-/**
- * @param {number} cents
- * @param {number} units 10^-8
- * @returns {number} cents per unit, half up, exact
- */
-export function pricePerUnit(cents, units) {
-  const c = BigInt(Math.abs(cents));
-  const u = BigInt(units);
-  return Number((2n * c * 100000000n + u) / (2n * u));
-}
 
 /**
  * @param {import('./parse.js').DegiroRow} row
@@ -79,13 +65,15 @@ const sortKey = (row) => row.date + ' ' + row.time + ' ' + String(row.line).padS
  *   charts: Map<string, ChartPoint[]>,
  *   today: string,
  *   scalableSynced: boolean,
+ *   demoFinance?: boolean,
  * }} input
  * @returns {DegiroPlan}
  */
-export function planDegiro({ rows, problems = [], transfersIn, charts, today, scalableSynced }) {
+export function planDegiro({ rows, problems = [], transfersIn, charts, today, scalableSynced, demoFinance = false }) {
   /** @type {DegiroPlan} */
   const plan = { holdings: [], skipped: [], warnings: [], blocking: [] };
   for (const problem of problems) plan.blocking.push('line ' + problem.line + ': ' + problem.reason);
+  if (demoFinance) plan.blocking.push('the demo finance rows are still in your data: run `npm run data:remove-demo-finance` first');
   if (!scalableSynced) plan.blocking.push('the Scalable sync has not run: run `npm run sync:scalable` first, the handover needs its arrival day and value');
 
   /** @type {Map<string, import('./parse.js').DegiroRow[]>} */

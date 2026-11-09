@@ -842,8 +842,14 @@ account are both refused.
 account with an `origin` was created by a sync, one holding per security,
 found by `(origin.source, origin.externalId)` -- the ISIN -- and never adopted
 from a hand-made account. Its kind, valuation and currency are the source's;
-the name is yours and survives the next sync. Its trades and prices are
-read-only, and Finances marks them "from <source>".
+the name is yours and survives the next sync. Its trades, prices and
+balances are read-only -- the store refuses to type, correct or delete one --
+and Finances marks them "from <source>". **A `demo` origin does not make an
+account synced**: the seed's sample accounts carry one, but their rows are
+yours to type, correct and delete, and the sync-only store writers
+(`upsertTradeByOrigin`, `upsertSyncedPrice`, `upsertSyncedBalance`,
+`replaceSyncedTrades`) refuse them. One predicate decides, `isSyncedAccount`
+in `lib/domain/origin.js`.
 
 **Archiving is a day.** An account you closed is archived: `archivedOn` is
 the day, and it leaves the account table and today's net worth while keeping
@@ -895,7 +901,9 @@ source, not typed: the source owns every field of it, `upsertTradeByOrigin`
 matches it on `(origin.source, origin.externalId)` so the same trade is
 updated, never added twice, and it is not corrected or deleted here -- the
 store refuses, and Finances marks it "from <source>" without Correct or
-Delete. A hand-typed trade has `origin: null`. A synced trade is refused, like
+Delete. A hand-typed trade has `origin: null`, and `createTrade` is refused
+on a synced account: a typed trade there would survive the next sync and miscount
+units. A synced trade is refused, like
 a hand-typed one, when it would leave the holding below zero units on any day.
 
 **A merger or a transfer is a sell and a buy** (ADR 0031). The broker's
@@ -1175,7 +1183,11 @@ Cash *movements* -- deposits, interest, withdrawals -- are not synced; those
 rows are left alone and listed as a warning.
 
 **ExternalOrigin** is on every synced record: `source`, `externalId`,
-`syncedAt`, `sourceUpdatedAt`. The pair `(source, externalId)` is the
+`syncedAt`, `sourceUpdatedAt`. `source` is a closed vocabulary, `ORIGIN_SOURCES` in
+`personalos.config.js` -- `scalable`, `degiro`, `sheet` (the spreadsheet
+import), `google-calendar`, and `demo` (the seed's sample rows, which are not
+a source: see FinanceAccount) -- validated at the store boundary, so an
+unknown source is refused. New synced records are stamped by `syncedOrigin()`. The pair `(source, externalId)` is the
 deduplication key. It is what makes an import idempotent, and what lets a live
 source supersede a stale hand-entered row instead of sitting beside it and
 double counting.

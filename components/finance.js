@@ -159,3 +159,15 @@ export function categoryUrl(id) {
 export function transactionUrl(id) {
   return '/api/transactions/' + encodeURIComponent(id);
 }
+
+/**
+ * The note a synced account's panel shows in place of its forms (ADR 0031):
+ * one sentence for holdings and cash alike, since trades, prices and balances
+ * are all the broker's.
+ *
+ * @param {string | undefined} source the account's origin source
+ * @returns {string}
+ */
+export function syncedNote(source) {
+  return 'Synced from ' + source + ': its trades, prices and balances are the broker’s and are not corrected here.';
+}

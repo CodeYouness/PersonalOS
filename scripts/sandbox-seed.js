@@ -16,6 +16,7 @@
  * never changed.
  */
 
+import { ORIGIN_SOURCES } from '../personalos.config.js';
 import { dayKeyRange, shiftDayKey } from '../lib/domain/dates.js';
 
 /**
@@ -44,7 +45,7 @@ function withSyncedHolding(seed) {
   if (!Array.isArray(document.accounts) || !Array.isArray(document.trades) || !Array.isArray(document.prices)) return seed;
   const at = '2026-01-05T06:00:00.000Z';
   const accountId = 'account_sandbox_synced';
-  const origin = (/** @type {string} */ externalId) => ({ source: 'scalable', externalId, syncedAt: at, sourceUpdatedAt: null });
+  const origin = (/** @type {string} */ externalId) => ({ source: ORIGIN_SOURCES.scalable, externalId, syncedAt: at, sourceUpdatedAt: null });
   const stamp = { createdAt: at, updatedAt: at, source: 'integration' };
   const trade = (/** @type {string} */ id, /** @type {string} */ date, /** @type {number} */ units, /** @type {number} */ price) => ({
     id, accountId, date, direction: 'buy', units, price, fee: 0, currency: 'EUR', origin: origin('order-' + id), ...stamp,

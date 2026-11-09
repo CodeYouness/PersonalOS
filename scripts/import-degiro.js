@@ -33,7 +33,7 @@ import { partitionRows } from '../lib/integrations/scalable/map.js';
 import { dropCancellationPairs, mapMovementRow } from '../lib/integrations/scalable/movements.js';
 import { chartPoints } from '../lib/integrations/scalable/prices.js';
 import { makeScRunner } from '../lib/integrations/scalable/run-sc.js';
-import { getSyncStates } from '../lib/store.js';
+import { getSyncStates, hasDemoFinance } from '../lib/store.js';
 import { parseDegiro } from './degiro-import/parse.js';
 import { planDegiro } from './degiro-import/plan.js';
 import { writePlan } from './degiro-import/write.js';
@@ -71,7 +71,7 @@ export async function importDegiro({ csvPath, write = false, run = makeScRunner(
   }
 
   const scalableSynced = (await getSyncStates()).some((state) => state.integration === SCALABLE_SYNC_SOURCE && state.lastRunAt !== null);
-  const plan = planDegiro({ rows, problems, transfersIn, charts, today: today(), scalableSynced });
+  const plan = planDegiro({ rows, problems, transfersIn, charts, today: today(), scalableSynced, demoFinance: await hasDemoFinance() });
 
   if (!write) {
     for (const line of describePlan(plan)) print(line);

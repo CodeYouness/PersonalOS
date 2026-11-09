@@ -245,6 +245,17 @@ describe('the write', () => {
   });
 });
 
+describe('the demo rows', () => {
+  it('are a blocking item in the dry run, listed like "Scalable has not synced"', async () => {
+    await syncedOk();
+    await store.resetToSeed();
+    await store.getProfile();
+    const dry = await runImport(history());
+    expect(dry.blocking.join('\n')).toMatch(/demo finance/i);
+    expect(dry.text).toMatch(/Blocking[\s\S]*demo finance/i);
+  });
+});
+
 describe('the parser', () => {
   it('refuses an export without the expected headers', async () => {
     await expect(runImport('Date,Product\n01-01-2024,x\n')).rejects.toThrow(/header/i);

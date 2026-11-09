@@ -17,7 +17,9 @@
  * A failure part way says how to restore the backup.
  */
 
+import { ORIGIN_SOURCES } from '../../personalos.config.js';
 import { firstDayUnitsGoNegative } from '../../lib/domain/derive/finance.js';
+import { syncedOrigin } from '../../lib/domain/origin.js';
 import { blockingReasons } from './plan.js';
 import { syncedAccountIds } from './synced.js';
 import {
@@ -35,8 +37,6 @@ import {
   upsertTransactionByOrigin,
 } from '../../lib/store.js';
 
-/** The source every imported transaction carries in its origin. */
-export const SHEET_SOURCE = 'sheet';
 
 /**
  * @param {import('./plan.js').ImportPlan} plan
@@ -49,7 +49,7 @@ export async function writePlan(plan, mapping, print) {
 
   const refusals = blockingReasons(plan);
   if (demo) refusals.unshift('the demo finance rows are still in your data: run `npm run data:remove-demo-finance` first');
-  if (transactions.some((transaction) => transaction.origin?.source === SHEET_SOURCE)) {
+  if (transactions.some((transaction) => transaction.origin?.source === ORIGIN_SOURCES.sheet)) {
     refusals.unshift('the sheet is already imported; this is a one-off -- restore the backup to run it again');
   }
   for (const key of plan.accounts) {
@@ -91,7 +91,6 @@ export async function writePlan(plan, mapping, print) {
       await recordObservation({ accountId: accountIds.get(balance.account), kind: 'balance', amount: balance.amount, date: balance.date, source: 'integration' });
     }
 
-    const syncedAt = new Date().toISOString();
     for (const transaction of plan.transactions) {
       await upsertTransactionByOrigin({
         date: transaction.date,
@@ -102,7 +101,7 @@ export async function writePlan(plan, mapping, print) {
         notCounted: transaction.notCounted,
         tags: transaction.tags,
         description: transaction.description,
-        origin: { source: SHEET_SOURCE, externalId: transaction.externalId, syncedAt, sourceUpdatedAt: null },
+        origin: syncedOrigin(ORIGIN_SOURCES.sheet, transaction.externalId),
         source: 'integration',
       });
     }
