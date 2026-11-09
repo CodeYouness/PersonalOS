@@ -7,6 +7,7 @@ import { formatTime } from '@/components/format.js';
  * @property {string} text
  * @property {string} destination
  * @property {'model'|'rules'} route
+ * @property {string} origin
  * @property {string} createdAt
  * @property {{ id: string, title: string } | null} produced
  * @property {boolean} locked
@@ -95,6 +96,7 @@ function LogItem({ capture, onDelete, onUndo, onRefile, isCorrecting }) {
       <div className="log-top">
         <span className="badge badge-ok">{capture.destination}</span>
         <span className={'badge badge-route-' + capture.route}>{capture.route}</span>
+        {capture.origin !== 'bar' && <span className="badge badge-origin">{capture.origin}</span>}
         <span className="log-time">{formatTime(capture.createdAt)}</span>
       </div>
       <p className="log-text">&ldquo;{capture.text}&rdquo;</p>

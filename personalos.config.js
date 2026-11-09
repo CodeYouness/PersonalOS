@@ -75,6 +75,15 @@ export const DESTINATIONS = Object.freeze([
 ]);
 
 /**
+ * The surfaces a capture can arrive through. `origin` names the surface, not
+ * the device: a browser on the phone is still `bar`. `telegram` is reserved
+ * for the flagged-off surface.
+ *
+ * @type {readonly string[]}
+ */
+export const CAPTURE_ORIGINS = Object.freeze(['bar', 'shortcut', 'telegram']);
+
+/**
  * Relationship vocabulary for the link collection.
  *
  * Closed on purpose. An open vocabulary would make links unqueryable within a

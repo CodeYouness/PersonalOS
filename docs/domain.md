@@ -77,7 +77,12 @@ nothing but a memory entry.
 
 **Has** `text`, `origin`, `destination`, `route`.
 
-`origin` is where it arrived from (`bar`, `telegram`). `source` is who created
+`origin` is the surface the sentence arrived through, one of `CAPTURE_ORIGINS`:
+`bar` (the capture bar, on any device), `shortcut` (the iPhone Shortcut) or
+`telegram` (reserved, flagged off). It names the surface, not the device: a
+browser on the phone is still `bar`. Validated in the store; a missing one is
+`bar`, an unknown one is refused (the route answers 400). The capture log marks
+any origin other than `bar`. `source` is who created
 the record. They were one field in v1 and confusing everybody.
 
 `destination` is one of the eight in `DESTINATIONS`: `task`, `people`,
