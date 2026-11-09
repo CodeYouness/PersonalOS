@@ -5,6 +5,7 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import AnswerPanel from '@/components/AnswerPanel.js';
 import { applyAskGesture, captureBarReducer, INITIAL_STATE } from '@/components/captureBarReducer.js';
 import { questionProblem, submitCapture, submitQuestion } from '@/components/captureBarSubmit.js';
+import { formatReceiptWhat } from '@/lib/domain/format.js';
 
 /** How long a receipt or error sits before returning to idle on its own. */
 const AUTO_DISMISS_MS = 4000;
@@ -122,7 +123,7 @@ export default function CaptureBar() {
             <span className="badge badge-ok">{state.receipt.destination}</span>
             <span className={'badge badge-route-' + state.receipt.route}>{state.receipt.route}</span>
             <span className="receipt-what">
-              Filed &ldquo;{state.text}&rdquo;{state.receipt.note && ' · ' + state.receipt.note}
+              {formatReceiptWhat(state.text, state.receipt.note)}
             </span>
           </div>
         )}

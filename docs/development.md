@@ -144,6 +144,64 @@ git status          # no .env, no data/personalos.json, no keys
 The repository is public. `check:secrets` runs in CI too, but by then the
 commit exists, and git history does not forget.
 
+## The phone over Tailscale
+
+ADR 0032: the phone reaches two routes over the tailnet, with a token, and
+nothing else. Not automated; check each step by hand.
+
+**The token.** Put `PERSONALOS_PHONE_TOKEN=<a long random value>` in
+`.env.local` (`openssl rand -hex 32`), then stop and run `npm run serve` again:
+`serve` reads it when it starts. The phone sends it as
+`Authorization: Bearer <token>`. It is read only in `lib/config/env.js`, never
+behind a `NEXT_PUBLIC_` name, and never written in the repository or a
+screenshot.
+
+**The gate** is `lib/phone-gate.js`, called first thing in the capture route
+and in every journal handler:
+
+- A request is *proxied* when it carries a header `tailscale serve` adds
+  (`Tailscale-User-*` or `X-Forwarded-For`). Without the right token it gets
+  401 and nothing is written.
+- With no token configured, every proxied request gets 401: the gate fails
+  closed.
+- A request without those headers is the Mac's own browser. It needs no token,
+  and the capture bar is unchanged.
+
+The capture route's response also carries `receiptLine`, the receipt as one
+line (`task · Filed “Call the accountant”`), built by the formatter the
+capture bar uses (`formatReceiptLine` and `formatReceiptWhat` in
+`lib/domain/format.js`), so a Shortcut can show it as it is.
+
+**Put `tailscale serve` in front of `serve`.** `serve` listens on
+`127.0.0.1:3000`. Expose the two paths and nothing else (use
+`tailscale serve --help` for the flag spellings of your version; `funnel` is
+never used):
+
+```bash
+tailscale serve --bg --set-path /api/capture http://127.0.0.1:3000/api/capture
+tailscale serve --bg --set-path /api/journal http://127.0.0.1:3000/api/journal
+tailscale serve status
+```
+
+The journal path reaches the routes under it (`/api/journal/<id>` and its
+`extract` and `memories`), so those handlers use the gate too.
+
+**Check that nothing else answers**, from the phone on the tailnet, with
+`<host>` the Mac's tailnet name and `<token>` the token:
+
+```bash
+curl -i -X POST https://<host>/api/capture -H 'content-type: application/json' \
+  -d '{"text":"a test sentence"}'                      # 401
+curl -i -X POST https://<host>/api/capture -H 'content-type: application/json' \
+  -H 'Authorization: Bearer <token>' -d '{"text":"a test sentence"}'   # 200, receiptLine
+curl -i https://<host>/                                 # not served
+curl -i https://<host>/api/captures                     # not served
+curl -i https://<host>/api/health                       # not served
+```
+
+The test sentence is filed for real: undo it from the Inbox. Turn the
+exposure off with `tailscale serve reset`.
+
 ## Deployment
 
 Not yet. The local path runs on your machine and has no public address. Putting

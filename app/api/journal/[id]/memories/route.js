@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
 import { acceptJournalProposal, getJournalEntry } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,9 @@ const FIELDS = ['type', 'content', 'updatedAt'];
  * @param {{ params: Promise<{ id: string }> }} context
  */
 export async function POST(request, { params }) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const { id } = await params;
   const body = await request.json().catch(() => null);
 
