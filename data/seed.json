@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 16,
+  "schemaVersion": 17,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -764,6 +764,7 @@
       "price": 10000,
       "fee": 100,
       "currency": "EUR",
+      "origin": null,
       "createdAt": "2025-11-03T09:00:00.000Z",
       "updatedAt": "2025-11-03T09:00:00.000Z",
       "source": "seed"
@@ -777,6 +778,7 @@
       "price": 10450,
       "fee": 100,
       "currency": "EUR",
+      "origin": null,
       "createdAt": "2025-12-01T09:00:00.000Z",
       "updatedAt": "2025-12-01T09:00:00.000Z",
       "source": "seed"
@@ -790,6 +792,7 @@
       "price": 10820,
       "fee": 100,
       "currency": "EUR",
+      "origin": null,
       "createdAt": "2026-01-02T09:00:00.000Z",
       "updatedAt": "2026-01-02T09:00:00.000Z",
       "source": "seed"
