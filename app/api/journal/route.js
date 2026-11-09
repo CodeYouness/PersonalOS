@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { isDayKey } from '@/lib/domain/dates.js';
+import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
 import { getJournalDay, writeJournalEntry } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,9 @@ const FIELDS = ['date', 'text'];
  * @param {Request} request
  */
 export async function GET(request) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const date = new URL(request.url).searchParams.get('date');
   if (!isDayKey(date)) {
     return NextResponse.json({ status: 'error', message: 'date must be YYYY-MM-DD' }, { status: 400 });
@@ -30,6 +34,9 @@ export async function GET(request) {
  * @param {Request} request
  */
 export async function POST(request) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const body = await request.json().catch(() => null);
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
     return NextResponse.json({ status: 'error', message: 'expected a JSON object' }, { status: 400 });

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 
 import { formatEuro, formatWeight } from '@/components/format.js';
 import { classify } from '@/lib/classify.js';
+import { formatReceiptLine } from '@/lib/domain/format.js';
+import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
 import {
   createAppointment,
   createCapture,
@@ -40,6 +42,9 @@ export const dynamic = 'force-dynamic';
  * @param {Request} request
  */
 export async function POST(request) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const body = await request.json().catch(() => null);
   const text = typeof body?.text === 'string' ? body.text.trim() : '';
   if (text === '') {
@@ -130,5 +135,6 @@ export async function POST(request) {
 
   // A health sentence with no weight to believe -- none said, or one nobody
   // weighs -- is kept, and the receipt says so instead of implying a number.
-  return NextResponse.json({ destination, route, recordId, note });
+  // `receiptLine` is the receipt as the bar words it, for a client with no bar.
+  return NextResponse.json({ destination, route, recordId, note, receiptLine: formatReceiptLine(destination, text, note) });
 }
