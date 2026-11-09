@@ -912,6 +912,17 @@ anything that prices it: no price after that day), and restored when units
 come back. A holding that would still go below zero units after the whole
 run's trades is left alone with a warning.
 
+**A holding ends when its units arrive at a synced broker** (ticket #219, ADR
+0031). The one-off DEGIRO import writes a holding per ISIN, origin
+`{ source: 'degiro', externalId: <ISIN> }`, whose trades are read-only like a
+synced broker's. Units that left DEGIRO for Scalable are a sell with no order
+id: the import gives that sell Scalable's arrival day and value (the
+`TRANSFER_IN`), so the DEGIRO holding ends the day the Scalable holding
+begins and the units count once on every day. A change of exchange (a sell
+and a buy of the same units on one day, no order id) and zero-value
+bookkeeping rows that net to zero are skipped; a position DEGIRO closed at
+zero value (a delisting) is a sell at the last chart price, with a warning.
+
 **The Scalable sync writes a holding's trades as one set**
 (`replaceSyncedTrades`): below zero is judged once after all of them, a trade
 the broker stopped reporting is removed, and an unchanged one is left alone.

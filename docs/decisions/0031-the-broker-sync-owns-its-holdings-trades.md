@@ -104,6 +104,31 @@ write nothing. The first run that would create an account takes a backup of
 the data file and prints where. The sync is a script on the Mac where `sc` is
 logged in; no render ever calls it, and no credential enters the app.
 
+**Units that arrive from another broker (ticket #219).** The one-off DEGIRO
+import (`npm run data:import-degiro`) writes a holding per ISIN, origin
+`{ source: 'degiro', externalId: <ISIN> }`, with trades keyed by order id (or
+a stable hash of the row when there is none), read-only like a synced
+holding's. A holding that left DEGIRO for Scalable ends on the day its units
+arrived at Scalable, at Scalable's value: the DEGIRO sell with no order id for
+an ISIN that Scalable received by `TRANSFER_IN` takes that transfer's day and
+`|amount| / units` (the same price as the Scalable buy), matched by units, so
+on every day the units are counted exactly once across both brokers. The
+import therefore refuses until the Scalable sync has run. Around that:
+
+- price is `|Valore EUR| / units` half up, fee `|AutoFX| + |costs|`, so a US
+  stock comes in through DEGIRO's own EUR value, never a converted one;
+- zero-value rows that net to zero on a day are bookkeeping and skipped; zero-value
+  rows of a holding with no other row that net to zero over several days are
+  skipped with a warning; any other zero-value row blocks the write, except a
+  sell that empties the holding (a delisting), which becomes a sell at the last
+  chart price on or before the day, with a warning;
+- a sell and a buy of the same ISIN and units on one day, neither with an order
+  id (a change of exchange), are both skipped;
+- a merger is a sell of the old fund and a buy of the new one at the reported
+  values; a holding is archived on the day its units reach zero;
+- month-end prices come from the same logic as the sync's, one per month-end
+  from the first trade to the archive day.
+
 ## Consequences
 
 - The sync core takes a command runner and the store; a test answers each
@@ -115,8 +140,8 @@ logged in; no render ever calls it, and no credential enters the app.
 - A recomputed cost can differ from the broker's amount by a few cents.
 - A holding can sit un-synced, with a warning, until the part that maps the
   transfer it depends on exists.
-- The DEGIRO import amends this ADR with the rule for units arriving from
-  another broker.
+- The DEGIRO import follows the rule for units arriving from another broker
+  (above); it is a one-off script and has no integration or `SyncState`.
 - The broker's cash is one `cash` account, "Scalable cash" (origin = the
   portfolio id), with one synced balance per day, a zero kept; its balances
   are read-only like synced trades. Cash movements are not synced.
