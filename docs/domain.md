@@ -861,7 +861,9 @@ past; a flag could not say which days the account was open.
 **Deleting is for a mistake.** It removes the account with its balances and
 every link to them, after a confirmation. An account that transactions belong
 to cannot be deleted -- money that moved is never lost -- and is archived
-instead.
+instead. A synced account (one with a source's origin) cannot be deleted
+at all -- the next sync would create it again; archive it. The store refuses,
+and the panel shows no Delete.
 
 **Everything is EUR.** An account, a balance -- and every other amount in
 finance -- in any other currency is refused at the store
@@ -917,7 +919,9 @@ nothing; a synced trade the broker no longer reports as settled is removed on
 the next sync, with a warning. A synced holding that reaches zero units is
 **archived on the day of the trade that emptied it** (`archivedOn`, read by
 anything that prices it: no price after that day), and restored when units
-come back. A holding that would still go below zero units after the whole
+come back -- only if the sync archived it: a holding a hand archived while it
+still held units (units on its `archivedOn` day are not zero) stays archived,
+and its trades and prices keep syncing. A holding that would still go below zero units after the whole
 run's trades is left alone with a warning.
 
 **A holding ends when its units arrive at a synced broker** (ticket #219, ADR
