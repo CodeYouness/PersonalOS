@@ -1131,6 +1131,17 @@ export function runAdapterContract(label, load) {
         expect(await store.getAccount(transaction.accountId)).not.toBeNull();
       });
 
+      it('refuses to delete a synced account, which the next sync would create again, and still archives it', async () => {
+        const synced = await store.createAccount({
+          name: 'Test World ETF', kind: 'investment', valuation: 'units', origin: { source: 'scalable', externalId: 'XX0000000001' },
+        });
+
+        await expect(store.deleteAccount(synced.id)).rejects.toThrow(/synced.*archive/);
+        expect(await store.getAccount(synced.id)).not.toBeNull();
+        await store.updateAccount(synced.id, { archived: true });
+        expect((await store.getAccount(synced.id))?.archivedOn).not.toBeNull();
+      });
+
       it('lets an investment choose its valuation and every other kind be valued by balance', async () => {
         const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
         const pension = await store.createAccount({ name: 'Pension', kind: 'investment' });
