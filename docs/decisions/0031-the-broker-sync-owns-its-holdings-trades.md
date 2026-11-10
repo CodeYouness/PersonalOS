@@ -79,7 +79,11 @@ buys at the value the broker reports, and that value can be a cost rather
 than a market price, so the day of a merger can be off until the next
 month-end price. A holding is archived at zero units, on the day of the trade
 that emptied it (`setSyncedAccountArchivedOn`, not "today"), and restored if
-units come back. The below-zero set-aside stays: with transfers mapped, a
+units come back -- but only if the sync archived it. A holding archived by
+hand while it still held units (zero units on its `archivedOn` day is how the
+sync's own archive is told apart, derived from its trades, nothing stored)
+stays archived; its trades and prices keep syncing. A synced account cannot be
+deleted (the next run would create it again); archiving stays. The below-zero set-aside stays: with transfers mapped, a
 holding still below zero means the broker's history is incomplete, which is
 worth a warning, not a guess. The sync owns its holdings and
 the spreadsheet import adapts to it.

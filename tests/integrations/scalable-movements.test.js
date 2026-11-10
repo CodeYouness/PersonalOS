@@ -129,6 +129,18 @@ describe('the Scalable sync: mergers and transfers', () => {
     expect((await holdingOf(OLD))?.archivedOn).toBeNull();
   });
 
+  it('leaves a holding archived by hand while it held units archived, and keeps syncing its trades', async () => {
+    const rows = [buy('p1', OLD, -1000, 10, '2026-01-05T08:00:00.000Z')];
+    await runSync({ transactions: rows });
+    const holding = await holdingOf(OLD);
+    await store.setSyncedAccountArchivedOn(/** @type {string} */ (holding?.id), '2026-03-01');
+
+    await runSync({ transactions: [...rows, buy('p2', OLD, -500, 5, '2026-04-01T08:00:00.000Z')] });
+
+    expect((await holdingOf(OLD))?.archivedOn).toBe('2026-03-01');
+    expect(await tradesOf(OLD)).toHaveLength(2);
+  });
+
   it('still sets aside a holding that would go below zero, judged after all of the run\'s trades', async () => {
     const out = await runSync({ transactions: [move('NON_TRADE_TRANSFER_OUT_1', 'TRANSFER_OUT', OLD, -500, 4, '2026-03-02T00:00:00.000Z')] });
     expect(out.warnings.join('\n')).toMatch(/below zero/);
