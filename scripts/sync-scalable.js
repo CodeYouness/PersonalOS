@@ -8,8 +8,8 @@
  *                                        account backs the data file up first
  *
  * Needs `sc` logged in with `--local-read-only` on this Mac. Never called by a
- * request handler (ADR 0010). Stop `npm run dev` first: a second process
- * writing the same file is not safe (ADR 0011).
+ * request handler (ADR 0010). Stop `npm run serve` (and `dev`, if running)
+ * first: a second process writing the same file is not safe (ADR 0011).
  *
  * A failed run (any non-zero exit from `sc`, output that is not JSON) writes
  * nothing but a failed SyncState, which leaves `lastRunAt` at the last

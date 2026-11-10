@@ -40,3 +40,16 @@ describe('the formats the screens and the figures share', () => {
     expect(shared.daysLabel([6, 7])).toBe('Sat Sun');
   });
 });
+
+describe('the receipt wording the capture bar and the capture route share', () => {
+  it('says what was filed, and what the receipt adds', () => {
+    expect(shared.formatReceiptWhat('Call the accountant')).toBe('Filed \u201cCall the accountant\u201d');
+    expect(shared.formatReceiptWhat('I weigh 72', '72 kg')).toBe('Filed \u201cI weigh 72\u201d \u00b7 72 kg');
+  });
+
+  it('puts the destination in front for a client that has no badge', () => {
+    expect(shared.formatReceiptLine('health', 'I weigh 72', 'no weight filed')).toBe(
+      'health \u00b7 Filed \u201cI weigh 72\u201d \u00b7 no weight filed'
+    );
+  });
+});

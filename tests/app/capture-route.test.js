@@ -328,4 +328,37 @@ describe('POST /api/capture without a model: a finance sentence (ADR 0026)', () 
 
     expect(answer).toMatchObject({ destination: 'finance', recordId: null });
   });
+
+  describe('origin', () => {
+    /** @param {object} body */
+    function postBody(body) {
+      return route.POST(
+        new Request('http://localhost/api/capture', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      );
+    }
+
+    it('files a capture from the shortcut and reads it back with that origin', async () => {
+      const response = await postBody({ text: 'origin shortcut sentence', origin: 'shortcut' });
+      expect(response.status).toBe(200);
+      const capture = (await store.getCaptures()).find((entry) => entry.text === 'origin shortcut sentence');
+      expect(capture?.origin).toBe('shortcut');
+    });
+
+    it('refuses an unknown origin with 400 and writes nothing', async () => {
+      const before = (await store.getCaptures()).length;
+      const response = await postBody({ text: 'origin fax sentence', origin: 'fax' });
+      expect(response.status).toBe(400);
+      expect((await store.getCaptures()).length).toBe(before);
+    });
+
+    it('files a capture with no origin as bar', async () => {
+      await postBody({ text: 'origin none sentence' });
+      const capture = (await store.getCaptures()).find((entry) => entry.text === 'origin none sentence');
+      expect(capture?.origin).toBe('bar');
+    });
+  });
 });

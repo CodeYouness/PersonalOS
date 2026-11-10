@@ -55,7 +55,7 @@ export default async function JournalScreen({ searchParams }) {
                 <JournalEntry
                   key={entry.id}
                   entry={entry}
-                  time={formatTimeInZone(new Date(entry.createdAt))}
+                  time={formatTimeInZone(new Date(entry.saidAt))}
                   todayKey={todayKey}
                 />
               ))

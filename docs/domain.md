@@ -75,9 +75,31 @@ to do with it.
 **Is not** a task. A capture may produce a task, a meal, a transaction, or
 nothing but a memory entry.
 
-**Has** `text`, `origin`, `destination`, `route`.
+**Has** `text`, `origin`, `destination`, `route`, `saidAt`, and optionally `clientId`.
 
-`origin` is where it arrived from (`bar`, `telegram`). `source` is who created
+`saidAt` is the instant the sentence was said (ADR 0033). `createdAt` is when
+the record was written; they differ when a sentence waited on the phone. Every
+day a capture decides -- a meal's, a weight's, a transaction's, the `saidOn` the
+classifier and the keyword rules read "domani" from -- comes from `saidAt` in
+`USER_TIMEZONE`; Refile reads the original capture's. A capture made with no
+`saidAt` has `saidAt` equal to `createdAt`. The route accepts any past instant,
+treats one up to `limits.saidAtDriftMinutes` ahead as now, and refuses a later
+or malformed one with 400. The capture log shows the said time when it differs
+from `createdAt` by more than that allowance.
+
+`clientId` is an id a client makes once per sentence (a UUID on the Shortcut), a
+non-blank string of at most `limits.clientIdMaxLength` characters. There is one
+capture per `(origin, clientId)`: a second create with the same pair writes
+nothing and returns the existing capture, and the route answers it with that
+capture's response and a 200 (ADR 0033). A capture without one is never
+deduplicated. The same `clientId` under another `origin` is another capture.
+
+`origin` is the surface the sentence arrived through, one of `CAPTURE_ORIGINS`:
+`bar` (the capture bar, on any device), `shortcut` (the iPhone Shortcut) or
+`telegram` (reserved, flagged off). It names the surface, not the device: a
+browser on the phone is still `bar`. Validated in the store; a missing one is
+`bar`, an unknown one is refused (the route answers 400). The capture log marks
+any origin other than `bar`. `source` is who created
 the record. They were one field in v1 and confusing everybody.
 
 `destination` is one of the eight in `DESTINATIONS`: `task`, `people`,
@@ -157,7 +179,16 @@ Each correction is its own event — `capture.undone`, `capture.refiled`,
 morning thought and an evening one are two things, not a document to be
 merged.
 
-**Has** `date` (day key), `text`, `tags`.
+**Has** `date` (day key), `text`, `tags`, `saidAt` (instant) and, when it came
+from the phone, `clientId`.
+
+`saidAt` is when it was said; the Journal screen shows its time. For an entry
+written in the browser it equals `createdAt`. An entry sent with a `saidAt`
+(the phone's journal Shortcut) takes its `date` from that instant's day in
+`USER_TIMEZONE`, so one dictated at 23:50 and delivered the next morning stays
+on the evening it belongs to. If a `date` comes with it, `saidAt` wins and the
+`date` is ignored: a sentence is never refused for saying too much. `clientId` makes a resend write nothing and answer
+the first entry; see ADR-0033 and `docs/shortcuts.md`.
 
 `date` is the day the entry is about: today or any day before it, never one
 after. Writing at 01:00 about the evening before is the normal case, not the

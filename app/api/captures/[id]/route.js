@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { classify } from '@/lib/classify.js';
 import { toDayKey } from '@/lib/domain/dates.js';
+import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
 import { deleteCaptureCascade, getClassifyContext, refileCapture } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,9 @@ export const dynamic = 'force-dynamic';
  * @param {{ params: Promise<{ id: string }> }} context
  */
 export async function DELETE(request, { params }) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const { id } = await params;
   try {
     await deleteCaptureCascade(id);
@@ -37,6 +41,9 @@ export async function DELETE(request, { params }) {
  * @param {{ params: Promise<{ id: string }> }} context
  */
 export async function PATCH(request, { params }) {
+  const refused = refuseUnlessAllowed(request);
+  if (refused) return refused;
+
   const { id } = await params;
   const body = await request.json().catch(() => null);
   const destination = typeof body?.destination === 'string' ? body.destination : '';
@@ -45,7 +52,7 @@ export async function PATCH(request, { params }) {
     const recordId = await refileCapture(id, destination, async (capture, chosen) => {
       // Read from the day the sentence was said: "last night" means the
       // night before it was said, not before the refile.
-      const { fields } = await classify(capture.text, chosen, toDayKey(new Date(capture.createdAt)), await getClassifyContext());
+      const { fields } = await classify(capture.text, chosen, toDayKey(new Date(capture.saidAt)), await getClassifyContext());
       return fields;
     });
     return NextResponse.json({ ok: true, recordId });

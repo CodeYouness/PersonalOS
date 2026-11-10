@@ -50,6 +50,7 @@ next-env.d.ts
 /data/personalos.json
 /data/personalos.json.*
 /data/*.local.json
+/data/serve.lock
 
 # Reference material that is not ours to redistribute.
 # The original guide by Giuseppe Castagna stays on disk, out of version control.

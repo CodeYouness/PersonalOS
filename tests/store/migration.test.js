@@ -881,3 +881,71 @@ describe('migration v16 to v17', () => {
     expect(migrate(once)).toEqual(once);
   });
 });
+
+describe('migration v17 to v18', () => {
+  /** A v17 document with two captures that have no saidAt. */
+  const v17Document = () => {
+    const migrated = migrate(v12Document());
+    return {
+      ...migrated,
+      schemaVersion: 17,
+      captures: [
+        { id: 'capture_a', text: 'call Marta', origin: 'bar', destination: 'task', route: 'rules', createdAt: '2026-03-01T08:00:00.000Z', updatedAt: '2026-03-01T08:00:00.000Z', source: 'capture' },
+        { id: 'capture_b', text: 'a meal', origin: 'shortcut', destination: 'nutrition', route: 'model', createdAt: '2026-03-02T19:30:00.000Z', updatedAt: '2026-03-02T19:31:00.000Z', source: 'capture' },
+      ],
+    };
+  };
+
+  it('gives every capture a saidAt equal to its createdAt and changes nothing else', () => {
+    const before = v17Document();
+    const migrated = migrate(before);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.captures).toEqual(before.captures.map((/** @type {any} */ capture) => ({ ...capture, saidAt: capture.createdAt })));
+    expect({ ...migrated, captures: [], schemaVersion: 0 }).toEqual({ ...before, captures: [], schemaVersion: 0 });
+  });
+
+  it('keeps a saidAt a capture already has', () => {
+    const before = v17Document();
+    before.captures[0].saidAt = '2026-02-28T22:00:00.000Z';
+    expect(migrate(before).captures[0].saidAt).toBe('2026-02-28T22:00:00.000Z');
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v17Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});
+
+describe('migration v18 to v19', () => {
+  /** A v18 document with an entry written the next morning about the evening before. */
+  const v18Document = () => {
+    const migrated = migrate(v12Document());
+    return {
+      ...migrated,
+      schemaVersion: 18,
+      journal: [
+        { id: 'journal_a', date: '2026-03-01', text: 'evening', tags: [], createdAt: '2026-03-02T07:00:00.000Z', updatedAt: '2026-03-02T07:00:00.000Z', source: 'user' },
+      ],
+    };
+  };
+
+  it('gives every entry a saidAt equal to its createdAt and keeps its date', () => {
+    const before = v18Document();
+    const migrated = migrate(before);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.journal).toEqual([{ ...before.journal[0], saidAt: '2026-03-02T07:00:00.000Z' }]);
+  });
+
+  it('keeps a saidAt an entry already has', () => {
+    const before = v18Document();
+    before.journal[0].saidAt = '2026-03-01T22:00:00.000Z';
+    expect(migrate(before).journal[0].saidAt).toBe('2026-03-01T22:00:00.000Z');
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v18Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});

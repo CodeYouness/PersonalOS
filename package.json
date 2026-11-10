@@ -9,7 +9,9 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.js",
+    "serve": "node scripts/serve.js",
+    "launchd:plist": "node scripts/launchd-plist.js",
     "dev:sandbox": "node scripts/dev-sandbox.js",
     "build": "next build",
     "start": "next start",

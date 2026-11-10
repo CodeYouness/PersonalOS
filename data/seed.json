@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 17,
+  "schemaVersion": 19,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -382,6 +382,7 @@
       "destination": "people",
       "route": "model",
       "createdAt": "2026-01-04T08:12:00.000Z",
+      "saidAt": "2026-01-04T08:12:00.000Z",
       "updatedAt": "2026-01-04T08:12:00.000Z",
       "source": "capture"
     },
@@ -392,6 +393,7 @@
       "destination": "finance",
       "route": "rules",
       "createdAt": "2026-01-05T09:12:00.000Z",
+      "saidAt": "2026-01-05T09:12:00.000Z",
       "updatedAt": "2026-01-05T09:12:00.000Z",
       "source": "capture"
     }
@@ -437,6 +439,7 @@
         "work",
         "pricing"
       ],
+      "saidAt": "2026-01-04T22:35:00.000Z",
       "createdAt": "2026-01-04T22:35:00.000Z",
       "updatedAt": "2026-01-04T22:35:00.000Z",
       "source": "user"

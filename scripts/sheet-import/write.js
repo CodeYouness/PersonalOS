@@ -13,7 +13,7 @@
  * The refusals are this importer's policy -- a one-off run against a clean
  * finance section -- not rules of an entity, so they live here rather than in
  * the store. The writes are separate store calls, serialised in this process
- * (ADR 0011) but not against another one: stop `npm run dev` while it writes.
+ * (ADR 0011) but not against another one: stop `npm run serve` (and `dev`, if running) while it writes.
  * A failure part way says how to restore the backup.
  */
 

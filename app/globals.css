@@ -269,6 +269,7 @@ button:disabled { cursor: not-allowed; }
 .badge-warm  { background: var(--warning-soft); color: var(--warning); }
 .badge-cold  { background: var(--surface-3);    color: var(--ink-subtle); }
 .badge-ok    { background: var(--success-soft); color: var(--success); }
+.badge-origin { background: var(--surface-3); color: var(--ink-subtle); }
 .badge-route-model { background: var(--surface-3);    color: var(--ink-subtle); }
 .badge-route-rules { background: var(--warning-soft); color: var(--warning); }
 .badge-est   { background: var(--info-soft);    color: var(--info); }
@@ -875,6 +876,7 @@ a.cite { text-decoration: none; }
 .log-item { padding: var(--s-sm) 0; border-bottom: 1px solid var(--hairline); }
 .log-item:last-child { border-bottom: none; }
 .log-top { display: flex; align-items: center; gap: var(--s-xs); }
+.log-said { margin: 2px 0 0; font-family: var(--font-mono); font-size: 11px; }
 .log-time { font-family: var(--font-mono); font-size: 11px; color: var(--ink-tertiary); margin-left: auto; }
 .log-text { font-size: 13px; margin: 5px 0; line-height: 1.45; }
 .log-dest { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-subtle); }

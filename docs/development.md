@@ -23,8 +23,9 @@ it from an old `.env.local`, it changes nothing.
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Development server on :3000, on your real `data/personalos.json` |
-| `npm run dev:sandbox` | The same on a throwaway copy of the seed, its habit history moved to recent days, removed when it stops. **For checking a change in the browser.** It follows `data/seed.json`: a branch switch that changes the seed starts the sandbox again from it. It prints whether the model is on -- a key exported in your shell counts, not only `.env.local` -- since a model path checked there calls the real API. `-- -p 3100` for another port |
+| `npm run serve` | **The one writer** (ADR 0032). A production build, then `next start` on :3000, on your real `data/personalos.json`, listening on `127.0.0.1` only. It takes a lock on the data directory (`data/serve.lock`, holding its pid); a second `serve` refuses. Code changes reach it only when you stop it and run it again. A lock whose process is gone is stale and is taken over |
+| `npm run dev` | Development server on :3000, on your real `data/personalos.json`, on `127.0.0.1` only. **Refuses to start while `serve` runs**, naming its process and how to stop it. `-- -p 3100` for another port |
+| `npm run dev:sandbox` | The same, also on `127.0.0.1`, on a throwaway copy of the seed, its habit history moved to recent days, removed when it stops. It neither takes nor checks the lock. **For checking a change in the browser.** It follows `data/seed.json`: a branch switch that changes the seed starts the sandbox again from it. It prints whether the model is on -- a key exported in your shell counts, not only `.env.local` -- since a model path checked there calls the real API. `-- -p 3100` for another port |
 | `npm run build` | Production build. Stricter than dev -- things pass `dev` and fail here |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc -p jsconfig.json`: JSDoc types, `checkJs`, strict |
@@ -34,7 +35,7 @@ it from an old `.env.local`, it changes nothing.
 | `npm run check:secrets` | Fails if personal data or a credential is tracked |
 | `npm run data:reset` | Restore `data/personalos.json` from the seed, backing up whatever was there first |
 | `npm run data:remove-demo-finance` | Remove the seed's demo accounts, balances, trades, transactions and snapshot from `data/personalos.json`, backing it up first. Yours to run once, before recording your own money; categories and all non-finance data stay, and a second run removes nothing. A demo account goes with everything recorded on it, yours included |
-| `npm run data:import-sheet -- <download.xlsx> <mapping.json> [--write]` | The one-off import of the finance spreadsheet (#132). Without `--write`, a dry run: reads the xlsx download and the private mapping -- keep it in `.scratch/`, it holds your names -- and prints what it would create and every row that needs attention (refunds, purchases with no single trade, unmapped pairs and accounts, skipped and rounded rows), writing nothing. With `--write`, after a backup, it imports accounts, opening balances, transactions and trades, sets "tracked since" unless it is set, and the default account when the mapping names one. It refuses, writing nothing, while demo finance rows are present, once the sheet is imported, or while the report lists anything unresolved. A holding the broker sync owns (#218) is named in the mapping by its ISIN (`accounts: { "<sheet name>": { "origin": { "source": "scalable", "externalId": "<ISIN>" } } }`): its `Log Transazioni` rows are skipped and listed, and its purchases become transfers to it, matched to its synced trades (same total within 3 days, exactly one match; otherwise reported and blocking). A hand-made holding imports as before. **Run order:** `data:remove-demo-finance`, then `npm run sync:scalable`, then the dry run, then -- with `npm run dev` stopped -- `--write`. To run it again, restore the backup it printed |
+| `npm run data:import-sheet -- <download.xlsx> <mapping.json> [--write]` | The one-off import of the finance spreadsheet (#132). Without `--write`, a dry run: reads the xlsx download and the private mapping -- keep it in `.scratch/`, it holds your names -- and prints what it would create and every row that needs attention (refunds, purchases with no single trade, unmapped pairs and accounts, skipped and rounded rows), writing nothing. With `--write`, after a backup, it imports accounts, opening balances, transactions and trades, sets "tracked since" unless it is set, and the default account when the mapping names one. It refuses, writing nothing, while demo finance rows are present, once the sheet is imported, or while the report lists anything unresolved. A holding the broker sync owns (#218) is named in the mapping by its ISIN (`accounts: { "<sheet name>": { "origin": { "source": "scalable", "externalId": "<ISIN>" } } }`): its `Log Transazioni` rows are skipped and listed, and its purchases become transfers to it, matched to its synced trades (same total within 3 days, exactly one match; otherwise reported and blocking). A hand-made holding imports as before. **Run order:** `data:remove-demo-finance`, then `npm run sync:scalable`, then the dry run, then -- with `npm run serve` stopped (and `dev`, if running) -- `--write`. To run it again, restore the backup it printed |
 | `npm run data:import-degiro -- <transactions.csv> [--write]` | The one-off import of DEGIRO's transactions export (#219, ADR 0031). A dry run by default: prints the holdings, trades and prices it would write, the rows it skipped (bookkeeping, changes of exchange) and every warning or blocking row, writing nothing. With `--write`, after a backup, it writes one read-only holding per ISIN, ending each on the day its units arrived at Scalable. Needs `sc` logged in and the Scalable sync run first; refuses while demo rows are present or anything blocks. A second `--write` changes nothing. Keep the CSV out of the repository |
 | `npm run eval:classify [-- --model <id> ...]` | Files a fixed set of made-up sentences on each model -- Haiku 5.5 and Sonnet 5 unless `--model` names others -- and prints, per model, the pass rate per field, the sentences it got wrong, the tokens and the cost of the run and of a capture (#197). **Calls the real API with your key and spends money**, so it is run on purpose and never by `verify` or CI. A case passes a meal's numbers within 25% of its estimate, everything else only on an exact match. Exits 1 when every call of a model failed -- an empty balance or a retired model -- and says why once. |
 | `npm run measure:context [-- --model <id>]` | Counts with `countTokens` how many tokens a question at `limits.contextMaxChars` is on `claude-haiku-5-5` (or `--model`), and prints, for made-up transactions as the sheet import writes them (the worst mix today) and as bank statement lines (no importer writes them yet), made-up journal text and the seed's own context, the characters, the tokens, the tokens a character and the largest limit for 90,000 and 100,000 tokens (#204, ADR 0030). The records are made up in memory and sent in the request `lib/answer.js` sends: no store, no data directory. `countTokens` is free, but it needs your key, so it is not part of `verify` or CI. Run it when the answer model or a kind of record changes, and carry its figures into `tests/lib/context-limit.test.js` and the ADR. |
@@ -110,6 +111,29 @@ tool will not tell you:
   run at once. Once the server is down, the page logs failed hot-reload (HMR)
   connections that are not the app's errors.
 
+## Always running, and the Dock (ticket #227)
+
+`npm run serve` runs under a launchd user agent, so PersonalOS is up after
+login and comes back when it exits. The definition is generated for this
+checkout (`npm run launchd:plist`), so no path is committed.
+
+```
+mkdir -p ~/Library/Logs/PersonalOS
+npm run --silent launchd:plist > ~/Library/LaunchAgents/personalos.serve.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/personalos.serve.plist
+```
+
+- **Check:** `launchctl print gui/$(id -u)/personalos.serve`, and open
+  http://127.0.0.1:3000.
+- **Remove:** `launchctl bootout gui/$(id -u)/personalos.serve`, then delete the plist.
+- **Rebuild after a change:** `launchctl kickstart -k gui/$(id -u)/personalos.serve`
+  restarts it, and `serve` builds again on start (give it a minute). `bootout`
+  it first before `npm run dev` or any script that writes the data.
+- **Logs:** `~/Library/Logs/PersonalOS/serve.log` and `serve.err.log`
+  (`tail -f`). Build errors land there.
+- **The Dock:** open http://127.0.0.1:3000 in Safari, File > Add to Dock (in
+  Chrome, Install PersonalOS). The window uses the manifest's name and icon.
+
 ## Debugging
 
 Server errors appear in the terminal running `npm run dev`. Browser errors
@@ -143,6 +167,66 @@ git status          # no .env, no data/personalos.json, no keys
 
 The repository is public. `check:secrets` runs in CI too, but by then the
 commit exists, and git history does not forget.
+
+## The phone over Tailscale
+
+ADR 0032: the phone reaches two routes over the tailnet, with a token, and
+nothing else. Not automated; check each step by hand.
+
+**The token.** Put `PERSONALOS_PHONE_TOKEN=<a long random value>` in
+`.env.local` (`openssl rand -hex 32`), then stop and run `npm run serve` again:
+`serve` reads it when it starts. The phone sends it as
+`Authorization: Bearer <token>`. It is read only in `lib/config/env.js`, never
+behind a `NEXT_PUBLIC_` name, and never written in the repository or a
+screenshot.
+
+**The gate** is `lib/phone-gate.js`, called first thing in the capture route
+and in every journal handler:
+
+- A request is *proxied* when it carries what `tailscale serve` adds: a
+  `Tailscale-User-*` header, or an `X-Forwarded-For` naming the phone's
+  tailnet address. Next itself sets `X-Forwarded-For` to `127.0.0.1` (or
+  `::1`) on every local request, so a loopback address is the Mac's own.
+  Without the right token a proxied request gets 401 and nothing is written.
+- With no token configured, every proxied request gets 401: the gate fails
+  closed.
+- A request without those headers is the Mac's own browser. It needs no token,
+  and the capture bar is unchanged.
+
+The capture route's response also carries `receiptLine`, the receipt as one
+line (`task · Filed “Call the accountant”`), built by the formatter the
+capture bar uses (`formatReceiptLine` and `formatReceiptWhat` in
+`lib/domain/format.js`), so a Shortcut can show it as it is.
+
+**Put `tailscale serve` in front of `serve`.** `serve` listens on
+`127.0.0.1:3000`. Expose the two paths and nothing else (use
+`tailscale serve --help` for the flag spellings of your version; `funnel` is
+never used):
+
+```bash
+tailscale serve --bg --set-path /api/capture http://127.0.0.1:3000/api/capture
+tailscale serve --bg --set-path /api/journal http://127.0.0.1:3000/api/journal
+tailscale serve status
+```
+
+The journal path reaches the routes under it (`/api/journal/<id>` and its
+`extract` and `memories`), so those handlers use the gate too.
+
+**Check that nothing else answers**, from the phone on the tailnet, with
+`<host>` the Mac's tailnet name and `<token>` the token:
+
+```bash
+curl -i -X POST https://<host>/api/capture -H 'content-type: application/json' \
+  -d '{"text":"a test sentence"}'                      # 401
+curl -i -X POST https://<host>/api/capture -H 'content-type: application/json' \
+  -H 'Authorization: Bearer <token>' -d '{"text":"a test sentence"}'   # 200, receiptLine
+curl -i https://<host>/                                 # not served
+curl -i https://<host>/api/captures                     # not served
+curl -i https://<host>/api/health                       # not served
+```
+
+The test sentence is filed for real: undo it from the Inbox. Turn the
+exposure off with `tailscale serve reset`.
 
 ## Deployment
 

@@ -49,7 +49,7 @@ beforeEach(async () => {
 
 /** @returns {Promise<{ captures: CaptureRow[] }>} */
 async function get() {
-  const response = await route.GET();
+  const response = await route.GET(new Request('http://localhost/api/captures'));
   return response.json();
 }
 
@@ -65,6 +65,16 @@ describe('GET /api/captures', () => {
     expect(body.captures).toHaveLength(limits.captureLogCount);
     expect(body.captures[0]?.text).toBe('capture ' + (total - 1));
     expect(body.captures.at(-1)?.text).toBe('capture ' + (total - limits.captureLogCount));
+  });
+
+  it('tells each row which surface it came through', async () => {
+    await store.createCapture({ text: 'origin row phone', destination: 'memory', origin: 'shortcut' });
+    await store.createCapture({ text: 'origin row desk', destination: 'memory' });
+
+    const rows = (await get()).captures;
+
+    expect(rows.find((row) => row.text === 'origin row phone')).toMatchObject({ origin: 'shortcut' });
+    expect(rows.find((row) => row.text === 'origin row desk')).toMatchObject({ origin: 'bar' });
   });
 
   it("includes the produced task's title when it still exists", async () => {

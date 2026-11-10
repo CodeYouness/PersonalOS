@@ -16,7 +16,8 @@
  * transfers in, whose day and value end the handed-over holdings, and for the
  * charts the delisting close and the month-end prices come from. The Scalable
  * sync must have run first. The export is personal: keep it out of the
- * repository. Stop `npm run dev` before --write (ADR 0011).
+ * repository. Stop `npm run serve` (and `dev`, if running) before --write
+ * (ADR 0011).
  *
  * The run order: remove the demo rows, `npm run sync:scalable`, this dry run,
  * read the report, this with --write, then the sheet import.

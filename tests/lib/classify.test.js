@@ -144,6 +144,15 @@ describe('classifyWithRules -- appointment (Italian only, explicit date + time)'
     expect(classifyModule.classifyWithRules('call dopodomani alle 9').fields.date).toBe('2026-09-12');
   });
 
+  it('resolves weekdays and "dopodomani" from the day it was said, not from today', () => {
+    // Today is Thursday 2026-09-10 (faked); the sentence was said on Sunday 2026-09-06.
+    const said = (/** @type {string} */ text) => classifyModule.classifyWithRules(text, '2026-09-06');
+
+    expect(said('dentista lunedì alle 8')).toMatchObject({ route: 'rules', fields: { date: '2026-09-07' } });
+    expect(said('riunione giovedì alle 15').fields.date).toBe('2026-09-10');
+    expect(said('call dopodomani alle 9').fields.date).toBe('2026-09-08');
+  });
+
   it('is unaffected when only a time is stated, no date', () => {
     // The ticket's negative case: without both signals, existing
     // classification behaviour must not change.

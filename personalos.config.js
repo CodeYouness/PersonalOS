@@ -75,6 +75,15 @@ export const DESTINATIONS = Object.freeze([
 ]);
 
 /**
+ * The surfaces a capture can arrive through. `origin` names the surface, not
+ * the device: a browser on the phone is still `bar`. `telegram` is reserved
+ * for the flagged-off surface.
+ *
+ * @type {readonly string[]}
+ */
+export const CAPTURE_ORIGINS = Object.freeze(['bar', 'shortcut', 'telegram']);
+
+/**
  * Relationship vocabulary for the link collection.
  *
  * Closed on purpose. An open vocabulary would make links unqueryable within a
@@ -267,6 +276,15 @@ export const limits = Object.freeze({
   calendarCacheMs: 5 * 60 * 1000,
   /** How many recent captures the capture log drawer shows. */
   captureLogCount: 20,
+  /**
+   * A capture's `saidAt` this far ahead of the server is clock drift and counts
+   * as now; further ahead is refused (ADR 0033). The capture log shows when a
+   * capture was said once it differs from when it was written by more than
+   * this.
+   */
+  saidAtDriftMinutes: 5,
+  /** The longest `clientId` a client may send (ADR 0033); a UUID is 36. */
+  clientIdMaxLength: 200,
   /**
    * Answers need headroom: the model emits reasoning blocks before the text,
    * and a low ceiling makes the endpoint return an empty string that looks

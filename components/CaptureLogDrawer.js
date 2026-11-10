@@ -1,3 +1,4 @@
+import { wasSaidEarlier } from '@/lib/domain/said-at.js';
 import { DESTINATIONS } from '@/personalos.config.js';
 import { formatTime } from '@/components/format.js';
 
@@ -7,7 +8,9 @@ import { formatTime } from '@/components/format.js';
  * @property {string} text
  * @property {string} destination
  * @property {'model'|'rules'} route
+ * @property {string} origin
  * @property {string} createdAt
+ * @property {string} saidAt
  * @property {{ id: string, title: string } | null} produced
  * @property {boolean} locked
  */
@@ -95,8 +98,14 @@ function LogItem({ capture, onDelete, onUndo, onRefile, isCorrecting }) {
       <div className="log-top">
         <span className="badge badge-ok">{capture.destination}</span>
         <span className={'badge badge-route-' + capture.route}>{capture.route}</span>
+        {capture.origin !== 'bar' && <span className="badge badge-origin">{capture.origin}</span>}
         <span className="log-time">{formatTime(capture.createdAt)}</span>
       </div>
+      {wasSaidEarlier(capture) && (
+        <p className="caption log-said">
+          said {new Date(capture.saidAt).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
       <p className="log-text">&ldquo;{capture.text}&rdquo;</p>
       {capture.produced && (
         <div className="log-dest">

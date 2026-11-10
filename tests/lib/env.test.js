@@ -75,3 +75,15 @@ describe('the other variables', () => {
     expect(env.models).toEqual({ classify: 'claude-test-classify', extract: defaultModels.extract, answer: 'claude-test-answer' });
   });
 });
+
+describe('PERSONALOS_PHONE_TOKEN', () => {
+  it('is read trimmed, and absent when unset or empty', async () => {
+    vi.stubEnv('DATA_DIR', '/tmp/personalos-sandbox-x');
+    vi.stubEnv('PERSONALOS_PHONE_TOKEN', '  abc  ');
+    expect((await import('@/lib/config/env.js')).env.phoneToken).toBe('abc');
+
+    vi.resetModules();
+    vi.stubEnv('PERSONALOS_PHONE_TOKEN', '  ');
+    expect((await import('@/lib/config/env.js')).env.phoneToken).toBeNull();
+  });
+});
