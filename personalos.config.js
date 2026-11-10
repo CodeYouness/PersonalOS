@@ -228,6 +228,25 @@ export const TRADE_DIRECTIONS = Object.freeze(['buy', 'sell']);
  */
 export const FINANCE_CURRENCIES = Object.freeze(['EUR']);
 
+/**
+ * Who an `origin` can name: the systems whose records PersonalOS holds a copy
+ * of. Closed, like every vocabulary here; the store refuses an origin whose
+ * source is not one of these values. `demo` marks the seed's sample rows and
+ * does NOT make an account synced (docs/domain.md, FinanceAccount).
+ *
+ * @type {Readonly<{ scalable: 'scalable', degiro: 'degiro', demo: 'demo', sheet: 'sheet', googleCalendar: 'google-calendar' }>}
+ */
+export const ORIGIN_SOURCES = Object.freeze({
+  scalable: 'scalable',
+  degiro: 'degiro',
+  demo: 'demo',
+  sheet: 'sheet',
+  googleCalendar: 'google-calendar',
+});
+
+/** @type {readonly string[]} */
+export const ORIGIN_SOURCE_VALUES = Object.freeze(Object.values(ORIGIN_SOURCES));
+
 /** What a finance observation measured at a point in time. */
 export const OBSERVATION_KINDS = Object.freeze(['balance', 'position']);
 

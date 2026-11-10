@@ -8,6 +8,7 @@ import FinanceBalances from '@/components/FinanceBalances.js';
 import FinanceHoldings from '@/components/FinanceHoldings.js';
 import { shortDate } from '@/components/format.js';
 import { messageOf, request } from '@/components/request.js';
+import { isSyncedAccount } from '@/lib/domain/origin.js';
 import { ACCOUNT_KINDS, ACCOUNT_VALUATIONS } from '@/personalos.config.js';
 
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
@@ -30,7 +31,8 @@ const KIND_CHOICES = { cash: 'Cash', investment: 'Investment', asset: 'Asset', l
  * The rest of an account's life is here too (#115): the name saves when you
  * leave it; Archive takes a closed account out of the table, keeping its
  * data, and Restore puts it back; Delete asks first and removes the account
- * with everything recorded on it.
+ * with everything recorded on it -- except a synced account, which the next
+ * sync would create again: Archive only.
  *
  * Mounted with `key={account.id}`, so selecting another account starts clean.
  *
@@ -190,9 +192,11 @@ export default function FinanceAccountDetail({ account, balances, trades, prices
               Restore
             </button>
           )}
-          <button type="button" className="btn-danger" disabled={isSaving} onClick={removeAccount}>
-            Delete
-          </button>
+          {!isSyncedAccount(account) && (
+            <button type="button" className="btn-danger" disabled={isSaving} onClick={removeAccount}>
+              Delete
+            </button>
+          )}
         </div>
       </div>
     </aside>

@@ -1158,6 +1158,17 @@ export function runAdapterContract(label, load) {
         expect(await store.getAccount(transaction.accountId)).not.toBeNull();
       });
 
+      it('refuses to delete a synced account, which the next sync would create again, and still archives it', async () => {
+        const synced = await store.createAccount({
+          name: 'Test World ETF', kind: 'investment', valuation: 'units', origin: { source: 'scalable', externalId: 'XX0000000001' },
+        });
+
+        await expect(store.deleteAccount(synced.id)).rejects.toThrow(/synced.*archive/);
+        expect(await store.getAccount(synced.id)).not.toBeNull();
+        await store.updateAccount(synced.id, { archived: true });
+        expect((await store.getAccount(synced.id))?.archivedOn).not.toBeNull();
+      });
+
       it('lets an investment choose its valuation and every other kind be valued by balance', async () => {
         const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
         const pension = await store.createAccount({ name: 'Pension', kind: 'investment' });
@@ -1307,6 +1318,286 @@ export function runAdapterContract(label, load) {
         await store.deleteTrade(sell.id);
         await store.deleteTrade(buy.id);
         expect(await store.getTrades({ accountId: etf.id })).toEqual([]);
+      });
+
+      describe('trades and prices from a source (ADR 0031)', () => {
+        const ISIN = 'XX0000000001';
+
+        /** A synced holding: found by its origin, valued by units. */
+        const syncedHolding = () =>
+          store.createAccount({
+            name: 'Test World ETF', kind: 'investment', valuation: 'units', origin: { source: 'scalable', externalId: ISIN },
+          });
+
+        /** @param {string} accountId @param {Record<string, unknown>} [extra] */
+        const brokerBuy = (accountId, extra = {}) => ({
+          accountId, date: '2026-04-02', direction: 'buy', units: 150000000, price: 10000, fee: 100,
+          origin: { source: 'scalable', externalId: 'order-1' }, ...extra,
+        });
+
+        it('lists upsertTradeByOrigin and upsertSyncedPrice in the contract', () => {
+          expect(ADAPTER_METHODS).toContain('upsertTradeByOrigin');
+          expect(ADAPTER_METHODS).toContain('upsertSyncedPrice');
+        });
+
+        it('gives a hand-made trade an origin of null', async () => {
+          const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+          const trade = await store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 });
+          expect(trade.origin).toBeNull();
+        });
+
+        it('creates a trade the first time and updates the same one the second, never a second trade', async () => {
+          const etf = await syncedHolding();
+          const first = await store.upsertTradeByOrigin(brokerBuy(etf.id));
+          const second = await store.upsertTradeByOrigin(brokerBuy(etf.id, { units: 160000000, price: 10100, fee: 0, date: '2026-04-03' }));
+
+          expect(second.id).toBe(first.id);
+          expect(await store.getTrades({ accountId: etf.id })).toEqual([
+            expect.objectContaining({ date: '2026-04-03', units: 160000000, price: 10100, fee: 0, direction: 'buy' }),
+          ]);
+          expect(second.origin).toMatchObject({ source: 'scalable', externalId: 'order-1' });
+        });
+
+        it('matches on source and externalId together', async () => {
+          const etf = await syncedHolding();
+          await store.upsertTradeByOrigin(brokerBuy(etf.id));
+          await store.upsertTradeByOrigin(brokerBuy(etf.id, { origin: { source: 'degiro', externalId: 'order-1' } }));
+          await store.upsertTradeByOrigin(brokerBuy(etf.id, { origin: { source: 'scalable', externalId: 'order-2' } }));
+
+          expect(await store.getTrades({ accountId: etf.id })).toHaveLength(3);
+        });
+
+        it('lets the source overwrite every field of a synced trade', async () => {
+          const etf = await syncedHolding();
+          await store.upsertTradeByOrigin(brokerBuy(etf.id));
+          await store.upsertTradeByOrigin(brokerBuy(etf.id, { units: 50000000, price: 9000, fee: 5, date: '2026-04-09' }));
+
+          expect(await store.getTrades({ accountId: etf.id })).toEqual([
+            expect.objectContaining({ date: '2026-04-09', direction: 'buy', price: 9000, fee: 5, units: 50000000 }),
+          ]);
+        });
+
+        describe('replaceSyncedTrades: a source\'s whole set for one holding', () => {
+          /** @param {string} id @param {Record<string, unknown>} [extra] */
+          const row = (id, extra = {}) => ({ externalId: id, date: '2026-04-02', direction: 'buy', units: 100000000, price: 10000, fee: 0, ...extra });
+
+          it('lists replaceSyncedTrades in the contract', () => {
+            expect(ADAPTER_METHODS).toContain('replaceSyncedTrades');
+          });
+
+          it('creates, then changes nothing on a second identical run, syncedAt included', async () => {
+            const etf = await syncedHolding();
+            const set = { accountId: etf.id, source: 'scalable', trades: [row('a'), row('b', { date: '2026-05-02' })] };
+            expect(await store.replaceSyncedTrades(set)).toEqual({ created: 2, updated: 0, removed: 0, unchanged: 0 });
+            const before = await store.getTrades({ accountId: etf.id });
+            expect(await store.replaceSyncedTrades(set)).toEqual({ created: 0, updated: 0, removed: 0, unchanged: 2 });
+            expect(await store.getTrades({ accountId: etf.id })).toEqual(before);
+          });
+
+          it('judges once after the whole set: a sell listed before its buy is fine', async () => {
+            const etf = await syncedHolding();
+            await store.replaceSyncedTrades({
+              accountId: etf.id, source: 'scalable',
+              trades: [row('sell', { direction: 'sell', date: '2026-04-10', units: 100000000 }), row('buy', { date: '2026-04-02' })],
+            });
+            expect(await store.getTrades({ accountId: etf.id })).toHaveLength(2);
+          });
+
+          it('refuses a set that goes below zero on any day and writes nothing', async () => {
+            const etf = await syncedHolding();
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [row('a')] });
+            await expect(
+              store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [row('a'), row('s', { direction: 'sell', units: 200000000, date: '2026-04-03' })] })
+            ).rejects.toThrow(/below zero/);
+            expect(await store.getTrades({ accountId: etf.id })).toHaveLength(1);
+          });
+
+          it('removes a synced trade the source no longer lists, and updates a changed one', async () => {
+            const etf = await syncedHolding();
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [row('a'), row('b', { date: '2026-05-02' })] });
+            const result = await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [row('a', { price: 10100 })] });
+            expect(result).toEqual({ created: 0, updated: 1, removed: 1, unchanged: 0 });
+            expect(await store.getTrades({ accountId: etf.id })).toEqual([expect.objectContaining({ price: 10100 })]);
+          });
+
+          it('leaves another source\'s trades on the holding alone', async () => {
+            const etf = await syncedHolding();
+            await store.upsertTradeByOrigin(brokerBuy(etf.id, { origin: { source: 'degiro', externalId: 'd1' }, date: '2026-01-02' }));
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [row('a')] });
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [] });
+            expect(await store.getTrades({ accountId: etf.id })).toEqual([
+              expect.objectContaining({ origin: expect.objectContaining({ source: 'degiro' }) }),
+            ]);
+          });
+
+          it('refuses an account with no origin', async () => {
+            const hand = await store.createAccount({ name: 'Hand ETF', kind: 'investment', valuation: 'units' });
+            await expect(store.replaceSyncedTrades({ accountId: hand.id, source: 'scalable', trades: [row('a')] })).rejects.toThrow(/not synced/);
+          });
+        });
+
+        describe('setSyncedAccountArchivedOn: a synced holding archived on a given day', () => {
+          it('lists it in the contract', () => {
+            expect(ADAPTER_METHODS).toContain('setSyncedAccountArchivedOn');
+          });
+
+          it('archives on the day given, moves it, and restores with null', async () => {
+            const etf = await syncedHolding();
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [{ externalId: 'a', date: '2026-04-02', direction: 'buy', units: 100000000, price: 100, fee: 0 }] });
+            expect((await store.setSyncedAccountArchivedOn(etf.id, '2026-04-10')).archivedOn).toBe('2026-04-10');
+            expect((await store.setSyncedAccountArchivedOn(etf.id, '2026-04-12')).archivedOn).toBe('2026-04-12');
+            expect((await store.setSyncedAccountArchivedOn(etf.id, null)).archivedOn).toBeNull();
+          });
+
+          it('refuses an account with no origin, a bad day, and a day before a trade on it', async () => {
+            const hand = await store.createAccount({ name: 'Hand ETF', kind: 'investment', valuation: 'units' });
+            await expect(store.setSyncedAccountArchivedOn(hand.id, '2026-04-10')).rejects.toThrow(/not synced/);
+            const etf = await syncedHolding();
+            await store.replaceSyncedTrades({ accountId: etf.id, source: 'scalable', trades: [{ externalId: 'a', date: '2026-04-02', direction: 'buy', units: 100000000, price: 100, fee: 0 }] });
+            await expect(store.setSyncedAccountArchivedOn(etf.id, 'tomorrow')).rejects.toThrow();
+            await expect(store.setSyncedAccountArchivedOn(etf.id, '2026-04-01')).rejects.toThrow(/2026-04-02/);
+            expect((await store.getAccount(etf.id))?.archivedOn).toBeNull();
+          });
+        });
+
+        it('needs an origin, and a holding valued by units', async () => {
+          const etf = await syncedHolding();
+          await expect(store.upsertTradeByOrigin(brokerBuy(etf.id, { origin: null }))).rejects.toThrow(/origin/);
+          const cash = await store.createAccount({ name: 'Wallet', kind: 'cash' });
+          await expect(store.upsertTradeByOrigin(brokerBuy(cash.id))).rejects.toThrow(/units/);
+        });
+
+        it('refuses an upsert that leaves the holding below zero units on any day, and writes nothing', async () => {
+          const etf = await syncedHolding();
+          await store.upsertTradeByOrigin(brokerBuy(etf.id));
+          const sell = (/** @type {Record<string, unknown>} */ extra) =>
+            brokerBuy(etf.id, { direction: 'sell', date: '2026-05-01', units: 100000000, origin: { source: 'scalable', externalId: 'order-2' }, ...extra });
+
+          await expect(store.upsertTradeByOrigin(sell({ units: 150000001 }))).rejects.toThrow(/below zero/);
+          await expect(store.upsertTradeByOrigin(sell({ date: '2026-04-01' }))).rejects.toThrow(/below zero/);
+          expect(await store.getTrades({ accountId: etf.id })).toHaveLength(1);
+
+          await store.upsertTradeByOrigin(sell({}));
+          // Moving the buy to after the sell, by the source, would strand the sell.
+          await expect(store.upsertTradeByOrigin(brokerBuy(etf.id, { date: '2026-06-01' }))).rejects.toThrow(/below zero/);
+          expect((await store.getTrades({ accountId: etf.id })).find((t) => t.direction === 'buy')?.date).toBe('2026-04-02');
+        });
+
+        it('refuses to correct or delete a trade of a synced account, with a reason', async () => {
+          const etf = await syncedHolding();
+          const trade = await store.upsertTradeByOrigin(brokerBuy(etf.id));
+
+          await expect(store.updateTrade(trade.id, { units: 1 })).rejects.toThrow(/scalable/);
+          await expect(store.deleteTrade(trade.id)).rejects.toThrow(/synced/);
+          expect(await store.getTrades({ accountId: etf.id })).toEqual([expect.objectContaining({ units: 150000000 })]);
+        });
+
+        it('refuses to type, correct or delete a price of a synced account', async () => {
+          const etf = await syncedHolding();
+          await expect(store.recordPrice({ accountId: etf.id, date: '2026-04-02', price: 1 })).rejects.toThrow(/scalable/);
+
+          const price = await store.upsertSyncedPrice({ accountId: etf.id, date: '2026-04-30', price: 10500 });
+          await expect(store.updatePrice(price.id, { price: 1 })).rejects.toThrow(/synced/);
+          await expect(store.deletePrice(price.id)).rejects.toThrow(/synced/);
+          expect(await store.getPrices({ accountId: etf.id })).toEqual([expect.objectContaining({ price: 10500 })]);
+        });
+
+        it('lets the sync write a price, one per holding per day', async () => {
+          const etf = await syncedHolding();
+          const first = await store.upsertSyncedPrice({ accountId: etf.id, date: '2026-04-30', price: 10500 });
+          const again = await store.upsertSyncedPrice({ accountId: etf.id, date: '2026-04-30', price: 10600 });
+
+          expect(again.id).toBe(first.id);
+          expect(await store.getPrices({ accountId: etf.id })).toEqual([expect.objectContaining({ price: 10600, source: 'integration' })]);
+        });
+
+        it('refuses the sync price on a hand-made account', async () => {
+          const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+          await expect(store.upsertSyncedPrice({ accountId: etf.id, date: '2026-04-30', price: 1 })).rejects.toThrow(/synced/);
+        });
+
+        describe('a synced cash account\'s balances', () => {
+          const syncedCash = () =>
+            store.createAccount({ name: 'Broker cash', kind: 'cash', origin: { source: 'scalable', externalId: 'pf-1', syncedAt: '2026-04-30T08:00:00.000Z', sourceUpdatedAt: null } });
+
+          it('lists upsertSyncedBalance in the contract', () => {
+            expect(ADAPTER_METHODS).toContain('upsertSyncedBalance');
+          });
+
+          it('refuses to type, correct or delete a balance by hand', async () => {
+            const cash = await syncedCash();
+            await expect(store.recordObservation({ accountId: cash.id, amount: 100, date: '2026-04-30' })).rejects.toThrow(/scalable/);
+
+            const balance = await store.upsertSyncedBalance({ accountId: cash.id, date: '2026-04-30', amount: 12345 });
+            await expect(store.updateObservation(balance.id, { amount: 1 })).rejects.toThrow(/synced/);
+            await expect(store.deleteObservation(balance.id)).rejects.toThrow(/synced/);
+            expect(await store.getObservations({ accountId: cash.id })).toEqual([expect.objectContaining({ amount: 12345 })]);
+          });
+
+          it('lets the sync write one balance per day, corrected in place, and a zero is kept', async () => {
+            const cash = await syncedCash();
+            const first = await store.upsertSyncedBalance({ accountId: cash.id, date: '2026-04-30', amount: 12345 });
+            const again = await store.upsertSyncedBalance({ accountId: cash.id, date: '2026-04-30', amount: 0 });
+            await store.upsertSyncedBalance({ accountId: cash.id, date: '2026-05-01', amount: 50 });
+
+            expect(again.id).toBe(first.id);
+            expect(await store.getObservations({ accountId: cash.id })).toEqual([
+              expect.objectContaining({ date: '2026-04-30', amount: 0, kind: 'balance', source: 'integration' }),
+              expect.objectContaining({ date: '2026-05-01', amount: 50 }),
+            ]);
+          });
+
+          it('refuses the sync balance on a hand-made account', async () => {
+            const wallet = await store.createAccount({ name: 'Wallet', kind: 'cash' });
+            await expect(store.upsertSyncedBalance({ accountId: wallet.id, date: '2026-04-30', amount: 1 })).rejects.toThrow(/not synced/);
+          });
+        });
+
+        it('refuses a hand-typed trade on a synced account', async () => {
+          const etf = await syncedHolding();
+          await expect(
+            store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 })
+          ).rejects.toThrow(/synced from scalable/);
+          expect(await store.getTrades({ accountId: etf.id })).toEqual([]);
+        });
+
+        describe('a demo origin does not make an account synced', () => {
+          const demoOrigin = { source: 'demo', externalId: 'sample', syncedAt: '2026-04-30T08:00:00.000Z', sourceUpdatedAt: null };
+
+          it('lets the user type trades, prices and balances there', async () => {
+            const etf = await store.createAccount({ name: 'Demo ETF', kind: 'investment', valuation: 'units', origin: demoOrigin });
+            const trade = await store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 });
+            await store.recordPrice({ accountId: etf.id, date: '2026-04-03', price: 2 });
+            await store.updateTrade(trade.id, { units: 2000 });
+            const cash = await store.createAccount({ name: 'Demo cash', kind: 'cash', origin: demoOrigin });
+            await store.recordObservation({ accountId: cash.id, amount: 100, date: '2026-04-30' });
+          });
+
+          it('refuses the sync-only writers there, as on any hand-made account', async () => {
+            const etf = await store.createAccount({ name: 'Demo ETF 2', kind: 'investment', valuation: 'units', origin: demoOrigin });
+            const cash = await store.createAccount({ name: 'Demo cash 2', kind: 'cash', origin: demoOrigin });
+            await expect(store.upsertSyncedPrice({ accountId: etf.id, date: '2026-04-30', price: 1 })).rejects.toThrow(/not synced/);
+            await expect(store.upsertSyncedBalance({ accountId: cash.id, date: '2026-04-30', amount: 1 })).rejects.toThrow(/not synced/);
+            await expect(store.upsertTradeByOrigin(brokerBuy(etf.id))).rejects.toThrow(/not synced/);
+          });
+        });
+
+        it('rejects an origin whose source is not in the vocabulary', async () => {
+          await expect(
+            store.createAccount({ name: 'X', kind: 'cash', origin: { source: 'made-up', externalId: 'a' } })
+          ).rejects.toThrow(/origin.source/);
+        });
+
+        it('changes nothing on a hand-made account', async () => {
+          const etf = await store.createAccount({ name: 'ETF', kind: 'investment', valuation: 'units' });
+          const trade = await store.createTrade({ accountId: etf.id, date: '2026-04-02', direction: 'buy', units: 1000, price: 1 });
+          const price = await store.recordPrice({ accountId: etf.id, date: '2026-04-03', price: 2 });
+
+          expect((await store.updateTrade(trade.id, { units: 2000 })).units).toBe(2000);
+          expect((await store.updatePrice(price.id, { price: 3 })).price).toBe(3);
+          await store.deletePrice(price.id);
+          await store.deleteTrade(trade.id);
+        });
       });
 
       it('records an overdraft as a negative cash balance', async () => {
@@ -1485,7 +1776,7 @@ export function runAdapterContract(label, load) {
 
         it('upserts an imported transaction without touching what you own', async () => {
           const { current, savings } = await twoAccounts();
-          const origin = { source: 'xlsx', externalId: 'ROW-42', syncedAt: '2026-04-02T00:00:00.000Z' };
+          const origin = { source: 'sheet', externalId: 'ROW-42', syncedAt: '2026-04-02T00:00:00.000Z' };
           const imported = await store.createTransaction({
             date: '2026-04-02', amount: -4500, accountId: current.id, description: 'CAFE LISBOA', origin, source: 'integration',
           });
@@ -1518,7 +1809,7 @@ export function runAdapterContract(label, load) {
 
         it('upserts without touching a counter account you chose', async () => {
           const { current, savings } = await twoAccounts();
-          const origin = { source: 'xlsx', externalId: 'ROW-43', syncedAt: '2026-04-02T00:00:00.000Z' };
+          const origin = { source: 'sheet', externalId: 'ROW-43', syncedAt: '2026-04-02T00:00:00.000Z' };
           const imported = await store.createTransaction({ date: '2026-04-02', amount: -100000, accountId: current.id, origin });
           await store.updateTransaction(imported.id, { counterAccountId: savings.id });
 
@@ -1531,7 +1822,7 @@ export function runAdapterContract(label, load) {
 
         it('refuses an upsert that would make a transfer from an account to itself', async () => {
           const { current, savings } = await twoAccounts();
-          const origin = { source: 'xlsx', externalId: 'ROW-44', syncedAt: '2026-04-02T00:00:00.000Z' };
+          const origin = { source: 'sheet', externalId: 'ROW-44', syncedAt: '2026-04-02T00:00:00.000Z' };
           const imported = await store.createTransaction({
             date: '2026-04-02', amount: -100000, accountId: current.id, counterAccountId: savings.id, origin,
           });

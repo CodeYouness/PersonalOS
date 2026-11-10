@@ -869,6 +869,19 @@ and prices. An account has one answer to
 what it is worth: a balance on a `units` account and a trade on a `balance`
 account are both refused.
 
+**A synced account belongs to its source, except its name** (ADR 0031). An
+account with an `origin` was created by a sync, one holding per security,
+found by `(origin.source, origin.externalId)` -- the ISIN -- and never adopted
+from a hand-made account. Its kind, valuation and currency are the source's;
+the name is yours and survives the next sync. Its trades, prices and
+balances are read-only -- the store refuses to type, correct or delete one --
+and Finances marks them "from <source>". **A `demo` origin does not make an
+account synced**: the seed's sample accounts carry one, but their rows are
+yours to type, correct and delete, and the sync-only store writers
+(`upsertTradeByOrigin`, `upsertSyncedPrice`, `upsertSyncedBalance`,
+`replaceSyncedTrades`) refuse them. One predicate decides, `isSyncedAccount`
+in `lib/domain/origin.js`.
+
 **Archiving is a day.** An account you closed is archived: `archivedOn` is
 the day, and it leaves the account table and today's net worth while keeping
 its balances. It still counts on every earlier day it had a value, so closing
@@ -879,7 +892,9 @@ past; a flag could not say which days the account was open.
 **Deleting is for a mistake.** It removes the account with its balances and
 every link to them, after a confirmation. An account that transactions belong
 to cannot be deleted -- money that moved is never lost -- and is archived
-instead.
+instead. A synced account (one with a source's origin) cannot be deleted
+at all -- the next sync would create it again; archive it. The store refuses,
+and the panel shows no Delete.
 
 **Everything is EUR.** An account, a balance -- and every other amount in
 finance -- in any other currency is refused at the store
@@ -912,7 +927,52 @@ such as tax set aside, is a liability.
 **Is** a buy or a sell on a holding.
 
 **Has** `accountId` (an account valued by units), `date`, `direction` (`buy`
-or `sell`, `TRADE_DIRECTIONS`), `units`, `price`, `fee`, `currency`.
+or `sell`, `TRADE_DIRECTIONS`), `units`, `price`, `fee`, `currency`, `origin`.
+
+**A synced trade is the broker's.** A trade with an `origin` was reported by a
+source, not typed: the source owns every field of it, `upsertTradeByOrigin`
+matches it on `(origin.source, origin.externalId)` so the same trade is
+updated, never added twice, and it is not corrected or deleted here -- the
+store refuses, and Finances marks it "from <source>" without Correct or
+Delete. A hand-typed trade has `origin: null`, and `createTrade` is refused
+on a synced account: a typed trade there would survive the next sync and miscount
+units. A synced trade is refused, like
+a hand-typed one, when it would leave the holding below zero units on any day.
+
+**A merger or a transfer is a sell and a buy** (ADR 0031). The broker's
+`SWAP_OUT` and `TRANSFER_OUT` become a sell, `SWAP_IN` and `TRANSFER_IN` a
+buy, at the amount the broker reports over the units, fee 0 -- even when the
+units only change custody, so a holding's units match the broker's on every
+day. A merger takes all of the old holding's units out and puts the new
+fund's in on the same day. The value can be a cost rather than a market
+price. A cancellation pair (`is_cancellation` and the row it undoes) writes
+nothing; a synced trade the broker no longer reports as settled is removed on
+the next sync, with a warning. A synced holding that reaches zero units is
+**archived on the day of the trade that emptied it** (`archivedOn`, read by
+anything that prices it: no price after that day), and restored when units
+come back -- only if the sync archived it: a holding a hand archived while it
+still held units (units on its `archivedOn` day are not zero) stays archived,
+and its trades and prices keep syncing. A holding that would still go below zero units after the whole
+run's trades is left alone with a warning.
+
+**A holding ends when its units arrive at a synced broker** (ticket #219, ADR
+0031). The one-off DEGIRO import writes a holding per ISIN, origin
+`{ source: 'degiro', externalId: <ISIN> }`, whose trades are read-only like a
+synced broker's. Units that left DEGIRO for Scalable are a sell with no order
+id: the import gives that sell Scalable's arrival day and value (the
+`TRANSFER_IN`), so the DEGIRO holding ends the day the Scalable holding
+begins and the units count once on every day. A change of exchange (a sell
+and a buy of the same units on one day, no order id) and zero-value
+bookkeeping rows that net to zero are skipped; a position DEGIRO closed at
+zero value (a delisting) is a sell at the last chart price, with a warning.
+
+**The Scalable sync writes a holding's trades as one set**
+(`replaceSyncedTrades`): below zero is judged once after all of them, a trade
+the broker stopped reporting is removed, and an unchanged one is left alone.
+A single order is priced at its market valuation over its units with its fee
+beside it (the broker's amount already includes the fee); a savings plan at
+its amount over its units, fee 0; both rounded half up to the cent, so
+`units x price + fee` can be a few cents off the broker's amount (ADR 0031).
 
 `units` is an integer count of 10^-8 units, so a fraction of an ETF or of a
 coin is exact; `price` (per whole unit) and `fee` are integer minor units. A
@@ -921,7 +981,7 @@ purchase keeps the holding current with no extra typing. A fee is what you
 paid, never what the holding is worth. A trade that would leave the holding
 with fewer than zero units on any day is refused; a day is settled whole.
 
-A trade can be corrected (any of its fields but its account) or deleted, under
+A hand-typed trade can be corrected (any of its fields but its account) or deleted, under
 the same rule: deleting or reducing a buy that a later sell depends on is
 refused.
 
@@ -941,6 +1001,20 @@ value stays flat between two prices -- nothing invents a movement you did not
 record. One Price per holding per day: recording a second for the same day
 corrects the first. A price before the first trade values nothing; a holding's
 history starts at its first trade.
+
+**A synced price is the broker's.** On an account with an `origin` (a synced
+holding) the store refuses to type, correct or delete a price; only the
+sync's own `upsertSyncedPrice` writes there, still one per holding per day.
+Finances marks them "from <source>" and offers no edit. A hand-made holding
+is unchanged.
+
+**A synced holding is priced by its broker.** Each Scalable sync writes
+today's quote and one price per month-end since the holding's first trade
+(the last chart point on or before the month-end, in `USER_TIMEZONE`); an
+archived holding is priced only up to its archive day. A second run corrects
+a day, never adds one, so a holding with no trades for months follows the
+month-end prices instead of staying flat. A security the broker has no chart
+for keeps its trades and gets only today's quote, with a warning.
 
 **A Trade is not a Transaction.** It changes what you hold, not money in or
 out. The cash that paid for a buy -- a transfer from a cash account, never
@@ -1110,8 +1184,45 @@ something last synced — a net worth that has not updated in nine days but
 looks current is the same lie as a classifier that silently fell back to
 keyword rules.
 
+Until a Sources view exists, **Finances shows the broker's staleness**: a
+line under the net worth, "Scalable · synced N days ago", read from the saved
+`SyncState` keyed `scalable` (`lib/domain/derive/sync-staleness.js`) and never
+from the broker. It turns the warning colour after 7 days and, after a failed
+run, shows the error beside the last successful run; with no run ever it is
+absent. So `lastRunAt` of that SyncState is the last *successful* run: a
+failed run patches only `status` and `error`.
+
+**The Scalable sync** (`lib/integrations/scalable/`, kind `portfolio`, ADR
+0031) reads the broker through its own CLI, `sc ... --json`, and writes one
+holding per security with its settled buys and sells. Only
+`npm run sync:scalable` calls it (`-- --dry-run` writes nothing) -- never a
+request handler (ADR 0010) -- and it needs no credential in the environment:
+`sc` keeps its read-only session in the Keychain. It reads everything before it
+writes anything, so a failed run (an `sc` exit of 1, 10, 20 or 30, or output
+that is not JSON) leaves the data as it was and records a failed SyncState. It
+refuses while the seed's demo finance rows are present, and the first run that
+creates an account backs the data file up.
+
+**The broker's cash is one account** (ticket #217). The sync finds or creates
+a `cash` account, "Scalable cash", valued by balance, with `origin { source:
+'scalable', externalId: <portfolio id> }` -- found by origin, never adopted,
+its name the user's after the first run. Each run records `cash_balance` from
+`sc broker cash-breakdown` as that day's balance: one per day, a second run
+the same day writes nothing (or corrects the day's figure in place if the
+broker's moved), a later day adds a balance so the history follows
+(ADR 0022, ADR 0024), and **a balance of 0 is recorded as 0** -- a known zero
+is not unknown. Balances on that account are read-only: the store refuses to
+type, correct or delete one (`recordObservation`, `updateObservation`,
+`deleteObservation`); only the sync's `upsertSyncedBalance` writes there.
+Cash *movements* -- deposits, interest, withdrawals -- are not synced; those
+rows are left alone and listed as a warning.
+
 **ExternalOrigin** is on every synced record: `source`, `externalId`,
-`syncedAt`, `sourceUpdatedAt`. The pair `(source, externalId)` is the
+`syncedAt`, `sourceUpdatedAt`. `source` is a closed vocabulary, `ORIGIN_SOURCES` in
+`personalos.config.js` -- `scalable`, `degiro`, `sheet` (the spreadsheet
+import), `google-calendar`, and `demo` (the seed's sample rows, which are not
+a source: see FinanceAccount) -- validated at the store boundary, so an
+unknown source is refused. New synced records are stamped by `syncedOrigin()`. The pair `(source, externalId)` is the
 deduplication key. It is what makes an import idempotent, and what lets a live
 source supersede a stale hand-entered row instead of sitting beside it and
 double counting.

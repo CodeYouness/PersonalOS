@@ -41,7 +41,7 @@ instant with an offset is refused with 400. Absent means now, and the capture's
 `saidAt` equals its `createdAt`. The rule lives in `resolveSaidAt`
 (`lib/domain/said-at.js`) so the journal route applies the same one.
 
-**A migration (schema 17) backfills `saidAt = createdAt`** on every existing
+**A migration (schema 18) backfills `saidAt = createdAt`** on every existing
 capture, so nothing already filed moves.
 
 ## Consequences
@@ -81,7 +81,7 @@ client makes once per sentence (a UUID on the Shortcut).
 
 ## The journal (ticket #230)
 
-- A journal entry gets `saidAt` (schema 18 backfills `createdAt`) and an
+- A journal entry gets `saidAt` (schema 19 backfills `createdAt`) and an
   optional `clientId`. With a `saidAt`, `date` is the day of that instant in
   `USER_TIMEZONE`; sending both `date` and `saidAt` is refused. The screen
   shows `saidAt`'s time and orders a day by it.

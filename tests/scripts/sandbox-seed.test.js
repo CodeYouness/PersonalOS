@@ -72,6 +72,21 @@ describe('seedForSandbox', () => {
     expect(seedForSandbox(seed(), '2026-01-11')).toEqual(seed());
   });
 
+  it('adds a synced holding with trades and prices from its source, for the browser check of a read-only holding', async () => {
+    const demo = JSON.parse(await readFile('data/seed.json', 'utf8'));
+    const sandboxed = seedForSandbox(demo, TODAY);
+    const synced = sandboxed.accounts.filter((/** @type {any} */ account) => account.origin?.source === 'scalable');
+
+    expect(synced).toHaveLength(1);
+    expect(synced[0]).toMatchObject({ kind: 'investment', valuation: 'units', origin: { source: 'scalable' } });
+    const ofSynced = (/** @type {any[]} */ rows) => rows.filter((row) => row.accountId === synced[0].id);
+    expect(ofSynced(sandboxed.trades).length).toBeGreaterThan(0);
+    expect(ofSynced(sandboxed.trades).every((/** @type {any} */ trade) => trade.origin?.source === 'scalable')).toBe(true);
+    expect(ofSynced(sandboxed.prices).length).toBeGreaterThan(0);
+    // The seed file itself stays the demo as shipped.
+    expect(demo.accounts.some((/** @type {any} */ account) => account.origin?.source === 'scalable')).toBe(false);
+  });
+
   it('gives the demo data a streak, a rated week and a day off on every day of the week', async () => {
     const demo = JSON.parse(await readFile('data/seed.json', 'utf8'));
 

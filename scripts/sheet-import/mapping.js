@@ -6,7 +6,10 @@
  *
  * Shape:
  *
- *   accounts          sheet name -> { name, kind, valuation }
+ *   accounts          sheet name -> { name, kind, valuation }, or for a
+ *                     holding the broker sync owns (#218) an account named
+ *                     by its origin: { origin: { source: "scalable",
+ *                     externalId: "<ISIN>" } } -- found, never created
  *   holdings          ticker -> sheet name of an account valued by units
  *   categories        [{ name, parent?, kind?, fixedCost? }] -- kind at the
  *                     top level only; a subcategory takes its parent's
@@ -22,13 +25,16 @@
  * A category path is "Parent" or "Parent/Child".
  */
 
-import { ACCOUNT_KINDS, ACCOUNT_VALUATIONS, CATEGORY_KINDS } from '../../personalos.config.js';
+import { ACCOUNT_KINDS, ACCOUNT_VALUATIONS, CATEGORY_KINDS, ORIGIN_SOURCES } from '../../personalos.config.js';
 
 /**
  * @typedef {object} MappedAccount
  * @property {string} name
  * @property {'cash' | 'investment' | 'asset' | 'liability'} kind
  * @property {'balance' | 'units'} valuation
+ * @property {{ source: string, externalId: string }} [origin] set on a
+ *   holding the broker sync owns (#218): the mapping names it by its ISIN
+ *   and never creates it; `name` is then that ISIN, for messages only
  */
 
 /**
@@ -80,6 +86,10 @@ export function validateMapping(input) {
   for (const [sheetName, value] of Object.entries(record(root.accounts, 'accounts'))) {
     const account = record(value, 'accounts["' + sheetName + '"]');
     const where = 'accounts["' + sheetName + '"]';
+    if (account.origin !== undefined) {
+      accounts[sheetName] = syncedAccount(account.origin, where + '.origin');
+      continue;
+    }
     const kind = oneOf(account.kind, where + '.kind', ACCOUNT_KINDS);
     const valuation = account.valuation === undefined ? 'balance' : oneOf(account.valuation, where + '.valuation', ACCOUNT_VALUATIONS);
     if (valuation === 'units' && kind !== 'investment') throw new Error(where + ': only an investment can be valued by units');
@@ -102,6 +112,16 @@ export function validateMapping(input) {
       throw new Error('holdings["' + ticker + '"] must name an account valued by units in accounts, received "' + sheetName + '"');
     }
     holdings[ticker] = sheetName;
+  }
+
+  /** @type {Map<string, string>} */
+  const isins = new Map();
+  for (const [sheetName, account] of Object.entries(accounts)) {
+    const isin = account.origin?.externalId;
+    if (isin === undefined) continue;
+    const other = isins.get(isin);
+    if (other !== undefined) throw new Error('accounts["' + other + '"] and accounts["' + sheetName + '"] both name the synced holding ' + isin);
+    isins.set(isin, sheetName);
   }
 
   const categories = validateCategories(root.categories);
@@ -170,6 +190,20 @@ export function validateMapping(input) {
     defaultAccount,
     rows,
   };
+}
+
+/**
+ * A holding the broker sync owns, named by its origin.
+ *
+ * @param {unknown} input
+ * @param {string} where
+ * @returns {MappedAccount}
+ */
+function syncedAccount(input, where) {
+  const origin = record(input, where);
+  if (origin.source !== ORIGIN_SOURCES.scalable) throw new Error(where + '.source must be "' + ORIGIN_SOURCES.scalable + '", received ' + JSON.stringify(origin.source));
+  const externalId = nonBlank(origin.externalId, where + '.externalId');
+  return { name: externalId, kind: 'investment', valuation: 'units', origin: { source: ORIGIN_SOURCES.scalable, externalId } };
 }
 
 /**

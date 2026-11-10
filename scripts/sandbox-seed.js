@@ -16,6 +16,7 @@
  * never changed.
  */
 
+import { ORIGIN_SOURCES } from '../personalos.config.js';
 import { dayKeyRange, shiftDayKey } from '../lib/domain/dates.js';
 
 /**
@@ -26,6 +27,57 @@ import { dayKeyRange, shiftDayKey } from '../lib/domain/dates.js';
  *   habit history already ends yesterday or later
  */
 export function seedForSandbox(seed, todayKey) {
+  return withSyncedHolding(withHabitsEndingYesterday(seed, todayKey));
+}
+
+/**
+ * The sandbox's one synced holding (ticket #213): an ETF whose trades and
+ * prices carry an origin, so a browser check can see a read-only holding
+ * before any real sync exists. Invented numbers; skipped when the seed has
+ * no finance rows to add to.
+ *
+ * @template {object} Seed
+ * @param {Seed} seed
+ * @returns {Seed}
+ */
+function withSyncedHolding(seed) {
+  const document = /** @type {any} */ (seed);
+  if (!Array.isArray(document.accounts) || !Array.isArray(document.trades) || !Array.isArray(document.prices)) return seed;
+  const at = '2026-01-05T06:00:00.000Z';
+  const accountId = 'account_sandbox_synced';
+  const origin = (/** @type {string} */ externalId) => ({ source: ORIGIN_SOURCES.scalable, externalId, syncedAt: at, sourceUpdatedAt: null });
+  const stamp = { createdAt: at, updatedAt: at, source: 'integration' };
+  const trade = (/** @type {string} */ id, /** @type {string} */ date, /** @type {number} */ units, /** @type {number} */ price) => ({
+    id, accountId, date, direction: 'buy', units, price, fee: 0, currency: 'EUR', origin: origin('order-' + id), ...stamp,
+  });
+  return /** @type {Seed} */ ({
+    ...document,
+    accounts: [
+      ...document.accounts,
+      {
+        id: accountId, name: 'Synced ETF (sandbox)', kind: 'investment', currency: 'EUR', origin: origin('XX0000000001'),
+        archivedOn: null, valuation: 'units', ...stamp,
+      },
+    ],
+    trades: [
+      ...document.trades,
+      trade('trade_sandbox_synced_1', '2025-12-01', 150000000, 9800),
+      trade('trade_sandbox_synced_2', '2026-01-02', 50000000, 10100),
+    ],
+    prices: [
+      ...document.prices,
+      { id: 'price_sandbox_synced_1', accountId, date: '2025-12-31', price: 10000, currency: 'EUR', ...stamp },
+    ],
+  });
+}
+
+/**
+ * @template {{ dailyLogs: Record<string, import('../lib/domain/types.js').DailyLog> }} Seed
+ * @param {Seed} seed
+ * @param {string} todayKey
+ * @returns {Seed}
+ */
+function withHabitsEndingYesterday(seed, todayKey) {
   const days = Object.keys(seed.dailyLogs)
     .filter((day) => Object.keys(seed.dailyLogs[day].habits).length > 0)
     .sort();
