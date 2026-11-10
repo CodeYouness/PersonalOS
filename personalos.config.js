@@ -299,6 +299,13 @@ export const limits = Object.freeze({
    */
   classifyMaxTokens: 512,
   /**
+   * An extraction is one tool call holding up to `MAX_PROPOSALS` statements.
+   * Five long ones (114 to 194 characters each, from a long made-up entry)
+   * measured 365 tokens on Haiku 5.5 (#210). A reply cut off here fails the
+   * extraction rather than offering a partial list.
+   */
+  extractMaxTokens: 1000,
+  /**
    * The longest question the questions route takes (#172). A question is a
    * sentence, not a document: the cap keeps a pasted page from becoming a
    * model call, and is checked at the route, never by what the text says.
