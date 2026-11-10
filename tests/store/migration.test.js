@@ -843,3 +843,41 @@ describe('migration v15 to v16', () => {
     expect(migrate(once)).toEqual(once);
   });
 });
+
+/** A minimal v16 document: trades without an origin. */
+function v16Document() {
+  const v15 = migrate(v10Document());
+  const trade = (/** @type {any} */ o) => ({
+    accountId: 'account_etf', direction: 'buy', price: 10000, fee: 0, currency: 'EUR',
+    createdAt: '2026-01-05T06:00:00.000Z', updatedAt: '2026-01-05T06:00:00.000Z', source: 'user', ...o,
+  });
+  return {
+    ...v15,
+    schemaVersion: 16,
+    trades: [
+      trade({ id: 'trade_1', date: '2026-01-05', units: 100000000 }),
+      trade({ id: 'trade_2', date: '2026-02-05', units: 50000000, direction: 'sell' }),
+    ],
+  };
+}
+
+describe('migration v16 to v17', () => {
+  it('gives every existing trade an origin of null', () => {
+    const migrated = migrate(v16Document());
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.trades.map((/** @type {any} */ t) => t.origin)).toEqual([null, null]);
+  });
+
+  it('changes nothing else about a trade', () => {
+    const before = v16Document();
+    const migrated = migrate(before);
+
+    expect(migrated.trades.map((/** @type {any} */ { origin, ...rest }) => rest)).toEqual(before.trades);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v16Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});

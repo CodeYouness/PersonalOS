@@ -17,9 +17,20 @@
  * (one-off: restore the backup to run it again), and while anything in the
  * plan is unresolved.
  *
- * The run order: remove the demo finance rows, dry run, read the report,
- * stop `npm run dev`, write. The mapping and the report never go into the repository: keep the
+ * The run order: remove the demo finance rows (`npm run
+ * data:remove-demo-finance`), `npm run sync:scalable` (the broker sync owns
+ * the holdings it syncs), this dry run, read the report, stop `npm run dev`,
+ * write. The mapping and the report never go into the repository: keep the
  * mapping in `.scratch/`, and read the report in the terminal.
+ *
+ * A holding the broker sync owns (#218) is named in the mapping by its ISIN,
+ * `accounts: { "<sheet name>": { "origin": { "source": "scalable",
+ * "externalId": "<ISIN>" } } }`, and found in the data, never created. Its
+ * rows in `Log Transazioni` are skipped and listed; its investment
+ * purchases become transfers to it, matched to the synced trades by the
+ * same rule as any holding (the same total within 3 days, exactly one
+ * match). A ticker mapped to a hand-made holding imports as before. The dry
+ * run reads the data file only when the mapping names a synced holding.
  */
 
 import { readFile } from 'node:fs/promises';
@@ -28,6 +39,7 @@ import { pathToFileURL } from 'node:url';
 import { validateMapping } from './sheet-import/mapping.js';
 import { blockingReasons, planImport } from './sheet-import/plan.js';
 import { readWorkbook } from './sheet-import/read.js';
+import { loadSyncedTrades } from './sheet-import/synced.js';
 import { writePlan } from './sheet-import/write.js';
 
 /**
@@ -48,7 +60,7 @@ export async function importSheet({ xlsxPath, mappingPath, write = false, print 
   }
   const mapping = validateMapping(parsed);
   const { movements, trades } = await readWorkbook(xlsxPath);
-  const plan = planImport({ movements, trades, mapping });
+  const plan = planImport({ movements, trades, mapping, syncedTrades: await loadSyncedTrades(mapping) });
   const blocking = blockingReasons(plan);
 
   if (!write) {
@@ -98,6 +110,10 @@ export function describePlan(plan, blocking) {
   section(lines, 'Investment purchases without exactly one trade -- resolve with a "rows" override', report.unmatched, (entry) =>
     'line ' + entry.line + '  ' + entry.date + '  ' + euros(entry.amount) + '  ' + entry.matches + ' matching trades'
   );
+  section(lines, 'Trades left to the broker sync -- not imported', report.syncedTrades, (entry) =>
+    'line ' + entry.line + '  ' + entry.ticker
+  );
+  section(lines, 'Synced holdings not in your data -- run `npm run sync:scalable` first', report.missingSynced, (entry) => entry.isin);
   section(lines, 'Unmapped category pairs', report.unmappedPairs, (entry) => '"' + entry.pair + '"  lines ' + entry.lines.join(', '));
   section(lines, 'Unmapped accounts', report.unmappedAccounts, (entry) => '"' + entry.name + '"  lines ' + entry.lines.join(', '));
   section(lines, 'Unmapped tickers', report.unmappedTickers, (entry) => '"' + entry.ticker + '"  lines ' + entry.lines.join(', '));

@@ -30,6 +30,14 @@ import { PAIR_INVESTMENT, PAIR_REFUND } from './mapping.js';
 const MATCH_DAYS = 3;
 
 /**
+ * The trades the broker sync stored, by the sheet name of the synced account
+ * they belong to; null when that account is not in the data yet. The plan is
+ * pure and never reads the store: the caller feeds these in (#218).
+ *
+ * @typedef {Map<string, import('../../lib/domain/types.js').Trade[] | null>} SyncedTrades
+ */
+
+/**
  * @typedef {object} PlannedTransaction
  * @property {number} line
  * @property {string} externalId the Timestamp as ISO, the import's key
@@ -58,7 +66,10 @@ const MATCH_DAYS = 3;
 /**
  * @typedef {object} ImportPlan
  * @property {string[]} accounts the mapped accounts to create or reuse:
- *   every one the sheet names, the holdings traded, the default account
+ *   every one the sheet names, the holdings traded, the default account --
+ *   never a holding the broker sync owns
+ * @property {string[]} synced the synced holdings the plan files money to,
+ *   by sheet name; found in the data, never created
  * @property {{ account: string, date: string, amount: number, lines: number[] }[]} balances
  * @property {PlannedTransaction[]} transactions
  * @property {PlannedTrade[]} trades
@@ -74,6 +85,8 @@ const MATCH_DAYS = 3;
  *   rounding: { tab: string, line: number, field: string, value: number }[],
  *   unreadableTrades: { line: number, field: string }[],
  *   needsOverride: { line: number, reason: string }[],
+ *   syncedTrades: { line: number, ticker: string, account: string }[],
+ *   missingSynced: { account: string, isin: string }[],
  * }} report
  */
 
@@ -82,10 +95,11 @@ const MATCH_DAYS = 3;
  *   movements: import('./read.js').MovementRow[],
  *   trades: import('./read.js').TradeRow[],
  *   mapping: import('./mapping.js').Mapping,
+ *   syncedTrades?: SyncedTrades,
  * }} input
  * @returns {ImportPlan}
  */
-export function planImport({ movements, trades, mapping }) {
+export function planImport({ movements, trades, mapping, syncedTrades = new Map() }) {
   /** @type {ImportPlan['report']} */
   const report = {
     skipped: [],
@@ -97,6 +111,8 @@ export function planImport({ movements, trades, mapping }) {
     rounding: [],
     unreadableTrades: [],
     needsOverride: [],
+    syncedTrades: [],
+    missingSynced: [],
   };
   /** @type {Map<string, number[]>} */
   const unmappedPairs = new Map();
@@ -108,6 +124,8 @@ export function planImport({ movements, trades, mapping }) {
   const note = (map, key, line) => map.set(key, [...(map.get(key) ?? []), line]);
 
   const plannedTrades = planTrades(trades, mapping, report, (ticker, line) => note(unmappedTickers, ticker, line));
+  // A purchase may have paid for a trade the sheet plans or one the sync stored.
+  const candidates = [...plannedTrades, ...syncedCandidates(mapping, syncedTrades, report)];
 
   /** @type {PlannedTransaction[]} */
   const transactions = [];
@@ -187,7 +205,7 @@ export function planImport({ movements, trades, mapping }) {
         transactions.push({ ...base, amount: -cents, account: row.from, counter: mapping.holdings[override.holding], category: null, notCounted: false, rule: 'investment' });
         continue;
       }
-      const match = matchTrade(row, cents, plannedTrades);
+      const match = matchTrade(row, cents, candidates);
       if (typeof match === 'number') {
         report.unmatched.push({ line: row.line, date: row.date, amount: cents, matches: match });
         continue;
@@ -256,8 +274,12 @@ export function planImport({ movements, trades, mapping }) {
   report.unmappedTickers = [...unmappedTickers].map(([ticker, lines]) => ({ ticker, lines }));
 
   const dates = transactions.map((transaction) => transaction.date).sort();
+  const synced = Object.keys(mapping.accounts).filter(
+    (name) => mapping.accounts[name].origin !== undefined && (used.has(name) || transactions.some((t) => t.counter === name))
+  );
   return {
-    accounts: Object.keys(mapping.accounts).filter((name) => used.has(name)),
+    accounts: Object.keys(mapping.accounts).filter((name) => used.has(name) && mapping.accounts[name].origin === undefined),
+    synced,
     balances,
     transactions,
     trades: plannedTrades,
@@ -281,6 +303,9 @@ export function blockingReasons(plan) {
     ...report.unmappedTickers.map((entry) => 'the ticker "' + entry.ticker + '" is not mapped'),
     ...report.unmatched.map((entry) => 'the purchase on line ' + entry.line + ' matches ' + entry.matches + ' trades'),
     ...report.unreadableTrades.map((entry) => 'the trade on line ' + entry.line + ' has a ' + entry.field + ' that is not a number'),
+    ...report.missingSynced.map(
+      (entry) => 'the synced holding ' + entry.isin + ' is not in your data: run `npm run sync:scalable` first'
+    ),
     ...report.needsOverride.map((entry) => 'line ' + entry.line + ' needs a "rows" override: ' + entry.reason),
   ];
 }
@@ -299,6 +324,11 @@ function planTrades(rows, mapping, report, unmapped) {
     const account = mapping.holdings[row.ticker];
     if (account === undefined) {
       unmapped(row.ticker, row.line);
+      continue;
+    }
+    // The broker sync owns this holding's trades: skipped and listed.
+    if (mapping.accounts[account].origin !== undefined) {
+      report.syncedTrades.push({ line: row.line, ticker: row.ticker, account });
       continue;
     }
     // A trade is units held: one with a cell that is not a number would
@@ -325,6 +355,32 @@ function planTrades(rows, mapping, report, unmapped) {
     });
   }
   return planned;
+}
+
+/**
+ * The synced trades a purchase may match, in the plan's shape, and the
+ * synced holdings the data does not have yet (reported, blocking).
+ *
+ * @param {import('./mapping.js').Mapping} mapping
+ * @param {SyncedTrades} synced
+ * @param {ImportPlan['report']} report
+ * @returns {PlannedTrade[]}
+ */
+function syncedCandidates(mapping, synced, report) {
+  /** @type {PlannedTrade[]} */
+  const candidates = [];
+  for (const [account, mapped] of Object.entries(mapping.accounts)) {
+    if (mapped.origin === undefined) continue;
+    const stored = synced.get(account);
+    if (stored === undefined || stored === null) {
+      report.missingSynced.push({ account, isin: mapped.origin.externalId });
+      continue;
+    }
+    for (const trade of stored) {
+      candidates.push({ line: 0, account, date: trade.date, direction: trade.direction, units: trade.units, price: trade.price, fee: trade.fee });
+    }
+  }
+  return candidates;
 }
 
 /**

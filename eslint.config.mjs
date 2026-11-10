@@ -61,6 +61,8 @@ const eslintConfig = defineConfig([
     // per-ticket flow); without this, `eslint .` lints every ticket branch
     // ever checked out here, not just the current tree.
     ".worktrees/**",
+    // The same, for the worktrees Claude Code agents make.
+    ".claude/worktrees/**",
   ]),
 
   // ADR-0001 keeps ESLint so a lint check exists at all; these are that
