@@ -12,7 +12,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ADAPTER_METHODS } from '@/lib/adapters/contract.js';
-import { shiftDayKey, today, weekdayOf } from '@/lib/domain/dates.js';
+import { shiftDayKey, today, weekDayKeys, weekdayOf } from '@/lib/domain/dates.js';
+import { limits } from '@/personalos.config.js';
 import { isActiveOn } from '@/lib/domain/derive/habits.js';
 
 /** Every weekday, ISO 1 (Monday) to 7 (Sunday): a period that has no day off. */
@@ -947,6 +948,50 @@ export function runAdapterContract(label, load) {
         await expect(
           store.updateDailyLog('2026-04-02', { mood: 'good' })
         ).rejects.toThrow();
+      });
+    });
+
+    describe('setDayRating', () => {
+      it('reads back null for a day never written to', async () => {
+        expect((await store.getDailyLog('2026-04-02')).rating).toBeNull();
+        expect((await store.getDailyLogs('2026-04-02', '2026-04-03'))[1].rating).toBeNull();
+      });
+
+      it('sets, changes and clears a rating without touching the rest of the day', async () => {
+        await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_move', value: true });
+        const before = await store.getDailyLog('2026-04-02');
+
+        await store.setDayRating({ date: '2026-04-02', rating: 4 });
+        expect((await store.getDailyLog('2026-04-02')).rating).toBe(4);
+        await store.setDayRating({ date: '2026-04-02', rating: 2 });
+        expect((await store.getDailyLog('2026-04-02')).rating).toBe(2);
+        await store.setDayRating({ date: '2026-04-02', rating: null });
+
+        expect(await store.getDailyLog('2026-04-02')).toEqual({ ...before, rating: null });
+      });
+
+      it('writes no event', async () => {
+        const events = (await store.getEvents()).length;
+        await store.setDayRating({ date: '2026-04-02', rating: 3 });
+        expect((await store.getEvents()).length).toBe(events);
+      });
+
+      it('refuses a future day, a value outside the scale and a non-integer, writing nothing', async () => {
+        const tomorrow = shiftDayKey(today(), 1);
+        for (const input of [
+          { date: tomorrow, rating: 3 },
+          { date: '2026-04-02', rating: 0 },
+          { date: '2026-04-02', rating: 6 },
+          { date: '2026-04-02', rating: 2.5 },
+          { date: '2026-04-02', rating: '3' },
+          { date: '2026-04-02', rating: undefined },
+          { date: 'nope', rating: 3 },
+        ]) {
+          await expect(store.setDayRating(/** @type {any} */ (input))).rejects.toThrow();
+        }
+        expect((await store.getDailyLog('2026-04-02')).rating).toBeNull();
+        expect((await store.getDailyLog(tomorrow)).rating).toBeNull();
+        expect(await store.getLoggedDays()).not.toContain(tomorrow);
       });
     });
 
@@ -2116,6 +2161,125 @@ export function runAdapterContract(label, load) {
       it('refuses a clientId that is not a short string', async () => {
         await expect(store.createCapture({ text: 'x', clientId: 5 })).rejects.toThrow(/clientId/);
         await expect(store.createCapture({ text: 'x', clientId: '' })).rejects.toThrow(/clientId/);
+      });
+    });
+
+    describe('reviews', () => {
+      const MONDAY = '2026-03-02';
+      /** The Monday of the week containing today. */
+      const thisMonday = () => weekDayKeys(today())[0];
+
+      it('lists every review, oldest week first', async () => {
+        const seeded = await store.getReviews();
+        await store.saveReview({ period: 'week', from: '2026-03-09', lever: 'b' });
+        const first = await store.saveReview({ period: 'week', from: MONDAY, lever: 'a' });
+        const all = await store.getReviews();
+        expect(all.map((r) => r.from)).toEqual([...seeded.map((r) => r.from), MONDAY, '2026-03-09'].sort());
+        expect(all).toContainEqual(first);
+      });
+
+      it('reads none for a week with no review', async () => {
+        expect(await store.getReview('week', MONDAY)).toBeNull();
+      });
+
+      it('creates a review on first save, with empty answers and no completion', async () => {
+        const review = await store.saveReview({ period: 'week', from: MONDAY, lever: 'Walk first' });
+        expect(review).toMatchObject({
+          period: 'week',
+          from: MONDAY,
+          answers: { worked: '', heldBack: '', change: '' },
+          lever: 'Walk first',
+          completedAt: null,
+        });
+        expect(review.id).toMatch(/^review_/);
+        expect(await store.getReview('week', MONDAY)).toEqual(review);
+      });
+
+      it('merges into the one review of that period and day, writing only the fields given', async () => {
+        const first = await store.saveReview({ period: 'week', from: MONDAY, answers: { worked: 'Mornings' } });
+        const second = await store.saveReview({ period: 'week', from: MONDAY, answers: { change: 'Earlier' } });
+        const third = await store.saveReview({ period: 'week', from: MONDAY, lever: 'Plan Sunday' });
+        expect(second.id).toBe(first.id);
+        expect(third.id).toBe(first.id);
+        expect(third.answers).toEqual({ worked: 'Mornings', heldBack: '', change: 'Earlier' });
+        expect(third.lever).toBe('Plan Sunday');
+        expect(third.createdAt).toBe(first.createdAt);
+      });
+
+      it('keeps both when an answer and the lever are saved at the same moment', async () => {
+        await Promise.all([
+          store.saveReview({ period: 'week', from: MONDAY, answers: { heldBack: 'Meetings' } }),
+          store.saveReview({ period: 'week', from: MONDAY, lever: 'Block mornings' }),
+        ]);
+        const review = await store.getReview('week', MONDAY);
+        expect(review?.answers.heldBack).toBe('Meetings');
+        expect(review?.lever).toBe('Block mornings');
+      });
+
+      it('completes once: sets completedAt and writes review.completed in the same write', async () => {
+        const before = (await store.getEvents()).filter((e) => e.type === 'review.completed').length;
+        const done = await store.saveReview({ period: 'week', from: MONDAY, completed: true });
+        expect(typeof done.completedAt).toBe('string');
+        const events = (await store.getEvents()).filter((e) => e.type === 'review.completed');
+        expect(events).toHaveLength(before + 1);
+        expect(events.find((e) => e.subject === done.id)).toMatchObject({ source: 'user' });
+      });
+
+      it('a correction after completion keeps completedAt and writes no event', async () => {
+        const done = await store.saveReview({ period: 'week', from: MONDAY, completed: true });
+        const again = await store.saveReview({ period: 'week', from: MONDAY, completed: true });
+        const fixed = await store.saveReview({ period: 'week', from: MONDAY, answers: { worked: 'Fixed' } });
+        expect(again.completedAt).toBe(done.completedAt);
+        expect(fixed.completedAt).toBe(done.completedAt);
+        expect(fixed.answers.worked).toBe('Fixed');
+        const events = (await store.getEvents()).filter((e) => e.subject === done.id);
+        expect(events).toHaveLength(1);
+      });
+
+      it('completes exactly once under concurrent completions', async () => {
+        await Promise.all([
+          store.saveReview({ period: 'week', from: MONDAY, completed: true }),
+          store.saveReview({ period: 'week', from: MONDAY, completed: true }),
+        ]);
+        const review = await store.getReview('week', MONDAY);
+        const events = (await store.getEvents()).filter((e) => e.subject === review?.id);
+        expect(events).toHaveLength(1);
+      });
+
+      it('deleting removes the review and leaves its event', async () => {
+        const done = await store.saveReview({ period: 'week', from: MONDAY, completed: true });
+        expect(await store.deleteReview('week', MONDAY)).toBe(true);
+        expect(await store.getReview('week', MONDAY)).toBeNull();
+        expect((await store.getEvents()).some((e) => e.subject === done.id)).toBe(true);
+        expect(await store.deleteReview('week', MONDAY)).toBe(false);
+      });
+
+      it('accepts this week, refuses a later one', async () => {
+        await expect(store.saveReview({ period: 'week', from: thisMonday() })).resolves.toBeTruthy();
+        await expect(
+          store.saveReview({ period: 'week', from: shiftDayKey(thisMonday(), 7) })
+        ).rejects.toThrow(/future|after/);
+      });
+
+      it.each([
+        ['a day that is not the first of its week', { period: 'week', from: '2026-03-03' }],
+        ['an unknown period', { period: 'month', from: MONDAY }],
+        ['a malformed day', { period: 'week', from: '5 Jan' }],
+        ['an over-long answer', { period: 'week', from: MONDAY, answers: { worked: 'x'.repeat(limits.reviewAnswerMaxLength + 1) } }],
+        ['an over-long lever', { period: 'week', from: MONDAY, lever: 'x'.repeat(limits.reviewLeverMaxLength + 1) }],
+        ['an unknown field', { period: 'week', from: MONDAY, mood: 'good' }],
+        ['an unknown answer', { period: 'week', from: MONDAY, answers: { other: 'x' } }],
+        ['a non-string answer', { period: 'week', from: MONDAY, answers: { worked: 3 } }],
+        ['completed: false', { period: 'week', from: MONDAY, completed: false }],
+      ])('refuses %s and writes nothing', async (_label, input) => {
+        await expect(store.saveReview(/** @type {any} */ (input))).rejects.toThrow();
+        expect(await store.getReview('week', MONDAY)).toBeNull();
+      });
+
+      it('refuses to read or delete with an unknown period or a bad day', async () => {
+        await expect(store.getReview('month', MONDAY)).rejects.toThrow();
+        await expect(store.getReview('week', 'nope')).rejects.toThrow();
+        await expect(store.deleteReview('month', MONDAY)).rejects.toThrow();
       });
     });
 

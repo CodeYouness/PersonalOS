@@ -17,10 +17,11 @@ import path from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { dayKeysEndingAt, shiftDayKey } from '@/lib/domain/dates.js';
-import { goalsAddress, habitsAddress, nutritionAddress } from '@/lib/domain/addresses.js';
+import { goalsAddress, habitsAddress, nutritionAddress, reviewAddress } from '@/lib/domain/addresses.js';
 import { goalBoard } from '@/lib/domain/derive/goals.js';
 import { HABITS_WINDOW_DAYS, historyRows, STREAK_WINDOW_DAYS, streak, windowSummary } from '@/lib/domain/derive/habits.js';
 import { healthAverages, weightTrend } from '@/lib/domain/derive/health.js';
+import { ratingSummary } from '@/lib/domain/derive/week.js';
 import { calorieStanding, dayTotals } from '@/lib/domain/derive/nutrition.js';
 import { limits } from '@/personalos.config.js';
 
@@ -402,5 +403,32 @@ describe('goals', () => {
     expect(find(items, `figure:goal-slip:${fresh.id}`)).toBeUndefined();
     expect(find(items, `figure:goal-progress:${open.id}`)?.content).toContain('1 of 10');
     expect(find(items, `figure:goal-slip:${open.id}`)).toBeUndefined();
+  });
+});
+
+describe('how the days went', () => {
+  const ID = 'figure:day-rating-avg:30d';
+
+  it('states the mean of the rated days over thirty days and how many days it rests on, from the Review screen derivation', async () => {
+    await store.setDayRating({ date: shiftDayKey(TODAY, -1), rating: 4 });
+    await store.setDayRating({ date: shiftDayKey(TODAY, -3), rating: 2 });
+    await store.setDayRating({ date: TODAY, rating: 3 });
+    // Thirty days back is outside the thirty days ending today.
+    await store.setDayRating({ date: shiftDayKey(TODAY, -30), rating: 1 });
+
+    const archive = await read.readArchive();
+    const expected = ratingSummary(archive.logs.filter((log) => log.date > shiftDayKey(TODAY, -30)));
+    const item = find(figures.lifeFigures(archive, { today: TODAY }), ID);
+
+    expect(expected).toEqual({ days: 3, mean: 3 });
+    expect(item?.type).toBe('figure');
+    expect(item?.content).toContain('3.0');
+    expect(item?.content).toContain('3 rated days');
+    expect(item?.opens).toBe(reviewAddress('2026-09-21'));
+  });
+
+  it('is no figure, rather than zero, when no day in the window is rated', async () => {
+    await store.setDayRating({ date: shiftDayKey(TODAY, -40), rating: 5 });
+    expect(find(await build(), ID)).toBeUndefined();
   });
 });
