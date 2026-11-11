@@ -53,6 +53,7 @@ not get built.
 | Health | how is the month going |
 | Goals | what did I promise myself |
 | Finance | am I going up or down |
+| Close the day | how did today go, and what is left |
 
 Rules that hold for all of them:
 
@@ -62,6 +63,25 @@ Rules that hold for all of them:
 - Numbers right-aligned with tabular figures, so columns stay comparable.
 - Colour carries meaning, never decoration -- and the metric decides the
   colour, not the sign. Weight going down may be exactly what you wanted.
+
+## Closing the day
+
+The Close the day card on Home is the end of the day, three things that each
+save on their own and none of which is required:
+
+- **A rating**, one tap from 1 to 5, neutral in colour, correctable and
+  clearable. Once rated, the card shows the rating given.
+- **Habits still open**: how many of today's scheduled habits are not
+  complete, by the Habits card's own rule. A habit with a day off today is not
+  counted.
+- **One line for the journal**, saved to today as an ordinary journal entry
+  -- the Journal screen shows it like any other, and nothing marks it as
+  coming from the card. The line being typed is kept only in the card; a
+  failed save leaves it in the field.
+
+No state marks a day as closed: a day is closed when it is rated, and that is
+derived. The card reads the day's log and the habit list, and nothing else;
+loading it calls no model and no integration.
 
 ## Habits
 
