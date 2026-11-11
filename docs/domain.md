@@ -656,6 +656,16 @@ thing that is yours to lose, so they are the only thing stored.
 string, possibly empty), `lever`, `completedAt`, and the usual `id`,
 `createdAt`, `updatedAt`.
 
+**The week's figures** are one derivation, `weekFigures` in
+`lib/domain/derive/week.js`: it takes the inputs the screens already read and
+the week's Monday and today, and composes the existing habit, task, goal,
+nutrition and finance derivations -- spending uses the month's own rules
+(transfers and not-counted rows out, refunds reducing). The week containing
+today is *in progress*: every figure covers Monday up to today and the result
+says so. A figure with nothing behind it is `null`, never 0 -- no rated day
+means no mean rating, a week with no counted transaction means no spending
+total. A habit with no scheduled day in the week is left out.
+
 **The lever** is the one sentence you decide to carry into next week, shown
 where you look at the day. It is part of the review that wrote it: it is not
 a task and not a goal, and nothing completes it.
