@@ -42,6 +42,7 @@ export const ENTITY_TYPES = Object.freeze([
   'snapshot',
   'appointment',
   'category',
+  'review',
 ]);
 
 /**
@@ -159,6 +160,7 @@ export const EVENT_TYPES = Object.freeze([
   'integration.failed',
   'appointment.created',
   'appointment.synced',
+  'review.completed',
 ]);
 
 /**
@@ -181,6 +183,14 @@ export const HABIT_TYPES = Object.freeze(['check', 'counter']);
 
 /** An objective you hold, or a container for other work. */
 export const GOAL_KINDS = Object.freeze(['objective', 'project']);
+
+/**
+ * The spans a review can cover (ADR 0034). Today only the week; a month or a
+ * year would join here, with the rule for the first day of its period.
+ *
+ * @type {readonly string[]}
+ */
+export const REVIEW_PERIODS = Object.freeze(['week']);
 
 /**
  * The period a goal was promised for -- a label, never an expiry. In this
@@ -266,6 +276,10 @@ export const MEASUREMENT_METRICS = Object.freeze({ weight: 'kg' });
  * when that feature lands.
  */
 export const limits = Object.freeze({
+  /** The longest answer to one of a review's three questions (ADR 0034). */
+  reviewAnswerMaxLength: 2000,
+  /** The longest lever -- one sentence for next week, not a plan. */
+  reviewLeverMaxLength: 300,
   /** Three is a decision, ten is a list. Shown by the Session card. */
   sessionTaskCount: 3,
   /** How far back the Health card aggregates. */

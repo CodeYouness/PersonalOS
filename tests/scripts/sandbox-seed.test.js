@@ -72,6 +72,17 @@ describe('seedForSandbox', () => {
     expect(seedForSandbox(seed(), '2026-01-11')).toEqual(seed());
   });
 
+  it('moves the demo review to the last completed week, with its completion event', async () => {
+    const demo = JSON.parse(await readFile('data/seed.json', 'utf8'));
+    const sandboxed = seedForSandbox(demo, TODAY);
+    // Monday 5 October is the last Monday before Wednesday the 14th's week.
+    expect(sandboxed.reviews[0].from).toBe('2026-10-05');
+    expect(sandboxed.reviews[0].completedAt).toBe('2026-10-12T07:30:00.000Z');
+    const event = sandboxed.events.find((/** @type {any} */ e) => e.subject === sandboxed.reviews[0].id);
+    expect(event).toMatchObject({ date: '2026-10-12', at: '2026-10-12T07:30:00.000Z' });
+    expect(demo.reviews[0].from).toBe('2026-01-05');
+  });
+
   it('adds a synced holding with trades and prices from its source, for the browser check of a read-only holding', async () => {
     const demo = JSON.parse(await readFile('data/seed.json', 'utf8'));
     const sandboxed = seedForSandbox(demo, TODAY);
