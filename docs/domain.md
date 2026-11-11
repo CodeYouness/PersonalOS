@@ -670,6 +670,15 @@ total. A habit with no scheduled day in the week is left out.
 where you look at the day. It is part of the review that wrote it: it is not
 a task and not a goal, and nothing completes it.
 
+*Where it is shown*: the Today card on Home. This week's lever is derived
+(`lastWeekReview` in `lib/domain/derive/review.js`), never stored: it is the
+`lever` of the **completed** review whose `from` is the Monday before this
+week's Monday. A lever set on Sunday shows from Monday; an unfinished review's
+never shows; an empty one is none. With a lever the card shows it in place of
+`Profile.focus`, which is left as it is; without one the card shows `focus`.
+While last week's review is absent or unfinished the card also links to it
+(`/review?week=<monday>`). Loading Home reads the saved review and nothing else.
+
 Answers and lever have length limits, `limits.reviewAnswerMaxLength` and
 `limits.reviewLeverMaxLength`. An answer or the lever may be empty.
 
