@@ -1,4 +1,5 @@
 import CalendarCard from '@/components/CalendarCard.js';
+import CloseDayCard from '@/components/CloseDayCard.js';
 import GoalsCard from '@/components/GoalsCard.js';
 import HabitsCard from '@/components/HabitsCard.js';
 import PulseCard from '@/components/PulseCard.js';
@@ -28,6 +29,7 @@ export default async function Home({ searchParams }) {
         <CalendarCard day={typeof day === 'string' ? day : undefined} />
         <PulseCard />
         <GoalsCard />
+        <CloseDayCard />
       </div>
     </section>
   );

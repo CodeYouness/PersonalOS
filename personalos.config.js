@@ -268,6 +268,9 @@ export const MEASUREMENT_METRICS = Object.freeze({ weight: 'kg' });
 export const limits = Object.freeze({
   /** Three is a decision, ten is a list. Shown by the Session card. */
   sessionTaskCount: 3,
+  /** The scale a day is rated on, both ends included (ADR 0035). */
+  dayRatingMin: 1,
+  dayRatingMax: 5,
   /** How far back the Health card aggregates. */
   healthWindowDays: 30,
   /** How far ahead recurring calendar events are expanded. */

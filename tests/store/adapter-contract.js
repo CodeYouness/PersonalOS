@@ -950,6 +950,50 @@ export function runAdapterContract(label, load) {
       });
     });
 
+    describe('setDayRating', () => {
+      it('reads back null for a day never written to', async () => {
+        expect((await store.getDailyLog('2026-04-02')).rating).toBeNull();
+        expect((await store.getDailyLogs('2026-04-02', '2026-04-03'))[1].rating).toBeNull();
+      });
+
+      it('sets, changes and clears a rating without touching the rest of the day', async () => {
+        await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_move', value: true });
+        const before = await store.getDailyLog('2026-04-02');
+
+        await store.setDayRating({ date: '2026-04-02', rating: 4 });
+        expect((await store.getDailyLog('2026-04-02')).rating).toBe(4);
+        await store.setDayRating({ date: '2026-04-02', rating: 2 });
+        expect((await store.getDailyLog('2026-04-02')).rating).toBe(2);
+        await store.setDayRating({ date: '2026-04-02', rating: null });
+
+        expect(await store.getDailyLog('2026-04-02')).toEqual({ ...before, rating: null });
+      });
+
+      it('writes no event', async () => {
+        const events = (await store.getEvents()).length;
+        await store.setDayRating({ date: '2026-04-02', rating: 3 });
+        expect((await store.getEvents()).length).toBe(events);
+      });
+
+      it('refuses a future day, a value outside the scale and a non-integer, writing nothing', async () => {
+        const tomorrow = shiftDayKey(today(), 1);
+        for (const input of [
+          { date: tomorrow, rating: 3 },
+          { date: '2026-04-02', rating: 0 },
+          { date: '2026-04-02', rating: 6 },
+          { date: '2026-04-02', rating: 2.5 },
+          { date: '2026-04-02', rating: '3' },
+          { date: '2026-04-02', rating: undefined },
+          { date: 'nope', rating: 3 },
+        ]) {
+          await expect(store.setDayRating(/** @type {any} */ (input))).rejects.toThrow();
+        }
+        expect((await store.getDailyLog('2026-04-02')).rating).toBeNull();
+        expect((await store.getDailyLog(tomorrow)).rating).toBeNull();
+        expect(await store.getLoggedDays()).not.toContain(tomorrow);
+      });
+    });
+
     describe('logHabitValue', () => {
       it("writes one value into the day's habits record", async () => {
         const log = await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_move', value: true });

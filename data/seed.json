@@ -558,21 +558,24 @@
       "habits": { "habit_move": true, "habit_read": true, "habit_water": 8, "habit_deep_work": 3 },
       "meals": [],
       "measurements": [],
-      "notes": []
+      "notes": [],
+      "rating": 4
     },
     "2026-01-07": {
       "date": "2026-01-07",
       "habits": { "habit_move": true, "habit_read": false, "habit_water": 6, "habit_deep_work": 2 },
       "meals": [],
       "measurements": [],
-      "notes": []
+      "notes": [],
+      "rating": 3
     },
     "2026-01-08": {
       "date": "2026-01-08",
       "habits": { "habit_move": false, "habit_read": true, "habit_water": 8, "habit_deep_work": 3 },
       "meals": [],
       "measurements": [],
-      "notes": []
+      "notes": [],
+      "rating": 5
     },
     "2026-01-09": {
       "date": "2026-01-09",
@@ -593,7 +596,8 @@
       "habits": { "habit_move": false, "habit_read": true, "habit_water": 5 },
       "meals": [],
       "measurements": [],
-      "notes": []
+      "notes": [],
+      "rating": 2
     },
     "2026-01-12": {
       "date": "2026-01-12",
@@ -607,7 +611,8 @@
       "habits": { "habit_move": true, "habit_read": true, "habit_water": 8, "habit_deep_work": 2 },
       "meals": [],
       "measurements": [],
-      "notes": []
+      "notes": [],
+      "rating": 4
     },
     "2026-01-15": {
       "date": "2026-01-15",
