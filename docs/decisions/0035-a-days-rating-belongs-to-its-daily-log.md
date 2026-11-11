@@ -25,7 +25,8 @@ an instant), an event (`day.rated`), or a field of the daily log.
   serialised write (ADR 0011) and touches only that field. It refuses a day
   after today (through `lib/domain/dates.js`) and anything but an integer on
   the scale or `null`. `updateDailyLog` does not take it.
-- The route is `PUT /api/days/[date]` with `{ rating }`. A malformed day key,
+- The route is `PUT /api/days/[date]` with `{ rating }`; `GET` answers with the
+  saved rating, which the card re-reads after a refused save. A malformed day key,
   a future day or an invalid value is a 400 that writes nothing.
 - **No migration.** Stored logs have no `rating` key; every read fills in
   `null`, so a day never written to and a day written to before this change

@@ -39,8 +39,8 @@ export function RatingButtons({ scale, value, disabled, onPick }) {
 /**
  * The Close the day card's rating (#243). A tap marks the day at once and
  * PUTs it; tapping the chosen one again changes nothing but "Clear" removes
- * it. A failed save puts the card back to what was saved before the tap and
- * says so, and every settle re-reads real state with `router.refresh()`
+ * it. A failed save says so and re-reads the saved rating from the server
+ * (CODING_STANDARDS, Screens), and every settle re-reads real state with `router.refresh()`
  * (docs/architecture.md, Data flow). One save at a time, so two taps can
  * never land out of order.
  *
@@ -55,7 +55,6 @@ export default function DayRating({ date, scale, initial }) {
   /** @param {number | null} rating */
   async function save(rating) {
     if (saving) return;
-    const previous = value;
     setSaving(true);
     setError(null);
     setValue(rating);
@@ -66,8 +65,14 @@ export default function DayRating({ date, scale, initial }) {
         body: JSON.stringify({ rating }),
       });
     } catch (caught) {
-      setValue(previous);
       setError(messageOf(caught));
+      // Show what is really saved, not what this component remembers.
+      try {
+        const stored = await request('/api/days/' + date, { method: 'GET' });
+        setValue(stored.rating);
+      } catch {
+        // The server cannot be reached: keep the error; the refresh below retries.
+      }
     }
     setSaving(false);
     router.refresh();

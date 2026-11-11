@@ -11,7 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {} }) }));
 
-const { default: ReviewWrite, fieldsOf } = await import('@/components/ReviewWrite.js');
+const { default: ReviewWrite, draftAfterFailure, fieldsOf } = await import('@/components/ReviewWrite.js');
 
 /** @returns {any} */
 function review(/** @type {any} */ over = {}) {
@@ -66,5 +66,18 @@ describe('writing the review', () => {
 
   it('reads a missing review as empty strings, never undefined', () => {
     expect(fieldsOf(null)).toEqual({ worked: '', heldBack: '', change: '', lever: '' });
+  });
+});
+
+describe('after a refused save', () => {
+  const stored = { worked: 'Saved.', heldBack: '', change: '', lever: 'Saved lever' };
+  const typing = { worked: 'x'.repeat(5), heldBack: 'half a thought', change: '', lever: 'new lever' };
+
+  it('puts only the failed field back to the stored text', () => {
+    expect(draftAfterFailure(typing, stored, ['worked'])).toEqual({ ...typing, worked: 'Saved.' });
+  });
+
+  it('keeps every draft when no field failed (Complete or Delete refused)', () => {
+    expect(draftAfterFailure(typing, stored, [])).toEqual(typing);
   });
 });

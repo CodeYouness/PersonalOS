@@ -18,13 +18,27 @@ import { limits } from '@/personalos.config.js';
 export default async function CloseDayCard() {
   const date = today();
   const [log, profile] = await Promise.all([getDailyLog(date), getProfile()]);
-  const { rating } = log;
   const open = openHabits(profile.habits, log);
   const scale = Array.from(
     { length: limits.dayRatingMax - limits.dayRatingMin + 1 },
     (_, index) => limits.dayRatingMin + index
   );
+  return <CloseDayView date={date} rating={log.rating} open={open} scale={scale} />;
+}
 
+/**
+ * What the card draws, from what it was given: the rating line appears only
+ * once the day is rated, the habit line says "Nothing left" when none is open
+ * and names them otherwise.
+ *
+ * @param {{
+ *   date: string,
+ *   rating: number | null,
+ *   open: { label: string }[],
+ *   scale: number[],
+ * }} props
+ */
+export function CloseDayView({ date, rating, open, scale }) {
   return (
     <article id="card-close-day" className="card span-8">
       <div className="card-head">

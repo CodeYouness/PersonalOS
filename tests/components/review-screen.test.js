@@ -47,6 +47,23 @@ describe('the week at a glance', () => {
     expect(html).not.toContain('So far');
   });
 
+  it('says how many of the four earlier weeks had spending (story 41)', () => {
+    const spending = (/** @type {number} */ weeks) => ({
+      total: 100,
+      baseline: { mean: weeks === 0 ? null : 80, weeks },
+      topCategories: [],
+    });
+    const render = (/** @type {number} */ weeks) =>
+      renderToStaticMarkup(createElement(ReviewFigures, { figures: { ...figures(), spending: spending(weeks) } }));
+    expect(render(2)).toContain('Only 2 of the 4 weeks before had spending');
+    expect(render(2)).toContain('Average, 2 weeks');
+    expect(render(1)).toContain('Average, 1 week<');
+    expect(render(4)).not.toContain('Only');
+    const none = render(0);
+    expect(none).not.toContain('Average, 4 weeks');
+    expect(none).toContain('none of the 4 weeks before had spending');
+  });
+
   it('says "so far" for the week in progress', () => {
     const html = renderToStaticMarkup(
       createElement(ReviewFigures, { figures: figures({}, '2026-10-07', '2026-10-05') })

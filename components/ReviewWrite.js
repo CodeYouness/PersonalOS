@@ -29,6 +29,21 @@ export function fieldsOf(review) {
 }
 
 /**
+ * The draft after a refused write: the `failed` fields show what the store
+ * holds, every other field keeps what is being typed in it (story 66).
+ *
+ * @param {Fields} draft
+ * @param {Fields} stored
+ * @param {(keyof Fields)[]} failed
+ * @returns {Fields}
+ */
+export function draftAfterFailure(draft, stored, failed) {
+  const next = { ...draft };
+  for (const key of failed) next[key] = stored[key];
+  return next;
+}
+
+/**
  * Steps 3 and 4 of the Review screen (#240, spec #232): the three questions,
  * the one lever with the previous week's lever above it, and Complete and
  * Delete. Every field is optional and saves when you leave it, sending only
@@ -37,8 +52,8 @@ export function fieldsOf(review) {
  * The optimistic pattern (docs/architecture.md, Data flow): the field keeps
  * what you typed while the write runs. If it is refused -- an over-long
  * answer says so in the server's own words -- the form re-reads the review
- * from the store and shows that, so it never claims a save that did not
- * happen. Complete records the week once; afterwards the fields stay
+ * from the store and puts the failed field back to that, so it never claims
+ * a save that did not happen -- the other fields' unsaved typing is left alone. Complete records the week once; afterwards the fields stay
  * correctable and a completed week says so. Delete asks first.
  *
  * Mounted with `key={from}`, so another week starts clean.
@@ -61,12 +76,19 @@ export default function ReviewWrite({ period, from, review, previousLever }) {
   const [isActing, setIsActing] = useState(false);
   const [, startTransition] = useTransition();
 
-  /** What the store really holds, after a failed write. */
-  async function reread() {
+  /**
+   * What the store really holds, after a failed write. Only the fields named
+   * in `failed` go back to the stored text; what you are typing in another
+   * field stays, and saves on its own blur. `saved` always follows the store,
+   * so that blur compares against what is really there.
+   *
+   * @param {(keyof Fields)[]} failed
+   */
+  async function reread(failed) {
     try {
       const payload = await request(address, { method: 'GET' });
       const stored = fieldsOf(payload.review);
-      setDraft(stored);
+      setDraft((now) => draftAfterFailure(now, stored, failed));
       setSaved(stored);
       setCompletedAt(payload.review?.completedAt ?? null);
       setExists(payload.review !== null);
@@ -75,44 +97,59 @@ export default function ReviewWrite({ period, from, review, previousLever }) {
     }
   }
 
+  /**
+   * One write, the shape all three share: clear the error, send, and on a
+   * refusal say so and re-read the store; either way refresh the page.
+   *
+   * @param {() => Promise<void>} send the request and the state it settles
+   * @param {{ failed?: (keyof Fields)[], acting?: boolean }} [options]
+   *   `failed`: the fields to put back to the stored text; `acting`: disable the buttons meanwhile
+   */
+  async function write(send, { failed = [], acting = false } = {}) {
+    if (acting) setIsActing(true);
+    setError(null);
+    try {
+      await send();
+    } catch (caught) {
+      setError(messageOf(caught));
+      await reread(failed);
+    }
+    if (acting) setIsActing(false);
+    startTransition(() => router.refresh());
+  }
+
   /** @param {keyof Fields} key */
   async function commit(key) {
     const value = draft[key];
     if (value === saved[key]) return;
-    setError(null);
     const body = key === 'lever' ? { lever: value } : { answers: { [key]: value } };
-    try {
-      await request(address, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      setSaved((now) => ({ ...now, [key]: value }));
-      setExists(true);
-    } catch (caught) {
-      setError(messageOf(caught));
-      await reread();
-    }
-    startTransition(() => router.refresh());
+    await write(
+      async () => {
+        await request(address, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        setSaved((now) => ({ ...now, [key]: value }));
+        setExists(true);
+      },
+      { failed: [key] }
+    );
   }
 
   async function complete() {
-    setIsActing(true);
-    setError(null);
-    try {
-      const payload = await request(address, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ completed: true }),
-      });
-      setCompletedAt(payload.review.completedAt);
-      setExists(true);
-    } catch (caught) {
-      setError(messageOf(caught));
-      await reread();
-    }
-    setIsActing(false);
-    startTransition(() => router.refresh());
+    await write(
+      async () => {
+        const payload = await request(address, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ completed: true }),
+        });
+        setCompletedAt(payload.review.completedAt);
+        setExists(true);
+      },
+      { acting: true }
+    );
   }
 
   async function remove() {
@@ -120,21 +157,17 @@ export default function ReviewWrite({ period, from, review, previousLever }) {
       'Delete this review? Your answers and lever go with it. This cannot be undone.'
     );
     if (!confirmed) return;
-    setIsActing(true);
-    setError(null);
-    try {
-      await request(address, { method: 'DELETE' });
-      const empty = fieldsOf(null);
-      setDraft(empty);
-      setSaved(empty);
-      setCompletedAt(null);
-      setExists(false);
-    } catch (caught) {
-      setError(messageOf(caught));
-      await reread();
-    }
-    setIsActing(false);
-    startTransition(() => router.refresh());
+    await write(
+      async () => {
+        await request(address, { method: 'DELETE' });
+        const empty = fieldsOf(null);
+        setDraft(empty);
+        setSaved(empty);
+        setCompletedAt(null);
+        setExists(false);
+      },
+      { acting: true }
+    );
   }
 
   return (

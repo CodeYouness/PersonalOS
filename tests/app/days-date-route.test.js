@@ -81,3 +81,21 @@ describe('PUT /api/days/[date]', () => {
     expect(await readFile(file, 'utf8')).toBe(before);
   });
 });
+
+describe('GET /api/days/[date]', () => {
+  it('answers with the saved rating, null for an unrated day', async () => {
+    const day = dates.today();
+    const read = async () =>
+      (await route.GET(new Request('http://localhost/api/days/' + day), { params: Promise.resolve({ date: day }) })).json();
+    expect(await read()).toEqual({ ok: true, rating: null });
+    await put(day, { rating: 3 });
+    expect(await read()).toEqual({ ok: true, rating: 3 });
+  });
+
+  it('refuses a date that is not a day', async () => {
+    const response = await route.GET(new Request('http://localhost/api/days/nope'), {
+      params: Promise.resolve({ date: 'nope' }),
+    });
+    expect(response.status).toBe(400);
+  });
+});
