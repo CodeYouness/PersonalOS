@@ -960,3 +960,45 @@ a.cite { text-decoration: none; }
   .today-side { width: auto; padding-left: 0; padding-top: var(--s-lg); border-left: none; border-top: 1px solid var(--hairline); }
   #capture-log { width: 100%; }
 }
+
+/* ==========================================================================
+   REVIEW (#239) -- a week, Monday to Sunday, read top to bottom as steps:
+   what happened (derived), reread, three questions, one lever.
+   ========================================================================== */
+.week-nav { display: flex; align-items: center; gap: var(--s-xs); }
+.week-nav .btn-ghost[disabled] { opacity: 0.4; cursor: default; }
+.week-nav .range { font-size: 14px; min-width: 150px; text-align: center; }
+.review-step { padding: var(--s-lg) 0; border-top: 1px solid var(--hairline); }
+.review-step:first-of-type { border-top: none; padding-top: 0; }
+.step-head { display: flex; align-items: baseline; gap: var(--s-sm); margin-bottom: var(--s-md); flex-wrap: wrap; }
+.step-head .n { font-family: var(--font-mono); font-size: 12px; color: var(--ink-subtle); }
+.figs { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s-lg) var(--s-xl); }
+.fig-group h4 { margin: 0 0 var(--s-xs); font-size: 12px; font-weight: var(--w-label); color: var(--ink-subtle); letter-spacing: 0.2px; }
+.fig-note { margin: var(--s-xs) 0 0; }
+.review-list { list-style: none; margin: 0; padding: 0; }
+.review-list li {
+  display: flex; gap: var(--s-xs); align-items: baseline; flex-wrap: wrap;
+  padding: 6px 0; font-size: 14px; border-bottom: 1px solid var(--hairline);
+}
+.review-list li:last-child { border-bottom: none; }
+.review-list .mark { width: 14px; flex: none; font-family: var(--font-mono); font-size: 12px; }
+.review-list .grow { flex: 1; min-width: 0; }
+.review-list .vs { margin-left: auto; text-align: right; white-space: nowrap; }
+.review-list .days { flex-basis: 100%; padding-left: 22px; }
+/* An unknown figure: a dash and the reason, never a zero. */
+.unknown { color: var(--ink-tertiary); }
+.rating { color: var(--ink-muted); } /* neutral on purpose: a low day is information, not a reprimand */
+.review-entry { padding: var(--s-sm) 0; border-bottom: 1px solid var(--hairline); }
+.review-entry:last-child { border-bottom: none; }
+.review-entry .when { display: flex; align-items: baseline; gap: var(--s-xs); }
+.review-entry p { margin: 4px 0 0; font-size: 14px; color: var(--ink-muted); white-space: pre-wrap; }
+.review-entry .link-btn { margin-left: auto; }
+@media (max-width: 760px) {
+  .figs { grid-template-columns: 1fr; }
+  #card-review .card-head { flex-wrap: wrap; }
+  .week-nav { width: 100%; justify-content: space-between; }
+  .week-nav .range { min-width: 0; }
+  .review-list .vs { margin-left: 22px; text-align: left; }
+}
+.review-list a { color: var(--ink); text-decoration: none; }
+.review-list a:hover { text-decoration: underline; }
