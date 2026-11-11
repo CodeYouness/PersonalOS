@@ -2169,6 +2169,15 @@ export function runAdapterContract(label, load) {
       /** The Monday of the week containing today. */
       const thisMonday = () => weekDayKeys(today())[0];
 
+      it('lists every review, oldest week first', async () => {
+        const seeded = await store.getReviews();
+        await store.saveReview({ period: 'week', from: '2026-03-09', lever: 'b' });
+        const first = await store.saveReview({ period: 'week', from: MONDAY, lever: 'a' });
+        const all = await store.getReviews();
+        expect(all.map((r) => r.from)).toEqual([...seeded.map((r) => r.from), MONDAY, '2026-03-09'].sort());
+        expect(all).toContainEqual(first);
+      });
+
       it('reads none for a week with no review', async () => {
         expect(await store.getReview('week', MONDAY)).toBeNull();
       });

@@ -326,6 +326,7 @@ of its own.
 | `figure:weight:latest`, `figure:weight-change:30d` | latest weight and its change | Nutrition & Health |
 | `figure:calories:today`, `protein:`, `carbs:`, `fat:` | today's totals | Nutrition & Health |
 | `figure:goal-progress:<goal id>`, `figure:goal-slip:<goal id>` | an open goal's progress (the one stored on the goal) and the period it has slipped to | Goals, that goal |
+| `figure:day-rating-avg:30d` | the average day rating over the 30 days ending today, and how many days it rests on (the Review screen's rating figure, `ratingSummary`); no figure with no rated day | Review, this week |
 
 Finance figures follow "tracked since" exactly as the screens do: only the
 months on offer, the history and the 1-year change as the Finances screen
@@ -335,7 +336,8 @@ figures: no screen shows them.
 A citation opens what it cites. The context decides where, from the record --
 never the model: a task on the CRM screen, a goal on Goals, a journal entry on
 its day, a memory on the day of the entry it was drawn from, a transaction and
-an account on Finances, a meal on its day of Nutrition & Health
+an account on Finances, a completed review on its week of the Review screen
+(`/review?week=`; an unfinished review is not sent), a meal on its day of Nutrition & Health
 (`/nutrition?day=`, only while that day is inside the Health card's window).
 A record with no screen of its own -- a capture, a person, a balance, an
 event, the profile -- expands in place, showing its content.

@@ -161,6 +161,7 @@ function bare(seed) {
     prices: [],
     transactions: [],
     snapshots: [],
+    reviews: [],
   };
 }
 
