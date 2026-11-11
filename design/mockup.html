@@ -204,7 +204,6 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 #screen-habits  .screen-grid { grid-template-rows: auto minmax(0, 1fr); }
 #screen-crm     .screen-grid { grid-template-rows: minmax(0, 1fr); }
 #screen-finances .screen-grid { grid-template-rows: minmax(0, 1fr); }
-#screen-review  .screen-grid { grid-template-rows: minmax(0, 1fr); }
 #screen-nutrition .screen-grid { grid-template-rows: minmax(0, 1fr); }
 #screen-journal .screen-grid { grid-template-rows: minmax(0, 1fr); }
 
@@ -538,22 +537,57 @@ textarea.input { resize: vertical; min-height: 68px; line-height: 1.5; }
 .detail-actions { display: flex; gap: var(--s-xs); margin-top: var(--s-lg); }
 
 /* ==========================================================================
-   REVIEW
+   REVIEW -- a week, Monday to Sunday, read top to bottom as four steps:
+   what happened (derived), reread, three questions, one lever.
    ========================================================================== */
-.review-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s-lg) var(--s-xl); }
+.week-nav { display: flex; align-items: center; gap: var(--s-xs); }
+.week-nav .btn-ghost[disabled] { opacity: 0.4; cursor: default; }
+.week-nav .range { font-size: 14px; min-width: 150px; text-align: center; }
+.review-step { padding: var(--s-lg) 0; border-top: 1px solid var(--hairline); }
+.review-step:first-of-type { border-top: none; padding-top: 0; }
+.step-head { display: flex; align-items: baseline; gap: var(--s-sm); margin-bottom: var(--s-md); flex-wrap: wrap; }
+.step-head .n { font-family: var(--font-mono); font-size: 12px; color: var(--ink-subtle); }
+.figs { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s-lg) var(--s-xl); }
+.fig-group h4 { margin: 0 0 var(--s-xs); font-size: 12px; font-weight: var(--w-label); color: var(--ink-subtle); letter-spacing: 0.2px; }
 .review-list li {
-  display: flex; gap: var(--s-xs); align-items: baseline;
+  display: flex; gap: var(--s-xs); align-items: baseline; flex-wrap: wrap;
   padding: 6px 0; font-size: 14px; border-bottom: 1px solid var(--hairline);
 }
 .review-list li:last-child { border-bottom: none; }
 .review-list .mark { width: 14px; flex: none; font-family: var(--font-mono); font-size: 12px; }
-.priority {
-  display: flex; gap: var(--s-sm); align-items: baseline;
-  padding: var(--s-sm); background: var(--surface-2);
-  border: 1px solid var(--hairline); border-radius: var(--r-md);
-  margin-bottom: var(--s-xs);
-}
-.priority .n { font-family: var(--font-mono); font-size: 12px; color: var(--primary); }
+.review-list .grow { flex: 1; min-width: 0; }
+.review-list .vs { margin-left: auto; text-align: right; white-space: nowrap; }
+.review-list .days { flex-basis: 100%; padding-left: 22px; }
+/* An unknown figure: a dash and the reason, never a zero. */
+.unknown { color: var(--ink-tertiary); }
+.rating { color: var(--ink-muted); } /* neutral on purpose: a low day is information, not a reprimand */
+.review-entry { padding: var(--s-sm) 0; border-bottom: 1px solid var(--hairline); }
+.review-entry:last-child { border-bottom: none; }
+.review-entry .when { display: flex; align-items: baseline; gap: var(--s-xs); }
+.review-entry p { margin: 4px 0 0; font-size: 14px; color: var(--ink-muted); }
+.review-entry .link-btn { margin-left: auto; }
+.question { margin-bottom: var(--s-md); }
+.question label { display: block; margin-bottom: 5px; font-size: 14px; }
+.lever-prev { padding: var(--s-sm); background: var(--surface-2); border: 1px solid var(--hairline);
+              border-radius: var(--r-md); margin-bottom: var(--s-md); }
+.lever-prev p { margin: 2px 0 0; font-size: 14px; }
+.review-actions { display: flex; gap: var(--s-xs); align-items: center; margin-top: var(--s-lg); flex-wrap: wrap; }
+.review-actions .caption { margin-right: auto; }
+/* Mockup affordance: the two states of the week header. */
+#card-review[data-week="past"] .when-now,
+#card-review[data-week="now"] .when-past { display: none; }
+
+/* HOME -- Close the day */
+.rate { display: flex; gap: 4px; }
+.rate .seg { flex: 1; padding: 8px 0; font-size: 14px; }
+.close-row { padding: var(--s-sm) 0; border-bottom: 1px solid var(--hairline); }
+.close-row:last-of-type { border-bottom: none; }
+.close-row .line { display: flex; gap: var(--s-xs); }
+.close-row .line .input { flex: 1; min-width: 0; }
+.close-row .head { display: flex; align-items: baseline; gap: var(--s-xs); margin-bottom: var(--s-xs); }
+.close-row .head .caption:last-child { margin-left: auto; }
+#card-today[data-lever="none"] .when-lever,
+#card-today[data-lever="set"] .when-nolever { display: none; }
 
 /* ==========================================================================
    NUTRITION & HEALTH
@@ -802,7 +836,11 @@ a.cite { text-decoration: none; }
 }
 @media (max-width: 760px) {
   .screen-grid > * { grid-column: span 12 !important; }
-  .board, .review-grid { grid-template-columns: 1fr; }
+  .board, .figs { grid-template-columns: 1fr; }
+  #card-review .card-head { flex-wrap: wrap; }
+  .week-nav { width: 100%; justify-content: space-between; }
+  .week-nav .range { min-width: 0; }
+  .review-list .vs { margin-left: 22px; text-align: left; }
   .nav { overflow-x: auto; }
   #card-today { flex-direction: column; gap: var(--s-lg); }
   .today-side { width: auto; padding-left: 0; padding-top: var(--s-lg); border-left: none; border-top: 1px solid var(--hairline); }
@@ -854,10 +892,17 @@ a.cite { text-decoration: none; }
   <div class="screen-grid">
 
     <!-- card-today: full width, first. What today is about. ------------- -->
-    <article id="card-today" class="card span-12">
+    <article id="card-today" class="card span-12" data-lever="set">
+      <!-- The lever set by the review of the week before replaces the focus.
+           Without one (no review, or only a draft) the focus shows as it did,
+           with a link to review last week. -->
       <div class="today-focus">
-        <span class="eyebrow">Today&rsquo;s focus</span>
-        <p class="focus-text">Ship the pricing page</p>
+        <span class="eyebrow when-lever">This week&rsquo;s lever</span>
+        <p class="focus-text when-lever">Start the day with the pricing page, before email</p>
+        <span class="caption when-lever">Set in last week&rsquo;s review</span>
+        <span class="eyebrow when-nolever">Today&rsquo;s focus</span>
+        <p class="focus-text when-nolever">Ship the pricing page</p>
+        <span class="caption when-nolever">No lever yet &middot; <button class="link-btn" data-screen="screen-review">Review last week</button></span>
       </div>
       <div class="today-side">
         <div class="today-who">
@@ -870,6 +915,11 @@ a.cite { text-decoration: none; }
         <div class="today-clock">
           <span class="t num">09:41</span>
           <span class="caption">Monday, 5 January</span>
+        </div>
+        <!-- Mockup affordance only: the states, side by side. -->
+        <div class="state-legend" data-legend="lever">
+          <button class="is-on" data-set="set">lever set</button>
+          <button data-set="none">no lever</button>
         </div>
       </div>
     </article>
@@ -1113,6 +1163,38 @@ a.cite { text-decoration: none; }
         <div class="delta-row"><span class="k">1 year</span><span class="num down">−&thinsp;1,905</span></div>
         <div class="divider"></div>
         <p class="caption">Updated at 09:12</p>
+      </div>
+    </article>
+
+    <!-- card-close-day: the day's close. Three things, each saved on its own,
+         none required. Rating is 1 to 5, neutral in colour, clearable. ---- -->
+    <article id="card-close-day" class="card span-8">
+      <div class="card-head">
+        <span class="eyebrow">Close the day</span>
+        <span class="caption">Monday, 5 January</span>
+      </div>
+      <div class="card-body">
+        <div class="close-row">
+          <div class="head"><span>How did the day go?</span><span class="caption">tap again to clear</span></div>
+          <div class="rate" role="group" aria-label="Day rating">
+            <button class="seg">1</button><button class="seg">2</button><button class="seg is-on">3</button><button class="seg">4</button><button class="seg">5</button>
+          </div>
+        </div>
+        <div class="close-row">
+          <div class="head">
+            <span><span class="num">2</span> habits still open today</span>
+            <span class="caption">days off not counted</span>
+          </div>
+          <span class="caption">Read &middot; Glasses of water &middot; tick them on the Habits card</span>
+        </div>
+        <div class="close-row">
+          <div class="head"><span>One line for the journal</span></div>
+          <div class="line">
+            <input class="input" type="text" placeholder="Saved as an ordinary journal entry on today" aria-label="One line for the journal">
+            <button class="btn-ghost">Save</button>
+          </div>
+          <span class="caption">If the save fails, the line stays here.</span>
+        </div>
       </div>
     </article>
 
@@ -1744,56 +1826,131 @@ a.cite { text-decoration: none; }
 <!-- ===================================================================== -->
 <section id="screen-review" class="screen">
   <div class="screen-grid">
-    <article id="card-review" class="card span-12">
+    <article id="card-review" class="card span-12" data-week="past">
       <div class="card-head">
         <span class="eyebrow">Review</span>
-        <div class="period">
-          <button class="is-on">Week</button><button>Month</button><button>Year to date</button>
+        <span class="badge badge-ok when-past"><i class="dot"></i>Complete</span>
+        <span class="badge badge-tag when-now">So far</span>
+        <div class="week-nav">
+          <button class="btn-ghost" aria-label="Previous week">&larr;</button>
+          <span class="range num"><span class="when-past">29 Dec &ndash; 4 Jan</span><span class="when-now">5 Jan &ndash; 11 Jan</span></span>
+          <!-- Never past the week containing today. -->
+          <button class="btn-ghost when-past" aria-label="Next week">&rarr;</button>
+          <button class="btn-ghost when-now" aria-label="Next week" disabled>&rarr;</button>
         </div>
-        <span class="caption">29 December — 4 January</span>
-        <button class="btn-ghost">Regenerate</button>
       </div>
       <div class="card-body">
-        <div class="review-grid">
-          <div>
-            <h3 class="title" style="margin-bottom:var(--s-xs)">Closed</h3>
-            <ul class="review-list">
-              <li><span class="mark up">✓</span>Signed the Nordis statement of work</li>
-              <li><span class="mark up">✓</span>Filed Q4 expenses</li>
-              <li><span class="mark up">✓</span>Published the December newsletter</li>
-              <li><span class="mark up">✓</span>Renewed the professional insurance</li>
-            </ul>
-          </div>
-          <div>
-            <h3 class="title" style="margin-bottom:var(--s-xs)">Slipped</h3>
-            <ul class="review-list">
-              <li><span class="mark due">→</span>Reply about the workshop dates <span class="caption">· 3rd week</span></li>
-              <li><span class="mark due">→</span>Write the Nordis case study <span class="caption">· 2nd week</span></li>
-            </ul>
-          </div>
-          <div>
-            <h3 class="title" style="margin-bottom:var(--s-xs)">Gone quiet</h3>
-            <ul class="review-list">
-              <li><span class="avatar">TF</span>Tom Fischer <span class="caption">· 18 days</span></li>
-              <li><span class="avatar">LR</span>Lena Ruiz <span class="caption">· 41 days</span></li>
-            </ul>
-          </div>
-          <div>
-            <h3 class="title" style="margin-bottom:var(--s-xs)">Next week</h3>
-            <div class="priority"><span class="n num">1</span><span>Close the workshop dates with Helix</span></div>
-            <div class="priority"><span class="n num">2</span><span>Ship the pricing page</span></div>
-            <div class="priority"><span class="n num">3</span><span>Three deep work mornings</span></div>
-          </div>
-        </div>
 
-        <div class="divider"></div>
-        <div class="stat-row">
-          <div class="stat"><div class="k">Habits completed</div><div class="v up">78%</div></div>
-          <div class="stat"><div class="k">Days recorded</div><div class="v">6&thinsp;/&thinsp;7</div></div>
-          <div class="stat"><div class="k">Average intake</div><div class="v">2,105<span class="caption"> kcal</span></div></div>
-          <div class="stat"><div class="k">Net worth</div><div class="v up">+&thinsp;480</div></div>
-          <div class="stat"><div class="k">Captures</div><div class="v">31</div></div>
-        </div>
+        <!-- 1. What happened: derived, never typed. Recomputed on every open. -->
+        <section class="review-step">
+          <div class="step-head">
+            <span class="n">1</span><h3 class="title">What happened</h3>
+            <span class="caption when-now">So far &mdash; the week is still running</span>
+            <span class="caption when-past">Computed from your data as it stands now</span>
+          </div>
+          <div class="figs">
+            <div class="fig-group">
+              <h4>Habits &mdash; scheduled days kept, against the week before</h4>
+              <ul class="review-list">
+                <li><span class="grow">Move for 30 minutes</span><span class="vs"><span class="num">5&thinsp;/&thinsp;7</span> <span class="caption num">before 6&thinsp;/&thinsp;7</span></span><span class="days caption">Missed Wed, Sat</span></li>
+                <li><span class="grow">Read</span><span class="vs"><span class="num">4&thinsp;/&thinsp;7</span> <span class="caption num">before 3&thinsp;/&thinsp;7</span></span><span class="days caption">Missed Tue, Thu &middot; <span class="unknown">Sun not recorded</span></span></li>
+                <li><span class="grow">Deep work blocks</span><span class="vs"><span class="num">3&thinsp;/&thinsp;5</span> <span class="caption num">before 4&thinsp;/&thinsp;5</span></span><span class="days caption">Missed Tue, Thu</span></li>
+                <li><span class="grow">Gym</span><span class="vs"><span class="num">2&thinsp;/&thinsp;3</span> <span class="caption num">before 3&thinsp;/&thinsp;3</span></span><span class="days caption">Missed Fri</span></li>
+              </ul>
+            </div>
+            <div class="fig-group">
+              <h4>Spending &mdash; against the average of the four weeks before</h4>
+              <div class="stat-row">
+                <div class="stat"><div class="k">This week</div><div class="v num">&euro;&thinsp;1,184</div></div>
+                <div class="stat"><div class="k">Average, 4 weeks</div><div class="v num">&euro;&thinsp;1,020</div></div>
+              </div>
+              <ul class="review-list">
+                <li><span class="grow">Groceries</span><span class="num">&euro;&thinsp;212</span></li>
+                <li><span class="grow">Dining</span><span class="num">&euro;&thinsp;148</span></li>
+                <li><span class="grow">Transport</span><span class="num">&euro;&thinsp;96</span></li>
+              </ul>
+              <p class="caption" style="margin:var(--s-xs) 0 0">Transfers and not-counted money left out; refunds taken off.</p>
+            </div>
+            <div class="fig-group">
+              <h4>Tasks</h4>
+              <ul class="review-list">
+                <li><span class="mark up">&#10003;</span><span class="grow">6 completed</span><button class="link-btn">Open</button></li>
+                <li><span class="mark due">&rarr;</span><span class="grow">Reply about the workshop dates</span><span class="caption num">overdue 3d</span></li>
+                <li><span class="mark due">&rarr;</span><span class="grow">Write the Nordis case study</span><span class="caption num">overdue 9d</span></li>
+              </ul>
+            </div>
+            <div class="fig-group">
+              <h4>Goals</h4>
+              <ul class="review-list">
+                <li><span class="mark up">&#10003;</span><span class="grow">Close the Nordis contract</span><span class="caption">completed</span></li>
+                <li><span class="mark due">&rarr;</span><span class="grow">Three deep work mornings</span><span class="caption">slipped &middot; 2nd week</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="stat-row">
+            <div class="stat"><div class="k">Journal days</div><div class="v num">5&thinsp;/&thinsp;7</div></div>
+            <div class="stat">
+              <div class="k">Days rated</div>
+              <div class="v num rating">4&thinsp;/&thinsp;7 <span class="caption">avg 3.8</span></div>
+            </div>
+            <div class="stat">
+              <div class="k">Average intake</div>
+              <div class="v num when-past">2,105<span class="caption"> kcal &middot; 6 days</span></div>
+              <div class="v num unknown when-now">&mdash;<span class="caption"> no meals recorded</span></div>
+            </div>
+            <div class="stat"><div class="k">Captures filed</div><div class="v num">31</div></div>
+          </div>
+        </section>
+
+        <!-- 2. Reread: the week's journal entries, oldest first. -->
+        <section class="review-step">
+          <div class="step-head"><span class="n">2</span><h3 class="title">Reread</h3><span class="caption">3 entries</span></div>
+          <div class="review-entry">
+            <div class="when"><span class="num">Mon 29 Dec</span><span class="caption num">21:40</span><button class="link-btn">Open day</button></div>
+            <p>Slow start, then a good block on the quote. Tired by the evening.</p>
+          </div>
+          <div class="review-entry">
+            <div class="when"><span class="num">Wed 31 Dec</span><span class="caption num">22:05</span><button class="link-btn">Open day</button></div>
+            <p>Quiet day. Cleared the inbox and planned the new year.</p>
+          </div>
+          <div class="review-entry">
+            <div class="when"><span class="num">Sat 3 Jan</span><span class="caption num">18:12</span><button class="link-btn">Open day</button></div>
+            <p>Long walk, no screens until the afternoon. Felt better for it.</p>
+          </div>
+          <!-- A week with no entries says so: "No journal entries this week." -->
+        </section>
+
+        <!-- 3. Three questions: every answer optional, saved as you type. -->
+        <section class="review-step">
+          <div class="step-head"><span class="n">3</span><h3 class="title">Three questions</h3><span class="caption">All optional &middot; saved as you type</span></div>
+          <div class="question"><label for="q1">What worked</label><textarea id="q1" class="input">Blocking the mornings for deep work.</textarea></div>
+          <div class="question"><label for="q2">What held me back</label><textarea id="q2" class="input">Email first thing, three days running.</textarea></div>
+          <div class="question"><label for="q3">What I change next week</label><textarea id="q3" class="input"></textarea></div>
+        </section>
+
+        <!-- 4. One lever: one short sentence, not a list. -->
+        <section class="review-step">
+          <div class="step-head"><span class="n">4</span><h3 class="title">One lever</h3><span class="caption">For the week after &mdash; it shows on Home from Monday</span></div>
+          <div class="lever-prev">
+            <span class="eyebrow">Last week&rsquo;s lever</span>
+            <p>Three deep work mornings before any meetings.</p>
+          </div>
+          <input class="input" type="text" maxlength="140" aria-label="Lever" value="Start the day with the pricing page, before email">
+          <div class="review-actions">
+            <span class="caption">Completing records the week once; you can still correct it after.</span>
+            <button class="btn-danger">Delete</button>
+            <button class="btn-primary when-now">Complete</button>
+            <button class="btn-ghost when-past">Save correction</button>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Mockup affordance only: the states, side by side. -->
+      <div class="state-legend" data-legend="week">
+        <button class="is-on" data-set="past">last week, complete</button>
+        <button data-set="now">this week, so far</button>
       </div>
     </article>
   </div>
@@ -2190,6 +2347,39 @@ a.cite { text-decoration: none; }
     habitsCard.dataset.today = button.dataset.set;
     habitsCard.querySelectorAll('.state-legend button').forEach(function (other) {
       other.classList.toggle('is-on', other === button);
+    });
+  });
+
+  // Today card: the lever from last week's review, or the focus without one.
+  var todayCard = document.getElementById('card-today');
+  todayCard.querySelector('.state-legend').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-set]');
+    if (!button) return;
+    todayCard.dataset.lever = button.dataset.set;
+    todayCard.querySelectorAll('.state-legend button').forEach(function (other) {
+      other.classList.toggle('is-on', other === button);
+    });
+  });
+
+  // Review card: a finished past week, or the week in progress ("so far").
+  var reviewCard = document.getElementById('card-review');
+  reviewCard.querySelector('.state-legend').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-set]');
+    if (!button) return;
+    reviewCard.dataset.week = button.dataset.set;
+    reviewCard.querySelectorAll('.state-legend button').forEach(function (other) {
+      other.classList.toggle('is-on', other === button);
+    });
+  });
+
+  // Day rating: one tap sets, the same tap again clears.
+  document.querySelectorAll('.rate').forEach(function (group) {
+    group.addEventListener('click', function (event) {
+      var button = event.target.closest('.seg');
+      if (!button) return;
+      var on = button.classList.contains('is-on');
+      group.querySelectorAll('.seg').forEach(function (other) { other.classList.remove('is-on'); });
+      if (!on) button.classList.add('is-on');
     });
   });
 
