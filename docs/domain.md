@@ -720,7 +720,17 @@ average at all.
 
 **Is not** a place for anything that must survive the day.
 
-**Has** `date`, `habits`, `meals`, `measurements`, `notes`.
+**Has** `date`, `habits`, `meals`, `measurements`, `notes`, `rating`.
+
+`rating` is how the day went: a whole number from 1 to 5 (the bounds are
+`limits.dayRatingMin` and `limits.dayRatingMax` in `personalos.config.js`), or
+`null` for unrated. It is canonical, it is a reading of the day rather than
+something that happened in it, and it is not a Measurement -- so setting it
+writes no event (ADR 0035). A future day is refused. A log written before the
+rating existed has no `rating` key and no migration adds one: every read of a
+log fills in `null`. It is set through `PUT /api/days/<day>` with
+`{ "rating": 4 }` or `{ "rating": null }`, which touches nothing else on the
+day.
 
 `date` is `YYYY-MM-DD` **in the user's timezone**, produced by
 `lib/domain/dates.js` and nowhere else (ADR 0005). A day that was never
@@ -1242,7 +1252,7 @@ double counting.
 | memory entries | current net worth, an account's value between balances, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
-| daily logs (ticks, meals, measurements) | |
+| daily logs (ticks, meals, measurements, the day's rating) | |
 | finance accounts (including valuation and archivedOn), observations, trades, prices, transactions (signed amount, counter account, notCounted, tags) | |
 | **net worth snapshots** — the one exception, not written in one currency (ADR 0022) | |
 

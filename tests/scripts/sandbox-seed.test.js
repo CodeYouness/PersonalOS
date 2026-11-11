@@ -62,6 +62,24 @@ describe('seedForSandbox', () => {
     });
   });
 
+  it('moves a day\'s rating with its habit values, and a day holding only a rating survives the move', () => {
+    /** @type {SeedFixture} */
+    const rated = {
+      schemaVersion: 20,
+      dailyLogs: {
+        '2026-01-05': { ...log('2026-01-05', { habit_move: true }), rating: 4 },
+        '2026-01-06': { ...log('2026-01-06', {}), rating: 2 },
+        '2026-01-10': log('2026-01-10', { habit_move: false }),
+      },
+    };
+    const logs = seedForSandbox(rated, TODAY).dailyLogs;
+
+    expect(logs['2026-10-08']).toEqual({ ...log('2026-10-08', { habit_move: true }), rating: 4 });
+    expect(logs['2026-10-09']).toEqual({ ...log('2026-10-09', {}), rating: 2 });
+    expect(logs['2026-01-05']).toBeUndefined();
+    expect(logs['2026-01-06']).toBeUndefined();
+  });
+
   it('changes nothing in the seed it was given', () => {
     const original = seed();
     seedForSandbox(original, TODAY);
