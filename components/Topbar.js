@@ -12,9 +12,9 @@ import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
  * Home, CRM (#52), Goals (#96), Habits (#38), Journal (#159), Nutrition
  * (#69) and Finances (#113) have screens behind them and are links. The mockup's "Nutrition & Health" became Nutrition, after
  * Habits, when its first card landed (docs/spec.md); Health joins that screen
- * later. Review is shown, not hidden -- docs/roadmap.md says it is
- * coming, and a nav item that vanished would read as a bug, not as "not
- * built yet". It renders disabled instead of a dead link.
+ * later, and Review (#239) is a link too. A screen not built yet would be
+ * shown, not hidden -- a nav item that vanished would read as a bug -- and
+ * renders disabled instead of a dead link (`href: null`); none is left.
  *
  * Client component because the captures toggle opens the capture log drawer
  * (roadmap item 11) and this is where that open/closed state lives -- along
@@ -42,7 +42,7 @@ const SCREENS = [
   { label: 'Journal', href: '/journal' },
   { label: 'Nutrition & Health', href: '/nutrition' },
   { label: 'Finances', href: '/finances' },
-  { label: 'Review', href: null },
+  { label: 'Review', href: '/review' },
 ];
 
 /** @returns {Promise<import('@/components/CaptureLogDrawer.js').CaptureLogRow[]>} */
