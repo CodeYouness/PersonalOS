@@ -326,6 +326,7 @@ of its own.
 | `figure:weight:latest`, `figure:weight-change:30d` | latest weight and its change | Nutrition & Health |
 | `figure:calories:today`, `protein:`, `carbs:`, `fat:` | today's totals | Nutrition & Health |
 | `figure:goal-progress:<goal id>`, `figure:goal-slip:<goal id>` | an open goal's progress (the one stored on the goal) and the period it has slipped to | Goals, that goal |
+| `figure:day-rating-avg:30d` | the average day rating over the 30 days ending today, and how many days it rests on (the Review screen's rating figure, `ratingSummary`); no figure with no rated day | Review, this week |
 
 Finance figures follow "tracked since" exactly as the screens do: only the
 months on offer, the history and the 1-year change as the Finances screen
@@ -335,7 +336,8 @@ figures: no screen shows them.
 A citation opens what it cites. The context decides where, from the record --
 never the model: a task on the CRM screen, a goal on Goals, a journal entry on
 its day, a memory on the day of the entry it was drawn from, a transaction and
-an account on Finances, a meal on its day of Nutrition & Health
+an account on Finances, a completed review on its week of the Review screen
+(`/review?week=`; an unfinished review is not sent), a meal on its day of Nutrition & Health
 (`/nutrition?day=`, only while that day is inside the Health card's window).
 A record with no screen of its own -- a capture, a person, a balance, an
 event, the profile -- expands in place, showing its content.
@@ -669,6 +671,15 @@ total. A habit with no scheduled day in the week is left out.
 **The lever** is the one sentence you decide to carry into next week, shown
 where you look at the day. It is part of the review that wrote it: it is not
 a task and not a goal, and nothing completes it.
+
+*Where it is shown*: the Today card on Home. This week's lever is derived
+(`lastWeekReview` in `lib/domain/derive/review.js`), never stored: it is the
+`lever` of the **completed** review whose `from` is the Monday before this
+week's Monday. A lever set on Sunday shows from Monday; an unfinished review's
+never shows; an empty one is none. With a lever the card shows it in place of
+`Profile.focus`, which is left as it is; without one the card shows `focus`.
+While last week's review is absent or unfinished the card also links to it
+(`/review?week=<monday>`). Loading Home reads the saved review and nothing else.
 
 Answers and lever have length limits, `limits.reviewAnswerMaxLength` and
 `limits.reviewLeverMaxLength`. An answer or the lever may be empty.
