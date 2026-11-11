@@ -949,3 +949,22 @@ describe('migration v18 to v19', () => {
     expect(migrate(once)).toEqual(once);
   });
 });
+
+describe('migration v19 to v20', () => {
+  /** A v19 document: no reviews collection. */
+  const v19Document = () => ({ ...migrate(v12Document()), schemaVersion: 19, reviews: undefined });
+
+  it('adds an empty reviews collection and changes nothing else', () => {
+    const before = v19Document();
+    const migrated = migrate(before);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.reviews).toEqual([]);
+    expect({ ...migrated, reviews: [], schemaVersion: 0 }).toEqual({ ...before, reviews: [], schemaVersion: 0 });
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v19Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});

@@ -18,7 +18,7 @@
  */
 
 import { ORIGIN_SOURCES } from '../personalos.config.js';
-import { dayKeyRange, shiftDayKey } from '../lib/domain/dates.js';
+import { dayKeyRange, shiftDayKey, weekDayKeys } from '../lib/domain/dates.js';
 
 /**
  * @template {{ dailyLogs: Record<string, import('../lib/domain/types.js').DailyLog> }} Seed
@@ -28,7 +28,47 @@ import { dayKeyRange, shiftDayKey } from '../lib/domain/dates.js';
  *   habit history already ends yesterday or later
  */
 export function seedForSandbox(seed, todayKey) {
-  return withSyncedHolding(withHabitsEndingYesterday(seed, todayKey));
+  return withReviewInLastWeek(withSyncedHolding(withHabitsEndingYesterday(seed, todayKey)), todayKey);
+}
+
+/**
+ * The demo review moves to the last completed week, so the Review screen and
+ * the lever read it as recent whatever day the sandbox starts. Its instants
+ * and its `review.completed` event move by the same number of days. The seed
+ * is returned as given when it has no review or the review is already that
+ * recent.
+ *
+ * @template {object} Seed
+ * @param {Seed} seed
+ * @param {string} todayKey
+ * @returns {Seed}
+ */
+function withReviewInLastWeek(seed, todayKey) {
+  const document = /** @type {any} */ (seed);
+  if (!Array.isArray(document.reviews) || document.reviews.length === 0) return seed;
+  const lastMonday = shiftDayKey(weekDayKeys(todayKey)[0], -7);
+  const demo = document.reviews[0];
+  if (demo.from >= lastMonday) return seed;
+  const days = dayKeyRange(demo.from, lastMonday).length - 1;
+  const move = (/** @type {string} */ instant) => new Date(Date.parse(instant) + days * 86_400_000).toISOString();
+  return /** @type {Seed} */ ({
+    ...document,
+    reviews: [
+      {
+        ...demo,
+        from: lastMonday,
+        createdAt: move(demo.createdAt),
+        updatedAt: move(demo.updatedAt),
+        completedAt: demo.completedAt === null ? null : move(demo.completedAt),
+      },
+      ...document.reviews.slice(1),
+    ],
+    events: document.events.map((/** @type {any} */ event) =>
+      event.subject === demo.id
+        ? { ...event, at: move(event.at), date: shiftDayKey(event.date, days) }
+        : event
+    ),
+  });
 }
 
 /**

@@ -409,6 +409,9 @@ as a failed sync.
 
 **Has** `type` (from `EVENT_TYPES`), `at`, `date`, `subject`, `payload`.
 
+`review.completed` is written once, when a review is first completed; its
+subject is the review (see Review).
+
 `date` is stored alongside `at` so a timeline can be queried by day without
 every reader re-deriving it — and re-deriving it in the wrong timezone.
 
@@ -634,6 +637,44 @@ objective with children, and a second collection would earn nothing.
 `current` at least 0 and allowed past the target. Reaching the target does
 not close the goal — you do. When a goal is linked to something countable,
 progress should be derived instead; nothing links one yet.
+
+---
+
+## Review
+
+**Is** what you wrote about a week, and nothing else (ADR 0034). One review
+per `(period, from)`: `period` is a closed vocabulary, `REVIEW_PERIODS` in
+`personalos.config.js`, today only `week`, and `from` is the day key of the
+period's first day -- a Monday for `week`.
+
+**Is not** a report. The week's figures (habits, intake, spending, what was
+closed) are derived when the review is read and are never stored in it, or
+the record could disagree with the days it describes. The words are the only
+thing that is yours to lose, so they are the only thing stored.
+
+**Has** `period`, `from`, `answers` (`worked`, `heldBack`, `change`, each a
+string, possibly empty), `lever`, `completedAt`, and the usual `id`,
+`createdAt`, `updatedAt`.
+
+**The lever** is the one sentence you decide to carry into next week, shown
+where you look at the day. It is part of the review that wrote it: it is not
+a task and not a goal, and nothing completes it.
+
+Answers and lever have length limits, `limits.reviewAnswerMaxLength` and
+`limits.reviewLeverMaxLength`. An answer or the lever may be empty.
+
+A review is made, or merged into, by a single save of any subset of the
+fields; each field is written on its own inside the serialised write, so two
+saves a moment apart both land. `from` must be a Monday and not after the
+week containing today: nobody reviews a week that has not started.
+
+**Completing** sets `completedAt` once and the timeline hears it once, as
+`review.completed`, in the same write. A later correction changes
+`updatedAt` and writes no event. There is no reopen. **Deleting** removes
+the review; its event stays, because the week was closed whatever became of
+the words.
+
+A citation of a review opens `/review?week=<monday>`.
 
 ---
 
@@ -1248,6 +1289,7 @@ double counting.
 | task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates, history heatmap cells, the thirty-day summary |
 | people | health averages, day totals |
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
+| reviews (answers, lever, completedAt) | a review's week figures: habits, intake, spending, what was closed |
 | journal entries | the month's flows (income, spending, what is left, per category with share and change), the savings rate, fixed vs variable -- transfers and not-counted transactions excluded; whether a transaction is a transfer |
 | memory entries | current net worth, an account's value between balances, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
