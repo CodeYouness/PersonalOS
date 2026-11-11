@@ -193,6 +193,20 @@ export const GOAL_KINDS = Object.freeze(['objective', 'project']);
 export const REVIEW_PERIODS = Object.freeze(['week']);
 
 /**
+ * The three questions a review asks, in order, each with the key its answer is
+ * stored under. Wording only: a constant of the product, not a vocabulary --
+ * the keys are fixed by the review record (ADR 0034), the labels may be
+ * reworded freely.
+ *
+ * @type {readonly { key: 'worked' | 'heldBack' | 'change', label: string }[]}
+ */
+export const REVIEW_QUESTIONS = Object.freeze([
+  Object.freeze({ key: /** @type {const} */ ('worked'), label: 'What worked' }),
+  Object.freeze({ key: /** @type {const} */ ('heldBack'), label: 'What held me back' }),
+  Object.freeze({ key: /** @type {const} */ ('change'), label: 'What I change next week' }),
+]);
+
+/**
  * The period a goal was promised for -- a label, never an expiry. In this
  * order on the Goals card and screen.
  */

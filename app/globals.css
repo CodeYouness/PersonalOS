@@ -1000,5 +1000,13 @@ a.cite { text-decoration: none; }
   .week-nav .range { min-width: 0; }
   .review-list .vs { margin-left: 22px; text-align: left; }
 }
+.question { margin-bottom: var(--s-md); }
+.question label { display: block; margin-bottom: 5px; font-size: 14px; }
+.lever-prev { padding: var(--s-sm); background: var(--surface-2); border: 1px solid var(--hairline);
+              border-radius: var(--r-md); margin-bottom: var(--s-md); }
+.lever-prev p { margin: 2px 0 0; font-size: 14px; }
+.review-actions { display: flex; gap: var(--s-xs); align-items: center; margin-top: var(--s-lg); flex-wrap: wrap; }
+.review-actions .caption { margin-right: auto; }
+.review-error { color: var(--danger); font-size: 13px; margin: var(--s-sm) 0 0; }
 .review-list a { color: var(--ink); text-decoration: none; }
 .review-list a:hover { text-decoration: underline; }

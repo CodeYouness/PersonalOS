@@ -83,6 +83,30 @@ No state marks a day as closed: a day is closed when it is rated, and that is
 derived. The card reads the day's log and the habit list, and nothing else;
 loading it calls no model and no integration.
 
+## Review
+
+The Review screen opens one week, Monday to Sunday, and reads top to bottom as
+four steps. With no `?week=` it opens on the week containing today on a
+Sunday and on the week before on any other day; the stepper moves a week at a
+time and never past the week in progress.
+
+1. **What happened** -- derived, never typed, and never stored: opening an old
+   week recomputes its figures from the data as it stands now.
+2. **Reread** -- the week's journal entries in order, each opening its day.
+3. **Three questions** -- what worked, what held me back, what I change next
+   week. Each answer is optional and saves when you leave the field; the
+   wording is a constant in `personalos.config.js`.
+4. **One lever** for the week after -- a single short sentence, optional. The
+   lever of the *completed* review of the week before is shown above it, so
+   "what held me back" is answered against what you said you would do.
+
+**Complete** records the review as done and puts it on the timeline once; the
+header then says "Complete". A completed review stays correctable and a
+correction does not complete it again. **Delete** asks first. A refused save
+(an answer over the limit says so in the server's own words) leaves the screen
+showing what is stored, not what was typed. Loading the screen calls no model
+and no integration. The record is in `docs/domain.md` (Review) and ADR 0034.
+
 ## Habits
 
 "Where am I today", answered twice: a compact card on the home screen, and a
