@@ -370,6 +370,13 @@ button:disabled { cursor: not-allowed; }
 }
 .rating-btn:hover:not(:disabled) { border-color: var(--hairline-strong); color: var(--ink); }
 .rating-btn.is-chosen { background: var(--surface-4); border-color: var(--ink-subtle); color: var(--ink); }
+/* #235: the card's three rows, each saved on its own. */
+.close-row { padding: var(--s-sm) 0; border-bottom: 1px solid var(--hairline); }
+.close-row:last-of-type { border-bottom: none; }
+.close-row .line { display: flex; gap: var(--s-xs); }
+.close-row .line .input { flex: 1; min-width: 0; }
+.close-row .head { display: flex; align-items: baseline; gap: var(--s-xs); margin-bottom: var(--s-xs); }
+.close-row .head .caption:last-child { margin-left: auto; }
 .day-rating-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-sm); min-height: 30px; }
 
 /* ==========================================================================
