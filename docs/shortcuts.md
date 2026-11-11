@@ -7,8 +7,11 @@ iOS's (the Dictate Text action); no audio reaches the app.
 
 Prerequisite: the phone reaches the Mac as in `docs/development.md` § The phone
 over Tailscale (ADR 0032). Below, `<mac-host>` is the Mac's tailnet name and
-`<token>` is `PERSONALOS_PHONE_TOKEN`. Type them into the Shortcut on the
-phone. Never export a Shortcut file into this repository: it carries both.
+`<token>` is `PERSONALOS_PHONE_TOKEN`.
+
+The three Shortcuts are generated, not built by hand (ADR 0034): see
+[Install](#install). Never commit a `.shortcut` file: an installed one carries
+the token.
 
 ## The contract the Shortcuts rely on
 
@@ -58,82 +61,73 @@ The same rule applies: **the entry was written if and only if the reply has a
 
 ## The queue
 
-A file on the phone that only these Shortcuts read and write: `personalos-queue.json`
-in the Shortcuts folder (Save File, Ask Where to Save off, Overwrite on).
-It is one queue shared by the Capture and Journal Shortcuts, so Send queued
-flushes both. It holds a list of dictionaries, oldest first, each
-`{kind, text, saidAt, clientId}` where `kind` is `capture` or `journal`
-(an item with no `kind` is a capture); an empty queue is `[]` or a missing file.
+A file on the phone that only these Shortcuts read and write:
+`personalos-queue.json` in the Shortcuts folder of iCloud Drive. It is one queue
+shared by Capture and Journal, so Send queued flushes both. It holds
+`{"items": [...]}`, oldest first, each item `{kind, text, saidAt, clientId}`
+where `kind` is `capture` or `journal`; an empty queue is `{"items":[]}` or a
+missing file.
 
-To look at it: open the Files app, On My iPhone, Shortcuts, tap
-`personalos-queue.json`. To clear a stuck item, edit the file there.
+It is written as JSON text -- each item turned into text, joined by commas --
+because Set Dictionary Value drops a list on the phone.
 
-## Shortcut 1: Send queued
+To look at it: Files, iCloud Drive, Shortcuts, `personalos-queue.json`. To
+clear a stuck item, edit the file there.
 
-Ends in `Sent N · M waiting`, or `Nothing waiting`.
+## What each Shortcut does
 
-1. Get File: `Shortcuts/personalos-queue.json`, Error If Not Found off.
-2. Get Dictionary from Input. If it has no value, Show Notification
-   `Nothing waiting` and Stop This Shortcut.
-3. Set Variable `waiting` to the list. Set Variable `sent` to 0. Set Variable
-   `left` to an empty list. Set Variable `stop` to No.
-4. Repeat with Each item in `waiting`:
-   1. If `stop` is Yes: Add the item to `left`, and skip to the next item
-      (Add to Variable only).
-   2. If the item's `kind` is `journal`, Get Contents of URL
-      `https://<mac-host>/api/journal`: Method POST, Headers as above, Request
-      Body JSON with `text`, `saidAt` and `clientId` from the item. Otherwise
-      the same at `https://<mac-host>/api/capture`, with `origin` = `shortcut`
-      added. (One If/Otherwise; the reply is read the same way after it.)
-   3. Get Dictionary from Contents of URL. Get Dictionary Value `receiptLine`.
-   4. If `receiptLine` has any value: add 1 to `sent`.
-      Otherwise: Add the item to `left` and set `stop` to Yes (the Mac is
-      asleep or the token is wrong: do not try the rest, keep the order).
-5. Save `left` to `Shortcuts/personalos-queue.json` (Overwrite).
-6. Count the items of `left` as `M`. Show Notification `Sent <sent> · <M> waiting`.
+**Send queued** reads the queue and sends it oldest first: a `kind: journal`
+item to `/api/journal` with `text`, `saidAt` and `clientId`, any other to
+`/api/capture` with `origin: shortcut` too, each with the token. An item whose
+reply has a `receiptLine` is done. The first one without stops the run: it
+and every later item stay, in order, and the reason is the reply's `error`, or
+`Mac unreachable` when there was none. The queue is saved once, after the
+loop. The notification is the last `receiptLine` when nothing is left,
+`Queued · <reason> · <N> waiting` when something is, and `Nothing waiting`
+when there was nothing to send.
 
-The queue is saved after the loop, once, with every item that was not
-filed. A sentence is removed only after its reply had a `receiptLine`.
+**Capture** (the Action Button) dictates a sentence (Dictate Text, stops after
+a pause) and stops if it is empty. It makes `saidAt` (now, ISO 8601) and a
+`clientId` (`phone-<saidAt>-<random>`), adds the item to the queue and saves
+it **before anything touches the network**, so the sentence cannot be lost.
+Then it sends the queue exactly as Send queued does: the new sentence is last,
+and its receipt is the notification.
 
-## Shortcut 2: Capture (the Action Button)
+**Journal** is Capture with `kind: journal`, a `clientId` starting
+`phone-journal-`, and dictation that ends on a tap, since an entry is several
+sentences.
 
-1. Dictate Text (Stop Listening: After Pause, Language: your usual one).
-   Set Variable `said` to Dictated Text. If it is empty, Stop This Shortcut.
-2. Current Date, formatted ISO 8601, into `saidAt`. Make `clientId`: Text
-   `phone-` followed by the Current Date formatted ISO 8601 and a Random Number
-   from 1000 to 9999.
-3. Add `{kind: capture, text: said, saidAt, clientId}` to the end of the queue file (read it
-   as in Send queued; if missing start from an empty list) and Save it
-   (Overwrite). The sentence is on the phone before anything touches the
-   network: it cannot be lost.
-4. Send the queue exactly as Send queued does (steps 1 to 6 there, built
-   inline, oldest first, the new sentence last), with these differences:
-   - remember the last `error` seen (Get Dictionary Value `error`);
-   - the final notification is the new sentence's `receiptLine` if it was
-     filed; otherwise `Queued · <reason> · <M> waiting`, where `<reason>` is
-     the `error` if it has a value, else `Mac unreachable`.
-5. Show Notification.
+Each starts with two Text actions, the host and the token, asked for when the
+Shortcut is added.
 
-Order matters: the queue is sent oldest first, so the new sentence is last, and
-a day-old sentence is filed on the day it was said.
+## Install
 
-## Shortcut 3: Journal (evening)
+On the Mac, with Tailscale running:
 
-Built exactly like Capture, with these differences:
+```bash
+npm run shortcuts:build
+```
 
-- name it `Journal`; give Dictate Text a longer pause (an entry is several
-  sentences);
-- `clientId` starts `phone-journal-`;
-- the item added to the queue is `{kind: journal, text: said, saidAt, clientId}`;
-- the final notification is the new entry's `receiptLine`
-  (`journal · Written for <day>`), or `Queued · <reason> · <M> waiting`.
+It reads the Mac's tailnet name from Tailscale (or takes `--host
+https://<mac-host>`), builds the three Shortcuts from `lib/shortcuts.js`,
+signs them with `shortcuts sign` (this Mac's iCloud account), and writes them
+to `~/Downloads/PersonalOS-Shortcuts` (or `--out <dir>`).
 
-Run it from the Shortcuts app, the Lock Screen or a time-of-day automation
-(for example 22:00, Run Immediately); it needs no Action Button.
+1. Copy the token: `grep PERSONALOS_PHONE_TOKEN .env.local | cut -d= -f2 | tr -d '\n' | pbcopy`.
+2. Delete any older Capture, Journal and Send queued, or the new ones arrive
+   as "Capture 1".
+3. Open each file and add it: keep the host it suggests, paste the token.
+   iCloud brings them to the phone; or AirDrop the files and add them there.
+4. On the phone: Settings > Action Button > Shortcut > Capture.
 
-## The Action Button
+A Shortcut that fails with "choose a value for every parameter" has an action
+the editor could not read: open it, find the action with an empty or red
+field, fix `lib/shortcuts.js`, add a test for it, and rebuild.
 
-Settings > Action Button > Shortcut > Capture.
+## Journal from the Lock Screen or at a fixed time
+
+Run Journal from the Shortcuts app, Siri, a Lock Screen widget or a time-of-day
+automation (for example 22:00, Run Immediately); it needs no Action Button.
 
 ## Send queued at fixed times: a Personal Automation
 
@@ -143,27 +137,30 @@ Shortcut `Send queued`. Turn off Notify When Run.
 
 ## Check after building them
 
-Not automated; do each by hand on the phone and note the result in the PR.
+Not automated; do each by hand on the phone. All passed on 2026-11-11 (spec
+#221), with the Shortcuts from `npm run shortcuts:build`.
 
 1. **Mac awake.** Press the button, say a sentence. The notification shows the
    receipt line; the capture is in the Inbox with origin `shortcut`.
-2. **Mac asleep.** Sleep the Mac, press the button, say a sentence. The
-   notification says `Queued · Mac unreachable · 1 waiting`; the queue file
-   holds it. Wake the Mac and run Send queued: `Sent 1 · 0 waiting`. The
-   capture is filed on the day it was said (check across midnight too).
+2. **Mac asleep.** Sleep the Mac, press the button, say a sentence. Shortcuts
+   may stop on its own error rather than `Queued · Mac unreachable`: the
+   sentence is already in the queue either way. Wake the Mac and run Send
+   queued: the capture is filed on the day it was said.
 3. **A resend after a lost reply.** Put an item back in the queue with the same
    `clientId` as one already filed and run Send queued: it counts as sent and
    the Inbox shows one capture, not two.
-4. **A wrong token.** Change the token in the Shortcut, press the button: the
+4. **A refused item stays.** A queue whose first item is refused (an empty
+   `text`) keeps both items, in order, after Send queued, and the file is
+   still valid JSON.
+5. **A wrong token.** Change the token in the Shortcut, press the button: the
    notification says `Queued · unauthorized · N waiting`, the sentence is still
    in the queue. Put the token back and run Send queued.
-5. **Journal.** Run Journal and dictate an entry: the notification reads
+6. **Journal.** Run Journal and dictate an entry: the notification reads
    `journal · Written for <today>` and the Journal screen shows it today with
    the time you said it.
-6. **Journal overnight.** Sleep the Mac, run Journal at night: `Queued · Mac
-   unreachable · 1 waiting`. Next morning run Send queued: the entry is on the
-   evening it was said, with that evening's time, not on the morning.
-7. **Journal resend.** Put the same journal item back in the queue and run Send
-   queued: the Journal screen shows one entry.
-8. **Not served.** From the phone, `https://<mac-host>/api/captures` is not
-   served (ADR 0032).
+7. **Not served.** From the phone, `https://<mac-host>/` and
+   `https://<mac-host>/api/captures` are not served (ADR 0032).
+
+Checks 3 and 4 run from the Mac too: write the queue file in
+`~/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/` and
+`shortcuts run "Send queued"`.
