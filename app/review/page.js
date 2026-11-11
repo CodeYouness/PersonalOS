@@ -3,6 +3,7 @@ import ReviewReread from '@/components/ReviewReread.js';
 import ReviewWeekNav from '@/components/ReviewWeekNav.js';
 import ReviewWrite from '@/components/ReviewWrite.js';
 import { shiftDayKey, today } from '@/lib/domain/dates.js';
+import { leverOf } from '@/lib/domain/derive/review.js';
 import { BASELINE_WEEKS, weekFigures } from '@/lib/domain/derive/week.js';
 import { resolveReviewWeek } from '@/lib/domain/review-week.js';
 import {
@@ -39,7 +40,7 @@ export default async function ReviewScreen({ searchParams }) {
   const week = resolveReviewWeek(weekParam, todayKey);
 
   const lastDay = shiftDayKey(week.from, 6);
-  const [profile, dailyLogs, tasks, goals, journalEntries, transactions, captures, review, before] = await Promise.all([
+  const [profile, dailyLogs, tasks, goals, journalEntries, transactions, captures, review, previousReview] = await Promise.all([
     getProfile(),
     // The week before is read for the habits' "before" figure.
     getDailyLogs(shiftDayKey(week.from, -7), lastDay),
@@ -52,9 +53,9 @@ export default async function ReviewScreen({ searchParams }) {
     getReview('week', week.from),
     getReview('week', week.previous),
   ]);
-  // The lever the week before set -- only a completed review's counts, the
-  // same rule as the lever on Home (spec #232): a draft is not a decision.
-  const previousLever = before !== null && before.completedAt !== null && before.lever !== '' ? before.lever : null;
+  // The lever the week before set: the one rule Home uses (`leverOf`), so a
+  // draft or a blank lever is not shown here either.
+  const previousLever = leverOf(previousReview);
   const figures = weekFigures({
     profile,
     dailyLogs,
@@ -73,7 +74,7 @@ export default async function ReviewScreen({ searchParams }) {
         <article id="card-review" className="card span-12" data-week={week.isCurrent ? 'now' : 'past'}>
           <div className="card-head">
             <span className="eyebrow">Review</span>
-            {review !== null && review.completedAt !== null &&<span className="badge badge-tag">Complete</span>}
+            {review !== null && review.completedAt !== null && <span className="badge badge-tag">Complete</span>}
             {week.isCurrent && <span className="badge badge-tag">So far</span>}
             <ReviewWeekNav week={week} />
           </div>

@@ -1,8 +1,9 @@
 import Link from 'next/link';
 
-import { formatCount, formatEuro, slippedLabel, WEEKDAY_SHORT } from '@/components/format.js';
+import { formatCount, formatEuro, formatRating, slippedLabel, WEEKDAY_SHORT } from '@/components/format.js';
 import { crmAddress, goalsAddress } from '@/lib/domain/addresses.js';
 import { weekdayOf } from '@/lib/domain/dates.js';
+import { BASELINE_WEEKS } from '@/lib/domain/derive/week.js';
 
 const THIN_SPACE = String.fromCharCode(0x2009);
 const OF = THIN_SPACE + "/" + THIN_SPACE;
@@ -101,9 +102,11 @@ function SpendingFigures({ spending }) {
           {total === null ? <Unknown reason="no spending recorded" /> : <div className="v num">{formatEuro(total)}</div>}
         </div>
         <div className="stat">
-          <div className="k">{baseline.weeks === 0 ? 'Average, 4 weeks' : 'Average, ' + baseline.weeks + ' weeks'}</div>
+          <div className="k">
+            {baseline.weeks === 0 ? 'Average of earlier weeks' : 'Average, ' + baseline.weeks + (baseline.weeks === 1 ? ' week' : ' weeks')}
+          </div>
           {baseline.mean === null ? (
-            <Unknown reason="no earlier week to compare" />
+            <Unknown reason={'none of the ' + BASELINE_WEEKS + ' weeks before had spending'} />
           ) : (
             <div className="v num">{formatEuro(baseline.mean)}</div>
           )}
@@ -118,6 +121,11 @@ function SpendingFigures({ spending }) {
             </li>
           ))}
         </ul>
+      )}
+      {baseline.weeks > 0 && baseline.weeks < BASELINE_WEEKS && (
+        <p className="caption fig-note">
+          Only {baseline.weeks} of the {BASELINE_WEEKS} weeks before had spending.
+        </p>
       )}
       <p className="caption fig-note">Transfers and not-counted money left out; refunds taken off.</p>
     </div>
@@ -216,7 +224,7 @@ function WeekStats({ figures }) {
           <Unknown reason="none rated" />
         ) : (
           <div className="v num rating">
-            {rating.days + OF + days.length} <span className="caption">avg {rating.mean.toFixed(1)}</span>
+            {rating.days + OF + days.length} <span className="caption">avg {formatRating(rating.mean)}</span>
           </div>
         )}
       </div>

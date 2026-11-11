@@ -8,6 +8,7 @@ import {
   formatMoney,
   formatMoneyChange,
   formatPercentChange,
+  formatRating,
   formatRate,
   formatUnits,
   formatWeight,
@@ -175,5 +176,12 @@ describe('formatRate', () => {
 
   it('leaves a rate that means nothing blank', () => {
     expect(formatRate(null)).toBe('—');
+  });
+});
+
+describe('formatRating', () => {
+  it('always shows one decimal', () => {
+    expect(formatRating(3)).toBe('3.0');
+    expect(formatRating(3.46)).toBe('3.5');
   });
 });

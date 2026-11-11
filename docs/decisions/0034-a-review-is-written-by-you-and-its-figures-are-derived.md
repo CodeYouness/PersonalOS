@@ -31,7 +31,9 @@ written on its own inside the serialised write (ADR 0011), and
 **Completing is a fact that happened, so it is an event**: `review.completed`,
 written in the same write that sets `completedAt`, once. A correction after
 completion changes `updatedAt` and writes nothing, as for a task or goal. There
-is no reopen. Deleting removes the review and keeps the event.
+is no reopen. Deleting removes the review and keeps the event: events are
+never deleted, so deleting a completed review and completing a new one for the
+same week writes a second `review.completed` for that week.
 
 **Refusals live in the store**: unknown period, a `from` that is not the first
 day of its period or is in the future, over-long text (`limits`), unknown

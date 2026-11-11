@@ -295,6 +295,22 @@ describe('weekFigures: journal, rating, intake, captures', () => {
     expect(result.intake?.recordedDays).toBe(2);
   });
 
+  it("leaves today out of the intake in a week in progress, as the Health card does (story 44)", () => {
+    const meal = (/** @type {number} */ calories) => ({ id: 'm', label: 'm', time: null, calories, protein: null, carbs: null, fat: null });
+    const result = figures({
+      dailyLogs: [log('2026-10-05', {}, { meals: [meal(2000)] }), log('2026-10-07', {}, { meals: [meal(400)] })],
+      today: '2026-10-07',
+    });
+    expect(result.inProgress).toBe(true);
+    expect(result.intake?.calories).toBe(2000);
+    expect(result.intake?.recordedDays).toBe(1);
+  });
+
+  it('has no intake when the only meals are today', () => {
+    const meal = { id: 'm', label: 'm', time: null, calories: 400, protein: null, carbs: null, fat: null };
+    expect(figures({ dailyLogs: [log('2026-10-07', {}, { meals: [meal] })], today: '2026-10-07' }).intake).toBeNull();
+  });
+
   it('counts captures by the day they were said, in the user timezone', () => {
     const capture = (/** @type {string} */ saidAt) => ({ id: saidAt, text: 'x', origin: 'bar', destination: 'task', route: 'rules', createdAt: saidAt, saidAt, updatedAt: saidAt, source: 'capture' });
     const result = figures({

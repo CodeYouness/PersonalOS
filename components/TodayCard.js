@@ -25,19 +25,7 @@ export default async function TodayCard() {
 
   return (
     <article id="card-today" className="card span-12">
-      <div className="today-focus">
-        <span className="eyebrow">{last.lever ? 'This week\u2019s lever' : 'Today\u2019s focus'}</span>
-        <p className="focus-text">{last.lever ?? profile.focus}</p>
-        {last.lever ? <span className="caption">Set in last week&rsquo;s review</span> : null}
-        {last.pending ? (
-          <span className="caption">
-            No lever yet &middot;{' '}
-            <Link className="link-btn" href={reviewAddress(last.from)}>
-              Review last week
-            </Link>
-          </span>
-        ) : null}
-      </div>
+      <TodayFocus focus={profile.focus} last={last} />
       <div className="today-side">
         <div className="today-who">
           <span className="avatar-lg">{initials(profile.name)}</span>
@@ -53,6 +41,32 @@ export default async function TodayCard() {
         <span className="caption">{formatDayKey(todayKey)}</span>
       </div>
     </article>
+  );
+}
+
+/**
+ * The focus line: last week's lever when its review is complete with one,
+ * else the profile's focus. Under it, only when the lever is missing, a true
+ * sentence about why: no review of last week yet, or one not finished (even if
+ * a lever is typed in the draft -- a draft is not a decision).
+ *
+ * @param {{ focus: string, last: import('@/lib/domain/derive/review.js').LastWeekReview }} props
+ */
+export function TodayFocus({ focus, last }) {
+  return (
+    <div className="today-focus">
+      <span className="eyebrow">{last.lever ? 'This week\u2019s lever' : 'Today\u2019s focus'}</span>
+      <p className="focus-text">{last.lever ?? focus}</p>
+      {last.lever ? <span className="caption">Set in last week&rsquo;s review</span> : null}
+      {last.pending ? (
+        <span className="caption">
+          {last.started ? 'Last week\u2019s review is not finished' : 'No lever yet'} &middot;{' '}
+          <Link className="link-btn" href={reviewAddress(last.from)}>
+            {last.started ? 'Finish it' : 'Review last week'}
+          </Link>
+        </span>
+      ) : null}
+    </div>
   );
 }
 
