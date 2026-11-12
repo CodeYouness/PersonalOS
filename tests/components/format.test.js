@@ -8,7 +8,7 @@ import {
   formatMoney,
   formatMoneyChange,
   formatPercentChange,
-  formatRating,
+  formatDayReading,
   formatRate,
   formatUnits,
   formatWeight,
@@ -179,9 +179,9 @@ describe('formatRate', () => {
   });
 });
 
-describe('formatRating', () => {
+describe('formatDayReading', () => {
   it('always shows one decimal', () => {
-    expect(formatRating(3)).toBe('3.0');
-    expect(formatRating(3.46)).toBe('3.5');
+    expect(formatDayReading(3)).toBe('3.0');
+    expect(formatDayReading(3.46)).toBe('3.5');
   });
 });

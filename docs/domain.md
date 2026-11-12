@@ -326,7 +326,7 @@ of its own.
 | `figure:weight:latest`, `figure:weight-change:30d` | latest weight and its change | Nutrition & Health |
 | `figure:calories:today`, `protein:`, `carbs:`, `fat:` | today's totals | Nutrition & Health |
 | `figure:goal-progress:<goal id>`, `figure:goal-slip:<goal id>` | an open goal's progress (the one stored on the goal) and the period it has slipped to | Goals, that goal |
-| `figure:day-rating-avg:30d` | the average day rating over the 30 days ending today, and how many days it rests on (the Review screen's rating figure, `ratingSummary`); no figure with no rated day | Review, this week |
+| `figure:mood-avg:30d`, `figure:energy-avg:30d` | the average mood, and the average energy, over the 30 days ending today, each with how many days it rests on (the Review screen's figures, `readingSummary`); no figure for one that no day in the window was given | Review, this week |
 
 Finance figures follow "tracked since" exactly as the screens do: only the
 months on offer, the history and the 1-year change as the Finances screen
@@ -664,8 +664,8 @@ the week's Monday and today, and composes the existing habit, task, goal,
 nutrition and finance derivations -- spending uses the month's own rules
 (transfers and not-counted rows out, refunds reducing). The week containing
 today is *in progress*: every figure covers Monday up to today and the result
-says so. A figure with nothing behind it is `null`, never 0 -- no rated day
-means no mean rating, a week with no counted transaction means no spending
+says so. A figure with nothing behind it is `null`, never 0 -- no day given a
+mood means no mean mood, a week with no counted transaction means no spending
 total. A habit with no scheduled day in the week is left out.
 
 **The lever** is the one sentence you decide to carry into next week, shown
@@ -782,22 +782,37 @@ average at all.
 
 **Is not** a place for anything that must survive the day.
 
-**Has** `date`, `habits`, `meals`, `measurements`, `notes`, `rating`.
+**Has** `date`, `habits`, `meals`, `measurements`, `notes`, `mood`, `energy`.
 
-`rating` is how the day went: a whole number from 1 to 5 (the bounds are
-`limits.dayRatingMin` and `limits.dayRatingMax` in `personalos.config.js`), or
-`null` for unrated. It is canonical, it is a reading of the day rather than
-something that happened in it, and it is not a Measurement -- so setting it
-writes no event (ADR 0035). A future day is refused. A log written before the
-rating existed has no `rating` key and no migration adds one: every read of a
-log fills in `null`. It is set through `PUT /api/days/<day>` with
-`{ "rating": 4 }` or `{ "rating": null }`, which touches nothing else on the
-day.
+`mood` and `energy` are the day's two readings, below. Each is canonical, a
+reading of the day rather than something that happened in it, and not a
+Measurement -- so setting one writes no event (ADR 0035). A future day is
+refused. A log never given one has no key for it and no migration adds one:
+every read of a log fills in `null`. They are set through
+`PUT /api/days/<day>` with `{ "mood": 4 }`, `{ "energy": null }` or both, which
+touch nothing else on the day; `updateDailyLog` takes neither.
 
 `date` is `YYYY-MM-DD` **in the user's timezone**, produced by
 `lib/domain/dates.js` and nowhere else (ADR 0005). A day that was never
 written to reads back as an empty log rather than as missing, so callers can
 tell "you recorded nothing" apart from "outside the window".
+
+### Mood
+
+**Is** how the day felt, a whole number from 1 to 5 given by you, or `null`
+when not given (ADR 0037). It took the place of the day's single rating (ADR
+0035): schema v21 renamed every stored `rating` to `mood`, so a rating already
+given is a mood. Set by `setDayMood`.
+
+### Energy
+
+**Is** how much you had to give that day, on the same scale as mood, given by
+you, beside mood and independent of it (ADR 0037). Set by `setDayEnergy`.
+
+Both are read on one scale, `limits.dayReadingMin` to `limits.dayReadingMax`
+in `personalos.config.js`, checked by `isDayReading`
+(`lib/domain/day-readings.js`). Neither is ever read off the journal by a
+model.
 
 ---
 
@@ -1305,7 +1320,7 @@ double counting.
 
 Every term in this section is **planned, not built** (ADR 0037). The words
 are fixed here so the code that follows uses them; nothing below is stored or
-derived yet.
+derived yet. Mood and energy, decided with them, are built: see Daily Log.
 
 ### Check-in
 
@@ -1387,16 +1402,6 @@ so that the days inside it can be compared with the days outside. A review
 closes it. It is the only ground on which the system says a change did
 something.
 
-### Mood
-
-**Is** how the day felt, 1 to 5, given by you. It takes the place of the
-day's rating; a rating already given is a mood.
-
-### Energy
-
-**Is** how much you had to give that day, 1 to 5, given by you, beside mood
-and independent of it. Neither is ever read off the journal by a model.
-
 ### Time area
 
 **Is** one of a short, closed list of things your time goes to. Time is
@@ -1426,7 +1431,7 @@ on that day, and it is what tells "could not" from "chose not to".
 | memory entries | current net worth, an account's value between balances, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
-| daily logs (ticks, meals, measurements, the day's rating) | |
+| daily logs (ticks, meals, measurements, the day's mood and energy) | the average mood and energy over a week or 30 days, and how many days each rests on |
 | finance accounts (including valuation and archivedOn), observations, trades, prices, transactions (signed amount, counter account, notCounted, tags) | |
 | **net worth snapshots** — the one exception, not written in one currency (ADR 0022) | |
 

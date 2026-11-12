@@ -14,7 +14,7 @@ const period = (/** @type {string} */ from, /** @type {string | null} */ to = nu
 
 /** @returns {any} */
 const log = (/** @type {string} */ date, /** @type {any} */ habits = {}, /** @type {any} */ extra = {}) => ({
-  date, habits, meals: [], measurements: [], notes: [], rating: null, ...extra,
+  date, habits, meals: [], measurements: [], notes: [], mood: null, energy: null, ...extra,
 });
 
 /** @returns {any} */
@@ -257,7 +257,7 @@ describe('weekFigures: spending', () => {
   });
 });
 
-describe('weekFigures: journal, rating, intake, captures', () => {
+describe('weekFigures: journal, mood, energy, intake, captures', () => {
   const entry = (/** @type {string} */ id, /** @type {string} */ date, /** @type {string} */ saidAt) => ({
     id, date, text: id, tags: [], saidAt, createdAt: saidAt, updatedAt: saidAt, source: 'user',
   });
@@ -275,15 +275,36 @@ describe('weekFigures: journal, rating, intake, captures', () => {
     expect(result.journal.entries.map((/** @type {any} */ e) => e.id)).toEqual(['a', 'b', 'c']);
   });
 
-  it('averages the rated days only', () => {
+  it('averages the days given a mood only', () => {
     const result = figures({
-      dailyLogs: [log('2026-10-05', {}, { rating: 4 }), log('2026-10-06', {}, { rating: 2 }), log('2026-10-07'), { ...log('2026-10-08'), rating: undefined }],
+      dailyLogs: [log('2026-10-05', {}, { mood: 4 }), log('2026-10-06', {}, { mood: 2 }), log('2026-10-07'), { ...log('2026-10-08'), mood: undefined }],
     });
-    expect(result.rating).toEqual({ days: 2, mean: 3 });
+    expect(result.mood).toEqual({ days: 2, mean: 3 });
   });
 
-  it('has no rating mean, not zero, with no rated day', () => {
-    expect(figures({ dailyLogs: [log('2026-10-05')] }).rating).toEqual({ days: null, mean: null });
+  it('reads energy on its own, apart from mood', () => {
+    const result = figures({
+      dailyLogs: [
+        log('2026-10-05', {}, { mood: 4, energy: 1 }),
+        log('2026-10-06', {}, { energy: 4 }),
+        log('2026-10-07', {}, { mood: 5 }),
+        // Out of the week: never counted.
+        log('2026-10-12', {}, { energy: 5 }),
+      ],
+    });
+    expect(result.mood).toEqual({ days: 2, mean: 4.5 });
+    expect(result.energy).toEqual({ days: 2, mean: 2.5 });
+  });
+
+  it('has no mood or energy mean, not zero, with no day given one', () => {
+    const result = figures({ dailyLogs: [log('2026-10-05')] });
+    expect(result.mood).toEqual({ days: null, mean: null });
+    expect(result.energy).toEqual({ days: null, mean: null });
+  });
+
+  it('never reads a stored rating as a mood', () => {
+    // A v20 log migrated to v21 has no rating left; a stray one is not a mood.
+    expect(figures({ dailyLogs: [{ ...log('2026-10-05'), mood: undefined, rating: 4 }] }).mood).toEqual({ days: null, mean: null });
   });
 
   it('averages intake over the recorded days of the week', () => {
@@ -328,7 +349,8 @@ describe('weekFigures: a week with nothing at all', () => {
     expect(result.goals).toEqual({ completed: [], slipped: [] });
     expect(result.spending).toEqual({ total: null, baseline: { mean: null, weeks: 0 }, topCategories: [] });
     expect(result.journal).toEqual({ days: null, entries: [] });
-    expect(result.rating).toEqual({ days: null, mean: null });
+    expect(result.mood).toEqual({ days: null, mean: null });
+    expect(result.energy).toEqual({ days: null, mean: null });
     expect(result.intake).toBeNull();
     expect(result.captures).toBeNull();
   });

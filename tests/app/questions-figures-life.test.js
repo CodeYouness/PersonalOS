@@ -21,7 +21,7 @@ import { goalsAddress, habitsAddress, nutritionAddress, reviewAddress } from '@/
 import { goalBoard } from '@/lib/domain/derive/goals.js';
 import { HABITS_WINDOW_DAYS, historyRows, STREAK_WINDOW_DAYS, streak, windowSummary } from '@/lib/domain/derive/habits.js';
 import { healthAverages, weightTrend } from '@/lib/domain/derive/health.js';
-import { ratingSummary } from '@/lib/domain/derive/week.js';
+import { readingSummary } from '@/lib/domain/derive/week.js';
 import { calorieStanding, dayTotals } from '@/lib/domain/derive/nutrition.js';
 import { limits } from '@/personalos.config.js';
 
@@ -407,28 +407,56 @@ describe('goals', () => {
 });
 
 describe('how the days went', () => {
-  const ID = 'figure:day-rating-avg:30d';
+  const MOOD = 'figure:mood-avg:30d';
+  const ENERGY = 'figure:energy-avg:30d';
 
-  it('states the mean of the rated days over thirty days and how many days it rests on, from the Review screen derivation', async () => {
-    await store.setDayRating({ date: shiftDayKey(TODAY, -1), rating: 4 });
-    await store.setDayRating({ date: shiftDayKey(TODAY, -3), rating: 2 });
-    await store.setDayRating({ date: TODAY, rating: 3 });
+  it('states the mean mood over thirty days and how many days it rests on, from the Review screen derivation', async () => {
+    await store.setDayMood({ date: shiftDayKey(TODAY, -1), mood: 4 });
+    await store.setDayMood({ date: shiftDayKey(TODAY, -3), mood: 2 });
+    await store.setDayMood({ date: TODAY, mood: 3 });
     // Thirty days back is outside the thirty days ending today.
-    await store.setDayRating({ date: shiftDayKey(TODAY, -30), rating: 1 });
+    await store.setDayMood({ date: shiftDayKey(TODAY, -30), mood: 1 });
 
     const archive = await read.readArchive();
-    const expected = ratingSummary(archive.logs.filter((log) => log.date > shiftDayKey(TODAY, -30)));
-    const item = find(figures.lifeFigures(archive, { today: TODAY }), ID);
+    const expected = readingSummary(archive.logs.filter((log) => log.date > shiftDayKey(TODAY, -30)), 'mood');
+    const item = find(figures.lifeFigures(archive, { today: TODAY }), MOOD);
 
     expect(expected).toEqual({ days: 3, mean: 3 });
     expect(item?.type).toBe('figure');
     expect(item?.content).toContain('3.0');
-    expect(item?.content).toContain('3 rated days');
+    expect(item?.content).toContain('3 days');
+    expect(item?.content).toContain('mood');
     expect(item?.opens).toBe(reviewAddress('2026-09-21'));
   });
 
-  it('is no figure, rather than zero, when no day in the window is rated', async () => {
-    await store.setDayRating({ date: shiftDayKey(TODAY, -40), rating: 5 });
-    expect(find(await build(), ID)).toBeUndefined();
+  it('states the mean energy apart from the mood', async () => {
+    await store.setDayEnergy({ date: shiftDayKey(TODAY, -2), energy: 5 });
+    await store.setDayEnergy({ date: TODAY, energy: 2 });
+    await store.setDayMood({ date: TODAY, mood: 4 });
+
+    const archive = await read.readArchive();
+    const expected = readingSummary(archive.logs.filter((log) => log.date > shiftDayKey(TODAY, -30)), 'energy');
+    const items = figures.lifeFigures(archive, { today: TODAY });
+
+    expect(expected).toEqual({ days: 2, mean: 3.5 });
+    expect(find(items, ENERGY)?.content).toContain('3.5');
+    expect(find(items, ENERGY)?.content).toContain('2 days');
+    expect(find(items, MOOD)?.content).toContain('4.0');
+    expect(find(items, MOOD)?.content).toContain('1 day ');
+  });
+
+  it('is no figure, rather than zero, when no day in the window has a mood or an energy', async () => {
+    await store.setDayMood({ date: shiftDayKey(TODAY, -40), mood: 5 });
+    await store.setDayEnergy({ date: shiftDayKey(TODAY, -40), energy: 5 });
+    const items = await build();
+    expect(find(items, MOOD)).toBeUndefined();
+    expect(find(items, ENERGY)).toBeUndefined();
+  });
+
+  it('gives an energy figure without a mood one, and the other way round', async () => {
+    await store.setDayEnergy({ date: TODAY, energy: 3 });
+    const items = await build();
+    expect(find(items, ENERGY)).toBeDefined();
+    expect(find(items, MOOD)).toBeUndefined();
   });
 });

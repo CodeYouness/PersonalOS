@@ -1,5 +1,6 @@
 /**
- * PUT /api/days/[date] (#243): rate a day, or clear the rating.
+ * PUT /api/days/[date]: give a day its mood and energy, or clear either
+ * (#243, ADR 0037).
  */
 
 import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -50,29 +51,48 @@ function put(date, body) {
 }
 
 describe('PUT /api/days/[date]', () => {
-  it('sets, changes and clears the rating of today', async () => {
+  it('sets, changes and clears the mood of today', async () => {
     const day = dates.today();
-    expect((await put(day, { rating: 4 })).status).toBe(200);
-    expect((await store.getDailyLog(day)).rating).toBe(4);
-    expect((await put(day, { rating: 2 })).status).toBe(200);
-    expect((await store.getDailyLog(day)).rating).toBe(2);
-    expect((await put(day, { rating: null })).status).toBe(200);
-    expect((await store.getDailyLog(day)).rating).toBeNull();
+    expect((await put(day, { mood: 4 })).status).toBe(200);
+    expect((await store.getDailyLog(day)).mood).toBe(4);
+    expect((await put(day, { mood: 2 })).status).toBe(200);
+    expect((await store.getDailyLog(day)).mood).toBe(2);
+    expect((await put(day, { mood: null })).status).toBe(200);
+    expect((await store.getDailyLog(day)).mood).toBeNull();
+  });
+
+  it('sets the energy apart from the mood, and both at once', async () => {
+    const day = dates.today();
+    await put(day, { mood: 4 });
+    const response = await put(day, { energy: 2 });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, mood: 4, energy: 2 });
+    expect(await (await put(day, { mood: 1, energy: 5 })).json()).toEqual({ ok: true, mood: 1, energy: 5 });
+    expect((await put(day, { energy: null })).status).toBe(200);
+    const log = await store.getDailyLog(day);
+    expect(log.mood).toBe(1);
+    expect(log.energy).toBeNull();
   });
 
   it('refuses a bad request with 400 and writes nothing', async () => {
     const day = dates.today();
     const file = path.join(sandbox, 'personalos.json');
-    await put(day, { rating: 3 });
+    await put(day, { mood: 3, energy: 3 });
     const before = await readFile(file, 'utf8');
     const bad = [
-      put('2026-13-45', { rating: 3 }),
-      put('not-a-day', { rating: 3 }),
-      put(dates.shiftDayKey(day, 1), { rating: 3 }),
-      put(day, { rating: 0 }),
-      put(day, { rating: 6 }),
-      put(day, { rating: 2.5 }),
-      put(day, { rating: '3' }),
+      put('2026-13-45', { mood: 3 }),
+      put('not-a-day', { energy: 3 }),
+      put(dates.shiftDayKey(day, 1), { mood: 3 }),
+      put(day, { mood: 0 }),
+      put(day, { energy: 6 }),
+      put(day, { mood: 2.5 }),
+      put(day, { energy: '3' }),
+      // One good value does not carry a bad one: neither is written.
+      put(day, { mood: 4, energy: 9 }),
+      put(day, { mood: 9, energy: 4 }),
+      // The old shape is not accepted, alone or beside a new field.
+      put(day, { rating: 3 }),
+      put(day, { mood: 4, rating: 3 }),
       put(day, {}),
       put(day, 'not json'),
       put(day, [3]),
@@ -83,13 +103,15 @@ describe('PUT /api/days/[date]', () => {
 });
 
 describe('GET /api/days/[date]', () => {
-  it('answers with the saved rating, null for an unrated day', async () => {
+  it('answers with the saved mood and energy, null for a day given neither', async () => {
     const day = dates.today();
     const read = async () =>
       (await route.GET(new Request('http://localhost/api/days/' + day), { params: Promise.resolve({ date: day }) })).json();
-    expect(await read()).toEqual({ ok: true, rating: null });
-    await put(day, { rating: 3 });
-    expect(await read()).toEqual({ ok: true, rating: 3 });
+    expect(await read()).toEqual({ ok: true, mood: null, energy: null });
+    await put(day, { mood: 3 });
+    expect(await read()).toEqual({ ok: true, mood: 3, energy: null });
+    await put(day, { energy: 2 });
+    expect(await read()).toEqual({ ok: true, mood: 3, energy: 2 });
   });
 
   it('refuses a date that is not a day', async () => {
