@@ -1301,6 +1301,117 @@ double counting.
 
 ---
 
+## Jarvis (planned)
+
+Every term in this section is **planned, not built** (ADR 0037). The words
+are fixed here so the code that follows uses them; nothing below is stored or
+derived yet.
+
+### Check-in
+
+**Is** the one conversation a day in which the system asks and you answer:
+a few questions, under three minutes, on the dashboard or from a channel.
+There is one per day and it can be answered in pieces.
+
+**Is not** a form with a confirmation at each step. The answers are filed at
+once and the receipt is where you correct them.
+
+### Check-in question
+
+**Is** something today's data does not yet say: a habit scheduled and not
+ticked, an appointment that has passed, mood or energy not given -- plus one
+open question that is always there. Which questions are asked is computed
+from the data, never by a model, and a thing the system already knows is not
+asked.
+
+### Action
+
+**Is** one named write the system can make on your behalf -- tick a habit,
+record time, add a journal entry -- with the fields it takes and how it is
+undone. A capture, an answer to a check-in question and a skill all write
+through actions, so one sentence may produce several.
+
+An action is either **reversible**, and made at once, or a **proposal** you
+accept. No action reaches outside the system.
+
+### Receipt
+
+**Is** what you are shown after the system filed something: one line per
+action made, each one undoable or correctable. The check-in ends with one
+receipt for all of it.
+
+### Skill
+
+**Is** one thing the system knows how to do, by name: run the check-in,
+import a statement, read the week. It may be started by you, by a schedule or
+by another skill, and it says which engine runs it. A skill that needs the
+strong model starts only on your command.
+
+### Run
+
+**Is** one execution of a skill, kept: who or what started it, when, how
+long it took, what it cost, how it ended, and what it wrote. The history of
+runs is how the system answers "what did you do, and when".
+
+### Coach
+
+**Is** the stance the system takes when it speaks about you: it pushes on
+commitments you made, cites your data for every push, and proposes rather
+than reproaches. It compares descriptively, always with the number of days,
+and never says one thing causes another outside an experiment.
+
+**Is not** therapy, and not a source of advice with no record behind it.
+
+### Observation
+
+**Is** a statement the coach wrote about a period, citing the records and
+figures it rests on. It is **proposed**, then **kept** or **discarded** by
+you; a discarded one does not come back. It is the one text a model writes
+that is kept, and only after you keep it.
+
+**Is not** a memory: a memory is a fact about you, an observation is a
+reading of a period.
+
+### Commitment
+
+**Is** a promise in the form "if this happens, then I do that", made by you,
+usually on a goal. It is shown again when what it protects slips, because a
+plan never shown again does nothing.
+
+**Is not** a task: nothing completes it.
+
+### Experiment
+
+**Is** a change you declare for a fixed stretch -- "this, for two weeks" --
+so that the days inside it can be compared with the days outside. A review
+closes it. It is the only ground on which the system says a change did
+something.
+
+### Mood
+
+**Is** how the day felt, 1 to 5, given by you. It takes the place of the
+day's rating; a rating already given is a mood.
+
+### Energy
+
+**Is** how much you had to give that day, 1 to 5, given by you, beside mood
+and independent of it. Neither is ever read off the journal by a model.
+
+### Time area
+
+**Is** one of a short, closed list of things your time goes to. Time is
+declared against an area for a day, in half hours.
+
+**Is not** measured from a screen or a calendar.
+
+### Skip reason
+
+**Is** why a scheduled habit was not kept on a day, from a closed list:
+forgotten, too heavy, skipped on purpose, paused. It belongs to that habit
+on that day, and it is what tells "could not" from "chose not to".
+
+---
+
 ## Canonical vs derived — the register
 
 | Canonical | Derived (never stored) |

@@ -1,6 +1,6 @@
 # 0028. A question is asked on purpose, and never stored
 
-- **Status** accepted
+- **Status** accepted, superseded in part by [0037](0037-jarvis-the-check-in-is-the-product.md)
 - **Date** 2026-10-12
 
 ## Context

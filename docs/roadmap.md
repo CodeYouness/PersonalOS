@@ -50,6 +50,27 @@ hardest so each finished one is usable the same evening.
 | 19 | **Capture from the phone** | **Done** (#221, #229, ADR 0032, ADR 0033). The phone reaches `/api/capture` and `/api/journal` over Tailscale with a token; a capture carries its origin, when it was said and a `clientId`, so a resend is filed once and answered without a model call. **Capture from the Action Button** (#229): `docs/shortcuts.md` describes the Capture and Send queued Shortcuts and the Personal Automation, with a queue on the phone that keeps every sentence until the Mac takes it. The hand checks on the phone are listed in that file. **The journal from the phone** (#230): the journal route takes `saidAt` and `clientId`, an entry keeps when it was said (schema 19), and a third Shortcut with the same shared queue dictates it. The three Shortcuts are generated and signed by `npm run shortcuts:build` (ADR 0036); the hand checks passed on 2026-11-11, so spec #221 is complete. |
 | 20 | **Close the loop: the weekly review** | **Spec #232 shipped**: **the day's rating** (#243, ADR 0035), one tap, 1 to 5, on the daily log; **the Close the day card** on Home (#235): the rating, the habits still open and one line for the journal; **the review record** (#236, ADR 0034): one review per week, completing it is an event; **the Review screen and its figures** (#237, #239): the week's derived figures and the journal reread, a week stepper; **the lever on Home** (#241): the Today card shows last week's lever and links to last week's review while it is unfinished; **questions cite reviews and the day rating** (#242). **Writing the review done** (#240, spec #232, ADR 0034). The Review screen opens a week, Monday to Sunday: the derived figures, the reread of the journal, then three questions and one lever that you write. Answers and lever save when you leave the field, Complete records the week once and a completed review stays correctable, Delete asks first. The previous week's lever shows above this week's. The review you write calls no model; the one a model writes is still not built (see Deliberately not now). |
 
+## Jarvis
+
+The direction after ADR 0037: the daily check-in is the product, and each
+stage is used for a few days before the next one starts.
+
+| Stage | What you get | Status |
+| --- | --- | --- |
+| 0 | **Clean-up**: one `main` to start from, the open pull requests landed, ADR 0037 | in progress |
+| 1 | **Check-in**: the daily questions on the dashboard, answers filed as several records with one receipt and undo; the action registry, the provider interface, mood and energy, a habit's rate and skip reason, time against areas | not started |
+| 2 | **Money**: statements imported and categorised, with a dry run; the statements are the transactions of the accounts that have them | not started |
+| 3 | **Telegram and schedules**: the evening reminder, light captures and answers from Telegram, scheduled syncs, a nightly backup, the run log, live updates | not started |
+| 4 | **The five places**: Today, Journal, Review, Money, Jarvis | not started |
+| 5 | **SQLite and search**: a second adapter behind the same contract, full-text search, the journal mirrored to Markdown, personal data outside the repository | not started |
+| 6 | **The coach**: the weekly reading on your command, observations you keep or discard, commitments that come back, declared experiments, the monthly wellbeing scale | not started |
+| 7 | **Voice**: voice notes and the microphone transcribed on the machine, then speech out | not started |
+
+**Frozen**, not deleted, with no new work: the CRM's temperature and
+by-person view (the board becomes a list of commitments in Today), calorie
+tracking, and the one-off importers (`data:import-sheet`,
+`data:import-degiro`, the demo-finance script).
+
 ## Planned, designed, not built
 
 - **xlsx transaction import.** The model is ready: `upsertTransactionByOrigin`
