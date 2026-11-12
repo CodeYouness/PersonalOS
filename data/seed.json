@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 19,
+  "schemaVersion": 20,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -477,6 +477,32 @@
         "written": 4
       },
       "source": "integration"
+    },
+    {
+      "id": "event_seed_4",
+      "type": "review.completed",
+      "at": "2026-01-12T07:30:00.000Z",
+      "date": "2026-01-12",
+      "subject": "review_seed_1",
+      "payload": {},
+      "source": "user"
+    }
+  ],
+  "reviews": [
+    {
+      "id": "review_seed_1",
+      "period": "week",
+      "from": "2026-01-05",
+      "answers": {
+        "worked": "Walking before the first meeting. The days I did it went better.",
+        "heldBack": "Two late evenings of admin kept me off the morning routine.",
+        "change": "Block the admin into one afternoon."
+      },
+      "lever": "Walk before opening the laptop",
+      "completedAt": "2026-01-12T07:30:00.000Z",
+      "createdAt": "2026-01-12T07:20:00.000Z",
+      "updatedAt": "2026-01-12T07:30:00.000Z",
+      "source": "user"
     }
   ],
   "dailyLogs": {
@@ -558,21 +584,24 @@
       "habits": { "habit_move": true, "habit_read": true, "habit_water": 8, "habit_deep_work": 3 },
       "meals": [],
       "measurements": [],
-      "notes": []
+      "notes": [],
+      "rating": 4
     },
     "2026-01-07": {
       "date": "2026-01-07",
       "habits": { "habit_move": true, "habit_read": false, "habit_water": 6, "habit_deep_work": 2 },
       "meals": [],
       "measurements": [],
-      "notes": []
+      "notes": [],
+      "rating": 3
     },
     "2026-01-08": {
       "date": "2026-01-08",
       "habits": { "habit_move": false, "habit_read": true, "habit_water": 8, "habit_deep_work": 3 },
       "meals": [],
       "measurements": [],
-      "notes": []
+      "notes": [],
+      "rating": 5
     },
     "2026-01-09": {
       "date": "2026-01-09",
@@ -593,7 +622,8 @@
       "habits": { "habit_move": false, "habit_read": true, "habit_water": 5 },
       "meals": [],
       "measurements": [],
-      "notes": []
+      "notes": [],
+      "rating": 2
     },
     "2026-01-12": {
       "date": "2026-01-12",
@@ -607,7 +637,8 @@
       "habits": { "habit_move": true, "habit_read": true, "habit_water": 8, "habit_deep_work": 2 },
       "meals": [],
       "measurements": [],
-      "notes": []
+      "notes": [],
+      "rating": 4
     },
     "2026-01-15": {
       "date": "2026-01-15",

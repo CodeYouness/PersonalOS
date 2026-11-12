@@ -1,4 +1,4 @@
-# 0034. The Shortcuts are generated, not built by hand
+# 0036. The Shortcuts are generated, not built by hand
 
 - **Status** accepted
 - **Date** 2026-11-11

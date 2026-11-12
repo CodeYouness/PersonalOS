@@ -9,7 +9,8 @@
  * property of the date, not of the value, so the weekends the history lands
  * on are days off for a habit kept on weekdays.
  *
- * Only the habit values move. Meals, measurements and notes carry instants of
+ * Only the habit values and the day's rating move (a rating is a reading of
+ * the day, so it stays with the habits it was given beside). Meals, measurements and notes carry instants of
  * their own and stay on the days they were seeded, and the habits' periods
  * stay where they are -- the demo periods open before the history and are
  * still open, so every moved day is inside one. data/seed.json itself is
@@ -17,7 +18,7 @@
  */
 
 import { ORIGIN_SOURCES } from '../personalos.config.js';
-import { dayKeyRange, shiftDayKey } from '../lib/domain/dates.js';
+import { dayKeyRange, shiftDayKey, weekDayKeys } from '../lib/domain/dates.js';
 
 /**
  * @template {{ dailyLogs: Record<string, import('../lib/domain/types.js').DailyLog> }} Seed
@@ -27,7 +28,47 @@ import { dayKeyRange, shiftDayKey } from '../lib/domain/dates.js';
  *   habit history already ends yesterday or later
  */
 export function seedForSandbox(seed, todayKey) {
-  return withSyncedHolding(withHabitsEndingYesterday(seed, todayKey));
+  return withReviewInLastWeek(withSyncedHolding(withHabitsEndingYesterday(seed, todayKey)), todayKey);
+}
+
+/**
+ * The demo review moves to the last completed week, so the Review screen and
+ * the lever read it as recent whatever day the sandbox starts. Its instants
+ * and its `review.completed` event move by the same number of days. The seed
+ * is returned as given when it has no review or the review is already that
+ * recent.
+ *
+ * @template {object} Seed
+ * @param {Seed} seed
+ * @param {string} todayKey
+ * @returns {Seed}
+ */
+function withReviewInLastWeek(seed, todayKey) {
+  const document = /** @type {any} */ (seed);
+  if (!Array.isArray(document.reviews) || document.reviews.length === 0) return seed;
+  const lastMonday = shiftDayKey(weekDayKeys(todayKey)[0], -7);
+  const demo = document.reviews[0];
+  if (demo.from >= lastMonday) return seed;
+  const days = dayKeyRange(demo.from, lastMonday).length - 1;
+  const move = (/** @type {string} */ instant) => new Date(Date.parse(instant) + days * 86_400_000).toISOString();
+  return /** @type {Seed} */ ({
+    ...document,
+    reviews: [
+      {
+        ...demo,
+        from: lastMonday,
+        createdAt: move(demo.createdAt),
+        updatedAt: move(demo.updatedAt),
+        completedAt: demo.completedAt === null ? null : move(demo.completedAt),
+      },
+      ...document.reviews.slice(1),
+    ],
+    events: document.events.map((/** @type {any} */ event) =>
+      event.subject === demo.id
+        ? { ...event, at: move(event.at), date: shiftDayKey(event.date, days) }
+        : event
+    ),
+  });
 }
 
 /**
@@ -72,6 +113,14 @@ function withSyncedHolding(seed) {
 }
 
 /**
+ * @param {import('../lib/domain/types.js').DailyLog} log
+ * @returns {boolean}
+ */
+function isRated(log) {
+  return typeof log.rating === 'number';
+}
+
+/**
  * @template {{ dailyLogs: Record<string, import('../lib/domain/types.js').DailyLog> }} Seed
  * @param {Seed} seed
  * @param {string} todayKey
@@ -79,7 +128,7 @@ function withSyncedHolding(seed) {
  */
 function withHabitsEndingYesterday(seed, todayKey) {
   const days = Object.keys(seed.dailyLogs)
-    .filter((day) => Object.keys(seed.dailyLogs[day].habits).length > 0)
+    .filter((day) => Object.keys(seed.dailyLogs[day].habits).length > 0 || isRated(seed.dailyLogs[day]))
     .sort();
   if (days.length === 0) return seed;
 
@@ -93,17 +142,19 @@ function withHabitsEndingYesterday(seed, todayKey) {
   // onto a day not yet moved.
   const dailyLogs = structuredClone(seed.dailyLogs);
   for (const day of days) {
-    const rest = { ...dailyLogs[day], habits: {} };
-    // A day that held only habit values goes, rather than staying behind empty.
+    // A seed day may carry no `rating` key at all (older seeds), so the shape here is the raw document's.
+    const { rating: _rating, ...rest } = /** @type {any} */ ({ ...dailyLogs[day], habits: {} });
+    // A day that held only habit values or a rating goes, rather than staying behind empty.
     if (rest.meals.length + rest.measurements.length + rest.notes.length === 0) delete dailyLogs[day];
     else dailyLogs[day] = rest;
   }
   for (const day of days) {
     const target = shiftDayKey(day, offset);
-    dailyLogs[target] = {
+    dailyLogs[target] = /** @type {any} */ ({
       ...(dailyLogs[target] ?? { date: target, meals: [], measurements: [], notes: [] }),
       habits: structuredClone(seed.dailyLogs[day].habits),
-    };
+      ...(isRated(seed.dailyLogs[day]) ? { rating: seed.dailyLogs[day].rating } : {}),
+    });
   }
   return { ...seed, dailyLogs };
 }

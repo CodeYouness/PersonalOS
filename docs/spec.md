@@ -53,6 +53,7 @@ not get built.
 | Health | how is the month going |
 | Goals | what did I promise myself |
 | Finance | am I going up or down |
+| Close the day | how did today go, and what is left |
 
 Rules that hold for all of them:
 
@@ -62,6 +63,49 @@ Rules that hold for all of them:
 - Numbers right-aligned with tabular figures, so columns stay comparable.
 - Colour carries meaning, never decoration -- and the metric decides the
   colour, not the sign. Weight going down may be exactly what you wanted.
+
+## Closing the day
+
+The Close the day card on Home is the end of the day, three things that each
+save on their own and none of which is required:
+
+- **A rating**, one tap from 1 to 5, neutral in colour, correctable and
+  clearable. Once rated, the card shows the rating given.
+- **Habits still open**: how many of today's scheduled habits are not
+  complete, by the Habits card's own rule. A habit with a day off today is not
+  counted.
+- **One line for the journal**, saved to today as an ordinary journal entry
+  -- the Journal screen shows it like any other, and nothing marks it as
+  coming from the card. The line being typed is kept only in the card; a
+  failed save leaves it in the field.
+
+No state marks a day as closed: a day is closed when it is rated, and that is
+derived. The card reads the day's log and the habit list, and nothing else;
+loading it calls no model and no integration.
+
+## Review
+
+The Review screen opens one week, Monday to Sunday, and reads top to bottom as
+four steps. With no `?week=` it opens on the week containing today on a
+Sunday and on the week before on any other day; the stepper moves a week at a
+time and never past the week in progress.
+
+1. **What happened** -- derived, never typed, and never stored: opening an old
+   week recomputes its figures from the data as it stands now.
+2. **Reread** -- the week's journal entries in order, each opening its day.
+3. **Three questions** -- what worked, what held me back, what I change next
+   week. Each answer is optional and saves when you leave the field; the
+   wording is a constant in `personalos.config.js`.
+4. **One lever** for the week after -- a single short sentence, optional. The
+   lever of the *completed* review of the week before is shown above it, so
+   "what held me back" is answered against what you said you would do.
+
+**Complete** records the review as done and puts it on the timeline once; the
+header then says "Complete". A completed review stays correctable and a
+correction does not complete it again. **Delete** asks first. A refused save
+(an answer over the limit says so in the server's own words) leaves the screen
+showing what is stored, not what was typed. Loading the screen calls no model
+and no integration. The record is in `docs/domain.md` (Review) and ADR 0034.
 
 ## Habits
 

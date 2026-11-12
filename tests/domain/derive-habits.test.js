@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { completionRatio, dayCompletion, habitsForDay, historyRows, isActiveOn, isScheduledOn, justCompleted, ratesByHabit, streak, windowSummary } from '@/lib/domain/derive/habits.js';
+import { completionRatio, dayCompletion, habitsForDay, historyRows, isActiveOn, isScheduledOn, justCompleted, openHabits, ratesByHabit, streak, windowSummary } from '@/lib/domain/derive/habits.js';
 import { averagesOverRecordedDays, caloriesFromMacros, dayTotals } from '@/lib/domain/derive/nutrition.js';
 
 /** Every weekday, ISO 1 (Monday) to 7 (Sunday): a habit kept every day. */
@@ -606,5 +606,28 @@ describe('today on the home card', () => {
     const { scheduled, off } = habitsForDay(/** @type {any} */ ([gym, move, stretch, gone]), MON);
     expect(ids(scheduled)).toEqual(['habit_gym', 'habit_move', 'habit_stretch']);
     expect(off).toEqual([]);
+  });
+});
+
+describe('openHabits', () => {
+  const gym = { id: 'habit_gym', label: 'Gym', type: 'check', periods: [{ from: '2026-01-01', to: null, days: [1, 3, 5], target: null }] };
+
+  it('lists the scheduled habits not complete, in habit order', () => {
+    const day = log('2026-01-05', { habit_move: true, habit_water: 3 });
+    expect(openHabits(/** @type {any} */ ([...habits, gym]), day).map((habit) => habit.id)).toEqual(['habit_water', 'habit_gym']);
+  });
+
+  it('counts a counter complete only at its target', () => {
+    expect(openHabits(/** @type {any} */ (habits), log('2026-01-05', { habit_move: true, habit_water: 8 }))).toEqual([]);
+  });
+
+  it('leaves out a habit with a day off, ticked or not', () => {
+    // 2026-01-06 is a Tuesday: the gym is off.
+    expect(openHabits(/** @type {any} */ ([gym]), log('2026-01-06', {}))).toEqual([]);
+  });
+
+  it('leaves out a habit not active that day', () => {
+    const old = { id: 'habit_old', label: 'Old', type: 'check', periods: [{ from: '2026-01-01', to: '2026-01-04', days: ALL_DAYS, target: null }] };
+    expect(openHabits(/** @type {any} */ ([old]), log('2026-01-05', {}))).toEqual([]);
   });
 });

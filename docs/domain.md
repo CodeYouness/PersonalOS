@@ -326,6 +326,7 @@ of its own.
 | `figure:weight:latest`, `figure:weight-change:30d` | latest weight and its change | Nutrition & Health |
 | `figure:calories:today`, `protein:`, `carbs:`, `fat:` | today's totals | Nutrition & Health |
 | `figure:goal-progress:<goal id>`, `figure:goal-slip:<goal id>` | an open goal's progress (the one stored on the goal) and the period it has slipped to | Goals, that goal |
+| `figure:day-rating-avg:30d` | the average day rating over the 30 days ending today, and how many days it rests on (the Review screen's rating figure, `ratingSummary`); no figure with no rated day | Review, this week |
 
 Finance figures follow "tracked since" exactly as the screens do: only the
 months on offer, the history and the 1-year change as the Finances screen
@@ -335,7 +336,8 @@ figures: no screen shows them.
 A citation opens what it cites. The context decides where, from the record --
 never the model: a task on the CRM screen, a goal on Goals, a journal entry on
 its day, a memory on the day of the entry it was drawn from, a transaction and
-an account on Finances, a meal on its day of Nutrition & Health
+an account on Finances, a completed review on its week of the Review screen
+(`/review?week=`; an unfinished review is not sent), a meal on its day of Nutrition & Health
 (`/nutrition?day=`, only while that day is inside the Health card's window).
 A record with no screen of its own -- a capture, a person, a balance, an
 event, the profile -- expands in place, showing its content.
@@ -408,6 +410,9 @@ through `subject`; `payload` carries only what has no entity of its own, such
 as a failed sync.
 
 **Has** `type` (from `EVENT_TYPES`), `at`, `date`, `subject`, `payload`.
+
+`review.completed` is written once, when a review is first completed; its
+subject is the review (see Review).
 
 `date` is stored alongside `at` so a timeline can be queried by day without
 every reader re-deriving it — and re-deriving it in the wrong timezone.
@@ -637,6 +642,63 @@ progress should be derived instead; nothing links one yet.
 
 ---
 
+## Review
+
+**Is** what you wrote about a week, and nothing else (ADR 0034). One review
+per `(period, from)`: `period` is a closed vocabulary, `REVIEW_PERIODS` in
+`personalos.config.js`, today only `week`, and `from` is the day key of the
+period's first day -- a Monday for `week`.
+
+**Is not** a report. The week's figures (habits, intake, spending, what was
+closed) are derived when the review is read and are never stored in it, or
+the record could disagree with the days it describes. The words are the only
+thing that is yours to lose, so they are the only thing stored.
+
+**Has** `period`, `from`, `answers` (`worked`, `heldBack`, `change`, each a
+string, possibly empty), `lever`, `completedAt`, and the usual `id`,
+`createdAt`, `updatedAt`.
+
+**The week's figures** are one derivation, `weekFigures` in
+`lib/domain/derive/week.js`: it takes the inputs the screens already read and
+the week's Monday and today, and composes the existing habit, task, goal,
+nutrition and finance derivations -- spending uses the month's own rules
+(transfers and not-counted rows out, refunds reducing). The week containing
+today is *in progress*: every figure covers Monday up to today and the result
+says so. A figure with nothing behind it is `null`, never 0 -- no rated day
+means no mean rating, a week with no counted transaction means no spending
+total. A habit with no scheduled day in the week is left out.
+
+**The lever** is the one sentence you decide to carry into next week, shown
+where you look at the day. It is part of the review that wrote it: it is not
+a task and not a goal, and nothing completes it.
+
+*Where it is shown*: the Today card on Home. This week's lever is derived
+(`lastWeekReview` in `lib/domain/derive/review.js`), never stored: it is the
+`lever` of the **completed** review whose `from` is the Monday before this
+week's Monday. A lever set on Sunday shows from Monday; an unfinished review's
+never shows; an empty one is none. With a lever the card shows it in place of
+`Profile.focus`, which is left as it is; without one the card shows `focus`.
+While last week's review is absent or unfinished the card also links to it
+(`/review?week=<monday>`). Loading Home reads the saved review and nothing else.
+
+Answers and lever have length limits, `limits.reviewAnswerMaxLength` and
+`limits.reviewLeverMaxLength`. An answer or the lever may be empty.
+
+A review is made, or merged into, by a single save of any subset of the
+fields; each field is written on its own inside the serialised write, so two
+saves a moment apart both land. `from` must be a Monday and not after the
+week containing today: nobody reviews a week that has not started.
+
+**Completing** sets `completedAt` once and the timeline hears it once, as
+`review.completed`, in the same write. A later correction changes
+`updatedAt` and writes no event. There is no reopen. **Deleting** removes
+the review; its event stays, because the week was closed whatever became of
+the words.
+
+A citation of a review opens `/review?week=<monday>`.
+
+---
+
 ## Habit
 
 **Is** something you do on set days of the week — every day unless you say
@@ -720,7 +782,17 @@ average at all.
 
 **Is not** a place for anything that must survive the day.
 
-**Has** `date`, `habits`, `meals`, `measurements`, `notes`.
+**Has** `date`, `habits`, `meals`, `measurements`, `notes`, `rating`.
+
+`rating` is how the day went: a whole number from 1 to 5 (the bounds are
+`limits.dayRatingMin` and `limits.dayRatingMax` in `personalos.config.js`), or
+`null` for unrated. It is canonical, it is a reading of the day rather than
+something that happened in it, and it is not a Measurement -- so setting it
+writes no event (ADR 0035). A future day is refused. A log written before the
+rating existed has no `rating` key and no migration adds one: every read of a
+log fills in `null`. It is set through `PUT /api/days/<day>` with
+`{ "rating": 4 }` or `{ "rating": null }`, which touches nothing else on the
+day.
 
 `date` is `YYYY-MM-DD` **in the user's timezone**, produced by
 `lib/domain/dates.js` and nowhere else (ADR 0005). A day that was never
@@ -1238,11 +1310,12 @@ double counting.
 | task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates, history heatmap cells, the thirty-day summary |
 | people | health averages, day totals |
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
+| reviews (answers, lever, completedAt) | a review's week figures: habits, intake, spending, what was closed |
 | journal entries | the month's flows (income, spending, what is left, per category with share and change), the savings rate, fixed vs variable -- transfers and not-counted transactions excluded; whether a transaction is a transfer |
 | memory entries | current net worth, an account's value between balances, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
-| daily logs (ticks, meals, measurements) | |
+| daily logs (ticks, meals, measurements, the day's rating) | |
 | finance accounts (including valuation and archivedOn), observations, trades, prices, transactions (signed amount, counter account, notCounted, tags) | |
 | **net worth snapshots** — the one exception, not written in one currency (ADR 0022) | |
 

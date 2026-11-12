@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * `npm run shortcuts:build`: writes the three iPhone Shortcuts, signed, to
- * ~/Downloads/PersonalOS-Shortcuts (ADR 0034, docs/shortcuts.md). macOS only:
+ * ~/Downloads/PersonalOS-Shortcuts (ADR 0036, docs/shortcuts.md). macOS only:
  * it needs `plutil` and `shortcuts sign`, which signs with this Mac's iCloud
  * account.
  *

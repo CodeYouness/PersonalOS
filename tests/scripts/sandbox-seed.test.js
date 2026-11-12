@@ -62,6 +62,24 @@ describe('seedForSandbox', () => {
     });
   });
 
+  it('moves a day\'s rating with its habit values, and a day holding only a rating survives the move', () => {
+    /** @type {SeedFixture} */
+    const rated = {
+      schemaVersion: 20,
+      dailyLogs: {
+        '2026-01-05': { ...log('2026-01-05', { habit_move: true }), rating: 4 },
+        '2026-01-06': { ...log('2026-01-06', {}), rating: 2 },
+        '2026-01-10': log('2026-01-10', { habit_move: false }),
+      },
+    };
+    const logs = seedForSandbox(rated, TODAY).dailyLogs;
+
+    expect(logs['2026-10-08']).toEqual({ ...log('2026-10-08', { habit_move: true }), rating: 4 });
+    expect(logs['2026-10-09']).toEqual({ ...log('2026-10-09', {}), rating: 2 });
+    expect(logs['2026-01-05']).toBeUndefined();
+    expect(logs['2026-01-06']).toBeUndefined();
+  });
+
   it('changes nothing in the seed it was given', () => {
     const original = seed();
     seedForSandbox(original, TODAY);
@@ -70,6 +88,17 @@ describe('seedForSandbox', () => {
 
   it('moves nothing when the habit history already ends yesterday', () => {
     expect(seedForSandbox(seed(), '2026-01-11')).toEqual(seed());
+  });
+
+  it('moves the demo review to the last completed week, with its completion event', async () => {
+    const demo = JSON.parse(await readFile('data/seed.json', 'utf8'));
+    const sandboxed = seedForSandbox(demo, TODAY);
+    // Monday 5 October is the last Monday before Wednesday the 14th's week.
+    expect(sandboxed.reviews[0].from).toBe('2026-10-05');
+    expect(sandboxed.reviews[0].completedAt).toBe('2026-10-12T07:30:00.000Z');
+    const event = sandboxed.events.find((/** @type {any} */ e) => e.subject === sandboxed.reviews[0].id);
+    expect(event).toMatchObject({ date: '2026-10-12', at: '2026-10-12T07:30:00.000Z' });
+    expect(demo.reviews[0].from).toBe('2026-01-05');
   });
 
   it('adds a synced holding with trades and prices from its source, for the browser check of a read-only holding', async () => {

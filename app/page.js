@@ -1,4 +1,5 @@
 import CalendarCard from '@/components/CalendarCard.js';
+import CloseDayCard from '@/components/CloseDayCard.js';
 import GoalsCard from '@/components/GoalsCard.js';
 import HabitsCard from '@/components/HabitsCard.js';
 import PulseCard from '@/components/PulseCard.js';
@@ -10,9 +11,9 @@ export const dynamic = 'force-dynamic';
 /**
  * The Home screen, ported from design/mockup.html. Habits sits between
  * Session and Calendar, matching the mockup's row: span-8 Session + span-4
- * Habits fill one row, span-8 Calendar + span-4 Pulse the next -- Pulse back
- * in the slot the mockup keeps for it (#119). Goals held that slot until
- * Finance was built and now wraps below, as the mockup's note says.
+ * Habits fill one row, span-8 Calendar + span-4 Pulse the next, and span-4
+ * Goals + span-8 Close the day the last. The existing cards keep their order
+ * (spec #232: only the Today card's lever and the new card change).
  *
  * @param {{ searchParams: Promise<{ day?: string | string[] }> }} props
  */
@@ -28,6 +29,7 @@ export default async function Home({ searchParams }) {
         <CalendarCard day={typeof day === 'string' ? day : undefined} />
         <PulseCard />
         <GoalsCard />
+        <CloseDayCard />
       </div>
     </section>
   );

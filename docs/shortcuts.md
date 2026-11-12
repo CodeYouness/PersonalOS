@@ -9,7 +9,7 @@ Prerequisite: the phone reaches the Mac as in `docs/development.md` § The phone
 over Tailscale (ADR 0032). Below, `<mac-host>` is the Mac's tailnet name and
 `<token>` is `PERSONALOS_PHONE_TOKEN`.
 
-The three Shortcuts are generated, not built by hand (ADR 0034): see
+The three Shortcuts are generated, not built by hand (ADR 0036): see
 [Install](#install). Never commit a `.shortcut` file: an installed one carries
 the token.
 

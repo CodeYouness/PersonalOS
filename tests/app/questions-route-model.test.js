@@ -170,6 +170,10 @@ function seedIds() {
     ...seed.snapshots.map((/** @type {{ id: string }} */ row) => row.id),
     ...seed.memory.map((/** @type {{ id: string }} */ row) => row.id),
     ...seed.journal.map((/** @type {{ id: string }} */ row) => row.id),
+    // Only a finished review is sent (#242).
+    ...seed.reviews
+      .filter((/** @type {{ completedAt: string | null }} */ row) => row.completedAt !== null)
+      .map((/** @type {{ id: string }} */ row) => row.id),
     ...seed.events.map((/** @type {{ id: string }} */ row) => row.id),
     ...logs.flatMap((log) => /** @type {{ meals: { id: string }[] }} */ (log).meals.map((meal) => meal.id)),
     ...logs.flatMap((log) =>

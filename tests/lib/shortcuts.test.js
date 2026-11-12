@@ -1,5 +1,5 @@
 /**
- * The iPhone Shortcuts, built as data (ADR 0034). What the phone does with
+ * The iPhone Shortcuts, built as data (ADR 0036). What the phone does with
  * them is checked by hand (docs/shortcuts.md); these hold the properties a
  * hand check found and must not be lost on a rebuild.
  */
