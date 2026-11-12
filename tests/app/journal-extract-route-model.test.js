@@ -193,6 +193,35 @@ describe('POST /api/journal/[id]/extract with a model', () => {
     expect(await workingFile()).toBe(before);
   });
 
+  it('fails rather than propose from a reply cut off at max_tokens, and writes nothing', async () => {
+    await store.getJournalEntries('2026-01-01', '2026-01-31');
+    const before = await workingFile();
+    mockCreate.mockResolvedValueOnce({
+      stop_reason: 'max_tokens',
+      content: [
+        {
+          type: 'tool_use',
+          input: { proposals: [{ type: 'fact', content: 'Marta heard the two-phase price and', confidence: 0.9 }] },
+        },
+      ],
+    });
+
+    const response = await extract(ENTRY);
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toMatchObject({ outcome: 'failed' });
+    expect(await workingFile()).toBe(before);
+  });
+
+  it('asks for no more than the configured ceiling', async () => {
+    const { limits } = await import('@/personalos.config.js');
+    modelProposes([]);
+
+    await extract(ENTRY);
+
+    expect(mockCreate.mock.calls[0][0].max_tokens).toBe(limits.extractMaxTokens);
+  });
+
   it('answers 404 for an entry that does not exist, without asking the model', async () => {
     expect((await extract('journal_missing')).status).toBe(404);
     expect(mockCreate).not.toHaveBeenCalled();
