@@ -21,6 +21,16 @@ const NO_ADAPTER_IMPORT = {
     "Only lib/store.js may import a storage adapter. Add a domain operation to lib/store.js instead.",
 };
 
+// ADR 0037: every model call goes through the seam in lib/ai/provider.js,
+// and only lib/ai/providers/anthropic.js imports the provider's SDK. Scripts
+// and tests are outside it: a script counts tokens with the SDK, a test
+// mocks it.
+const NO_MODEL_SDK_IMPORT = {
+  group: ["@anthropic-ai/sdk", "@anthropic-ai/sdk/**"],
+  message:
+    "Only lib/ai/providers/anthropic.js may import the model SDK. Call callTool() from lib/ai/provider.js instead (ADR 0037).",
+};
+
 // ADR-0005: lib/domain/dates.js is the only place allowed to compute a day
 // key from an instant.
 const NO_ISO_SLICE = {
@@ -88,28 +98,43 @@ const eslintConfig = defineConfig([
   // rule, and every block below is file-disjoint from any other block using
   // the same rule name.
 
-  // Most of lib/: no @/ alias, no reaching around the store for an adapter.
+  // Most of lib/: no @/ alias, no reaching around the store for an
+  // adapter, no reaching around the model seam for the SDK.
   {
     files: ["lib/**/*.js"],
-    ignores: ["lib/store.js", "lib/adapters/**"],
+    ignores: ["lib/store.js", "lib/adapters/**", "lib/ai/providers/anthropic.js"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [NO_AT_ALIAS, NO_ADAPTER_IMPORT, NO_MODEL_SDK_IMPORT] }],
+    },
+  },
+  // lib/store.js and the adapters themselves are still lib/, and still must
+  // avoid the @/ alias and the SDK -- the adapter-import rule obviously does
+  // not apply to their own files, so it is not repeated here.
+  {
+    files: ["lib/store.js", "lib/adapters/**/*.js"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [NO_AT_ALIAS, NO_MODEL_SDK_IMPORT] }],
+    },
+  },
+  // The one provider: it imports the SDK, and nothing else changes for it.
+  {
+    files: ["lib/ai/providers/anthropic.js"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [NO_AT_ALIAS, NO_ADAPTER_IMPORT] }],
     },
   },
-  // lib/store.js and the adapters themselves are still lib/, and still must
-  // avoid the @/ alias -- the adapter-import rule obviously does not apply
-  // to their own files, so it is not repeated here.
+  // The adapter-import rule outside lib/, and in app/ and components/ the
+  // SDK rule as well. tests/store/ is exempt from the first: the adapter
+  // contract suite and the migration/reset-backup tests live there, and
+  // testing the data layer directly is not bypassing it.
   {
-    files: ["lib/store.js", "lib/adapters/**/*.js"],
+    files: ["app/**/*.js", "components/**/*.js"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [NO_AT_ALIAS] }],
+      "no-restricted-imports": ["error", { patterns: [NO_ADAPTER_IMPORT, NO_MODEL_SDK_IMPORT] }],
     },
   },
-  // The adapter-import rule outside lib/. tests/store/ is exempt: the
-  // adapter contract suite and the migration/reset-backup tests live there,
-  // and testing the data layer directly is not bypassing it.
   {
-    files: ["app/**/*.js", "components/**/*.js", "scripts/**/*.js", "tests/**/*.js"],
+    files: ["scripts/**/*.js", "tests/**/*.js"],
     ignores: [
       "tests/store/**",
       // Ticket 07 moves this through the store; tracked there, not here.

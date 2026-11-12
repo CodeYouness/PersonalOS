@@ -56,12 +56,14 @@ if (anthropicApiKey === null) {
   const model = modelFrom(process.argv.slice(2));
   const { default: Anthropic } = await import('@anthropic-ai/sdk');
   const { answerRequest } = await import('../lib/answer.js');
+  const { toMessagesRequest } = await import('../lib/ai/providers/anthropic.js');
   const client = new Anthropic({ apiKey: anthropicApiKey });
 
   /** @param {import('../lib/ai/context/index.js').QuestionContext} context */
   const tokensOf = async (context) => {
-    // The request a question sends, less what counting does not take.
-    const { max_tokens: _, ...request } = answerRequest(QUESTION, context, model);
+    // The request a question sends, mapped as the seam maps it, less what
+    // counting does not take.
+    const { max_tokens: _, ...request } = toMessagesRequest(answerRequest(QUESTION, context, model));
     return (await client.messages.countTokens(request)).input_tokens;
   };
 
