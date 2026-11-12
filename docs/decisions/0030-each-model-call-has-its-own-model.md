@@ -1,6 +1,6 @@
 # 0030. Each model call has its own model
 
-- **Status** accepted
+- **Status** accepted, superseded in part by [0037](0037-jarvis-the-check-in-is-the-product.md)
 - **Date** 2026-10-15
 
 ## Context

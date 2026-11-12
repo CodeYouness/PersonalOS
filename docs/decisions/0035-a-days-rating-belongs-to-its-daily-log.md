@@ -1,6 +1,6 @@
 # 0035. A day's rating belongs to its daily log
 
-- **Status** accepted
+- **Status** accepted, superseded in part by [0037](0037-jarvis-the-check-in-is-the-product.md)
 - **Date** 2026-11-11
 
 ## Context
