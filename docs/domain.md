@@ -32,8 +32,9 @@ prefix outside `ENTITY_TYPES` is rejected at the boundary.
 
 Every canonical entity also carries `createdAt`, `updatedAt` and `source`.
 `source` answers "who created this" — `user`, `capture`, `journal`,
-`integration`, `derived`, `seed` — which is the first question worth asking
-when a record looks wrong.
+`checkin` (an answer given in the check-in, ADR 0037), `integration`,
+`derived`, `seed` — which is the first question worth asking when a record
+looks wrong.
 
 ---
 
@@ -1403,13 +1404,88 @@ double counting.
 
 ---
 
+## Action
+
+**Is** one named write the system makes on your behalf -- tick a habit,
+declare time, add a journal entry -- with the params it takes, a **risk
+class** and how it is undone (ADR 0037). A capture, an answer to a check-in
+question and, later, Telegram and the skills all write through actions, so
+one sentence may produce several. The registry is `lib/actions/registry.js`;
+each action is a definition in `lib/actions/definitions/` that wraps a write
+the store already has and adds no rule of its own.
+
+An action is either **reversible**, and made at once, or a **proposal** you
+accept. Proposals are not built: one asked for is refused and nothing is
+written. No action reaches outside the system.
+
+**Has** a `name`; a JSON Schema for its params, which is also what a model is
+given as the tool's input schema; whether a model may ask for it at all
+(`modelCallable`); and a `parse` that checks raw params with the domain's own
+rules -- `isDayReading`, `isTimeArea` and `isTimeMinutes`,
+`isHabitSkipReason` -- and returns the params that are run and kept. A rule
+the store holds (which value a habit takes, a day in the future) stays in the
+store: an action it refuses is filed as **failed** and writes nothing.
+
+| Action | Params | Writes | Model may ask | Undo restores |
+| --- | --- | --- | --- | --- |
+| `habit.set` | `habitId`, `value` | the habit's value for the day; completing it clears the day's skip reason | yes | the value before -- **none at all** when there was none, which reads as not recorded, not as "not done" -- and the skip reason completing cleared |
+| `habit.skip` | `habitId`, `reason` | the day's skip reason | yes | the reason before, or none |
+| `mood.set` | `value`, 1 to 5 | the day's mood | **no**: given by tap, never read off the journal | the mood before, or unset |
+| `energy.set` | `value`, 1 to 5 | the day's energy | **no** | the energy before, or unset |
+| `time.set` | `area`, `minutes` | the area's minutes for the day, declaring the day | yes | the area's minutes before, and the day back to not declared if it was not and nothing else was declared since |
+| `time.none` | -- | the day declared as nothing, when it was not declared | yes | the day back to not declared, if it was not; a day already declared was left as it was |
+| `journal.add` | `text` | a journal entry on the day, word for word | yes | the entry deleted |
+| `task.create` | `title`, `band` (`week` unless given) | a plain task -- no person, no goal | yes | the task deleted |
+| `expense.record` | `amount` in cents, `account`, `categoryId`, `note` | spending as a transaction, by a finance capture's rule (ADR 0026): on the account named when it is yours, else the default; with neither, refused. `note` is its description | yes | the transaction deleted |
+
+**Undo is refused once what the action wrote was touched since** -- your own
+work on it outranks a correction from a receipt, as ADR 0013 rules for a
+capture. For a task or a transaction that is an edit, a completion or the
+record gone (`isCaptureRecordLocked`); for a journal entry, an edit or a
+memory drawn from it, which deleting the entry would take with it (ADR 0027);
+for a field of a day's log, the field no longer holding what the action set.
+An action is undone once.
+
+A list of actions is **not atomic**: each one is its own write (ADR 0011),
+made in order, and one that fails never stops the others.
+
+**Is kept** as an **action record**, in the store's `actions` (schema 22),
+when it ran: its `name`, the parsed `params`, the `day` it acted on, its
+`origin` -- `{ type, id }`, the type from `ACTION_ORIGINS` (`capture`,
+`journal`, `checkin`) and the record it was made for or null -- the entity
+it wrote as `recordRef` (null for a field of a daily log), `before` (what undo
+restores), `status` -- `done`, `failed` with its `error`, or `undone` -- and
+`text`, the receipt line as shown. An action refused before it ran is not
+kept. The record is a history of what was made; the record an action wrote
+stays the only truth about a habit's value or a task's band.
+
+### Receipt
+
+**Is** what you are shown after the system filed something: one line per
+action, in the order they were made, each one undoable while it can be. The
+check-in ends with one receipt for all of it.
+
+**Has** for each line the action's id (none for a request refused before it
+ran), its name, its text, its status -- `done`, `undone`, `failed` or
+`rejected` -- whether it can be undone now, and an error when there is one.
+The text is a short sentence in English: "Move for 30 minutes ticked", "Read:
+Forgotten", "Mood 4", "Work 1h 30m", "No time to declare", "Journal entry
+added", "Task: Call the plumber", "Spent 18.40 on Groceries".
+
+**Survives a refresh**: `receiptFor` rebuilds it from the kept records, by
+day or by origin, so it shows what was made and what was undone since.
+Rejected lines were never kept and are not on it. Undo is
+`POST /api/actions/[id]/undo`.
+
+---
+
 ## Jarvis (planned)
 
 Every term in this section is **planned, not built** (ADR 0037). The words
 are fixed here so the code that follows uses them; nothing below is stored or
 derived yet. Mood and energy, and time against areas, decided with them,
 are built: see Daily Log. So are the skip reason and a habit's rate: see
-Habit.
+Habit. So are the action and the receipt: see Action.
 
 ### Check-in
 
@@ -1427,22 +1503,6 @@ ticked, an appointment that has passed, mood or energy not given -- plus one
 open question that is always there. Which questions are asked is computed
 from the data, never by a model, and a thing the system already knows is not
 asked.
-
-### Action
-
-**Is** one named write the system can make on your behalf -- tick a habit,
-record time, add a journal entry -- with the fields it takes and how it is
-undone. A capture, an answer to a check-in question and a skill all write
-through actions, so one sentence may produce several.
-
-An action is either **reversible**, and made at once, or a **proposal** you
-accept. No action reaches outside the system.
-
-### Receipt
-
-**Is** what you are shown after the system filed something: one line per
-action made, each one undoable or correctable. The check-in ends with one
-receipt for all of it.
 
 ### Skill
 
@@ -1503,6 +1563,7 @@ something.
 | people | health averages, day totals |
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
 | reviews (answers, lever, completedAt) | a review's week figures: habits, intake, spending, what was closed |
+| action records (name, params, day, origin, recordRef, before, status, error, the receipt line's text) | whether a receipt line can be undone now |
 | journal entries | the month's flows (income, spending, what is left, per category with share and change), the savings rate, fixed vs variable -- transfers and not-counted transactions excluded; whether a transaction is a transfer |
 | memory entries | current net worth, an account's value between balances, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |

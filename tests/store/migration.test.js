@@ -1011,3 +1011,36 @@ describe('migration v20 to v21', () => {
     expect(before.dailyLogs['2026-03-01'].rating).toBe(4);
   });
 });
+
+describe('migration v21 to v22', () => {
+  /** A v21 document: no actions collection. */
+  const v21Document = () => {
+    const { actions: _none, ...rest } = migrate(v12Document());
+    return { ...rest, schemaVersion: 21 };
+  };
+
+  it('adds an empty actions collection and changes nothing else', () => {
+    const before = v21Document();
+    const migrated = migrate(before);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.actions).toEqual([]);
+    expect({ ...migrated, actions: [], schemaVersion: 0 }).toEqual({ ...before, actions: [], schemaVersion: 0 });
+  });
+
+  it('keeps actions a document already holds', () => {
+    const record = { id: 'action_1', name: 'mood.set' };
+    expect(migrate({ ...v21Document(), actions: [record] }).actions).toEqual([record]);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v21Document());
+    expect(migrate(once)).toEqual(once);
+  });
+
+  it('does not mutate the document it was given', () => {
+    const before = v21Document();
+    migrate(before);
+    expect('actions' in before).toBe(false);
+  });
+});

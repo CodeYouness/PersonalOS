@@ -11,6 +11,7 @@ import {
   formatCount,
   formatDayReading,
   formatMinutes,
+  formatMoney,
   formatPercentChange,
   formatWeight,
   MINUS,
@@ -30,6 +31,7 @@ export {
   formatCount,
   formatDayReading,
   formatMinutes,
+  formatMoney,
   formatPercentChange,
   formatWeight,
   monthLabel,
@@ -119,6 +121,7 @@ export function slippedLabel(period, horizon) {
  */
 const MADE_BY = {
   user: 'by you',
+  checkin: 'in the check-in',
   seed: 'with the demo data',
   journal: 'from the journal',
   integration: 'by a sync',
@@ -155,25 +158,6 @@ export function provenanceLabel({ createdDayKey, source, route }, todayKey) {
 }
 
 const THIN_SPACE = '\u2009';
-
-/**
- * An amount of money as a table shows it: whole euros, "12,400", or with the
- * cents when asked, "84,320.55". Money is an integer in minor units (ADR
- * 0009), so the euros and cents are split with integer arithmetic and only
- * the grouping is left to Intl -- no float ever holds the amount. Whole
- * euros round half away from zero; a negative amount gets a real minus.
- *
- * @param {number} minor
- * @param {{ cents?: boolean }} [options]
- * @returns {string}
- */
-export function formatMoney(minor, { cents = false } = {}) {
-  const sign = minor < 0 ? MINUS : '';
-  const magnitude = Math.abs(minor);
-  if (!cents) return sign + formatCount(Math.floor((magnitude + 50) / 100));
-  const fraction = String(magnitude % 100).padStart(2, '0');
-  return sign + formatCount(Math.floor(magnitude / 100)) + '.' + fraction;
-}
 
 /**
  * A headline amount: "€ 84,320", the sign before the euro.

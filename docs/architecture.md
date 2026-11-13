@@ -24,7 +24,8 @@ consequence.
 
 | Layer | Where | May depend on |
 | --- | --- | --- |
-| Screens and routes | `app/` | `lib/store.js`, `lib/domain/`, `lib/domain/derive/`, config |
+| Screens and routes | `app/` | `lib/store.js`, `lib/actions/`, `lib/domain/`, `lib/domain/derive/`, config |
+| Actions | `lib/actions/` | `lib/store.js`, `lib/domain/`, config -- never imported by the store |
 | Data access | `lib/store.js` | the active adapter; `lib/domain/` and `personalos.config.js` for the operations that span entities (filing a capture, correcting one) |
 | Storage adapters | `lib/adapters/` | `lib/domain/`, `lib/config/` |
 | Derivations | `lib/domain/derive/` | `lib/domain/` only — pure functions |
@@ -102,12 +103,39 @@ throws if it is.
 - A **sync**: runs outside the request cycle, writes observations or
   transactions through the store, updates its `SyncState`.
 
+## The action registry
+
+`lib/actions/registry.js` (ADR 0037) names every write a channel can make on
+your behalf -- a capture, an answer in the check-in, later Telegram and the
+skills. Each action is a definition in `lib/actions/definitions/`: a JSON
+Schema for its params (a model's tool input schema too), a risk class, a
+`parse` that reuses the domain's checks, a `run` that calls a write the store
+already has, an `undo`, and the receipt line. The store holds the rules; an
+action adds none, so a write made through an action and the same write made
+from a screen land the same.
+
+`runActions` runs a list in order and returns a receipt, one line per
+request. A request with an unknown name or bad params writes nothing; one
+the store refuses is filed as failed; one failure never stops the rest, since
+each is its own queued write (ADR 0011). Every action that ran is kept as a
+record in the store's `actions`, with what undo restores, so `receiptFor`
+rebuilds the receipt after a refresh and `undoAction` -- behind
+`POST /api/actions/[id]/undo` -- undoes one line, refused once what it wrote
+was touched since (ADR 0013's rule). Reading a receipt reads the store and
+nothing else (rule 3).
+
+The registry sits above the store and depends on it; the store never imports
+the registry, so `lib/store.js` stays the one way to the data and an action is
+just another caller.
+
 ## Extension points
 
 - **Storage.** Add `lib/adapters/<name>/`, implement the contract, run the
   suite, switch the adapter in `lib/store.js`.
 - **Relations.** Add a `rel` to `LINK_RELS` and document it in `domain.md`.
 - **Destinations.** `DESTINATIONS` in `personalos.config.js`.
+- **Actions.** A definition in `lib/actions/definitions/`, listed in
+  `lib/actions/registry.js`, documented in `domain.md`'s table.
 - **Integrations.** Implement the contract, register it, flag it in config.
 - **Model provider.** Classify, extract and answer each make one forced-tool
   call through `callTool` in `lib/ai/provider.js` (ADR 0037); only
