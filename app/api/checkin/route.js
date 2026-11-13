@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { answerCheckin, checkinReceipt, questionsFor } from '@/lib/checkin/day.js';
+import { readOpenAnswer } from '@/lib/checkin/interpret.js';
 import { isDayKey, today } from '@/lib/domain/dates.js';
 import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
 
@@ -96,13 +97,19 @@ export async function GET(request) {
 }
 
 /**
- * Closed answers to the day's check-in, filed at once through the action
- * registry by rules -- no model, no confirmation (ADR 0037). The body is
- * `{ day?, answers: [{ questionId, value }] }`; the shapes each question
- * takes are lib/checkin/closed.js's. The questions are recomputed from the
- * store, never taken from the client: an answer to a question the day does
- * not ask, a value that does not fit its question and one its action refuses
+ * Answers to the day's check-in, filed at once through the action registry
+ * -- no confirmation (ADR 0037). The body is `{ day?, answers: [{
+ * questionId, value }] }`; the shapes each question takes are
+ * lib/checkin/closed.js's. The questions are recomputed from the store,
+ * never taken from the client: an answer to a question the day does not
+ * ask, a value that does not fit its question and one its action refuses
  * are rejected lines, and the rest are filed all the same.
+ *
+ * A closed answer is filed by rules, with no model. The open answer is kept
+ * as a journal entry first, then read by the small model for the records it
+ * names (lib/checkin/interpret.js) -- the one place the check-in calls a
+ * model, and only on this POST. With no key, or a model that fails, the
+ * entry is all that is filed, and the request still succeeds (rule 2).
  *
  * The answer is the day's questions recomputed after the writes, `done`, and
  * two receipts. `receipt` is the lines of this request alone, in the order
@@ -124,7 +131,7 @@ export async function POST(request) {
   if (day === null) return refuse(error);
 
   try {
-    const receipt = await answerCheckin(day, body.answers);
+    const receipt = await answerCheckin(day, body.answers, { readOpenAnswer });
     const [{ questions, done }, dayReceipt] = await Promise.all([questionsFor(day), checkinReceipt(day)]);
     return NextResponse.json({ ok: true, day, questions, done, receipt, dayReceipt });
   } catch (cause) {

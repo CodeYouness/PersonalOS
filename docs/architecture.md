@@ -121,8 +121,11 @@ each is its own queued write (ADR 0011). Every action that ran is kept as a
 record in the store's `actions`, with what undo restores, so `receiptFor`
 rebuilds the receipt after a refresh and `undoAction` -- behind
 `POST /api/actions/[id]/undo` -- undoes one line, refused once what it wrote
-was touched since (ADR 0013's rule). Reading a receipt reads the store and
-nothing else (rule 3).
+was touched since (ADR 0013's rule). An action whose origin is the record
+another action wrote -- a habit ticked from the journal entry a check-in
+answer wrote -- stands on that record: undoing the record's line undoes it
+too, and is refused while one of them cannot be. Reading a receipt reads the
+store and nothing else (rule 3).
 
 The registry sits above the store and depends on it; the store never imports
 the registry, so `lib/store.js` stays the one way to the data and an action is
@@ -140,10 +143,26 @@ and `lib/checkin/day.js` recomputes the questions from the store (never
 trusting a client's list), runs the requests under the origin `checkin` and
 returns the lines. `GET /api/checkin` asks a day; `POST /api/checkin` files a
 list of answers and answers with the questions recomputed, that request's
-lines and the day's whole receipt. Both are behind the phone gate. No model
-anywhere in either -- held by `tests/lint/checkin-no-model.test.js`, which
-walks every import the route reaches. The open answer is, for now, only a
-journal entry; reading it for records is the next tier.
+lines and the day's whole receipt. Both are behind the phone gate. Computing
+the questions and filing a closed answer call no model -- held by
+`tests/lint/checkin-no-model.test.js`, which walks every import the panel
+and `lib/checkin/day.js` reach.
+
+The open answer is the second tier. It is filed as a journal entry first;
+then, on that POST only, `lib/checkin/interpret.js` asks the small model
+(`defaultModels.checkin`, through `lib/ai/provider.js`) for a list of
+actions -- one forced tool, `file_actions`, offering every model-callable
+action but `journal.add`, each with its schema from the registry, and told
+the day, the habits it asks about, your categories and account names. The
+list is shape-checked there and filed through `runActions` like any other,
+so every value is checked by the action's own `parse`; each action is made
+under the origin `checkin` with the entry as its id, and each record it
+writes gets a `derived_from` link to the entry. `lib/checkin/day.js` takes
+the reader as an argument and never imports it, so the route is the one
+place the check-in reaches a model, and only through that module -- the lint
+test holds this too. No key, an error, a timeout (`limits.checkinTimeoutMs`),
+a reply cut off at `limits.checkinMaxTokens` or junk: the entry is all that
+is filed, and the answer still succeeds (rule 2).
 
 The check-in's screen is the panel at the top of Home: a server component
 (`components/CheckinPanel.js`) reads the day through `lib/checkin/day.js`

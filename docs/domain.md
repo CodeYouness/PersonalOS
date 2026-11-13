@@ -55,7 +55,7 @@ remembers whether it was `belongs_to`, `belongsTo` or `parent`.
 | `belongs_to` | child → parent | task → goal · goal → project · habit → goal |
 | `involves` | a person takes part | task → person · event → person |
 | `about` | loose subject matter | memory → anything · capture → what it produced |
-| `derived_from` | provenance | memory → journal · memory → capture |
+| `derived_from` | provenance | memory → journal · memory → capture · task or transaction → the journal entry a check-in's open answer wrote |
 | `funds` | money aimed at something | transaction → goal |
 
 Links are a **set**: the same two things related the same way twice is one
@@ -1437,7 +1437,7 @@ store: an action it refuses is filed as **failed** and writes nothing.
 | `time.none` | -- | the day declared as nothing, when it was not declared | yes | the day back to not declared, if it was not; a day already declared was left as it was |
 | `journal.add` | `text` | a journal entry on the day, word for word | yes | the entry deleted |
 | `task.create` | `title`, `band` (`week` unless given) | a plain task -- no person, no goal | yes | the task deleted |
-| `expense.record` | `amount` in cents, `account`, `categoryId`, `note` | spending as a transaction, by a finance capture's rule (ADR 0026): on the account named when it is yours, else the default; with neither, refused. `note` is its description | yes | the transaction deleted |
+| `expense.record` | `amount` in cents, `account`, `categoryId`, `note` | spending as a transaction, by a finance capture's rule (ADR 0026): on the account named when it is yours, else the default; with neither, refused. `note` is its description, and ends its receipt line | yes | the transaction deleted |
 
 **Undo is refused once what the action wrote was touched since** -- your own
 work on it outranks a correction from a receipt, as ADR 0013 rules for a
@@ -1447,13 +1447,23 @@ memory drawn from it, which deleting the entry would take with it (ADR 0027);
 for a field of a day's log, the field no longer holding what the action set.
 An action is undone once.
 
+**What was drawn from a record is undone with it.** An action whose origin
+is the record another action wrote -- the habit ticked and the money spent
+read from the journal entry a check-in answer wrote -- stands on that record:
+undoing the entry's line undoes them first, newest first, and is refused
+while any of them cannot be undone, so nothing is left claiming an entry
+that is gone. Each of them is still undone alone from its own line, and the
+entry stays.
+
 A list of actions is **not atomic**: each one is its own write (ADR 0011),
 made in order, and one that fails never stops the others.
 
 **Is kept** as an **action record**, in the store's `actions` (schema 22),
 when it ran: its `name`, the parsed `params`, the `day` it acted on, its
 `origin` -- `{ type, id }`, the type from `ACTION_ORIGINS` (`capture`,
-`journal`, `checkin`) and the record it was made for or null -- the entity
+`journal`, `checkin`) and the record it was made for or null (a check-in's
+closed answer is made for none; what is read off its open answer, for the
+journal entry the answer wrote) -- the entity
 it wrote as `recordRef` (null for a field of a daily log), `before` (what undo
 restores), `status` -- `done`, `failed` with its `error`, or `undone` -- and
 `text`, the receipt line as shown. An action refused before it ran is not
@@ -1471,7 +1481,8 @@ ran), its name, its text, its status -- `done`, `undone`, `failed` or
 `rejected` -- whether it can be undone now, and an error when there is one.
 The text is a short sentence in English: "Move for 30 minutes ticked", "Read:
 Forgotten", "Mood 4", "Work 1h 30m", "No time to declare", "Journal entry
-added", "Task: Call the plumber", "Spent 18.40 on Groceries".
+added", "Task: Call the plumber", "Spent 18.40 on Groceries", and with a
+note "Spent 18.00 on Eating out — lunch".
 
 **Survives a refresh**: `receiptFor` rebuilds it from the kept records, by
 day or by origin, so it shows what was made and what was undone since.
@@ -1501,7 +1512,9 @@ future one -- and answers the questions, `done` and the day's receipt.
 `POST /api/checkin` takes `{ day?, answers: [{ questionId, value }] }`,
 files them and answers the questions recomputed, `receipt` -- the lines of
 that request alone, rejected ones included -- and `dayReceipt`, the day's
-whole check-in receipt. Neither calls a model.
+whole check-in receipt. GET calls no model, and neither does a closed
+answer; an open answer is read by the small model, after its journal entry
+is kept (see Check-in question).
 
 **Lives** at the top of Home, as the check-in panel (`components/CheckinPanel.js`),
 where the Close the day card was -- that card is gone, and its mood, energy,
@@ -1544,12 +1557,28 @@ is not asked yet.
 (`habit.set`, a counter filled to that day's target), a counter `{ value: n }`,
 any habit `{ skip: reason }` (`habit.skip`); mood and energy `{ value }`;
 time `{ areas: { <area>: minutes } }` (a `time.set` per area) or
-`{ none: true }` (`time.none`); the open question `{ text }`. **The open
-answer is, for now, only a journal entry**, word for word (`journal.add`):
-nothing is read out of it yet. The values are the actions' to check; an answer
-to a question the day does not ask, a value of the wrong shape and a value
-its action refuses are each a rejected line, and the other answers are filed
-all the same.
+`{ none: true }` (`time.none`); the open question `{ text }`. The values are
+the actions' to check; an answer to a question the day does not ask, a value
+of the wrong shape and a value its action refuses are each a rejected line,
+and the other answers are filed all the same.
+
+**The open answer is a journal entry first**, word for word (`journal.add`),
+kept before anything reads it (rule 2). Then the small model reads it for
+the records it names (`lib/checkin/interpret.js`, ADR 0037's second tier):
+"ho fatto palestra e speso 18 euro di pranzo" ticks the habit and records
+the expense. The model is offered every action a model may ask for but
+`journal.add` -- the entry is never filed twice -- and is told the day, the
+habits the day asks about (by id), your expense categories (by id) and the
+names of the accounts money is spent from. What it asks for is filed through
+the registry like any request: an unknown habit, an amount that is not whole
+cents, a category that is not yours is a rejected line, and the rest are
+filed. Each action is made under the origin `checkin` with the entry as its
+id, so it is on the same receipt as the entry and is undone with it; each
+record one writes -- a task, a transaction -- gets a `derived_from` link to
+the entry (rule 7). A sentence with nothing to file files nothing more. With
+no key nothing is called; a model that errors, times out, is cut off at its
+ceiling or answers junk files nothing more either -- the entry is kept and
+the answer succeeds. Mood and energy are never read off it.
 
 ---
 

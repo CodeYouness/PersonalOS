@@ -112,7 +112,10 @@ export const LINK_RELS = Object.freeze([
   'involves',
   /** loose subject matter: memory -> anything, journal -> anything */
   'about',
-  /** provenance: memory -> journal | capture, task -> capture */
+  /**
+   * provenance: memory -> journal | capture, task -> capture, and a task or
+   * a transaction read off a check-in's open answer -> its journal entry
+   */
   'derived_from',
   /** money aimed at something: transaction -> goal */
   'funds',
@@ -391,6 +394,22 @@ export const limits = Object.freeze({
    */
   extractMaxTokens: 1000,
   /**
+   * Reading the check-in's open answer is one tool call holding a short
+   * list of actions -- a habit, an expense, an area's time -- each a name
+   * and a few params. Not measured yet: twice the classifier's ceiling,
+   * which one record with every field fits in, for a sentence that files
+   * three or four. A reply cut off here files nothing from the sentence;
+   * its journal entry is already saved (rule 2).
+   */
+  checkinMaxTokens: 1024,
+  /**
+   * How long the check-in waits for the open answer to be read before it
+   * gives up on the model, and files the journal entry alone. The entry is
+   * saved before the call, so a slow model costs only the records it would
+   * have drawn, never the sentence.
+   */
+  checkinTimeoutMs: 15_000,
+  /**
    * The longest question the questions route takes (#172). A question is a
    * sentence, not a document: the cap keeps a pasted page from becoming a
    * model call, and is checked at the route, never by what the text says.
@@ -452,15 +471,16 @@ export const dashboard = Object.freeze({ screens: [] });
 
 /**
  * The model each call type runs on when its variable is unset
- * (ANTHROPIC_MODEL_CLASSIFY, _EXTRACT, _ANSWER). One per call type, never one
+ * (ANTHROPIC_MODEL_CLASSIFY, _EXTRACT, _ANSWER, _CHECKIN). One per call type, never one
  * for all: answering is long reasoning over the whole context, filing a
  * capture is a cheap pick between closed options (ADR 0030). Model names
  * change; the variables are the real control. See docs/development.md.
  *
  * A model here must accept a forced tool_choice: every call forces its one
  * tool. Sonnet 5.5 refuses it, and as a default would fail every call.
- * All three are on Haiku 5.5: classify was scored by npm run eval:classify
- * (#197), extract and answer follow it (ADR 0030).
+ * All four are on Haiku 5.5: classify was scored by npm run eval:classify
+ * (#197), extract and answer follow it (ADR 0030), and so does the check-in,
+ * scored by `npm run eval:classify -- --suite checkin` once it has been run.
  */
 export const defaultModels = Object.freeze({
   /** Filing a capture, Refile included: lib/classify.js. */
@@ -469,6 +489,12 @@ export const defaultModels = Object.freeze({
   extract: 'claude-haiku-5-5',
   /** A question over everything recorded: lib/answer.js. */
   answer: 'claude-haiku-5-5',
+  /**
+   * The check-in's open answer read for records (ADR 0037): the classifier's
+   * small model, since it is the same kind of pick among closed options.
+   * lib/checkin/interpret.js.
+   */
+  checkin: 'claude-haiku-5-5',
 });
 
 /** Fallback timezone, used only when USER_TIMEZONE is unset. */

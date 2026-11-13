@@ -55,6 +55,7 @@ describe('the other variables', () => {
     vi.stubEnv('ANTHROPIC_MODEL_CLASSIFY', '');
     vi.stubEnv('ANTHROPIC_MODEL_EXTRACT', '');
     vi.stubEnv('ANTHROPIC_MODEL_ANSWER', '');
+    vi.stubEnv('ANTHROPIC_MODEL_CHECKIN', '');
     vi.stubEnv('USER_TIMEZONE', '');
 
     const { env } = await import('@/lib/config/env.js');
@@ -69,10 +70,16 @@ describe('the other variables', () => {
     vi.stubEnv('ANTHROPIC_MODEL_CLASSIFY', 'claude-test-classify');
     vi.stubEnv('ANTHROPIC_MODEL_EXTRACT', '');
     vi.stubEnv('ANTHROPIC_MODEL_ANSWER', 'claude-test-answer');
+    vi.stubEnv('ANTHROPIC_MODEL_CHECKIN', 'claude-test-checkin');
 
     const { env } = await import('@/lib/config/env.js');
 
-    expect(env.models).toEqual({ classify: 'claude-test-classify', extract: defaultModels.extract, answer: 'claude-test-answer' });
+    expect(env.models).toEqual({
+      classify: 'claude-test-classify',
+      extract: defaultModels.extract,
+      answer: 'claude-test-answer',
+      checkin: 'claude-test-checkin',
+    });
   });
 });
 

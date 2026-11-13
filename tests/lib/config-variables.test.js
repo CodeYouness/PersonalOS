@@ -18,10 +18,16 @@ describe('readModelSettings', () => {
         ANTHROPIC_MODEL_CLASSIFY: ' claude-test-classify ',
         ANTHROPIC_MODEL_EXTRACT: ' claude-test-extract ',
         ANTHROPIC_MODEL_ANSWER: ' claude-test-answer ',
+        ANTHROPIC_MODEL_CHECKIN: ' claude-test-checkin ',
       })
     ).toEqual({
       anthropicApiKey: 'sk-test',
-      models: { classify: 'claude-test-classify', extract: 'claude-test-extract', answer: 'claude-test-answer' },
+      models: {
+        classify: 'claude-test-classify',
+        extract: 'claude-test-extract',
+        answer: 'claude-test-answer',
+        checkin: 'claude-test-checkin',
+      },
     });
   });
 
@@ -45,12 +51,14 @@ describe('readModelSettings', () => {
 });
 
 describe('defaultModels', () => {
-  // Why Haiku 5.5 for all three is in ADR 0030 (#198).
+  // Why Haiku 5.5 for the first three is in ADR 0030 (#198); the check-in
+  // takes the classifier's small model (ADR 0037).
   it('names a model for every call type, all on Haiku 5.5 (#198)', () => {
     expect(defaultModels).toEqual({
       classify: 'claude-haiku-5-5',
       extract: 'claude-haiku-5-5',
       answer: 'claude-haiku-5-5',
+      checkin: 'claude-haiku-5-5',
     });
   });
 });
