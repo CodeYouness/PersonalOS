@@ -1,9 +1,12 @@
 /**
  * GET and POST /api/checkin (ADR 0037): today's questions, computed from the
  * store, and closed answers filed through the action registry by rules.
- * Run against the seed in a throwaway DATA_DIR with the clock pinned, no
- * model key, and the model's modules replaced by ones that refuse to load:
- * neither route may reach a model (rule 3).
+ * Run against the seed in a throwaway DATA_DIR with the clock pinned and no
+ * model key. The route loads the open answer's reader, so the provider is
+ * replaced by one that fails any call, and every test checks none was made:
+ * without a key not even the open answer reaches a model (rule 3), and it
+ * is filed as its journal entry alone (rule 2). The classifier refuses to
+ * load at all. checkin-route-model.test.js has the key.
  */
 
 import { cp, mkdtemp, rm } from 'node:fs/promises';
@@ -12,9 +15,13 @@ import path from 'node:path';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/lib/ai/provider.js', () => {
-  throw new Error('the check-in loaded the model provider');
-});
+const callTool = vi.hoisted(() =>
+  vi.fn(() => {
+    throw new Error('the check-in called the model');
+  })
+);
+
+vi.mock('@/lib/ai/provider.js', () => ({ callTool }));
 vi.mock('@/lib/classify.js', () => {
   throw new Error('the check-in loaded the classifier');
 });
@@ -56,6 +63,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.useRealTimers();
+  expect(callTool).not.toHaveBeenCalled();
 });
 
 /**

@@ -455,7 +455,7 @@ describe('expense.record', () => {
   it('files spending on the default account, on the day, and undo deletes it', async () => {
     const line = await made('expense.record', { amount: 1840, categoryId: 'cat_groceries', note: 'market' });
 
-    expect(line.text).toBe('Spent 18.40 on Groceries');
+    expect(line.text).toBe('Spent 18.40 on Groceries — market');
     const record = await recordOf(/** @type {string} */ (line.actionId));
     expect(record.params).toEqual({ amount: 1840, accountId: 'account_seed_current', categoryId: 'cat_groceries', note: 'market' });
     const transaction = await store.getTransaction(/** @type {string} */ (record.recordRef));
