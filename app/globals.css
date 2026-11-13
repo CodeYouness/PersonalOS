@@ -222,7 +222,9 @@ button:disabled { cursor: not-allowed; }
   padding: var(--s-lg) var(--s-lg) var(--capture-h);
   min-height: calc(100vh - var(--topbar-h));
 }
-#screen-home .screen-grid { grid-template-rows: auto minmax(280px, 1fr) minmax(240px, 1fr) auto; }
+/* The check-in and the Today card take the height they need; Session and
+   Habits, then Calendar and Pulse, share what is left; Goals last. */
+#screen-home .screen-grid { grid-template-rows: auto auto minmax(280px, 1fr) minmax(240px, 1fr) auto; }
 /* The summary strip takes the height it needs; the manage and history cards
    share what is left. */
 #screen-habits .screen-grid { grid-template-rows: auto minmax(0, 1fr); }
@@ -361,9 +363,71 @@ button:disabled { cursor: not-allowed; }
 .habit-minus:hover { background: var(--surface-4); color: var(--ink-muted); }
 
 /* ==========================================================================
-   HOME — card-close-day (#243). The chosen mood or energy is neutral, never green or red.
+   HOME — card-checkin (ADR 0037). The check-in: first on Home, and the main
+   thing in the evening, mostly on a phone. Built at 390px first -- one
+   column, each row stacked, every tap target at least 36px tall -- then
+   widened: a label beside its controls, and the receipt in a column of its
+   own. No new colours: a stronger hairline is all that sets it apart, and
+   the chosen mood or energy is neutral, never green or red.
    ========================================================================== */
-.day-rating { display: flex; flex-direction: column; gap: var(--s-sm); }
+#card-checkin { border-color: var(--hairline-strong); }
+.checkin-title { display: flex; flex-direction: column; gap: 2px; margin-right: auto; min-width: 0; }
+.checkin-progress { font-size: 13px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#card-checkin.is-done .checkin-progress { color: var(--ink-subtle); }
+.checkin-body { display: flex; flex-direction: column; gap: var(--s-md); }
+.checkin-rows { display: flex; flex-direction: column; }
+.checkin-row {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-xs);
+  padding: var(--s-sm) 0; border-bottom: 1px solid var(--hairline);
+}
+.checkin-row:first-child { padding-top: 0; }
+.checkin-label { font-size: 14px; color: var(--ink); min-width: 0; }
+.checkin-line { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-xs); }
+.checkin-line .checkin-label { flex: 1 1 auto; }
+.checkin-stepper { display: flex; align-items: center; gap: var(--s-xs); }
+.checkin-count { min-width: 48px; text-align: center; font-size: 14px; }
+.checkin-buttons { display: flex; gap: var(--s-xs); margin-left: auto; }
+.checkin-reasons { display: flex; flex-wrap: wrap; gap: var(--s-xs); }
+.checkin-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-xs); }
+.checkin-actions .caption { margin-right: auto; }
+.checkin .btn-ghost { min-height: 36px; }
+.checkin .btn-ghost:disabled { opacity: 0.5; }
+.checkin .btn-ghost.is-open { border-color: var(--hairline-strong); color: var(--ink); }
+.checkin .time-step-btn { width: 36px; height: 36px; }
+.checkin .caption.is-error { margin-bottom: 0; }
+.checkin-open { display: flex; flex-direction: column; gap: var(--s-xs); }
+.checkin-open textarea.input { min-height: 64px; }
+.checkin-receipt { display: flex; flex-direction: column; gap: var(--s-xxs); padding-top: var(--s-sm); border-top: 1px solid var(--hairline); }
+.checkin-lines { display: flex; flex-direction: column; }
+.checkin-receipt-line {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 2px var(--s-xs);
+  min-height: 36px; padding: 2px 0; font-size: 13px; color: var(--ink-muted);
+}
+.checkin-receipt-text { flex: 1 1 auto; min-width: 0; }
+.checkin-receipt-line.is-undone { color: var(--ink-tertiary); }
+.checkin-receipt-line.is-rejected,
+.checkin-receipt-line.is-failed { color: var(--ink-subtle); }
+.checkin-receipt-line .caption.is-error { flex-basis: 100%; }
+.checkin-receipt-line .btn-ghost { min-height: 32px; padding: 4px 10px; font-size: 12px; }
+/* A counter on a phone: its name on a line, the stepper and buttons under it. */
+@media (max-width: 480px) {
+  .checkin-habit.is-counter .checkin-line .checkin-label { flex-basis: 100%; }
+}
+@media (max-width: 760px) {
+  #card-checkin { padding: var(--s-md); }
+}
+@media (min-width: 761px) {
+  .checkin-reading { grid-template-columns: 220px minmax(0, 1fr); align-items: center; }
+  .checkin-reading .is-error { grid-column: 2; }
+}
+/* Wide: the questions on the left, the receipt -- once there is one -- beside them. */
+@media (min-width: 1000px) {
+  .checkin-body:has(> .checkin-receipt) { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: var(--s-md) var(--s-xl); align-items: start; }
+  .checkin-rows, .checkin-open { grid-column: 1; }
+  .checkin-receipt { grid-column: 2; grid-row: 1 / span 2; padding: 0 0 0 var(--s-lg); border-top: none; border-left: 1px solid var(--hairline); }
+}
+
+/* The five taps of a reading, mood or energy (#243). */
 .rating-scale { display: flex; gap: var(--s-xs); }
 .rating-btn {
   flex: 1; max-width: 56px; height: 40px; border-radius: var(--r-md);
@@ -372,17 +436,8 @@ button:disabled { cursor: not-allowed; }
 }
 .rating-btn:hover:not(:disabled) { border-color: var(--hairline-strong); color: var(--ink); }
 .rating-btn.is-chosen { background: var(--surface-4); border-color: var(--ink-subtle); color: var(--ink); }
-/* #235: the card's three rows, each saved on its own. */
-.close-row { padding: var(--s-sm) 0; border-bottom: 1px solid var(--hairline); }
-.close-row:last-of-type { border-bottom: none; }
-.close-row .line { display: flex; gap: var(--s-xs); }
-.close-row .line .input { flex: 1; min-width: 0; }
-.close-row .head { display: flex; align-items: baseline; gap: var(--s-xs); margin-bottom: var(--s-xs); }
-.close-row .head .caption:last-child { margin-left: auto; }
-.day-rating-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-sm); min-height: 30px; }
 /* ADR 0037: time declared against areas, a − / + stepper per area in half
    hours. Two columns where there is room, one on a phone. */
-.day-time { display: flex; flex-direction: column; gap: var(--s-sm); }
 .time-areas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--s-xs) var(--s-lg); }
 .time-area { display: flex; align-items: center; gap: var(--s-xs); color: var(--ink-muted); }
 .time-area.has-time { color: var(--ink); }

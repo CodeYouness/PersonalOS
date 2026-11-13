@@ -145,6 +145,13 @@ anywhere in either -- held by `tests/lint/checkin-no-model.test.js`, which
 walks every import the route reaches. The open answer is, for now, only a
 journal entry; reading it for records is the next tier.
 
+The check-in's screen is the panel at the top of Home: a server component
+(`components/CheckinPanel.js`) reads the day through `lib/checkin/day.js`
+and hands it to a client panel whose state transitions live in a pure
+reducer (`components/checkinReducer.js`). The panel shows the server's state
+-- what the page was rendered with, or what the route answered -- and keeps
+only what has not been sent yet.
+
 ## Extension points
 
 - **Storage.** Add `lib/adapters/<name>/`, implement the contract, run the
