@@ -13,6 +13,7 @@ describe('the formats the screens and the figures share', () => {
     'daysLabel',
     'formatChange',
     'formatCount',
+    'formatMinutes',
     'formatPercentChange',
     'formatWeight',
     'monthLabel',
@@ -28,6 +29,14 @@ describe('the formats the screens and the figures share', () => {
     expect(shared.percent(-0.08)).toBe('−8%');
     expect(shared.formatPercentChange(-0.08)).toBe('−8%');
     expect(shared.formatChange(-1.2)).toBe('−1.2');
+  });
+
+  it('writes time in hours and minutes, leaving out a part that is zero', () => {
+    expect(shared.formatMinutes(90)).toBe('1h 30m');
+    expect(shared.formatMinutes(120)).toBe('2h');
+    expect(shared.formatMinutes(30)).toBe('30m');
+    expect(shared.formatMinutes(0)).toBe('0m');
+    expect(shared.formatMinutes(1500)).toBe('25h');
   });
 
   it('names a month in full', () => {

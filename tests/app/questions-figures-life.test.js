@@ -21,6 +21,7 @@ import { goalsAddress, habitsAddress, nutritionAddress, reviewAddress } from '@/
 import { goalBoard } from '@/lib/domain/derive/goals.js';
 import { HABITS_WINDOW_DAYS, historyRows, STREAK_WINDOW_DAYS, streak, windowSummary } from '@/lib/domain/derive/habits.js';
 import { healthAverages, weightTrend } from '@/lib/domain/derive/health.js';
+import { timeByArea } from '@/lib/domain/derive/time.js';
 import { readingSummary } from '@/lib/domain/derive/week.js';
 import { calorieStanding, dayTotals } from '@/lib/domain/derive/nutrition.js';
 import { limits } from '@/personalos.config.js';
@@ -458,5 +459,47 @@ describe('how the days went', () => {
     const items = await build();
     expect(find(items, ENERGY)).toBeDefined();
     expect(find(items, MOOD)).toBeUndefined();
+  });
+});
+
+describe('time declared against areas', () => {
+  const TOTAL = 'figure:time:30d';
+
+  it('states the time over thirty days, on how many declared days, from the Review screen derivation', async () => {
+    await store.setDayTime({ date: shiftDayKey(TODAY, -1), area: 'work', minutes: 240 });
+    await store.setDayTime({ date: shiftDayKey(TODAY, -1), area: 'training', minutes: 60 });
+    await store.setDayTime({ date: TODAY, area: 'work', minutes: 90 });
+    await store.declareNoTime({ date: shiftDayKey(TODAY, -2) });
+    // Thirty days back is outside the thirty days ending today.
+    await store.setDayTime({ date: shiftDayKey(TODAY, -30), area: 'study', minutes: 600 });
+
+    const archive = await read.readArchive();
+    const expected = timeByArea(archive.logs, { from: shiftDayKey(TODAY, -29), to: TODAY });
+    const items = figures.lifeFigures(archive, { today: TODAY });
+    const total = find(items, TOTAL);
+
+    expect(expected).toEqual({ declaredDays: 3, byArea: { work: 330, training: 60 }, total: 390 });
+    expect(total?.type).toBe('figure');
+    expect(total?.content).toContain('6h 30m');
+    expect(total?.content).toContain('3 days');
+    expect(total?.opens).toBe(reviewAddress('2026-09-21'));
+    expect(find(items, TOTAL + ':work')?.content).toContain('5h 30m');
+    expect(find(items, TOTAL + ':training')?.content).toContain('1h');
+    // An area with no time on the declared days is no figure of its own.
+    expect(find(items, TOTAL + ':study')).toBeUndefined();
+  });
+
+  it('is no figure, rather than zero, when no day in the window was declared', async () => {
+    await store.setDayTime({ date: shiftDayKey(TODAY, -40), area: 'work', minutes: 60 });
+    const items = await build();
+    expect(items.filter((item) => item.id.startsWith('figure:time:'))).toEqual([]);
+  });
+
+  it('states a zero for days declared with nothing, and no area figure', async () => {
+    await store.declareNoTime({ date: TODAY });
+    const items = (await build()).filter((item) => item.id.startsWith('figure:time:'));
+    expect(items.map((item) => item.id)).toEqual([TOTAL]);
+    expect(items[0].content).toContain('0m');
+    expect(items[0].content).toContain('1 day ');
   });
 });

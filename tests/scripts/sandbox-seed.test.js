@@ -83,6 +83,27 @@ describe('seedForSandbox', () => {
     expect(logs['2026-01-07']).toBeUndefined();
   });
 
+  it('moves a day\'s declared time with it, a day declared with nothing included', () => {
+    /** @type {SeedFixture} */
+    const declared = {
+      schemaVersion: 21,
+      dailyLogs: {
+        '2026-01-05': { ...log('2026-01-05', { habit_move: true }), time: { work: 240 } },
+        '2026-01-06': { ...log('2026-01-06', {}), time: {} },
+        '2026-01-07': { ...log('2026-01-07', {}), time: null },
+        '2026-01-10': log('2026-01-10', { habit_move: false }),
+      },
+    };
+    const logs = seedForSandbox(declared, TODAY).dailyLogs;
+
+    expect(logs['2026-10-08']).toEqual({ ...log('2026-10-08', { habit_move: true }), time: { work: 240 } });
+    expect(logs['2026-10-09']).toEqual({ ...log('2026-10-09', {}), time: {} });
+    // Not declared is nothing to move: the day stays where it was.
+    expect(logs['2026-10-10']).toBeUndefined();
+    expect(logs['2026-01-05']).toBeUndefined();
+    expect(logs['2026-01-06']).toBeUndefined();
+  });
+
   it('changes nothing in the seed it was given', () => {
     const original = seed();
     seedForSandbox(original, TODAY);

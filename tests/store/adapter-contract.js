@@ -955,6 +955,12 @@ export function runAdapterContract(label, load) {
         await expect(store.updateDailyLog('2026-04-02', { energy: 3 })).rejects.toThrow();
         expect(await store.getLoggedDays()).not.toContain('2026-04-02');
       });
+
+      it('does not take the time: it has its own setters', async () => {
+        await expect(store.updateDailyLog('2026-04-02', { time: { work: 60 } })).rejects.toThrow();
+        await expect(store.updateDailyLog('2026-04-02', { time: null })).rejects.toThrow();
+        expect(await store.getLoggedDays()).not.toContain('2026-04-02');
+      });
     });
 
     describe('the day\'s mood and energy', () => {
@@ -1030,6 +1036,119 @@ export function runAdapterContract(label, load) {
           });
         });
       }
+    });
+
+    describe('the day\'s time against areas', () => {
+      const DAY = '2026-04-02';
+
+      it('reads back null -- not declared -- on a day never written to', async () => {
+        expect((await store.getDailyLog(DAY)).time).toBeNull();
+        const [, next] = await store.getDailyLogs(DAY, '2026-04-03');
+        expect(next.time).toBeNull();
+      });
+
+      it('reads a seeded day\'s time, a day declared with nothing, and null on a seeded day with no key', async () => {
+        expect((await store.getDailyLog('2026-01-06')).time).toEqual({ work: 420, training: 60 });
+        expect((await store.getDailyLog('2026-01-07')).time).toEqual({});
+        expect((await store.getDailyLog('2026-01-04')).time).toBeNull();
+      });
+
+      describe('setDayTime', () => {
+        it('sets one area\'s minutes, absolute: the same call twice never doubles them', async () => {
+          const log = await store.setDayTime({ date: DAY, area: 'work', minutes: 90 });
+          expect(log.time).toEqual({ work: 90 });
+          await store.setDayTime({ date: DAY, area: 'work', minutes: 90 });
+          expect((await store.getDailyLog(DAY)).time).toEqual({ work: 90 });
+        });
+
+        it('keeps the other areas and touches nothing else on the day', async () => {
+          await store.logHabitValue({ date: DAY, habitId: 'habit_move', value: true });
+          await store.setDayMood({ date: DAY, mood: 4 });
+          const before = await store.getDailyLog(DAY);
+          await store.setDayTime({ date: DAY, area: 'work', minutes: 240 });
+          await store.setDayTime({ date: DAY, area: 'training', minutes: 60 });
+          await store.setDayTime({ date: DAY, area: 'work', minutes: 180 });
+          expect(await store.getDailyLog(DAY)).toEqual({ ...before, time: { work: 180, training: 60 } });
+        });
+
+        it('removes an area set to zero, leaving the day declared', async () => {
+          await store.setDayTime({ date: DAY, area: 'study', minutes: 30 });
+          expect((await store.setDayTime({ date: DAY, area: 'study', minutes: 0 })).time).toEqual({});
+          expect((await store.getDailyLog(DAY)).time).toEqual({});
+          // Zero on a day not declared declares it, with nothing.
+          expect((await store.setDayTime({ date: '2026-04-03', area: 'work', minutes: 0 })).time).toEqual({});
+        });
+
+        it('takes the whole day on one area, and no more', async () => {
+          const max = limits.timeAreaMaxMinutes;
+          expect((await store.setDayTime({ date: DAY, area: 'refereeing', minutes: max })).time).toEqual({ refereeing: max });
+          await expect(store.setDayTime({ date: DAY, area: 'refereeing', minutes: max + limits.timeStepMinutes })).rejects.toThrow();
+        });
+
+        it('writes no event', async () => {
+          const events = (await store.getEvents()).length;
+          await store.setDayTime({ date: DAY, area: 'projects', minutes: 60 });
+          expect((await store.getEvents()).length).toBe(events);
+        });
+
+        it('refuses a future day, an unknown area and minutes off the step or out of range, writing nothing', async () => {
+          const tomorrow = shiftDayKey(today(), 1);
+          for (const input of [
+            { date: tomorrow, area: 'work', minutes: 60 },
+            { date: 'nope', area: 'work', minutes: 60 },
+            { date: DAY, area: 'sleep', minutes: 60 },
+            { date: DAY, area: undefined, minutes: 60 },
+            { date: DAY, area: 'work', minutes: 45 },
+            { date: DAY, area: 'work', minutes: -30 },
+            { date: DAY, area: 'work', minutes: 1.5 },
+            { date: DAY, area: 'work', minutes: '60' },
+            { date: DAY, area: 'work', minutes: null },
+            { date: DAY, area: 'work', minutes: limits.timeAreaMaxMinutes + limits.timeStepMinutes },
+          ]) {
+            await expect(store.setDayTime(/** @type {any} */ (input))).rejects.toThrow();
+          }
+          expect(await store.getLoggedDays()).not.toContain(tomorrow);
+          expect(await store.getLoggedDays()).not.toContain(DAY);
+        });
+      });
+
+      describe('declareNoTime', () => {
+        it('declares a day not declared yet as one with nothing', async () => {
+          expect((await store.declareNoTime({ date: DAY })).time).toEqual({});
+          expect((await store.getDailyLog(DAY)).time).toEqual({});
+        });
+
+        it('never wipes minutes already declared', async () => {
+          await store.setDayTime({ date: DAY, area: 'work', minutes: 120 });
+          expect((await store.declareNoTime({ date: DAY })).time).toEqual({ work: 120 });
+          expect((await store.getDailyLog(DAY)).time).toEqual({ work: 120 });
+        });
+
+        it('refuses a future day, writing nothing', async () => {
+          const tomorrow = shiftDayKey(today(), 1);
+          await expect(store.declareNoTime({ date: tomorrow })).rejects.toThrow();
+          await expect(store.declareNoTime({ date: 'nope' })).rejects.toThrow();
+          expect(await store.getLoggedDays()).not.toContain(tomorrow);
+        });
+      });
+
+      describe('clearDayTime', () => {
+        it('takes a declared day back to not declared, minutes and all, and nothing else', async () => {
+          await store.setDayMood({ date: DAY, mood: 2 });
+          await store.setDayTime({ date: DAY, area: 'work', minutes: 120 });
+          expect((await store.clearDayTime({ date: DAY })).time).toBeNull();
+          const log = await store.getDailyLog(DAY);
+          expect(log.time).toBeNull();
+          expect(log.mood).toBe(2);
+          await store.declareNoTime({ date: DAY });
+          await store.clearDayTime({ date: DAY });
+          expect((await store.getDailyLog(DAY)).time).toBeNull();
+        });
+
+        it('refuses a future day', async () => {
+          await expect(store.clearDayTime({ date: shiftDayKey(today(), 1) })).rejects.toThrow();
+        });
+      });
     });
 
     describe('logHabitValue', () => {

@@ -44,6 +44,7 @@ describe('the week at a glance', () => {
     expect(html).toContain('no meals recorded');
     expect(html).toContain('no mood given');
     expect(html).toContain('no energy given');
+    expect(html).toContain('no time declared');
     expect(html).not.toMatch(/>0</);
     expect(html).not.toContain('So far');
   });
@@ -74,6 +75,21 @@ describe('the week at a glance', () => {
     );
     expect(html).toMatch(/Mood<\/div><div class="v num reading">2\u2009\/\u20097 <span class="caption">avg 3.5</);
     expect(html).toMatch(/Energy<\/div><div class="v num reading">1\u2009\/\u20097 <span class="caption">avg 2.0</);
+  });
+
+  it('shows the time of each area that had some, and the total over the days declared', () => {
+    const log = (/** @type {string} */ date, /** @type {any} */ time) => ({ date, habits: {}, meals: [], measurements: [], notes: [], mood: null, energy: null, time });
+    const html = renderToStaticMarkup(
+      createElement(ReviewFigures, {
+        figures: figures({ dailyLogs: [log('2026-10-05', { work: 240, study: 30 }), log('2026-10-06', {}), log('2026-10-07', null)] }),
+      })
+    );
+    expect(html).toMatch(/Work<\/div><div class="v num">4h<\/div>/);
+    expect(html).toMatch(/Study<\/div><div class="v num">30m<\/div>/);
+    expect(html).toMatch(/Time declared<\/div><div class="v num">4h 30m <span class="caption">2\u2009\/\u20097 days<\/span>/);
+    // An area with no time on the declared days gets no row.
+    expect(html).not.toContain('Refereeing');
+    expect(html).not.toContain('no time declared');
   });
 
   it('says "so far" for the week in progress', () => {

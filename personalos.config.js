@@ -284,6 +284,22 @@ export const OBSERVATION_KINDS = Object.freeze(['balance', 'position']);
 export const MEASUREMENT_METRICS = Object.freeze({ weight: 'kg' });
 
 /**
+ * The areas a day's time is declared against (ADR 0037), each with the label
+ * the screens show, in the order they show them. Closed: an area is added
+ * here, and documented in docs/domain.md, never accepted as a free string.
+ * Time is declared by you, never measured from a screen or a calendar.
+ *
+ * @type {Readonly<Record<string, string>>}
+ */
+export const TIME_AREAS = Object.freeze({
+  work: 'Work',
+  study: 'Study',
+  projects: 'Projects',
+  training: 'Training',
+  refereeing: 'Refereeing',
+});
+
+/**
  * Numbers that are decisions, not accidents -- none of them belongs inline in
  * the code that reads it. Some are read today; the rest are claimed by the
  * feature named next to them, and stay here rather than being invented again
@@ -302,6 +318,13 @@ export const limits = Object.freeze({
    */
   dayReadingMin: 1,
   dayReadingMax: 5,
+  /**
+   * Time against an area is declared in steps of this many minutes, a half
+   * hour (ADR 0037): an evening's honest guess, not a stopwatch.
+   */
+  timeStepMinutes: 30,
+  /** The most one area can take in a day: the whole day. */
+  timeAreaMaxMinutes: 24 * 60,
   /** How far back the Health card aggregates. */
   healthWindowDays: 30,
   /** How far ahead recurring calendar events are expanded. */
