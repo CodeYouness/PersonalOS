@@ -17,10 +17,10 @@ const AREAS = TIME_AREA_KEYS.map((key) => ({ key, label: TIME_AREAS[key] }));
  * The Close the day card (#243, #235), ported from design/mockup.html's
  * `#card-close-day`: each thing saved on its own, none required. The day's
  * mood and its energy (ADR 0037), its time declared against areas in half
- * hours (ADR 0037), the habits still open (derived from today's
- * log with the Habits card's own rule, days off left out), and one line for
- * the journal. No state marks a day as closed. Server rendered from the
- * store: loading it calls no model and no integration. `key` remounts a
+ * hours (ADR 0037), the habits still open (derived from today's log by
+ * `openHabits`: days off and a day given a skip reason left out), and one
+ * line for the journal. No state marks a day as closed. Server rendered from
+ * the store: loading it calls no model and no integration. `key` remounts a
  * reading, or the time row, when its saved value changes under it. A
  * check-in panel replaces this card in a later ticket.
  */

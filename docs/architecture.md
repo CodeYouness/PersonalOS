@@ -128,6 +128,23 @@ The registry sits above the store and depends on it; the store never imports
 the registry, so `lib/store.js` stays the one way to the data and an action is
 just another caller.
 
+## The check-in
+
+The check-in (ADR 0037) is the registry's first caller. Its questions are
+**derived**, never stored: `checkinQuestions` in
+`lib/domain/derive/checkin.js` reads the day's log and the habits -- a habit
+scheduled that day, mood, energy, time, and the open question -- and says
+which the day already answers. Its answers **go through the registry**:
+`lib/checkin/closed.js` turns a closed answer into action requests by rules,
+and `lib/checkin/day.js` recomputes the questions from the store (never
+trusting a client's list), runs the requests under the origin `checkin` and
+returns the lines. `GET /api/checkin` asks a day; `POST /api/checkin` files a
+list of answers and answers with the questions recomputed, that request's
+lines and the day's whole receipt. Both are behind the phone gate. No model
+anywhere in either -- held by `tests/lint/checkin-no-model.test.js`, which
+walks every import the route reaches. The open answer is, for now, only a
+journal entry; reading it for records is the next tier.
+
 ## Extension points
 
 - **Storage.** Add `lib/adapters/<name>/`, implement the contract, run the

@@ -1479,30 +1479,71 @@ Rejected lines were never kept and are not on it. Undo is
 
 ---
 
+## Check-in
+
+**Is** the one conversation a day in which the system asks and you answer:
+a few questions, under three minutes, on the dashboard or from a channel
+(ADR 0037). There is one per day and it can be answered in pieces. It is not
+stored: the questions are derived from the day's data, and the answers are
+actions, kept as action records under the origin `checkin`, so the day's
+check-in receipt is `receiptFor({ day, origin: { type: 'checkin' } })`.
+
+**Is not** a form with a confirmation at each step. The answers are filed at
+once and the receipt is where you correct them: undoing a line opens its
+question again.
+
+**Is done** when every question but the open one is answered
+(`isCheckinDone`). Nothing marks it done; it is read off the data.
+
+`GET /api/checkin?day=` asks a day -- today unless one is named, never a
+future one -- and answers the questions, `done` and the day's receipt.
+`POST /api/checkin` takes `{ day?, answers: [{ questionId, value }] }`,
+files them and answers the questions recomputed, `receipt` -- the lines of
+that request alone, rejected ones included -- and `dayReceipt`, the day's
+whole check-in receipt. Neither calls a model.
+
+### Check-in question
+
+**Is** something the day's data does not yet say, computed from the data by
+`checkinQuestions` (`lib/domain/derive/checkin.js`), never by a model, in
+this order:
+
+| Question | `id` | Asked when | Answered when |
+| --- | --- | --- | --- |
+| a habit | `habit:<habitId>` | the habit is scheduled that day -- a day off, or a habit not active, is not asked | complete (a check ticked, a counter at that day's target) or given a skip reason (`openHabits`) |
+| mood | `mood` | always | the day has a mood |
+| energy | `energy` | always | the day has an energy |
+| time | `time` | there is an area in `TIME_AREAS` | the day is declared, nothing included (`time !== null`) |
+| the open question | `open` | always, last: "Anything worth noting today?" | never: it can be answered more than once |
+
+A question the day already answers is still listed, marked answered, so a
+screen can show it done; what is left to ask is `openQuestions` -- the
+unanswered ones and the open one. A habit question also says what it takes:
+`habitType`, and a counter's target that day. An appointment that has passed
+is not asked yet.
+
+**Is answered** by a closed answer, turned into actions by rules
+(`lib/checkin/closed.js`), never by a model: a habit takes `{ done: true }`
+(`habit.set`, a counter filled to that day's target), a counter `{ value: n }`,
+any habit `{ skip: reason }` (`habit.skip`); mood and energy `{ value }`;
+time `{ areas: { <area>: minutes } }` (a `time.set` per area) or
+`{ none: true }` (`time.none`); the open question `{ text }`. **The open
+answer is, for now, only a journal entry**, word for word (`journal.add`):
+nothing is read out of it yet. The values are the actions' to check; an answer
+to a question the day does not ask, a value of the wrong shape and a value
+its action refuses are each a rejected line, and the other answers are filed
+all the same.
+
+---
+
 ## Jarvis (planned)
 
 Every term in this section is **planned, not built** (ADR 0037). The words
 are fixed here so the code that follows uses them; nothing below is stored or
 derived yet. Mood and energy, and time against areas, decided with them,
 are built: see Daily Log. So are the skip reason and a habit's rate: see
-Habit. So are the action and the receipt: see Action.
-
-### Check-in
-
-**Is** the one conversation a day in which the system asks and you answer:
-a few questions, under three minutes, on the dashboard or from a channel.
-There is one per day and it can be answered in pieces.
-
-**Is not** a form with a confirmation at each step. The answers are filed at
-once and the receipt is where you correct them.
-
-### Check-in question
-
-**Is** something today's data does not yet say: a habit scheduled and not
-ticked, an appointment that has passed, mood or energy not given -- plus one
-open question that is always there. Which questions are asked is computed
-from the data, never by a model, and a thing the system already knows is not
-asked.
+Habit. So are the action and the receipt: see Action, and the check-in and
+its questions: see Check-in.
 
 ### Skill
 
