@@ -5,7 +5,7 @@ import { crmAddress, goalsAddress } from '@/lib/domain/addresses.js';
 import { weekdayOf } from '@/lib/domain/dates.js';
 import { TIME_AREA_KEYS } from '@/lib/domain/day-time.js';
 import { BASELINE_WEEKS } from '@/lib/domain/derive/week.js';
-import { TIME_AREAS } from '@/personalos.config.js';
+import { HABIT_SKIP_REASONS, TIME_AREAS } from '@/personalos.config.js';
 
 const THIN_SPACE = String.fromCharCode(0x2009);
 const OF = THIN_SPACE + "/" + THIN_SPACE;
@@ -47,7 +47,7 @@ export default function ReviewFigures({ figures }) {
 function HabitFigures({ habits }) {
   return (
     <div className="fig-group" id="review-habits">
-      <h4>Habits — scheduled days kept, against the week before</h4>
+      <h4>Habits — scheduled days kept, against the week before; paused days left out</h4>
       {habits.length === 0 ? (
         <p className="caption unknown">No habit was scheduled this week</p>
       ) : (
@@ -56,14 +56,18 @@ function HabitFigures({ habits }) {
             <li key={row.habit.id}>
               <span className="grow">{row.habit.label}</span>
               <span className="vs">
-                <span className="num">{row.complete + OF + row.scheduled}</span>{' '}
+                {row.scheduled === 0 ? (
+                  <span className="caption">Paused all week</span>
+                ) : (
+                  <span className="num">{row.complete + OF + row.scheduled}</span>
+                )}{' '}
                 <span className="caption num">
                   {row.previous === null ? 'not scheduled before' : 'before ' + row.previous.complete + OF + row.previous.scheduled}
                 </span>
               </span>
-              {row.notComplete.length > 0 && (
+              {(row.notComplete.length > 0 || (row.paused > 0 && row.scheduled > 0)) && (
                 <span className="days caption">
-                  <Misses misses={row.notComplete} />
+                  <Misses misses={row.notComplete} paused={row.scheduled > 0 ? row.paused : 0} />
                 </span>
               )}
             </li>
@@ -74,14 +78,28 @@ function HabitFigures({ habits }) {
   );
 }
 
-/** @param {{ misses: import('@/lib/domain/derive/week.js').HabitMiss[] }} props */
-function Misses({ misses }) {
-  const missed = misses.filter((miss) => miss.state === 'missed');
+/**
+ * The days not kept, by the reason given (ADR 0037), then those missed with
+ * no reason, then those with nothing recorded, then how many were paused --
+ * which the "x / y" beside it leaves out.
+ *
+ * @param {{ misses: import('@/lib/domain/derive/week.js').HabitMiss[], paused: number }} props
+ */
+function Misses({ misses, paused }) {
+  /** @type {string[]} */
+  const parts = [];
+  for (const [reason, label] of Object.entries(HABIT_SKIP_REASONS)) {
+    const days = misses.filter((miss) => miss.reason === reason);
+    if (days.length > 0) parts.push(label + ' ' + days.map(weekdayName).join(', '));
+  }
+  const missed = misses.filter((miss) => miss.reason === null && miss.state === 'missed');
+  if (missed.length > 0) parts.push('Missed ' + missed.map(weekdayName).join(', '));
+  if (paused > 0) parts.push('Paused ' + paused + (paused === 1 ? ' day' : ' days'));
   const unrecorded = misses.filter((miss) => miss.state === 'unrecorded');
   return (
     <>
-      {missed.length > 0 && 'Missed ' + missed.map(weekdayName).join(', ')}
-      {missed.length > 0 && unrecorded.length > 0 && ' · '}
+      {parts.join(' · ')}
+      {parts.length > 0 && unrecorded.length > 0 && ' · '}
       {unrecorded.length > 0 && (
         <span className="unknown">{unrecorded.map(weekdayName).join(', ') + ' not recorded'}</span>
       )}

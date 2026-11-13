@@ -1240,6 +1240,135 @@ export function runAdapterContract(label, load) {
       });
     });
 
+    describe('setHabitSkip (ADR 0037)', () => {
+      // Thursday 2 April 2026. Every seeded habit is scheduled on it; deep
+      // work is Monday to Friday, so Saturday the 4th is its day off.
+      const DAY = '2026-04-02';
+      const SATURDAY = '2026-04-04';
+
+      it('reads back no reasons on a day never written to, and on a seeded day', async () => {
+        expect((await store.getDailyLog(DAY)).skips).toEqual({});
+        expect((await store.getDailyLog('2026-01-06')).skips).toEqual({});
+        const [, next] = await store.getDailyLogs(DAY, '2026-04-03');
+        expect(next.skips).toEqual({});
+      });
+
+      it('gives a scheduled habit not kept its reason, changes it and clears it, touching nothing else', async () => {
+        await store.logHabitValue({ date: DAY, habitId: 'habit_water', value: 3 });
+        await store.setDayMood({ date: DAY, mood: 4 });
+        const before = await store.getDailyLog(DAY);
+
+        expect((await store.setHabitSkip({ date: DAY, habitId: 'habit_move', reason: 'forgotten' })).skips)
+          .toEqual({ habit_move: 'forgotten' });
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_water', reason: 'too-heavy' });
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_move', reason: 'paused' });
+        expect((await store.getDailyLog(DAY)).skips).toEqual({ habit_move: 'paused', habit_water: 'too-heavy' });
+
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_move', reason: null });
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_water', reason: null });
+        expect(await store.getDailyLog(DAY)).toEqual(before);
+      });
+
+      it('writes no event', async () => {
+        const events = (await store.getEvents()).length;
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_read', reason: 'on-purpose' });
+        expect((await store.getEvents()).length).toBe(events);
+      });
+
+      it('takes a reason for today', async () => {
+        const log = await store.setHabitSkip({ date: today(), habitId: 'habit_move', reason: 'too-heavy' });
+        expect(log.skips).toEqual({ habit_move: 'too-heavy' });
+      });
+
+      it('refuses a future day, an unknown habit or reason, a day the habit was not scheduled and a day it was kept, writing nothing', async () => {
+        await store.logHabitValue({ date: DAY, habitId: 'habit_read', value: true });
+        await store.logHabitValue({ date: DAY, habitId: 'habit_water', value: 8 });
+        const tomorrow = shiftDayKey(today(), 1);
+        for (const input of [
+          { date: tomorrow, habitId: 'habit_move', reason: 'forgotten' },
+          { date: 'nope', habitId: 'habit_move', reason: 'forgotten' },
+          { date: DAY, habitId: 'habit_nope', reason: 'forgotten' },
+          { date: DAY, habitId: 'habit_move', reason: 'tired' },
+          { date: DAY, habitId: 'habit_move', reason: undefined },
+          { date: DAY, habitId: 'habit_move', reason: 'Paused' },
+          { date: SATURDAY, habitId: 'habit_deep_work', reason: 'forgotten' },
+          { date: '2020-01-01', habitId: 'habit_move', reason: 'forgotten' },
+          { date: DAY, habitId: 'habit_read', reason: 'forgotten' },
+          { date: DAY, habitId: 'habit_water', reason: 'paused' },
+        ]) {
+          await expect(store.setHabitSkip(/** @type {any} */ (input))).rejects.toThrow();
+        }
+        expect((await store.getDailyLog(DAY)).skips).toEqual({});
+        expect(await store.getLoggedDays()).not.toContain(tomorrow);
+        expect(await store.getLoggedDays()).not.toContain(SATURDAY);
+      });
+
+      it('asks whether the habit was scheduled under the period that day had (ADR 0029)', async () => {
+        // Every day until 1 March, then Mondays only: a Tuesday before the
+        // change was scheduled, a Tuesday after it is a day off.
+        await store.updateProfile({
+          habits: [
+            {
+              id: 'habit_gym', label: 'Gym', type: 'check',
+              periods: [
+                { from: '2026-01-01', to: '2026-03-01', days: ALL_DAYS, target: null },
+                { from: '2026-03-01', to: null, days: [1], target: null },
+              ],
+            },
+          ],
+        });
+        await store.setHabitSkip({ date: '2026-02-24', habitId: 'habit_gym', reason: 'forgotten' });
+        await expect(store.setHabitSkip({ date: '2026-03-03', habitId: 'habit_gym', reason: 'forgotten' })).rejects.toThrow(/scheduled/);
+        await store.setHabitSkip({ date: '2026-03-02', habitId: 'habit_gym', reason: 'paused' });
+      });
+
+      it('clears a reason whatever the day became since, so a stale one can always go', async () => {
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_move', reason: 'forgotten' });
+        await store.updateHabit('habit_move', { archived: true });
+        expect((await store.setHabitSkip({ date: DAY, habitId: 'habit_move', reason: null })).skips).toEqual({});
+      });
+
+      it('is cleared by logHabitValue the moment the day becomes complete, and kept while it is not', async () => {
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_water', reason: 'too-heavy' });
+        await store.logHabitValue({ date: DAY, habitId: 'habit_water', value: 5 });
+        expect((await store.getDailyLog(DAY)).skips).toEqual({ habit_water: 'too-heavy' });
+        const log = await store.logHabitValue({ date: DAY, habitId: 'habit_water', value: 8 });
+        expect(log.skips).toEqual({});
+        expect((await store.getDailyLog(DAY)).skips).toEqual({});
+
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_move', reason: 'paused' });
+        await store.logHabitValue({ date: DAY, habitId: 'habit_move', value: true });
+        expect((await store.getDailyLog(DAY)).skips).toEqual({});
+      });
+
+      it('is cleared by updateDailyLog when its habits make the day complete, and not taken by it', async () => {
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_move', reason: 'forgotten' });
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_read', reason: 'forgotten' });
+        await store.updateDailyLog(DAY, { habits: { habit_move: true, habit_read: false } });
+        expect((await store.getDailyLog(DAY)).skips).toEqual({ habit_read: 'forgotten' });
+        await expect(store.updateDailyLog(DAY, { skips: {} })).rejects.toThrow();
+      });
+
+      it('keeps a habit\'s reasons when it is archived, as its values are kept', async () => {
+        await store.logHabitValue({ date: DAY, habitId: 'habit_read', value: true });
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_move', reason: 'too-heavy' });
+        await store.updateHabit('habit_move', { archived: true });
+        const log = await store.getDailyLog(DAY);
+        expect(log.skips).toEqual({ habit_move: 'too-heavy' });
+        expect(log.habits).toEqual({ habit_read: true });
+      });
+
+      it('survives a concurrent value on another habit', async () => {
+        await Promise.all([
+          store.setHabitSkip({ date: DAY, habitId: 'habit_move', reason: 'forgotten' }),
+          store.logHabitValue({ date: DAY, habitId: 'habit_water', value: 4 }),
+        ]);
+        const log = await store.getDailyLog(DAY);
+        expect(log.skips).toEqual({ habit_move: 'forgotten' });
+        expect(log.habits).toEqual({ habit_water: 4 });
+      });
+    });
+
     describe('finance', () => {
       it('keeps money as integers in minor units', async () => {
         const [account] = await store.getAccounts();

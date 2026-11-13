@@ -42,7 +42,7 @@ export default async function HabitsScreen() {
       <div className="screen-grid">
         <HabitsSummary summary={summary} streakDays={streakDays} />
         <HabitsManager habits={profile.habits} todayKey={todayKey} />
-        <HabitsHistory rows={rows} />
+        <HabitsHistory rows={rows} todayKey={todayKey} />
       </div>
     </section>
   );

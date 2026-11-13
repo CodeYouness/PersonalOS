@@ -92,6 +92,45 @@ describe('the week at a glance', () => {
     expect(html).not.toContain('no time declared');
   });
 
+  it('reads a habit by the days scheduled outside a pause, and names each miss by its reason (ADR 0037)', () => {
+    const log = (/** @type {string} */ date, /** @type {any} */ habits, /** @type {any} */ skips = {}) => ({ date, habits, skips, meals: [], measurements: [], notes: [], mood: null, energy: null, time: null });
+    const gym = { id: 'habit_gym', label: 'Gym', type: 'check', periods: [{ from: '2026-01-01', to: null, days: [1, 2, 3, 4, 5, 6, 7], target: null }] };
+    const html = renderToStaticMarkup(
+      createElement(ReviewFigures, {
+        figures: figures({
+          profile: { habits: [gym] },
+          dailyLogs: [
+            log('2026-10-05', { habit_gym: true }),
+            log('2026-10-06', {}, { habit_gym: 'paused' }),
+            log('2026-10-07', {}, { habit_gym: 'forgotten' }),
+            log('2026-10-08', {}, { habit_gym: 'forgotten' }),
+            log('2026-10-09', {}, { habit_gym: 'too-heavy' }),
+            log('2026-10-10', { other: true }),
+          ],
+        }),
+      })
+    );
+    const row = html.slice(html.indexOf('>Gym<'));
+    expect(row).toMatch(/^>Gym<\/span><span class="vs"><span class="num">1\u2009\/\u20096<\/span>/);
+    expect(row).toContain('Forgotten Wed, Thu');
+    expect(row).toContain('Too heavy Fri');
+    expect(row).toContain('Missed Sat');
+    expect(row).toContain('Sun not recorded');
+    expect(row).toContain('Paused 1 day');
+  });
+
+  it('says a habit was paused all week rather than drawing 0 / 0', () => {
+    const log = (/** @type {string} */ date) => ({ date, habits: {}, skips: { habit_gym: 'paused' }, meals: [], measurements: [], notes: [], mood: null, energy: null, time: null });
+    const gym = { id: 'habit_gym', label: 'Gym', type: 'check', periods: [{ from: '2026-01-01', to: null, days: [1, 3], target: null }] };
+    const html = renderToStaticMarkup(
+      createElement(ReviewFigures, {
+        figures: figures({ profile: { habits: [gym] }, dailyLogs: [log('2026-10-05'), log('2026-10-07')] }),
+      })
+    );
+    expect(html).toContain('Paused all week');
+    expect(html).not.toMatch(/0\u2009\/\u20090/);
+  });
+
   it('says "so far" for the week in progress', () => {
     const html = renderToStaticMarkup(
       createElement(ReviewFigures, { figures: figures({}, '2026-10-07', '2026-10-05') })

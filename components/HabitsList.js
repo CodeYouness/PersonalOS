@@ -24,14 +24,20 @@ import { targetOn } from '@/lib/domain/derive/habits.js';
  * follow, faded and labelled, but ticked like any other -- it is recorded,
  * and counts toward nothing (ADR 0029).
  *
+ * Each habit shows its week beside it, days kept of days scheduled so far
+ * (ADR 0037): a habit is read by its rate before the streak. The week is the
+ * server's, from `habitRate`, and catches up on the refresh after a tick; a
+ * habit with nothing scheduled in it shows none rather than 0 / 0.
+ *
  * @param {{
  *   scheduled: import('@/lib/domain/types.js').Habit[],
  *   off: import('@/lib/domain/types.js').Habit[],
  *   todayKey: string,
  *   values: Record<string, boolean | number>,
+ *   weekRates: Record<string, { kept: number, scheduled: number }>,
  * }} props
  */
-export default function HabitsList({ scheduled, off, todayKey, values: initialValues }) {
+export default function HabitsList({ scheduled, off, todayKey, values: initialValues, weekRates }) {
   const [values, setValues] = useState(initialValues);
   const [pending, setPending] = useState(/** @type {Set<string>} */ (new Set()));
   const router = useRouter();
@@ -75,8 +81,9 @@ export default function HabitsList({ scheduled, off, todayKey, values: initialVa
   function row(habit, isOff) {
     const value = values[habit.id];
     const isPending = pending.has(habit.id);
+    const week = <WeekRate rate={weekRates[habit.id]} />;
     return habit.type === 'check' ? (
-      <CheckRow key={habit.id} habit={habit} done={value === true} isOff={isOff} disabled={isPending} onToggle={save} />
+      <CheckRow key={habit.id} habit={habit} done={value === true} isOff={isOff} disabled={isPending} onToggle={save} week={week} />
     ) : (
       <CounterRow
         key={habit.id}
@@ -86,6 +93,7 @@ export default function HabitsList({ scheduled, off, todayKey, values: initialVa
         isOff={isOff}
         disabled={isPending}
         onChange={save}
+        week={week}
       />
     );
   }
@@ -95,6 +103,21 @@ export default function HabitsList({ scheduled, off, todayKey, values: initialVa
       {scheduled.map((habit) => row(habit, false))}
       {off.map((habit) => row(habit, true))}
     </ul>
+  );
+}
+
+/**
+ * A habit's week so far, "5 / 6": nothing when no day of it was scheduled
+ * outside a pause, since the rate is then unknown, never 0.
+ *
+ * @param {{ rate: { kept: number, scheduled: number } | undefined }} props
+ */
+function WeekRate({ rate }) {
+  if (rate === undefined || rate.scheduled === 0) return null;
+  return (
+    <span className="habit-week num" title={rate.kept + ' of ' + rate.scheduled + ' scheduled days kept this week'}>
+      {rate.kept}&thinsp;/&thinsp;{rate.scheduled}
+    </span>
   );
 }
 
@@ -114,9 +137,10 @@ function rowClass(done, isOff) {
  *   isOff: boolean,
  *   disabled: boolean,
  *   onToggle: (habitId: string, value: boolean) => void,
+ *   week: import('react').ReactNode,
  * }} props
  */
-function CheckRow({ habit, done, isOff, disabled, onToggle }) {
+function CheckRow({ habit, done, isOff, disabled, onToggle, week }) {
   return (
     <li className={rowClass(done, isOff)}>
       <span className={'habit-box' + (done ? ' is-done' : '')} aria-hidden="true">
@@ -142,6 +166,7 @@ function CheckRow({ habit, done, isOff, disabled, onToggle }) {
         {habit.label}
       </button>
       {isOff && <span className="habit-off">Day off</span>}
+      {week}
     </li>
   );
 }
@@ -156,9 +181,10 @@ function CheckRow({ habit, done, isOff, disabled, onToggle }) {
  *   isOff: boolean,
  *   disabled: boolean,
  *   onChange: (habitId: string, value: number) => void,
+ *   week: import('react').ReactNode,
  * }} props
  */
-function CounterRow({ habit, target, count, isOff, disabled, onChange }) {
+function CounterRow({ habit, target, count, isOff, disabled, onChange, week }) {
   const done = target > 0 && count >= target;
   const percent = target > 0 ? Math.min((count / target) * 100, 100) : 0;
 
@@ -186,6 +212,7 @@ function CounterRow({ habit, target, count, isOff, disabled, onChange }) {
       <span className="habit-count num">
         {count}&thinsp;/&thinsp;{target}
       </span>
+      {week}
     </li>
   );
 }

@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { streakLabel } from '@/components/format.js';
 import HabitsList from '@/components/HabitsList.js';
 import HabitsRing from '@/components/HabitsRing.js';
-import { dayKeysEndingAt, today } from '@/lib/domain/dates.js';
-import { dayCompletion, habitsForDay, STREAK_WINDOW_DAYS, streak } from '@/lib/domain/derive/habits.js';
+import { dayKeysEndingAt, today, weekDayKeys } from '@/lib/domain/dates.js';
+import { dayCompletion, habitRate, habitsForDay, STREAK_WINDOW_DAYS, streak } from '@/lib/domain/derive/habits.js';
 import { getDailyLogs, getProfile } from '@/lib/store.js';
 
 /**
@@ -18,6 +18,8 @@ import { getDailyLogs, getProfile } from '@/lib/store.js';
  * The habits scheduled today come first; those with a day off follow, faded
  * and still tickable -- the Tuesday gym session happened -- and outside the
  * ring, which is completion over today's scheduled habits only (ADR 0029).
+ * Each shows its week so far, Monday to today, as the Review screen counts
+ * it (`habitRate`, ADR 0037): paused days left out.
  */
 export default async function HabitsCard() {
   const profile = await getProfile();
@@ -35,6 +37,10 @@ export default async function HabitsCard() {
   // the ring; null, with nothing scheduled, is the ring's "Day off".
   const ratio = dayCompletion(profile.habits, todayLog);
   const streakDays = streak(profile.habits, windowLogs, todayKey);
+  const week = { from: weekDayKeys(todayKey)[0], to: todayKey };
+  const weekRates = Object.fromEntries(
+    [...scheduled, ...off].map((habit) => [habit.id, habitRate(habit, windowLogs, week)])
+  );
 
   return (
     <article id="card-habits" className="card span-4">
@@ -61,6 +67,7 @@ export default async function HabitsCard() {
             off={off}
             todayKey={todayKey}
             values={todayLog.habits}
+            weekRates={weekRates}
           />
         )}
       </div>
