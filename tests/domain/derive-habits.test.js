@@ -631,6 +631,11 @@ describe('openHabits', () => {
     const old = { id: 'habit_old', label: 'Old', type: 'check', periods: [{ from: '2026-01-01', to: '2026-01-04', days: ALL_DAYS, target: null }] };
     expect(openHabits(/** @type {any} */ ([old]), log('2026-01-05', {}))).toEqual([]);
   });
+
+  it('leaves out a habit whose day carries a skip reason: it was answered (ADR 0037)', () => {
+    const day = { ...log('2026-01-05', { habit_water: 3 }), skips: { habit_move: 'forgotten', habit_water: 'too-heavy' } };
+    expect(openHabits(/** @type {any} */ ([...habits, gym]), day).map((habit) => habit.id)).toEqual(['habit_gym']);
+  });
 });
 
 describe('skip reasons and the rate (ADR 0037)', () => {

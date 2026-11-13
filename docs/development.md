@@ -181,8 +181,9 @@ nothing else. Not automated; check each step by hand.
 behind a `NEXT_PUBLIC_` name, and never written in the repository or a
 screenshot.
 
-**The gate** is `lib/phone-gate.js`, called first thing in the capture route
-and in every journal handler:
+**The gate** is `lib/phone-gate.js`, called first thing in the capture route,
+in every journal handler, and in the routes the phone will reach later -- the
+check-in (`/api/checkin`) and a receipt line's undo:
 
 - A request is *proxied* when it carries what `tailscale serve` adds: a
   `Tailscale-User-*` header, or an `X-Forwarded-For` naming the phone's
