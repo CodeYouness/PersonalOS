@@ -47,9 +47,23 @@ describe('HabitsList', () => {
       off: /** @type {any} */ ([gym, sets]),
       todayKey: '2026-10-13',
       values: { habit_gym: true },
+      weekRates: {
+        habit_move: { kept: 1, scheduled: 2 },
+        habit_gym: { kept: 0, scheduled: 1 },
+        habit_sets: { kept: 0, scheduled: 0 },
+      },
     })
   );
   const rows = html.split('<li').slice(1);
+
+  it('shows each habit\'s week beside it, days kept of days scheduled (ADR 0037)', () => {
+    expect(rows[0]).toMatch(/<span class="habit-week num" title="1 of 2 scheduled days kept this week">1\u2009\/\u20092<\/span>/);
+    expect(rows[1]).toMatch(/0\u2009\/\u20091/);
+  });
+
+  it('shows no week for a habit with nothing scheduled in it, rather than 0 / 0', () => {
+    expect(rows[2]).not.toContain('habit-week');
+  });
 
   it('fades a habit with a day off and labels it, and still offers the tick', () => {
     expect(rows[1]).toMatch(/^ class="habit is-done is-off"/);

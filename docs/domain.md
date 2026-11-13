@@ -321,7 +321,7 @@ of its own.
 | `figure:category:<YYYY-MM>:<line id>` | one line of the category table: total, share, change on the month before | Finances, that month |
 | `figure:habit-streak:now` | the current streak | Habits |
 | `figure:habit-completion:30d` | completion, perfect days and days recorded over 30 days | Habits |
-| `figure:habit-rate:<habit id>:30d` | one habit's rate over 30 days | Habits |
+| `figure:habit-rate:<habit id>:30d` | one habit's rate over 30 days, paused days left out, with how many were paused and the misses by the reason given | Habits |
 | `figure:health-calories-avg:30d`, `health-protein-avg:`, `health-carbs-avg:`, `health-fat-avg:` | averages over the recorded days of the Health window | Nutrition & Health |
 | `figure:weight:latest`, `figure:weight-change:30d` | latest weight and its change | Nutrition & Health |
 | `figure:calories:today`, `protein:`, `carbs:`, `fat:` | today's totals | Nutrition & Health |
@@ -761,7 +761,8 @@ else. Nothing is deleted.
 
 The **streak** counts backwards over consecutive days with at least one
 *scheduled* habit completed. A day with nothing scheduled is skipped — it
-neither extends nor breaks the streak. A day still in progress does not break it —
+neither extends nor breaks the streak — and so is a day on which every habit
+scheduled was **paused** (a skip reason, below). A day still in progress does not break it —
 breaking a streak at 00:01 would be punishing someone for waking up. It
 is counted over the last 365 days, one window shared by every screen that
 shows it, so the home card and the Habits screen can never disagree — the
@@ -773,7 +774,53 @@ an unrecorded day is not a zero, and averaging one in would make a week you
 forgot to tick look like a week you failed. A day no habit was scheduled on is
 left out for the same reason (ADR 0017). **Days recorded** is the honest
 denominator alongside it: how many of the thirty days there is anything to
-average at all.
+average at all. A day holding only a skip reason is recorded: it was
+answered.
+
+### Skip reason
+
+**Is** why a scheduled habit was not kept on a day, from a closed list:
+forgotten, too heavy, skipped on purpose, paused (ADR 0037). It belongs to
+that habit on that day, and it is what tells "could not" from "chose not to".
+
+The list is `HABIT_SKIP_REASONS` in `personalos.config.js` -- `forgotten`,
+`too-heavy`, `on-purpose`, `paused`, each with the label the screens show --
+checked by `isHabitSkipReason` (`lib/domain/habit-skip.js`). A reason lives on
+the day's log under `skips`, by habit id; a habit with no reason has no key.
+
+**Only `paused` takes a day out.** A paused day is not in the habit's rate
+and, when every habit scheduled that day is paused, the streak skips it like a
+day off. The other three are misses: they count as scheduled days not kept,
+and are reported by their reason.
+
+`setHabitSkip({ date, habitId, reason })` gives a habit's day its reason, or
+clears it with `reason: null`. It refuses a future day, an unknown habit or
+reason, a day the habit was not scheduled -- under the period that day had
+(ADR 0029) -- and a day it was complete (`takesSkipReason`); a clear is always
+allowed. It writes no event: like mood, a reason is a reading of the day. A
+value that makes the day complete clears its reason -- `logHabitValue` and
+`updateDailyLog` both -- so a reason is never left beside a day kept.
+Archiving a habit keeps its reasons, as it keeps its values. Set through
+`PUT /api/habits/skip` with `{ "date", "habitId", "reason" }`, and from the
+Habits screen's heatmap: a past day scheduled and not kept opens a popover
+with the four reasons.
+
+### Rate
+
+**Is** a habit read over a span: of the days it was scheduled, how many it
+was kept -- "5 of 6 this week" (ADR 0037). `habitRate` in
+`lib/domain/derive/habits.js` returns `kept`, `scheduled` (scheduled and not
+paused), `rate` (`kept / scheduled`, **null** when nothing was scheduled --
+unknown, never 0), `paused`, and `missed` by reason, where a scheduled day not
+kept with no reason given is `unrecorded`. A habit is read by its rate before
+the global streak: the home card shows each habit's week so far, and the
+Review screen's habit rows are this rate, paused days left out of the
+"x / y" and the misses named by reason.
+
+The heatmap's rate (`ratesByHabit`) is the other reading, unchanged in kind:
+how full the recorded scheduled days were on average, a counter at half its
+target counting half. It shares the days that count -- a paused day is left
+out of it too -- and with no day to rest on it is null, shown as "—".
 
 ---
 
@@ -783,8 +830,10 @@ average at all.
 
 **Is not** a place for anything that must survive the day.
 
-**Has** `date`, `habits`, `meals`, `measurements`, `notes`, `mood`, `energy`,
-`time`.
+**Has** `date`, `habits`, `skips`, `meals`, `measurements`, `notes`, `mood`,
+`energy`, `time`. `skips` is the day's skip reasons by habit id (see Habit);
+a log never given one reads back `{}`, with no migration, and
+`updateDailyLog` does not take it.
 
 `mood` and `energy` are the day's two readings, below. Each is canonical, a
 reading of the day rather than something that happened in it, and not a
@@ -1359,7 +1408,8 @@ double counting.
 Every term in this section is **planned, not built** (ADR 0037). The words
 are fixed here so the code that follows uses them; nothing below is stored or
 derived yet. Mood and energy, and time against areas, decided with them,
-are built: see Daily Log.
+are built: see Daily Log. So are the skip reason and a habit's rate: see
+Habit.
 
 ### Check-in
 
@@ -1441,12 +1491,6 @@ so that the days inside it can be compared with the days outside. A review
 closes it. It is the only ground on which the system says a change did
 something.
 
-### Skip reason
-
-**Is** why a scheduled habit was not kept on a day, from a closed list:
-forgotten, too heavy, skipped on purpose, paused. It belongs to that habit
-on that day, and it is what tells "could not" from "chose not to".
-
 ---
 
 ## Canonical vs derived — the register
@@ -1455,7 +1499,7 @@ on that day, and it is what tells "could not" from "chose not to".
 | --- | --- |
 | profile, habit definitions (including periods) | overdue, days overdue, a task's age, board column and By person group |
 | finance categories (two levels, kind on the top level, fixedCost, archived) | whether a habit is active/archived on a day; a subcategory's kind |
-| task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates, history heatmap cells, the thirty-day summary |
+| task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates (a habit's rate over a span: kept of scheduled, paused days, misses by reason), history heatmap cells, the thirty-day summary |
 | people | health averages, day totals |
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
 | reviews (answers, lever, completedAt) | a review's week figures: habits, intake, spending, what was closed |
@@ -1463,7 +1507,7 @@ on that day, and it is what tells "could not" from "chose not to".
 | memory entries | current net worth, an account's value between balances, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
-| daily logs (ticks, meals, measurements, the day's mood and energy, the day's time declared against areas) | the average mood and energy over a week or 30 days, and how many days each rests on; a day's total time and the time by area over a span, over the declared days |
+| daily logs (ticks, skip reasons, meals, measurements, the day's mood and energy, the day's time declared against areas) | the average mood and energy over a week or 30 days, and how many days each rests on; a day's total time and the time by area over a span, over the declared days |
 | finance accounts (including valuation and archivedOn), observations, trades, prices, transactions (signed amount, counter account, notCounted, tags) | |
 | **net worth snapshots** — the one exception, not written in one currency (ADR 0022) | |
 

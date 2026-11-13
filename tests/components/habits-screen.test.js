@@ -23,8 +23,12 @@ const water = {
   periods: [{ from: '2026-10-01', to: null, days: [1, 2, 3, 4, 5, 6, 7], target: 8 }],
 };
 
-/** @param {string} date @param {Record<string, boolean | number>} habits */
-const log = (date, habits) => ({ date, habits, meals: [], measurements: [], notes: [] });
+/**
+ * @param {string} date
+ * @param {Record<string, boolean | number>} habits
+ * @param {Record<string, string>} [skips]
+ */
+const log = (date, habits, skips = {}) => ({ date, habits, skips, meals: [], measurements: [], notes: [] });
 
 describe('HabitsManager', () => {
   const html = renderToStaticMarkup(
@@ -52,7 +56,7 @@ describe('HabitsHistory', () => {
     log('2026-10-13', { habit_gym: true }),
     log('2026-10-14', { habit_water: 3 }),
   ]));
-  const html = renderToStaticMarkup(createElement(HabitsHistory, { rows }));
+  const html = renderToStaticMarkup(createElement(HabitsHistory, { rows, todayKey: '2026-10-15' }));
 
   it('draws a day off as a cell that can still be corrected, and says what it is', () => {
     expect(html).toMatch(/<button[^>]*data-v="off-done"[^>]*aria-label="Gym, 2026-10-13: day off, done"/);
@@ -62,5 +66,42 @@ describe('HabitsHistory', () => {
   it('names both day-off cells in the legend', () => {
     expect(html).toContain('day off</span>');
     expect(html).toContain('done on a day off</span>');
+  });
+});
+
+describe('HabitsHistory: skip reasons (ADR 0037)', () => {
+  // Monday 12 to Friday 16 October, today the 16th: the gym went on Monday,
+  // was paused on Wednesday and is not done yet today.
+  const rows = historyRows(/** @type {any} */ ([gym, water]), /** @type {any} */ ([
+    log('2026-10-12', { habit_gym: true, habit_water: 8 }),
+    log('2026-10-13', { habit_water: 2 }, { habit_water: 'too-heavy' }),
+    log('2026-10-14', {}, { habit_gym: 'paused' }),
+    log('2026-10-15', { habit_water: 8 }),
+    log('2026-10-16', {}),
+  ]));
+  const html = renderToStaticMarkup(createElement(HabitsHistory, { rows, todayKey: '2026-10-16' }));
+
+  it('draws a paused day as its own cell, and says the reason a day was missed', () => {
+    expect(html).toMatch(/<button[^>]*data-v="paused"[^>]*aria-label="Gym, 2026-10-14: not done, paused"/);
+    expect(html).toMatch(/<button[^>]*data-v="low"[^>]*aria-label="Water, 2026-10-13: 2 of 8, too heavy"/);
+  });
+
+  it('opens a past scheduled day not kept to take a reason, and leaves the rest one click', () => {
+    expect(html).toMatch(/<button[^>]*aria-label="Gym, 2026-10-14: not done, paused"[^>]*aria-expanded="false"/);
+    // Kept, a day off, and today: a check still flips on one click.
+    expect(html).toMatch(/<button[^>]*aria-label="Gym, 2026-10-12: done"[^>]*aria-pressed="true"/);
+    expect(html).toMatch(/<button[^>]*aria-label="Gym, 2026-10-16: nothing recorded"[^>]*aria-pressed="false"/);
+    expect(html).toMatch(/<button[^>]*aria-label="Gym, 2026-10-13: day off, not done"[^>]*aria-pressed="false"/);
+  });
+
+  it('puts a paused day in the legend', () => {
+    expect(html).toContain('paused</span>');
+  });
+
+  it('shows a rate with no day behind it as unknown, not 0%', () => {
+    const [row] = historyRows(/** @type {any} */ ([gym]), /** @type {any} */ ([log('2026-10-13', {}), log('2026-10-14', {}, { habit_gym: 'paused' })]));
+    const markup = renderToStaticMarkup(createElement(HabitsHistory, { rows: [row], todayKey: '2026-10-16' }));
+    expect(markup).toContain('<span class="heat-rate num">—</span>');
+    expect(markup).not.toContain('0%');
   });
 });

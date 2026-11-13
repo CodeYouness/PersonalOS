@@ -181,6 +181,22 @@ export const TEMPERATURES = Object.freeze(['hot', 'warm', 'cold']);
 /** A habit is either done/not done, or counted against a target. */
 export const HABIT_TYPES = Object.freeze(['check', 'counter']);
 
+/**
+ * Why a scheduled habit was not kept on a day (ADR 0037), each with the label
+ * the screens show, in the order they offer them. Closed: a reason is added
+ * here, and documented in docs/domain.md, never accepted as a free string.
+ * `paused` is the one that takes the day out of the habit's rate; the others
+ * are misses, counted by their reason.
+ *
+ * @type {Readonly<Record<string, string>>}
+ */
+export const HABIT_SKIP_REASONS = Object.freeze({
+  forgotten: 'Forgotten',
+  'too-heavy': 'Too heavy',
+  'on-purpose': 'Skipped on purpose',
+  paused: 'Paused',
+});
+
 /** An objective you hold, or a container for other work. */
 export const GOAL_KINDS = Object.freeze(['objective', 'project']);
 

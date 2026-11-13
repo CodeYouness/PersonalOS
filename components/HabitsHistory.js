@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { percent } from '@/components/format.js';
-import { heatCellState } from '@/lib/domain/derive/habits.js';
+import { heatCellState, isComplete, takesSkipReason } from '@/lib/domain/derive/habits.js';
+import { HABIT_SKIP_REASON_KEYS } from '@/lib/domain/habit-skip.js';
+import { HABIT_SKIP_REASONS } from '@/personalos.config.js';
 
 /**
  * The Habits screen's history card, ported from design/mockup.html's
@@ -23,14 +25,27 @@ import { heatCellState } from '@/lib/domain/derive/habits.js';
  * being outlined once anything is) and the home card's streak catch up from
  * the server rather than from a guess made here.
  *
+ * A past day the habit was scheduled and not kept takes a skip reason (ADR
+ * 0037): such a cell opens a popover -- a check's with "Done" beside the
+ * reasons, a counter's with them under its count -- where a reason is given,
+ * changed, or cleared by choosing it again. Every other check cell still
+ * flips on one click. A reason is written on its own route and rolls back
+ * the same way a value does; a value that completes the day drops the
+ * reason here as the store does.
+ *
  * @param {{
  *   rows: ReturnType<typeof import('@/lib/domain/derive/habits.js').historyRows>,
+ *   todayKey: string,
  * }} props
  */
-export default function HabitsHistory({ rows }) {
+export default function HabitsHistory({ rows, todayKey }) {
   /** Corrections made here, keyed by habit and day -- never by index (CLAUDE.md). */
   const [corrections, setCorrections] = useState(
     /** @type {Record<string, boolean | number>} */ ({})
+  );
+  /** Reasons given or cleared here, keyed the same way. */
+  const [skipCorrections, setSkipCorrections] = useState(
+    /** @type {Record<string, import('@/lib/domain/habit-skip.js').HabitSkipReason | null>} */ ({})
   );
   const [pending, setPending] = useState(/** @type {Set<string>} */ (new Set()));
   const [error, setError] = useState(/** @type {string | null} */ (null));
@@ -76,6 +91,54 @@ export default function HabitsHistory({ rows }) {
         return next;
       });
     }
+    settle(key);
+  }
+
+  /**
+   * @param {import('@/lib/domain/types.js').Habit} habit
+   * @param {string} date
+   * @param {import('@/lib/domain/habit-skip.js').HabitSkipReason | null} reason
+   */
+  async function saveSkip(habit, date, reason) {
+    const key = cellKey(habit.id, date);
+    if (pending.has(key)) return;
+    const hadCorrection = key in skipCorrections;
+    const previous = skipCorrections[key];
+
+    setPending((current) => new Set(current).add(key));
+    setError(null);
+    setOpenCell(null);
+    setSkipCorrections((current) => ({ ...current, [key]: reason }));
+
+    let ok = false;
+    try {
+      const response = await fetch('/api/habits/skip', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ date, habitId: habit.id, reason }),
+      });
+      ok = response.ok;
+      if (!ok) {
+        const payload = await response.json().catch(() => null);
+        setError(payload?.message ?? 'Something went wrong');
+      }
+    } catch {
+      setError('Could not reach the server');
+    }
+
+    if (!ok) {
+      setSkipCorrections((current) => {
+        const next = { ...current };
+        if (hadCorrection) next[key] = previous;
+        else delete next[key];
+        return next;
+      });
+    }
+    settle(key);
+  }
+
+  /** @param {string} key */
+  function settle(key) {
     setPending((current) => {
       const next = new Set(current);
       next.delete(key);
@@ -101,13 +164,16 @@ export default function HabitsHistory({ rows }) {
           <span>day off</span>
           <i className="heat-cell" data-v="off-done" />
           <span>done on a day off</span>
+          <i className="heat-cell" data-v="paused" />
+          <span>paused</span>
         </div>
       </div>
       <div className="card-body">
         <p className="caption heat-note">
           Last {rows[0]?.cells.length ?? 30} days · outlined cells are days with nothing recorded,
           not days you failed. Hatched cells are days off: nothing was expected, and something done
-          on one counts toward nothing.
+          on one counts toward nothing. A past day not kept takes a reason; a paused day is left
+          out of the rate.
         </p>
         {error !== null && (
           <p className="caption is-error" role="alert">
@@ -127,8 +193,11 @@ export default function HabitsHistory({ rows }) {
               <span className="heat-cells">
                 {row.cells.map((cell) => {
                   const key = cellKey(row.habit.id, cell.date);
-                  const corrected = key in corrections;
-                  const value = corrected ? corrections[key] : cell.value;
+                  const corrected = key in corrections || key in skipCorrections;
+                  const value = key in corrections ? corrections[key] : cell.value;
+                  const given = key in skipCorrections ? skipCorrections[key] : cell.skip;
+                  // A day kept has no reason not to be: the store drops it.
+                  const skip = isComplete(row.habit, cell.date, value) ? null : given;
                   return (
                     <HeatCell
                       key={cell.date}
@@ -136,19 +205,22 @@ export default function HabitsHistory({ rows }) {
                       date={cell.date}
                       target={cell.target}
                       value={value}
+                      skip={skip}
                       // A corrected day has something recorded by definition:
                       // this write.
-                      state={corrected ? heatCellState(row.habit, cell.date, value, true) : cell.state}
+                      state={corrected ? heatCellState(row.habit, cell.date, value, true, skip) : cell.state}
+                      takesReason={cell.date < todayKey && takesSkipReason(row.habit, cell.date, value)}
                       disabled={pending.has(key)}
                       isOpen={openCell === key}
                       onOpen={() => setOpenCell(key)}
                       onClose={() => setOpenCell(null)}
                       onSave={(next) => save(row.habit, cell.date, next)}
+                      onSkip={(reason) => saveSkip(row.habit, cell.date, reason)}
                     />
                   );
                 })}
               </span>
-              <span className="heat-rate num">{percent(row.rate)}</span>
+              <span className="heat-rate num">{row.rate === null ? '—' : percent(row.rate)}</span>
             </div>
           ))
         )}
@@ -176,20 +248,26 @@ function cellKey(habitId, date) {
  * A counter's cell shows the target that day was measured against, never
  * today's: correcting an old day must not quietly re-measure it (ADR 0029).
  *
+ * A cell that `takesReason` -- a past day scheduled and not kept -- opens a
+ * popover even for a check, so the reason sits where the correction is.
+ *
  * @param {{
  *   habit: import('@/lib/domain/types.js').Habit,
  *   date: string,
  *   target: number | null,
  *   value: boolean | number,
+ *   skip: import('@/lib/domain/habit-skip.js').HabitSkipReason | null,
  *   state: string,
+ *   takesReason: boolean,
  *   disabled: boolean,
  *   isOpen: boolean,
  *   onOpen: () => void,
  *   onClose: () => void,
  *   onSave: (value: boolean | number) => void,
+ *   onSkip: (reason: import('@/lib/domain/habit-skip.js').HabitSkipReason | null) => void,
  * }} props
  */
-function HeatCell({ habit, date, target, value, state, disabled, isOpen, onOpen, onClose, onSave }) {
+function HeatCell({ habit, date, target, value, skip, state, takesReason, disabled, isOpen, onOpen, onClose, onSave, onSkip }) {
   const cell = useRef(/** @type {HTMLButtonElement | null} */ (null));
 
   if (state === 'inactive') {
@@ -204,9 +282,10 @@ function HeatCell({ habit, date, target, value, state, disabled, isOpen, onOpen,
       : state === 'off' || state === 'off-done'
         ? 'day off, ' + done
         : done;
-  const label = habit.label + ', ' + date + ': ' + described;
+  const label =
+    habit.label + ', ' + date + ': ' + described + (skip === null ? '' : ', ' + HABIT_SKIP_REASONS[skip].toLowerCase());
 
-  if (habit.type === 'check') {
+  if (habit.type === 'check' && !takesReason) {
     return (
       <button
         type="button"
@@ -233,13 +312,15 @@ function HeatCell({ habit, date, target, value, state, disabled, isOpen, onOpen,
         onClick={() => (isOpen ? onClose() : onOpen())}
       />
       {isOpen && (
-        <CounterPopover
+        <CellPopover
           habit={habit}
           date={date}
           target={target}
           count={typeof value === 'number' ? value : 0}
+          skip={takesReason ? skip : undefined}
           disabled={disabled}
           onSave={onSave}
+          onSkip={onSkip}
           onClose={() => {
             onClose();
             cell.current?.focus();
@@ -251,21 +332,26 @@ function HeatCell({ habit, date, target, value, state, disabled, isOpen, onOpen,
 }
 
 /**
- * The counter correction: − n / target +, saving on every click. Esc and a
- * click outside close it, and Esc puts the focus back on the cell it came
- * from, so the keyboard is never left stranded in a popover that is gone.
+ * A cell's correction. A counter's: − n / target +, saving on every click. A
+ * check's, opened only to give a reason: "Done", which ticks it. Then, when
+ * the day takes a reason (`skip` is not undefined), the reasons, the one
+ * given pressed; choosing it again clears it. Esc and a click outside close
+ * it, and Esc puts the focus back on the cell it came from, so the keyboard
+ * is never left stranded in a popover that is gone.
  *
  * @param {{
  *   habit: import('@/lib/domain/types.js').Habit,
  *   date: string,
  *   target: number | null,
  *   count: number,
+ *   skip: import('@/lib/domain/habit-skip.js').HabitSkipReason | null | undefined,
  *   disabled: boolean,
- *   onSave: (value: number) => void,
+ *   onSave: (value: boolean | number) => void,
+ *   onSkip: (reason: import('@/lib/domain/habit-skip.js').HabitSkipReason | null) => void,
  *   onClose: () => void,
  * }} props
  */
-function CounterPopover({ habit, date, target, count, disabled, onSave, onClose }) {
+function CellPopover({ habit, date, target, count, skip, disabled, onSave, onSkip, onClose }) {
   const popover = useRef(/** @type {HTMLDivElement | null} */ (null));
 
   useEffect(() => {
@@ -290,28 +376,60 @@ function CounterPopover({ habit, date, target, count, disabled, onSave, onClose 
 
   return (
     <div className="heat-pop" ref={popover} role="group" aria-label={'Correct ' + habit.label + ', ' + date}>
-      <button
-        type="button"
-        className="icon-btn"
-        aria-label={'One fewer ' + habit.label}
-        disabled={disabled || count <= 0}
-        onClick={() => onSave(count - 1)}
-      >
-        &minus;
-      </button>
-      <span className="num">
-        {count}&thinsp;/&thinsp;{target}
-      </span>
-      <button
-        type="button"
-        className="icon-btn"
-        aria-label={'One more ' + habit.label}
-        autoFocus
-        disabled={disabled}
-        onClick={() => onSave(count + 1)}
-      >
-        +
-      </button>
+      {habit.type === 'check' ? (
+        <button
+          type="button"
+          className="btn-ghost"
+          autoFocus
+          disabled={disabled}
+          onClick={() => {
+            onSave(true);
+            onClose();
+          }}
+        >
+          Done
+        </button>
+      ) : (
+        <>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={'One fewer ' + habit.label}
+            disabled={disabled || count <= 0}
+            onClick={() => onSave(count - 1)}
+          >
+            &minus;
+          </button>
+          <span className="num">
+            {count}&thinsp;/&thinsp;{target}
+          </span>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={'One more ' + habit.label}
+            autoFocus
+            disabled={disabled}
+            onClick={() => onSave(count + 1)}
+          >
+            +
+          </button>
+        </>
+      )}
+      {skip !== undefined && (
+        <span className="heat-reasons" role="group" aria-label="Why not kept">
+          {HABIT_SKIP_REASON_KEYS.map((reason) => (
+            <button
+              key={reason}
+              type="button"
+              aria-pressed={skip === reason}
+              disabled={disabled}
+              onClick={() => onSkip(skip === reason ? null : reason)}
+            >
+              {HABIT_SKIP_REASONS[reason]}
+            </button>
+          ))}
+        </span>
+      )}
     </div>
   );
 }

@@ -245,6 +245,41 @@ describe('habits', () => {
   });
 });
 
+describe('habit skip reasons (ADR 0037)', () => {
+  it('leaves a paused day out of a habit\'s rate as the screen does, and states the reasons given', async () => {
+    await store.logHabitValue({ date: shiftDayKey(TODAY, -1), habitId: 'habit_move', value: true });
+    await store.setHabitSkip({ date: shiftDayKey(TODAY, -2), habitId: 'habit_move', reason: 'paused' });
+    await store.setHabitSkip({ date: shiftDayKey(TODAY, -3), habitId: 'habit_move', reason: 'forgotten' });
+    await store.setHabitSkip({ date: shiftDayKey(TODAY, -4), habitId: 'habit_move', reason: 'forgotten' });
+
+    const profile = await store.getProfile();
+    const logs = await store.getDailyLogs(dayKeysEndingAt(HABITS_WINDOW_DAYS, TODAY)[0], TODAY);
+    const row = historyRows(profile.habits, logs).find((entry) => entry.habit.id === 'habit_move');
+    expect(row?.ratedDays).toBe(3);
+    expect(row?.rate).toBeCloseTo(1 / 3);
+
+    const rate = find(await build(), 'figure:habit-rate:habit_move:30d');
+    expect(rate?.content).toContain('33%');
+    expect(rate?.content).toContain('rests on 3 days');
+    expect(rate?.content).toContain('Paused on 1 day');
+    expect(rate?.content).toContain('forgotten 2');
+    expect(rate?.content).not.toContain('too heavy');
+  });
+
+  it('skips a day every scheduled habit was paused on in the streak, as the home card does', async () => {
+    await store.logHabitValue({ date: shiftDayKey(TODAY, -1), habitId: 'habit_move', value: true });
+    for (const habitId of ['habit_move', 'habit_read', 'habit_water', 'habit_deep_work']) {
+      await store.setHabitSkip({ date: shiftDayKey(TODAY, -2), habitId, reason: 'paused' });
+    }
+    await store.logHabitValue({ date: shiftDayKey(TODAY, -3), habitId: 'habit_move', value: true });
+
+    const profile = await store.getProfile();
+    const logs = await store.getDailyLogs(dayKeysEndingAt(STREAK_WINDOW_DAYS, TODAY)[0], TODAY);
+    expect(streak(profile.habits, logs, TODAY)).toBe(2);
+    expect(find(await build(), 'figure:habit-streak:now')?.content).toContain('2 days');
+  });
+});
+
 describe('habit window', () => {
   it('is the one the Habits screen reads, named once', async () => {
     const items = await build();

@@ -91,11 +91,11 @@ describe('weekFigures: habits', () => {
     expect(row.scheduled).toBe(7);
     expect(row.complete).toBe(2);
     expect(row.notComplete).toEqual([
-      { date: '2026-10-07', state: 'missed' },
-      { date: '2026-10-08', state: 'unrecorded' },
-      { date: '2026-10-09', state: 'unrecorded' },
-      { date: '2026-10-10', state: 'unrecorded' },
-      { date: '2026-10-11', state: 'unrecorded' },
+      { date: '2026-10-07', state: 'missed', reason: null },
+      { date: '2026-10-08', state: 'unrecorded', reason: null },
+      { date: '2026-10-09', state: 'unrecorded', reason: null },
+      { date: '2026-10-10', state: 'unrecorded', reason: null },
+      { date: '2026-10-11', state: 'unrecorded', reason: null },
     ]);
   });
 
@@ -118,8 +118,8 @@ describe('weekFigures: habits', () => {
       log('2026-10-07', { w: 5 }), // target 4: complete
     ]);
     expect(row.complete).toBe(1);
-    expect(row.notComplete[0]).toEqual({ date: '2026-10-05', state: 'unrecorded' });
-    expect(row.notComplete[1]).toEqual({ date: '2026-10-06', state: 'missed' });
+    expect(row.notComplete[0]).toEqual({ date: '2026-10-05', state: 'unrecorded', reason: null });
+    expect(row.notComplete[1]).toEqual({ date: '2026-10-06', state: 'missed', reason: null });
   });
 
   it('counts only the days before a habit was archived mid-week', () => {
@@ -155,6 +155,48 @@ describe('weekFigures: habits', () => {
 
     const fresh = habitRow([habit('h', [period('2026-10-05')])], []);
     expect(fresh.previous).toBeNull();
+  });
+
+  it('leaves a paused day out of the scheduled days, and gives each miss its reason (ADR 0037)', () => {
+    const row = habitRow([habit('h', [period('2026-01-01')])], [
+      log('2026-10-05', { h: true }),
+      log('2026-10-06', {}, { skips: { h: 'paused' } }),
+      log('2026-10-07', {}, { skips: { h: 'forgotten' } }),
+      log('2026-10-08', { h: false }, { skips: { h: 'too-heavy' } }),
+      log('2026-10-09', { other: true }),
+      // 10 and 11 nothing recorded
+    ]);
+    expect(row.scheduled).toBe(6);
+    expect(row.complete).toBe(1);
+    expect(row.paused).toBe(1);
+    expect(row.missed).toEqual({ forgotten: 1, 'too-heavy': 1, 'on-purpose': 0, unrecorded: 3 });
+    expect(row.notComplete).toEqual([
+      { date: '2026-10-07', state: 'missed', reason: 'forgotten' },
+      { date: '2026-10-08', state: 'missed', reason: 'too-heavy' },
+      { date: '2026-10-09', state: 'missed', reason: null },
+      { date: '2026-10-10', state: 'unrecorded', reason: null },
+      { date: '2026-10-11', state: 'unrecorded', reason: null },
+    ]);
+  });
+
+  it('leaves paused days out of the week before as well', () => {
+    const row = habitRow([habit('h', [period('2026-01-01')])], [
+      log('2026-09-28', { h: true }),
+      log('2026-09-29', {}, { skips: { h: 'paused' } }),
+      log('2026-09-30', {}, { skips: { h: 'paused' } }),
+    ]);
+    expect(row.previous).toEqual({ scheduled: 5, complete: 1 });
+  });
+
+  it('keeps a habit paused all week, with nothing scheduled to read it by', () => {
+    const skips = { skips: { h: 'paused' } };
+    const row = habitRow([habit('h', [period('2026-01-01', null, [1, 3])])], [
+      log('2026-10-05', {}, skips),
+      log('2026-10-07', {}, skips),
+    ]);
+    expect(row.scheduled).toBe(0);
+    expect(row.paused).toBe(2);
+    expect(row.notComplete).toEqual([]);
   });
 
   it('counts days not complete as of today in a week in progress', () => {
