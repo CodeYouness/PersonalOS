@@ -1,9 +1,11 @@
 import Link from 'next/link';
 
-import { formatCount, formatDayReading, formatEuro, slippedLabel, WEEKDAY_SHORT } from '@/components/format.js';
+import { formatCount, formatDayReading, formatEuro, formatMinutes, slippedLabel, WEEKDAY_SHORT } from '@/components/format.js';
 import { crmAddress, goalsAddress } from '@/lib/domain/addresses.js';
 import { weekdayOf } from '@/lib/domain/dates.js';
+import { TIME_AREA_KEYS } from '@/lib/domain/day-time.js';
 import { BASELINE_WEEKS } from '@/lib/domain/derive/week.js';
+import { TIME_AREAS } from '@/personalos.config.js';
 
 const THIN_SPACE = String.fromCharCode(0x2009);
 const OF = THIN_SPACE + "/" + THIN_SPACE;
@@ -35,6 +37,8 @@ export default function ReviewFigures({ figures }) {
       </div>
       <div className="divider" />
       <WeekStats figures={figures} />
+      <div className="divider" />
+      <TimeStats time={figures.time} days={figures.days.length} />
     </section>
   );
 }
@@ -256,6 +260,38 @@ function ReadingStat({ label, reading, days }) {
           {reading.days + OF + days} <span className="caption">avg {formatDayReading(reading.mean)}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The time declared against each area over the week (ADR 0037): the total
+ * with the days declared, then one stat per area that had time. Unknown,
+ * never zero, when no day was declared; a week declared with nothing shows
+ * its zero.
+ *
+ * @param {{ time: import('@/lib/domain/derive/week.js').WeekFigures['time'], days: number }} props
+ */
+function TimeStats({ time, days }) {
+  return (
+    <div className="stat-row" id="review-time">
+      <div className="stat">
+        <div className="k">Time declared</div>
+        {time === null || time.total === null ? (
+          <Unknown reason="no time declared" />
+        ) : (
+          <div className="v num">
+            {formatMinutes(time.total)} <span className="caption">{time.declaredDays + OF + days} days</span>
+          </div>
+        )}
+      </div>
+      {time !== null &&
+        TIME_AREA_KEYS.filter((area) => time.byArea[area] !== undefined).map((area) => (
+          <div className="stat" key={area}>
+            <div className="k">{TIME_AREAS[area]}</div>
+            <div className="v num">{formatMinutes(time.byArea[area])}</div>
+          </div>
+        ))}
     </div>
   );
 }

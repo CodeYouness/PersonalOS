@@ -1,7 +1,8 @@
 /**
  * What the Home cards added by spec #232 decide to draw: the Today card's
  * lever-or-focus line and its "Review last week" note (#241), and the Close
- * the day card's mood and energy lines and open habits (#243, #235). Static markup;
+ * the day card's mood and energy lines, its time steppers and open habits (#243,
+ * #235, ADR 0037). Static markup;
  * tapping and saving are checked in the browser.
  */
 
@@ -55,10 +56,14 @@ describe("the Today card's focus line", () => {
 });
 
 describe('the Close the day card', () => {
+  const AREAS = [{ key: 'work', label: 'Work' }, { key: 'study', label: 'Study' }];
+
   /** @param {any} over */
   function close(over = {}) {
     return renderToStaticMarkup(
-      createElement(CloseDayView, { date: '2026-10-07', mood: null, energy: null, open: [], scale: [1, 2, 3, 4, 5], ...over })
+      createElement(CloseDayView, {
+        date: '2026-10-07', mood: null, energy: null, time: null, areas: AREAS, step: 30, max: 1440, open: [], scale: [1, 2, 3, 4, 5], ...over,
+      })
     );
   }
 
@@ -82,6 +87,33 @@ describe('the Close the day card', () => {
     const both = close({ mood: 4, energy: 2 });
     expect(both).toContain('You gave it 4');
     expect(both).toContain('You gave it 2');
+  });
+
+  it('offers a half-hour stepper per area and "Nothing to declare" on a day not declared', () => {
+    const html = close();
+    expect(html).toContain('Time');
+    expect(html).toContain('aria-label="Less Work"');
+    expect(html).toContain('aria-label="More Study"');
+    expect(html.match(/time-step-btn/g)).toHaveLength(4);
+    expect(html).toContain('Nothing to declare');
+    expect(html).not.toContain('Clear time');
+  });
+
+  it('shows each area\'s declared time, the day\'s total, and no "Nothing to declare" once declared', () => {
+    const html = close({ time: { work: 90 } });
+    expect(html).toMatch(/Work<\/span><button[^>]*aria-label="Less Work"[^>]*>[^<]*<\/button><span class="time-value num">1h 30m</);
+    // An area at zero cannot go lower; one with time can.
+    expect(html).toMatch(/aria-label="Less Study" disabled=""/);
+    expect(html).not.toMatch(/aria-label="Less Work" disabled=""/);
+    expect(html).toContain('1h 30m declared');
+    expect(html).not.toContain('Nothing to declare');
+    expect(html).toContain('Clear time');
+  });
+
+  it('says a day declared with nothing had nothing', () => {
+    const html = close({ time: {} });
+    expect(html).toContain('Nothing declared');
+    expect(html).not.toContain('Nothing to declare');
   });
 
   it('names the habits still open, or says nothing is left', () => {

@@ -585,7 +585,8 @@
       "meals": [],
       "measurements": [],
       "notes": [],
-      "mood": 4
+      "mood": 4,
+      "time": { "work": 420, "training": 60 }
     },
     "2026-01-07": {
       "date": "2026-01-07",
@@ -593,7 +594,8 @@
       "meals": [],
       "measurements": [],
       "notes": [],
-      "mood": 3
+      "mood": 3,
+      "time": {}
     },
     "2026-01-08": {
       "date": "2026-01-08",
@@ -601,7 +603,8 @@
       "meals": [],
       "measurements": [],
       "notes": [],
-      "mood": 5
+      "mood": 5,
+      "time": { "work": 480, "study": 90, "refereeing": 120 }
     },
     "2026-01-09": {
       "date": "2026-01-09",
@@ -638,7 +641,8 @@
       "meals": [],
       "measurements": [],
       "notes": [],
-      "mood": 4
+      "mood": 4,
+      "time": { "projects": 150, "training": 90 }
     },
     "2026-01-15": {
       "date": "2026-01-15",

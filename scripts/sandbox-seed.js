@@ -9,8 +9,9 @@
  * property of the date, not of the value, so the weekends the history lands
  * on are days off for a habit kept on weekdays.
  *
- * Only the habit values and the day's mood and energy move (each is a reading
- * of the day, so it stays with the habits it was given beside). Meals, measurements and notes carry instants of
+ * Only the habit values, the day's mood and energy and its declared time move
+ * (each is a reading of the day, so it stays with the habits it was given
+ * beside). Meals, measurements and notes carry instants of
  * their own and stay on the days they were seeded, and the habits' periods
  * stay where they are -- the demo periods open before the history and are
  * still open, so every moved day is inside one. data/seed.json itself is
@@ -114,19 +115,22 @@ function withSyncedHolding(seed) {
 }
 
 /**
- * The day's mood and energy that were given, as a partial log: a reading left
- * unset (null, or no key in the seed) is not carried.
+ * The day's mood and energy that were given, and its time if it was declared,
+ * as a partial log: a reading left unset, or a day's time not declared (null,
+ * or no key in the seed), is not carried. A day declared with nothing (`{}`)
+ * is an answer, and is.
  *
  * @param {import('../lib/domain/types.js').DailyLog} log
- * @returns {{ mood?: number, energy?: number }}
+ * @returns {{ mood?: number, energy?: number, time?: Record<string, number> }}
  */
 function readingsOf(log) {
-  /** @type {{ mood?: number, energy?: number }} */
+  /** @type {{ mood?: number, energy?: number, time?: Record<string, number> }} */
   const given = {};
   for (const field of DAY_READINGS) {
     const value = log[field];
     if (typeof value === 'number') given[field] = value;
   }
+  if (typeof log.time === 'object' && log.time !== null) given.time = structuredClone(log.time);
   return given;
 }
 
@@ -160,8 +164,8 @@ function withHabitsEndingYesterday(seed, todayKey) {
   // onto a day not yet moved.
   const dailyLogs = structuredClone(seed.dailyLogs);
   for (const day of days) {
-    // A seed day may carry no `mood` or `energy` key at all, so the shape here is the raw document's.
-    const { mood: _mood, energy: _energy, ...rest } = /** @type {any} */ ({ ...dailyLogs[day], habits: {} });
+    // A seed day may carry no `mood`, `energy` or `time` key at all, so the shape here is the raw document's.
+    const { mood: _mood, energy: _energy, time: _time, ...rest } = /** @type {any} */ ({ ...dailyLogs[day], habits: {} });
     // A day that held only habit values or readings goes, rather than staying behind empty.
     if (rest.meals.length + rest.measurements.length + rest.notes.length === 0) delete dailyLogs[day];
     else dailyLogs[day] = rest;

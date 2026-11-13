@@ -378,6 +378,21 @@ button:disabled { cursor: not-allowed; }
 .close-row .head { display: flex; align-items: baseline; gap: var(--s-xs); margin-bottom: var(--s-xs); }
 .close-row .head .caption:last-child { margin-left: auto; }
 .day-rating-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-sm); min-height: 30px; }
+/* ADR 0037: time declared against areas, a − / + stepper per area in half
+   hours. Two columns where there is room, one on a phone. */
+.day-time { display: flex; flex-direction: column; gap: var(--s-sm); }
+.time-areas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--s-xs) var(--s-lg); }
+.time-area { display: flex; align-items: center; gap: var(--s-xs); color: var(--ink-muted); }
+.time-area.has-time { color: var(--ink); }
+.time-label { flex: 1; min-width: 0; }
+.time-value { min-width: 56px; text-align: right; }
+.time-step-btn {
+  width: 28px; height: 28px; border-radius: var(--r-md);
+  border: 1px solid var(--hairline); background: var(--surface-2);
+  color: var(--ink-muted); font-size: 15px; line-height: 1; cursor: pointer;
+}
+.time-step-btn:hover:not(:disabled) { border-color: var(--hairline-strong); color: var(--ink); }
+.time-step-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* ==========================================================================
    HABITS SCREEN — card-habits-summary

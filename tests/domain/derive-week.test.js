@@ -257,7 +257,7 @@ describe('weekFigures: spending', () => {
   });
 });
 
-describe('weekFigures: journal, mood, energy, intake, captures', () => {
+describe('weekFigures: journal, mood, energy, time, intake, captures', () => {
   const entry = (/** @type {string} */ id, /** @type {string} */ date, /** @type {string} */ saidAt) => ({
     id, date, text: id, tags: [], saidAt, createdAt: saidAt, updatedAt: saidAt, source: 'user',
   });
@@ -300,6 +300,26 @@ describe('weekFigures: journal, mood, energy, intake, captures', () => {
     const result = figures({ dailyLogs: [log('2026-10-05')] });
     expect(result.mood).toEqual({ days: null, mean: null });
     expect(result.energy).toEqual({ days: null, mean: null });
+  });
+
+  it('sums the time declared against each area over the declared days of the week', () => {
+    const result = figures({
+      dailyLogs: [
+        log('2026-10-05', {}, { time: { work: 240, training: 60 } }),
+        log('2026-10-06', {}, { time: {} }),
+        log('2026-10-07'),
+        log('2026-10-08', {}, { time: { work: 120, refereeing: 90 } }),
+        // Out of the week: never counted.
+        log('2026-10-12', {}, { time: { work: 600 } }),
+      ],
+    });
+    expect(result.time).toEqual({ declaredDays: 3, byArea: { work: 360, training: 60, refereeing: 90 }, total: 510 });
+  });
+
+  it('has no time, not zero, with no day declared', () => {
+    expect(figures({ dailyLogs: [log('2026-10-05'), log('2026-10-06', {}, { mood: 3 })] }).time).toBeNull();
+    // A week declared with nothing every day is a known zero.
+    expect(figures({ dailyLogs: [log('2026-10-05', {}, { time: {} })] }).time).toEqual({ declaredDays: 1, byArea: {}, total: 0 });
   });
 
   it('never reads a stored rating as a mood', () => {
@@ -351,6 +371,7 @@ describe('weekFigures: a week with nothing at all', () => {
     expect(result.journal).toEqual({ days: null, entries: [] });
     expect(result.mood).toEqual({ days: null, mean: null });
     expect(result.energy).toEqual({ days: null, mean: null });
+    expect(result.time).toBeNull();
     expect(result.intake).toBeNull();
     expect(result.captures).toBeNull();
   });

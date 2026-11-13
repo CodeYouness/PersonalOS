@@ -327,6 +327,7 @@ of its own.
 | `figure:calories:today`, `protein:`, `carbs:`, `fat:` | today's totals | Nutrition & Health |
 | `figure:goal-progress:<goal id>`, `figure:goal-slip:<goal id>` | an open goal's progress (the one stored on the goal) and the period it has slipped to | Goals, that goal |
 | `figure:mood-avg:30d`, `figure:energy-avg:30d` | the average mood, and the average energy, over the 30 days ending today, each with how many days it rests on (the Review screen's figures, `readingSummary`); no figure for one that no day in the window was given | Review, this week |
+| `figure:time:30d`, `figure:time:30d:<area>` | the time declared over the 30 days ending today, with how many declared days it rests on and the time by area, and one figure per area that had time (the Review screen's figures, `timeByArea`); no figure when no day in the window was declared, a zero when the declared days had nothing | Review, this week |
 
 Finance figures follow "tracked since" exactly as the screens do: only the
 months on offer, the history and the 1-year change as the Finances screen
@@ -782,7 +783,8 @@ average at all.
 
 **Is not** a place for anything that must survive the day.
 
-**Has** `date`, `habits`, `meals`, `measurements`, `notes`, `mood`, `energy`.
+**Has** `date`, `habits`, `meals`, `measurements`, `notes`, `mood`, `energy`,
+`time`.
 
 `mood` and `energy` are the day's two readings, below. Each is canonical, a
 reading of the day rather than something that happened in it, and not a
@@ -813,6 +815,42 @@ Both are read on one scale, `limits.dayReadingMin` to `limits.dayReadingMax`
 in `personalos.config.js`, checked by `isDayReading`
 (`lib/domain/day-readings.js`). Neither is ever read off the journal by a
 model.
+
+### Time
+
+**Is** how the day's time went, declared by you in the evening against a
+**time area** -- one of a short, closed list of things your time goes to --
+in half hours (ADR 0037). `null` means **not declared**; an object of minutes
+by area means **declared**, an area with no time having no key, so `{}` is
+"declared, nothing" -- an answer, distinct from not having answered.
+
+**Is not** measured from a screen or a calendar, and not a timesheet: an
+evening's honest guess, never a stopwatch.
+
+The areas are a closed vocabulary, `TIME_AREAS` in `personalos.config.js` --
+`work`, `study`, `projects`, `training`, `refereeing`, each with the label the
+screens show -- validated at the store boundary (`isTimeArea`,
+`lib/domain/day-time.js`). Minutes are whole steps of `limits.timeStepMinutes`
+(30), from 0 to `limits.timeAreaMaxMinutes` (a whole day) per area
+(`isTimeMinutes`). Like mood, time is a reading of the day: setting it writes
+no event, a future day is refused, a log with no key reads back `null`, and
+`updateDailyLog` does not take it.
+
+- `setDayTime({ date, area, minutes })` sets one area, **absolute** -- a retry
+  never doubles it -- and declares the day if it was not; 0 removes the
+  area's key and leaves the day declared.
+- `declareNoTime({ date })` declares a day not declared yet as `{}`; a day
+  already declared is left alone, so it never wipes minutes.
+- `clearDayTime({ date })` takes the day back to not declared.
+
+`PUT /api/days/<day>` takes `{ "time": { "work": 90 } }` (each area named is
+set), `{ "time": {} }` (nothing to declare) or `{ "time": null }` (clear),
+beside mood and energy, checked whole before anything is written. The Close
+the day card offers a − / + stepper per area and "Nothing to declare".
+
+What a span adds up to is derived, never stored (`lib/domain/derive/time.js`):
+`dayTimeTotal` and `timeByArea`, which count only declared days -- a day not
+declared is unknown, not zero; a day declared with nothing is a zero.
 
 ---
 
@@ -1320,7 +1358,8 @@ double counting.
 
 Every term in this section is **planned, not built** (ADR 0037). The words
 are fixed here so the code that follows uses them; nothing below is stored or
-derived yet. Mood and energy, decided with them, are built: see Daily Log.
+derived yet. Mood and energy, and time against areas, decided with them,
+are built: see Daily Log.
 
 ### Check-in
 
@@ -1402,13 +1441,6 @@ so that the days inside it can be compared with the days outside. A review
 closes it. It is the only ground on which the system says a change did
 something.
 
-### Time area
-
-**Is** one of a short, closed list of things your time goes to. Time is
-declared against an area for a day, in half hours.
-
-**Is not** measured from a screen or a calendar.
-
 ### Skip reason
 
 **Is** why a scheduled habit was not kept on a day, from a closed list:
@@ -1431,7 +1463,7 @@ on that day, and it is what tells "could not" from "chose not to".
 | memory entries | current net worth, an account's value between balances, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
-| daily logs (ticks, meals, measurements, the day's mood and energy) | the average mood and energy over a week or 30 days, and how many days each rests on |
+| daily logs (ticks, meals, measurements, the day's mood and energy, the day's time declared against areas) | the average mood and energy over a week or 30 days, and how many days each rests on; a day's total time and the time by area over a span, over the declared days |
 | finance accounts (including valuation and archivedOn), observations, trades, prices, transactions (signed amount, counter account, notCounted, tags) | |
 | **net worth snapshots** — the one exception, not written in one currency (ADR 0022) | |
 
