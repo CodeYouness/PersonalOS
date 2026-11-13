@@ -29,6 +29,10 @@ describe('provenanceLabel', () => {
     expect(provenanceLabel({ createdDayKey: '2026-01-04', source: 'capture', route: 'rules' }, '2026-01-05')).toBe(
       'Created 4 Jan from a capture · filed by rules'
     );
+    // An unclassified capture files a task only when you refile it.
+    expect(provenanceLabel({ createdDayKey: '2026-01-04', source: 'capture', route: 'unclassified' }, '2026-01-05')).toBe(
+      'Created 4 Jan from a capture · filed by you'
+    );
   });
 
   it('says a task you made yourself was made by you', () => {

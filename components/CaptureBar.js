@@ -123,7 +123,7 @@ export default function CaptureBar() {
             <span className="badge badge-ok">{state.receipt.destination}</span>
             <span className={'badge badge-route-' + state.receipt.route}>{state.receipt.route}</span>
             <span className="receipt-what">
-              {formatReceiptWhat(state.text, state.receipt.note)}
+              {formatReceiptWhat(state.text, state.receipt.note, state.receipt.route)}
             </span>
           </div>
         )}

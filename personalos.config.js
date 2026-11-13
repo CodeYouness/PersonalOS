@@ -86,6 +86,17 @@ export const DESTINATIONS = Object.freeze([
 export const CAPTURE_ORIGINS = Object.freeze(['bar', 'shortcut', 'telegram']);
 
 /**
+ * Who decided a capture's destination: the model, the keyword rules, or
+ * nobody yet. A capture is saved `unclassified` before any tier runs (ADR
+ * 0037), and gets `model` or `rules` once, when the classifier answers. One
+ * the classifier never answered for -- the process died, the store refused
+ * the update -- stays `unclassified`, and the capture log shows it.
+ *
+ * @type {readonly ('model' | 'rules' | 'unclassified')[]}
+ */
+export const CAPTURE_ROUTES = Object.freeze(/** @type {const} */ (['model', 'rules', 'unclassified']));
+
+/**
  * What an action was made for (docs/domain.md, "Action"): a capture, a
  * journal entry, or an answer in the check-in. Closed, like every vocabulary
  * here: the store refuses an action record whose origin is not one of these.

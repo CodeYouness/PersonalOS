@@ -61,4 +61,12 @@ describe('the receipt wording the capture bar and the capture route share', () =
       'health \u00b7 Filed \u201cI weigh 72\u201d \u00b7 no weight filed'
     );
   });
+
+  it('says a sentence nothing classified was saved, not filed, and names no destination', () => {
+    expect(shared.formatReceiptWhat('call Marta', undefined, 'unclassified')).toBe('Saved \u201ccall Marta\u201d \u00b7 not filed yet');
+    expect(shared.formatReceiptLine('memory', 'call Marta', undefined, 'unclassified')).toBe(
+      'unclassified \u00b7 Saved \u201ccall Marta\u201d \u00b7 not filed yet'
+    );
+    expect(shared.formatReceiptLine('task', 'call Marta', undefined, 'model')).toBe('task \u00b7 Filed \u201ccall Marta\u201d');
+  });
 });

@@ -132,7 +132,8 @@ export default function Topbar() {
       body: JSON.stringify({ destination }),
     });
 
-  const rulesCount = captures?.filter((capture) => capture.route === 'rules').length ?? 0;
+  // Every capture the model did not file: by the rules, or not at all yet.
+  const rulesCount = captures?.filter((capture) => capture.route !== 'model').length ?? 0;
 
   return (
     <>
