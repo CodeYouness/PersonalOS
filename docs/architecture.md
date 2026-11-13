@@ -180,9 +180,11 @@ only what has not been sent yet.
 - **Actions.** A definition in `lib/actions/definitions/`, listed in
   `lib/actions/registry.js`, documented in `domain.md`'s table.
 - **Integrations.** Implement the contract, register it, flag it in config.
-- **Model provider.** Classify, extract and answer each make one forced-tool
-  call through `callTool` in `lib/ai/provider.js` (ADR 0037); only
-  `lib/ai/providers/anthropic.js` imports the SDK, which ESLint enforces.
+- **Model provider.** Classify, extract and answer each make one call that
+  must answer with one tool, through `callTool` in `lib/ai/provider.js` (ADR
+  0037); only `lib/ai/providers/anthropic.js` imports the SDK, which ESLint
+  enforces. It forces the tool where the model accepts that, and offers it
+  where the model does not (Sonnet 5.5, ADR 0030).
 - **Cards.** Each owns a screen section and its own API route, and never
   reaches into another card's data.
 

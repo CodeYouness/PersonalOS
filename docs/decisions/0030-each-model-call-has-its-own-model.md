@@ -139,3 +139,13 @@ destination means, and the meal cases carry sourced numbers.
 anything is stored or shown, a question now fits under Haiku's price step
 (#204, above), and a call type that turns out worse moves back with its
 variable, without a code change.
+
+## Sonnet 5.5 is offered the tool, not forced (2026-11-13)
+
+`claude-sonnet-5-5` still answers 400 to a forced `tool_choice`, and so do
+Opus 5.5 and Fable 5.1/5.2. The provider (`lib/ai/providers/anthropic.js`)
+now sends those models `tool_choice: auto` with one call at most, and a line
+in the system prompt asking for the tool; a reply with no tool call throws,
+as before. So any of them can be named in a variable, and `eval:classify`
+compares Haiku 5.5 with Sonnet 5.5 instead of Sonnet 5. The defaults do not
+move: all four call types stay on Haiku 5.5.

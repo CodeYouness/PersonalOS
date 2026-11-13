@@ -476,8 +476,9 @@ export const dashboard = Object.freeze({ screens: [] });
  * capture is a cheap pick between closed options (ADR 0030). Model names
  * change; the variables are the real control. See docs/development.md.
  *
- * A model here must accept a forced tool_choice: every call forces its one
- * tool. Sonnet 5.5 refuses it, and as a default would fail every call.
+ * Every call asks for its one tool. A model that refuses a forced
+ * tool_choice -- Sonnet 5.5, Opus 5.5 -- is offered the tool instead, by the
+ * provider (lib/ai/providers/anthropic.js), so it can be named here.
  * All four are on Haiku 5.5: classify was scored by npm run eval:classify
  * (#197), extract and answer follow it (ADR 0030), and so does the check-in,
  * scored by `npm run eval:classify -- --suite checkin` once it has been run.
