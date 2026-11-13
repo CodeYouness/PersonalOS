@@ -274,6 +274,7 @@ button:disabled { cursor: not-allowed; }
 .badge-origin { background: var(--surface-3); color: var(--ink-subtle); }
 .badge-route-model { background: var(--surface-3);    color: var(--ink-subtle); }
 .badge-route-rules { background: var(--warning-soft); color: var(--warning); }
+.badge-route-unclassified { background: var(--warning-soft); color: var(--warning); }
 .badge-est   { background: var(--info-soft);    color: var(--info); }
 .dot { width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; flex: none; }
 

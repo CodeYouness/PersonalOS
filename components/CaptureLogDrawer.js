@@ -7,7 +7,7 @@ import { formatTime } from '@/components/format.js';
  * @property {string} id
  * @property {string} text
  * @property {string} destination
- * @property {'model'|'rules'} route
+ * @property {'model'|'rules'|'unclassified'} route
  * @property {string} origin
  * @property {string} createdAt
  * @property {string} saidAt

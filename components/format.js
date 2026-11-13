@@ -128,6 +128,9 @@ const MADE_BY = {
   derived: 'by PersonalOS',
 };
 
+/** Who a capture's route says filed what it produced. */
+const FILED_BY = { model: 'the model', rules: 'rules', unclassified: 'you' };
+
 /**
  * Where a task came from and how it was filed -- the line at the foot of the
  * CRM detail panel. "Created 4 Jan from a capture · filed by the model",
@@ -136,9 +139,10 @@ const MADE_BY = {
  * @param {{
  *   createdDayKey: string,
  *   source: import('@/lib/domain/types.js').Task['source'],
- *   route: 'model' | 'rules' | null,
+ *   route: import('@/lib/domain/types.js').Capture['route'] | null,
  * }} origin
- *   `route` is the producing capture's, when a capture produced it
+ *   `route` is the producing capture's, when a capture produced it; an
+ *   `unclassified` one produced it only through Refile, by you
  * @param {string} todayKey
  * @returns {string}
  */
@@ -151,7 +155,7 @@ export function provenanceLabel({ createdDayKey, source, route }, todayKey) {
     timeZone: 'UTC',
   });
   if (source === 'capture') {
-    const filed = route === null ? '' : ' · filed by ' + (route === 'model' ? 'the model' : 'rules');
+    const filed = route === null ? '' : ' · filed by ' + FILED_BY[route];
     return 'Created ' + day + ' from a capture' + filed;
   }
   return 'Created ' + day + ' ' + MADE_BY[source];

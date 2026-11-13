@@ -10,12 +10,15 @@ consequence.
    text (capture bar, voice, later Telegram)
         |
         v
+   lib/store.js writes the raw capture, `unclassified` -- before any tier runs
+        |
+        v
    classify()  ->  { destination, title, person, urgency }
         |          model first, keyword rules underneath, never fails
         v
    normalise -> link -> lib/store.js writes:
-        |          the raw capture, a memory entry, the destination record,
-        |          the links between them, and an event
+        |          the capture's destination and route, a memory entry, the
+        |          destination record, the links between them, and an event
         v
    cards read the last saved value -- never the model, never an integration
 ```
@@ -98,8 +101,13 @@ throws if it is.
   from what the server actually holds (`HabitsManager`), because there is no
   single value to roll back. Either way a failure re-reads real state rather
   than leaving the screen telling a story that was never saved.
-- A **capture**: classify decides a destination; the same request writes the
-  capture, a memory entry, the destination record, the links, and an event.
+- A **capture**: the request writes the capture first, `unclassified`, so
+  the sentence is saved before any model or rule runs (ADR 0037); classify
+  then decides a destination, the capture is marked with it in a second
+  write, and the request files a memory entry, the destination record, the
+  links, and an event. Between the two writes a reader sees an
+  `unclassified` capture, which the capture log renders; if the request
+  dies there, that is what stays.
 - A **sync**: runs outside the request cycle, writes observations or
   transactions through the store, updates its `SyncState`.
 

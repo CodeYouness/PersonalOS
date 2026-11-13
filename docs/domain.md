@@ -76,6 +76,20 @@ to do with it.
 **Is not** a task. A capture may produce a task, a meal, a transaction, or
 nothing but a memory entry.
 
+**Saved before it is classified** (ADR 0037). The capture route writes the
+capture -- the sentence, its origin, when it was said -- before the model or
+the rules run, `route: unclassified`, in the destination chosen up front or
+`memory`. When the classifier answers, the capture is marked with its
+destination and route, and only then is its record filed. A model that hangs,
+a classifier that throws, a store that refuses the marking, or a process that
+dies mid-request leaves the sentence saved and `unclassified`: the response
+(when there is one) says `route: unclassified` and the receipt line "Saved …
+· not filed yet", it gets its memory entry if the request lives to write
+one, and no `capture.filed` event claims it was filed. The
+capture log shows it with an `unclassified` badge, counted with the rules'
+captures on the topbar, and Refile files it by hand. A refused filing after
+the marking stays what it was before: a classified capture with no record.
+
 **Has** `text`, `origin`, `destination`, `route`, `saidAt`, and optionally `clientId`.
 
 `saidAt` is the instant the sentence was said (ADR 0033). `createdAt` is when
@@ -122,15 +136,19 @@ The classifier is told these same meanings, in its own words
 (`lib/classify.js`). Nothing keeps the two in step: a row changed here is
 changed there by hand.
 
-`route` records **how** the destination was decided: `model` or `rules`. This
-field exists because a silent fallback is a lie. Without it, an expired API
-key looks like a model that quietly got worse, and you would not find out for
-days.
+`route` records **how** the destination was decided, one of `CAPTURE_ROUTES`:
+`model`, `rules`, or `unclassified` -- nothing has decided it, because the
+classifier has not answered yet or never did. This field exists because a
+silent fallback is a lie. Without it, an expired API key looks like a model
+that quietly got worse, and you would not find out for days.
 
-**`text` and `route` never change once written.** `text` is the sentence kept
-verbatim (rule 7); `route` is a historical fact about how the *original*
-destination was decided, not the current one. **`destination` can change** —
-see "Correcting a capture" below.
+**`text` never changes once written, and `route` once decided.** `text` is
+the sentence kept verbatim (rule 7). `route` goes from `unclassified` to
+`model` or `rules` once, when the classifier answers -- the store refuses any
+other change to it -- and is then a historical fact about how the *original*
+destination was decided, not the current one. A capture refiled while
+`unclassified` stays `unclassified`: no tier decided it, you did.
+**`destination` can change** — see "Correcting a capture" below.
 
 **Journal is deliberately not a destination.** Writing a diary is not a
 sentence that got filed somewhere; it is its own act, with its own entity.

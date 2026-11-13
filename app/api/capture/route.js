@@ -22,19 +22,24 @@ import {
   getClassifyContext,
   linkPersonNamedIn,
   recordEvent,
+  updateCapture,
 } from '@/lib/store.js';
 import { CAPTURE_ORIGINS, DESTINATIONS, TASK_DESTINATIONS } from '@/personalos.config.js';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * The one gesture: a sentence in, filed for real. Classify decides a
- * destination; this route writes the capture, a memory entry, the
+ * The one gesture: a sentence in, filed for real. The capture is written
+ * first, `unclassified` (ADR 0037); then classify decides a destination, the
+ * capture is marked with it, and this route writes a memory entry, the
  * destination record when there is one, the links between them, and an
  * event.
  *
- * Only the capture write is load-bearing. `task` and `people` file a task
- * (linked to the person the sentence names), `goals`, `appointment` and
+ * Only the capture write is load-bearing, and it happens before any model
+ * or rule runs: a classifier that hangs, throws or dies with the process
+ * leaves the sentence saved and unclassified, never lost. `task` and
+ * `people` file a task (linked to the person the sentence names), `goals`,
+ * `appointment` and
  * `nutrition` their own record, `health` a weight when the sentence names
  * one, `finance` a transaction when it names an amount and there is an
  * account to file it on (ADR 0026); `memory` files as capture + memory
@@ -94,24 +99,56 @@ export async function POST(request) {
     if (earlier !== null) return NextResponse.json(await receiptOf(earlier));
   }
 
-  // Your categories are enrichment: a store read that fails here must not
-  // keep the sentence from being saved (rule 2), so it falls back to none.
-  const context = await getClassifyContext().catch((error) => {
-    console.error('[capture] could not read the categories for the classifier:', error);
-    return {};
-  });
-  const { destination, route, fields } = await classify(text, chosen, saidOn, context);
+  // The sentence is saved before any tier runs (ADR 0037): from here on no
+  // model, no classifier and no refused write can lose it. Saved as
+  // `unclassified`, in the destination chosen up front or `memory`, until the
+  // classifier answers. A store that refuses this one write is the only
+  // failure the client is told about, and it keeps the sentence to resend.
   const { capture, created } = await createCaptureOnce({
     text,
     origin,
-    destination,
-    route,
+    destination: chosen ?? 'memory',
+    route: 'unclassified',
     saidAt: said.saidAt ?? undefined,
     clientId: client.clientId ?? undefined,
   });
   // A resend: the store held this (origin, clientId) already and wrote
-  // nothing. Answer with the first receipt, rebuilt from what was filed.
+  // nothing. Answer with the first receipt, rebuilt from what was filed --
+  // or, while the first is still being classified, that it is saved.
   if (!created) return NextResponse.json(await receiptOf(capture));
+
+  /** @type {import('@/lib/classify.js').Classification | null} null when it stays unclassified */
+  let classification = null;
+  try {
+    // Your categories are enrichment: a store read that fails here files
+    // with none.
+    const context = await getClassifyContext().catch((error) => {
+      console.error('[capture] could not read the categories for the classifier:', error);
+      return {};
+    });
+    const answer = await classify(text, chosen, saidOn, context);
+    // Marked before anything is filed: a record linked from a capture that
+    // still says `memory` would be read back as the wrong kind of record.
+    await updateCapture(capture.id, { destination: answer.destination, route: answer.route });
+    classification = answer;
+  } catch (error) {
+    console.error('[capture] saved the sentence but could not classify it; it stays unclassified:', error);
+  }
+
+  if (classification === null) {
+    // Kept as nothing but a memory, the floor rule 2 sets; the capture log
+    // shows it unclassified, and Refile files it by hand.
+    await rememberCapture(capture, false);
+    return NextResponse.json({
+      destination: capture.destination,
+      route: capture.route,
+      recordId: null,
+      note: undefined,
+      saidOn,
+      receiptLine: receiptLineFor(capture.destination, capture.route, text, undefined, saidOn),
+    });
+  }
+  const { destination, route, fields } = classification;
 
   let recordId = null;
   /** @type {string | undefined} what the receipt adds: the weight filed, or that none was */
@@ -158,24 +195,36 @@ export async function POST(request) {
     console.error('[capture] filed the capture but its record failed:', error);
   }
 
+  await rememberCapture(capture, true);
+
+  // A health sentence with no weight to believe -- none said, or one nobody
+  // weighs -- is kept, and the receipt says so instead of implying a number.
+  // `receiptLine` is the receipt as the bar words it, for a client with no bar.
+  return NextResponse.json({ destination, route, recordId, note, saidOn, receiptLine: receiptLineFor(destination, route, text, note, saidOn) });
+}
+
+/**
+ * The memory entry every capture gets, and the `capture.filed` event when
+ * the classifier filed it -- never for one it did not. Neither failing reads
+ * to the user as the capture having failed: it is already saved.
+ *
+ * @param {import('@/lib/domain/types.js').Capture} capture
+ * @param {boolean} filed
+ */
+async function rememberCapture(capture, filed) {
   try {
     // createMemoryEntry links the memory back to the capture itself
     // (derived_from) -- the provenance a memory must always be able to give.
     await createMemoryEntry({
       type: 'fact',
-      content: text,
+      content: capture.text,
       source: 'capture',
       derivedFrom: capture.id,
     });
-    await recordEvent({ type: 'capture.filed', subject: capture.id, source: 'capture' });
+    if (filed) await recordEvent({ type: 'capture.filed', subject: capture.id, source: 'capture' });
   } catch (error) {
-    console.error('[capture] filed the capture but its memory or event failed:', error);
+    console.error('[capture] saved the capture but its memory or event failed:', error);
   }
-
-  // A health sentence with no weight to believe -- none said, or one nobody
-  // weighs -- is kept, and the receipt says so instead of implying a number.
-  // `receiptLine` is the receipt as the bar words it, for a client with no bar.
-  return NextResponse.json({ destination, route, recordId, note, saidOn, receiptLine: receiptLineFor(destination, text, note, saidOn) });
 }
 
 /**
@@ -190,7 +239,10 @@ async function receiptOf(capture) {
   const record = await getCaptureProducedRecord(capture);
   /** @type {string | undefined} */
   let note;
-  if (capture.destination === 'health') {
+  if (capture.route === 'unclassified') {
+    // Saved, still being classified or never classified: no note claims
+    // what was or was not filed.
+  } else if (capture.destination === 'health') {
     const weight = /** @type {import('@/lib/domain/types.js').Measurement | null} */ (record);
     note = weight === null ? 'no weight filed' : formatWeight(weight.value) + ' ' + weight.unit;
   } else if (capture.destination === 'finance') {
@@ -204,7 +256,7 @@ async function receiptOf(capture) {
     recordId: record?.id ?? null,
     note,
     saidOn,
-    receiptLine: receiptLineFor(capture.destination, capture.text, note, saidOn),
+    receiptLine: receiptLineFor(capture.destination, capture.route, capture.text, note, saidOn),
   };
 }
 
@@ -213,11 +265,12 @@ async function receiptOf(capture) {
  * (a flushed queue). A same-day capture reads exactly as the bar words it.
  *
  * @param {string} destination
+ * @param {string} route
  * @param {string} text
  * @param {string | undefined} note
  * @param {string} saidOn
  */
-function receiptLineFor(destination, text, note, saidOn) {
-  const line = formatReceiptLine(destination, text, note);
+function receiptLineFor(destination, route, text, note, saidOn) {
+  const line = formatReceiptLine(destination, text, note, route);
   return saidOn === toDayKey(new Date()) ? line : line + ' · said ' + saidOn;
 }
