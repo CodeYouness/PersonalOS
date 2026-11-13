@@ -109,7 +109,9 @@ throws if it is.
 - **Relations.** Add a `rel` to `LINK_RELS` and document it in `domain.md`.
 - **Destinations.** `DESTINATIONS` in `personalos.config.js`.
 - **Integrations.** Implement the contract, register it, flag it in config.
-- **Model provider.** Isolated behind classify, extract and answer modules.
+- **Model provider.** Classify, extract and answer each make one forced-tool
+  call through `callTool` in `lib/ai/provider.js` (ADR 0037); only
+  `lib/ai/providers/anthropic.js` imports the SDK, which ESLint enforces.
 - **Cards.** Each owns a screen section and its own API route, and never
   reaches into another card's data.
 
