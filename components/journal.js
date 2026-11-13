@@ -2,7 +2,8 @@ import { journalAddress } from '@/lib/domain/addresses.js';
 
 /**
  * What the Journal screen's components share: the address of a day, and the
- * draft kept in the browser while you write.
+ * draft kept in the browser while you write -- also the check-in's open
+ * answer's, which is a journal entry (ADR 0037) kept under its own name.
  */
 
 /**
@@ -15,9 +16,19 @@ export function journalHref(dayKey) {
   return journalAddress(dayKey);
 }
 
-/** @param {string} dayKey */
-function draftKey(dayKey) {
-  return 'personalos.journal.draft.' + dayKey;
+/**
+ * Where a box's drafts are kept apart: the Journal's write box, or the
+ * check-in's open answer, so text half-written in one never shows in the other.
+ *
+ * @typedef {'journal' | 'checkin'} DraftPlace
+ */
+
+/**
+ * @param {string} dayKey
+ * @param {DraftPlace} place
+ */
+function draftKey(dayKey, place) {
+  return 'personalos.' + place + '.draft.' + dayKey;
 }
 
 /**
@@ -26,11 +37,12 @@ function draftKey(dayKey) {
  * browser blocks reads as no draft, never as a broken page.
  *
  * @param {string} dayKey
+ * @param {DraftPlace} [place]
  * @returns {string}
  */
-export function readDraft(dayKey) {
+export function readDraft(dayKey, place = 'journal') {
   try {
-    return window.localStorage.getItem(draftKey(dayKey)) ?? '';
+    return window.localStorage.getItem(draftKey(dayKey, place)) ?? '';
   } catch {
     return '';
   }
@@ -42,11 +54,12 @@ export function readDraft(dayKey) {
  *
  * @param {string} dayKey
  * @param {string} text
+ * @param {DraftPlace} [place]
  */
-export function writeDraft(dayKey, text) {
+export function writeDraft(dayKey, text, place = 'journal') {
   try {
-    if (text === '') window.localStorage.removeItem(draftKey(dayKey));
-    else window.localStorage.setItem(draftKey(dayKey), text);
+    if (text === '') window.localStorage.removeItem(draftKey(dayKey, place));
+    else window.localStorage.setItem(draftKey(dayKey, place), text);
   } catch {
     // Blocked storage: the draft lives only as long as the page.
   }

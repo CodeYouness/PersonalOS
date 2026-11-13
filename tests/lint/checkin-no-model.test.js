@@ -1,9 +1,10 @@
 /**
  * Rule 3 for the check-in (ADR 0037): loading its questions, and filing a
  * closed answer, call no model. Held by what the code can reach, not by
- * what it happens to call today: every module the check-in's route imports,
- * followed to the end, is outside lib/ai/ and is none of the modules that
- * call a model. The route test runs it with no key as well.
+ * what it happens to call today: every module the check-in's route and its
+ * panel on Home import, followed to the end, is outside lib/ai/ and is none
+ * of the modules that call a model. The route test runs it with no key as
+ * well.
  */
 
 import { readFile } from 'node:fs/promises';
@@ -14,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 const ROOT = process.cwd();
 
 /** The check-in's own code: where the walk starts. */
-const ENTRIES = ['app/api/checkin/route.js', 'lib/checkin/closed.js', 'lib/domain/derive/checkin.js'];
+const ENTRIES = ['app/api/checkin/route.js', 'components/CheckinPanel.js', 'lib/checkin/closed.js', 'lib/domain/derive/checkin.js'];
 
 /** Modules that call a model, or reach one. */
 const MODEL_MODULES = ['lib/classify.js', 'lib/answer.js', 'lib/extract.js'];
@@ -64,6 +65,7 @@ describe('the check-in', () => {
     const modules = await reachable(ENTRIES);
     expect(modules).toContain('lib/actions/registry.js');
     expect(modules).toContain('lib/store.js');
+    expect(modules).toContain('components/CheckinQuestions.js');
   });
 
   it('would be caught: the capture route, which does call a model, reaches one', async () => {

@@ -1,6 +1,6 @@
 /**
- * What the Close the day card's taps render (#243): the same five taps for
- * the mood and for the energy (ADR 0037). Static markup, so only the initial
+ * What the check-in's taps render (#243): the same five taps for the mood
+ * and for the energy (ADR 0037). Static markup, so only the initial
  * state is checked; tapping, changing and clearing are checked in the browser.
  */
 

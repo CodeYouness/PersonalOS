@@ -895,8 +895,9 @@ no event, a future day is refused, a log with no key reads back `null`, and
 
 `PUT /api/days/<day>` takes `{ "time": { "work": 90 } }` (each area named is
 set), `{ "time": {} }` (nothing to declare) or `{ "time": null }` (clear),
-beside mood and energy, checked whole before anything is written. The Close
-the day card offers a − / + stepper per area and "Nothing to declare".
+beside mood and energy, checked whole before anything is written. The
+check-in's time row offers a − / + stepper per area, saved together with
+"Save time", and "Nothing to declare".
 
 What a span adds up to is derived, never stored (`lib/domain/derive/time.js`):
 `dayTimeTotal` and `timeByArea`, which count only declared days -- a day not
@@ -1501,6 +1502,22 @@ future one -- and answers the questions, `done` and the day's receipt.
 files them and answers the questions recomputed, `receipt` -- the lines of
 that request alone, rejected ones included -- and `dayReceipt`, the day's
 whole check-in receipt. Neither calls a model.
+
+**Lives** at the top of Home, as the check-in panel (`components/CheckinPanel.js`),
+where the Close the day card was -- that card is gone, and its mood, energy,
+time, open habits and journal line are the check-in's questions now. The
+panel reads the day as GET does, through `lib/checkin/day.js`, so loading
+Home calls no model and no integration (rule 3). It shows one row per
+question still open, in order -- a habit's Done or Skip with a reason, a
+counter stepped to its target, five taps for mood and for energy, the day's
+time declared per area and saved as one answer, or "Nothing to declare" --
+and the open question's box under them, emptied after each save so it can be
+used again. Each answer is POSTed as it is given and the panel is redrawn
+from what the server answers, never from what it sent; then the rest of Home
+is re-read, so the Habits card follows. An answered question leaves the
+list; once only the open one is left the panel reads "Done for today" and
+shows the receipt and the box. The receipt lists the day's lines, newest
+last, each with Undo while it can be undone.
 
 ### Check-in question
 
