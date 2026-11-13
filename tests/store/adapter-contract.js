@@ -2568,6 +2568,143 @@ export function runAdapterContract(label, load) {
       });
     });
 
+    describe('action records (ADR 0037)', () => {
+      /** A record as the registry writes it after an action ran. */
+      const done = (/** @type {Record<string, unknown>} */ overrides = {}) => ({
+        name: 'mood.set',
+        params: { value: 4 },
+        day: '2026-04-02',
+        origin: { type: 'checkin', id: null },
+        recordRef: null,
+        before: { value: null },
+        status: 'done',
+        error: null,
+        text: 'Mood 4',
+        source: 'checkin',
+        ...overrides,
+      });
+
+      it('starts empty in the seed', async () => {
+        expect(await store.getActionRecords()).toEqual([]);
+      });
+
+      it('keeps a record with its envelope, and reads it back by id', async () => {
+        const record = await store.createActionRecord(done());
+
+        expect(record.id).toMatch(/^action_/);
+        expect(record.createdAt).toBe(record.updatedAt);
+        expect(record).toMatchObject(done());
+        expect(await store.getActionRecord(record.id)).toEqual(record);
+        expect(await store.getActionRecord('action_missing')).toBeNull();
+      });
+
+      it('keeps params and before as they read back from storage, JSON and nothing else', async () => {
+        const record = await store.createActionRecord(
+          done({ params: { habitId: 'habit_move', value: true, dropped: undefined }, before: { value: null, skip: 'forgotten' } })
+        );
+
+        expect(record.params).toEqual({ habitId: 'habit_move', value: true });
+        expect('dropped' in record.params).toBe(false);
+        expect((await store.getActionRecord(record.id))?.before).toEqual({ value: null, skip: 'forgotten' });
+        // No `before` is null, not missing.
+        expect((await store.createActionRecord(done({ before: undefined }))).before).toBeNull();
+      });
+
+      it('keeps a failed record with its error', async () => {
+        const failed = await store.createActionRecord(done({ status: 'failed', error: 'no habit with id habit_x' }));
+        expect(failed.status).toBe('failed');
+        expect(failed.error).toBe('no habit with id habit_x');
+      });
+
+      it.each([
+        ['a blank name', { name: ' ' }],
+        ['params that are not an object', { params: [1] }],
+        ['a day that is not a day key', { day: '2 April' }],
+        ['an origin outside the vocabulary', { origin: { type: 'telegram', id: null } }],
+        ['an origin id that is not a reference', { origin: { type: 'capture', id: 'nope' } }],
+        ['a recordRef that is not a reference', { recordRef: 'task 1' }],
+        ['a record created undone', { status: 'undone' }],
+        ['a status outside the list', { status: 'maybe' }],
+        ['a failed record with no error', { status: 'failed', error: null }],
+        ['a done record with an error', { error: 'something' }],
+        ['a blank text', { text: '' }],
+        ['a source outside the vocabulary', { source: 'telegram' }],
+      ])('refuses %s and writes nothing', async (_label, overrides) => {
+        await expect(store.createActionRecord(done(overrides))).rejects.toThrow();
+        expect(await store.getActionRecords()).toEqual([]);
+      });
+
+      it('lists newest first, by day, by origin and capped', async () => {
+        const first = await store.createActionRecord(done({ origin: { type: 'capture', id: 'capture_seed_1' } }));
+        const second = await store.createActionRecord(done({ day: '2026-04-03' }));
+        const third = await store.createActionRecord(done({ origin: { type: 'capture', id: 'capture_seed_2' } }));
+
+        expect((await store.getActionRecords()).map((r) => r.id)).toEqual([third.id, second.id, first.id]);
+        expect((await store.getActionRecords({ day: '2026-04-02' })).map((r) => r.id)).toEqual([third.id, first.id]);
+        expect((await store.getActionRecords({ origin: { type: 'capture' } })).map((r) => r.id)).toEqual([third.id, first.id]);
+        expect(
+          (await store.getActionRecords({ origin: { type: 'capture', id: 'capture_seed_1' } })).map((r) => r.id)
+        ).toEqual([first.id]);
+        expect((await store.getActionRecords({ origin: { type: 'checkin', id: null } })).map((r) => r.id)).toEqual([second.id]);
+        expect((await store.getActionRecords({ limit: 1 })).map((r) => r.id)).toEqual([third.id]);
+      });
+
+      it('marks a done record undone, once', async () => {
+        const record = await store.createActionRecord(done());
+
+        const undone = await store.updateActionRecord(record.id, { status: 'undone' });
+        expect(undone.status).toBe('undone');
+        expect(undone.createdAt).toBe(record.createdAt);
+        expect(await store.getActionRecord(record.id)).toEqual(undone);
+
+        await expect(store.updateActionRecord(record.id, { status: 'undone' })).rejects.toThrow(/already undone/);
+      });
+
+      it('refuses any other change to a record', async () => {
+        const record = await store.createActionRecord(done());
+        const failed = await store.createActionRecord(done({ status: 'failed', error: 'x' }));
+
+        await expect(store.updateActionRecord(record.id, /** @type {any} */ ({ status: 'done' }))).rejects.toThrow();
+        await expect(store.updateActionRecord(record.id, /** @type {any} */ ({ status: 'failed' }))).rejects.toThrow();
+        await expect(store.updateActionRecord(record.id, /** @type {any} */ ({ text: 'Mood 5' }))).rejects.toThrow();
+        await expect(store.updateActionRecord(failed.id, { status: 'undone' })).rejects.toThrow();
+        await expect(store.updateActionRecord('action_missing', { status: 'undone' })).rejects.toThrow();
+        expect(await store.getActionRecord(record.id)).toEqual(record);
+      });
+    });
+
+    describe('clearHabitValue', () => {
+      const DAY = '2026-04-02';
+
+      it("removes one habit's value for a day, leaving the others and the skip reasons", async () => {
+        await store.logHabitValue({ date: DAY, habitId: 'habit_move', value: true });
+        await store.logHabitValue({ date: DAY, habitId: 'habit_water', value: 0 });
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_water', reason: 'forgotten' });
+
+        const log = await store.clearHabitValue({ date: DAY, habitId: 'habit_water' });
+
+        expect(log.habits).toEqual({ habit_move: true });
+        expect(log.skips).toEqual({ habit_water: 'forgotten' });
+        expect(await store.getDailyLog(DAY)).toEqual(log);
+      });
+
+      it('makes a day with nothing else recorded read as unrecorded again', async () => {
+        await store.logHabitValue({ date: DAY, habitId: 'habit_move', value: false });
+        expect((await store.clearHabitValue({ date: DAY, habitId: 'habit_move' })).habits).toEqual({});
+      });
+
+      it('writes nothing for a habit with no value that day', async () => {
+        const days = await store.getLoggedDays();
+        await store.clearHabitValue({ date: DAY, habitId: 'habit_move' });
+        expect(await store.getLoggedDays()).toEqual(days);
+      });
+
+      it('refuses a future day and an unknown habit', async () => {
+        await expect(store.clearHabitValue({ date: shiftDayKey(today(), 1), habitId: 'habit_move' })).rejects.toThrow();
+        await expect(store.clearHabitValue({ date: DAY, habitId: 'habit_nope' })).rejects.toThrow();
+      });
+    });
+
     describe('reset', () => {
       it('restores the seeded state', async () => {
         // Restoring from the seed is the destructive factory reset this

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 21,
+  "schemaVersion": 22,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -505,6 +505,7 @@
       "source": "user"
     }
   ],
+  "actions": [],
   "dailyLogs": {
     "2026-01-05": {
       "date": "2026-01-05",

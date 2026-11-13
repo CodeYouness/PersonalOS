@@ -43,6 +43,7 @@ export const ENTITY_TYPES = Object.freeze([
   'appointment',
   'category',
   'review',
+  'action',
 ]);
 
 /**
@@ -83,6 +84,16 @@ export const DESTINATIONS = Object.freeze([
  * @type {readonly string[]}
  */
 export const CAPTURE_ORIGINS = Object.freeze(['bar', 'shortcut', 'telegram']);
+
+/**
+ * What an action was made for (docs/domain.md, "Action"): a capture, a
+ * journal entry, or an answer in the check-in. Closed, like every vocabulary
+ * here: the store refuses an action record whose origin is not one of these.
+ * A channel or a skill that writes through actions joins this list first.
+ *
+ * @type {readonly ('capture' | 'journal' | 'checkin')[]}
+ */
+export const ACTION_ORIGINS = Object.freeze(/** @type {const} */ (['capture', 'journal', 'checkin']));
 
 /**
  * Relationship vocabulary for the link collection.
@@ -133,6 +144,7 @@ export const SOURCE_KINDS = Object.freeze([
   'user',
   'capture',
   'journal',
+  'checkin',
   'integration',
   'derived',
   'seed',
