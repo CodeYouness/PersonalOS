@@ -946,53 +946,90 @@ export function runAdapterContract(label, load) {
 
       it('rejects an unknown field in a patch', async () => {
         await expect(
-          store.updateDailyLog('2026-04-02', { mood: 'good' })
+          store.updateDailyLog('2026-04-02', { weather: 'good' })
         ).rejects.toThrow();
+      });
+
+      it('does not take the mood or the energy: each has its own setter', async () => {
+        await expect(store.updateDailyLog('2026-04-02', { mood: 3 })).rejects.toThrow();
+        await expect(store.updateDailyLog('2026-04-02', { energy: 3 })).rejects.toThrow();
+        expect(await store.getLoggedDays()).not.toContain('2026-04-02');
       });
     });
 
-    describe('setDayRating', () => {
-      it('reads back null for a day never written to', async () => {
-        expect((await store.getDailyLog('2026-04-02')).rating).toBeNull();
-        expect((await store.getDailyLogs('2026-04-02', '2026-04-03'))[1].rating).toBeNull();
+    describe('the day\'s mood and energy', () => {
+      it('reads back null for both on a day never written to', async () => {
+        const log = await store.getDailyLog('2026-04-02');
+        expect(log.mood).toBeNull();
+        expect(log.energy).toBeNull();
+        const [, next] = await store.getDailyLogs('2026-04-02', '2026-04-03');
+        expect(next.mood).toBeNull();
+        expect(next.energy).toBeNull();
       });
 
-      it('sets, changes and clears a rating without touching the rest of the day', async () => {
-        await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_move', value: true });
-        const before = await store.getDailyLog('2026-04-02');
-
-        await store.setDayRating({ date: '2026-04-02', rating: 4 });
-        expect((await store.getDailyLog('2026-04-02')).rating).toBe(4);
-        await store.setDayRating({ date: '2026-04-02', rating: 2 });
-        expect((await store.getDailyLog('2026-04-02')).rating).toBe(2);
-        await store.setDayRating({ date: '2026-04-02', rating: null });
-
-        expect(await store.getDailyLog('2026-04-02')).toEqual({ ...before, rating: null });
+      it('reads a seeded day\'s mood, which was its rating, with energy unset', async () => {
+        const log = await store.getDailyLog('2026-01-06');
+        expect(log.mood).toBe(4);
+        expect(log.energy).toBeNull();
+        expect('rating' in log).toBe(false);
       });
 
-      it('writes no event', async () => {
-        const events = (await store.getEvents()).length;
-        await store.setDayRating({ date: '2026-04-02', rating: 3 });
-        expect((await store.getEvents()).length).toBe(events);
-      });
+      for (const [setter, field, other] of /** @type {const} */ ([
+        ['setDayMood', 'mood', 'energy'],
+        ['setDayEnergy', 'energy', 'mood'],
+      ])) {
+        /** @param {any} input */
+        const set = (input) => /** @type {any} */ (store)[setter](input);
 
-      it('refuses a future day, a value outside the scale and a non-integer, writing nothing', async () => {
-        const tomorrow = shiftDayKey(today(), 1);
-        for (const input of [
-          { date: tomorrow, rating: 3 },
-          { date: '2026-04-02', rating: 0 },
-          { date: '2026-04-02', rating: 6 },
-          { date: '2026-04-02', rating: 2.5 },
-          { date: '2026-04-02', rating: '3' },
-          { date: '2026-04-02', rating: undefined },
-          { date: 'nope', rating: 3 },
-        ]) {
-          await expect(store.setDayRating(/** @type {any} */ (input))).rejects.toThrow();
-        }
-        expect((await store.getDailyLog('2026-04-02')).rating).toBeNull();
-        expect((await store.getDailyLog(tomorrow)).rating).toBeNull();
-        expect(await store.getLoggedDays()).not.toContain(tomorrow);
-      });
+        describe(setter, () => {
+          it('sets, changes and clears the ' + field + ' without touching the rest of the day', async () => {
+            await store.logHabitValue({ date: '2026-04-02', habitId: 'habit_move', value: true });
+            const before = await store.getDailyLog('2026-04-02');
+
+            expect((await set({ date: '2026-04-02', [field]: 4 }))[field]).toBe(4);
+            expect((await store.getDailyLog('2026-04-02'))[field]).toBe(4);
+            await set({ date: '2026-04-02', [field]: 2 });
+            expect((await store.getDailyLog('2026-04-02'))[field]).toBe(2);
+            await set({ date: '2026-04-02', [field]: null });
+
+            expect(await store.getDailyLog('2026-04-02')).toEqual({ ...before, [field]: null });
+          });
+
+          it('leaves the ' + other + ' as it was', async () => {
+            await /** @type {any} */ (store)[other === 'mood' ? 'setDayMood' : 'setDayEnergy']({ date: '2026-04-02', [other]: 5 });
+            await set({ date: '2026-04-02', [field]: 1 });
+            const log = await store.getDailyLog('2026-04-02');
+            expect(log[other]).toBe(5);
+            expect(log[field]).toBe(1);
+          });
+
+          it('writes no event', async () => {
+            const events = (await store.getEvents()).length;
+            await set({ date: '2026-04-02', [field]: 3 });
+            expect((await store.getEvents()).length).toBe(events);
+          });
+
+          it('refuses a future day, a value outside the scale and a non-integer, writing nothing', async () => {
+            const tomorrow = shiftDayKey(today(), 1);
+            for (const input of [
+              { date: tomorrow, [field]: 3 },
+              { date: '2026-04-02', [field]: limits.dayReadingMin - 1 },
+              { date: '2026-04-02', [field]: limits.dayReadingMax + 1 },
+              { date: '2026-04-02', [field]: 2.5 },
+              { date: '2026-04-02', [field]: '3' },
+              { date: '2026-04-02', [field]: undefined },
+              { date: '2026-04-02', rating: 3 },
+              { date: 'nope', [field]: 3 },
+            ]) {
+              await expect(set(input)).rejects.toThrow();
+            }
+            expect((await store.getDailyLog('2026-04-02'))[field]).toBeNull();
+            expect((await store.getDailyLog(tomorrow))[field]).toBeNull();
+            expect(await store.getLoggedDays()).not.toContain(tomorrow);
+            expect(await store.getLoggedDays()).not.toContain('2026-04-02');
+          });
+        });
+      }
     });
 
     describe('logHabitValue', () => {

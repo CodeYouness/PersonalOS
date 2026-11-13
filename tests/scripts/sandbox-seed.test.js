@@ -62,22 +62,25 @@ describe('seedForSandbox', () => {
     });
   });
 
-  it('moves a day\'s rating with its habit values, and a day holding only a rating survives the move', () => {
+  it('moves a day\'s mood and energy with its habit values, and a day holding only one of them survives the move', () => {
     /** @type {SeedFixture} */
-    const rated = {
-      schemaVersion: 20,
+    const read = {
+      schemaVersion: 21,
       dailyLogs: {
-        '2026-01-05': { ...log('2026-01-05', { habit_move: true }), rating: 4 },
-        '2026-01-06': { ...log('2026-01-06', {}), rating: 2 },
+        '2026-01-05': { ...log('2026-01-05', { habit_move: true }), mood: 4, energy: 3 },
+        '2026-01-06': { ...log('2026-01-06', {}), mood: 2 },
+        '2026-01-07': { ...log('2026-01-07', {}), energy: 5 },
         '2026-01-10': log('2026-01-10', { habit_move: false }),
       },
     };
-    const logs = seedForSandbox(rated, TODAY).dailyLogs;
+    const logs = seedForSandbox(read, TODAY).dailyLogs;
 
-    expect(logs['2026-10-08']).toEqual({ ...log('2026-10-08', { habit_move: true }), rating: 4 });
-    expect(logs['2026-10-09']).toEqual({ ...log('2026-10-09', {}), rating: 2 });
+    expect(logs['2026-10-08']).toEqual({ ...log('2026-10-08', { habit_move: true }), mood: 4, energy: 3 });
+    expect(logs['2026-10-09']).toEqual({ ...log('2026-10-09', {}), mood: 2 });
+    expect(logs['2026-10-10']).toEqual({ ...log('2026-10-10', {}), energy: 5 });
     expect(logs['2026-01-05']).toBeUndefined();
     expect(logs['2026-01-06']).toBeUndefined();
+    expect(logs['2026-01-07']).toBeUndefined();
   });
 
   it('changes nothing in the seed it was given', () => {

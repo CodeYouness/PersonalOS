@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 20,
+  "schemaVersion": 21,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -585,7 +585,7 @@
       "meals": [],
       "measurements": [],
       "notes": [],
-      "rating": 4
+      "mood": 4
     },
     "2026-01-07": {
       "date": "2026-01-07",
@@ -593,7 +593,7 @@
       "meals": [],
       "measurements": [],
       "notes": [],
-      "rating": 3
+      "mood": 3
     },
     "2026-01-08": {
       "date": "2026-01-08",
@@ -601,7 +601,7 @@
       "meals": [],
       "measurements": [],
       "notes": [],
-      "rating": 5
+      "mood": 5
     },
     "2026-01-09": {
       "date": "2026-01-09",
@@ -623,7 +623,7 @@
       "meals": [],
       "measurements": [],
       "notes": [],
-      "rating": 2
+      "mood": 2
     },
     "2026-01-12": {
       "date": "2026-01-12",
@@ -638,7 +638,7 @@
       "meals": [],
       "measurements": [],
       "notes": [],
-      "rating": 4
+      "mood": 4
     },
     "2026-01-15": {
       "date": "2026-01-15",

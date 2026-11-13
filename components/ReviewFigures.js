@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { formatCount, formatEuro, formatRating, slippedLabel, WEEKDAY_SHORT } from '@/components/format.js';
+import { formatCount, formatDayReading, formatEuro, slippedLabel, WEEKDAY_SHORT } from '@/components/format.js';
 import { crmAddress, goalsAddress } from '@/lib/domain/addresses.js';
 import { weekdayOf } from '@/lib/domain/dates.js';
 import { BASELINE_WEEKS } from '@/lib/domain/derive/week.js';
@@ -207,7 +207,7 @@ function GoalFigures({ goals }) {
 
 /** @param {{ figures: import('@/lib/domain/derive/week.js').WeekFigures }} props */
 function WeekStats({ figures }) {
-  const { journal, rating, intake, captures, days } = figures;
+  const { journal, mood, energy, intake, captures, days } = figures;
   return (
     <div className="stat-row" id="review-stats">
       <div className="stat">
@@ -218,16 +218,8 @@ function WeekStats({ figures }) {
           <div className="v num">{journal.days + OF + days.length}</div>
         )}
       </div>
-      <div className="stat">
-        <div className="k">Days rated</div>
-        {rating.days === null || rating.mean === null ? (
-          <Unknown reason="none rated" />
-        ) : (
-          <div className="v num rating">
-            {rating.days + OF + days.length} <span className="caption">avg {formatRating(rating.mean)}</span>
-          </div>
-        )}
-      </div>
+      <ReadingStat label="Mood" reading={mood} days={days.length} />
+      <ReadingStat label="Energy" reading={energy} days={days.length} />
       <div className="stat">
         <div className="k">Average intake</div>
         {intake === null || intake.calories === null ? (
@@ -243,6 +235,27 @@ function WeekStats({ figures }) {
         <div className="k">Captures filed</div>
         {captures === null ? <Unknown reason="none this week" /> : <div className="v num">{formatCount(captures)}</div>}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The days of the week given a mood (or an energy) and their mean; unknown,
+ * never zero, when none was given.
+ *
+ * @param {{ label: string, reading: { days: number | null, mean: number | null }, days: number }} props
+ */
+function ReadingStat({ label, reading, days }) {
+  return (
+    <div className="stat">
+      <div className="k">{label}</div>
+      {reading.days === null || reading.mean === null ? (
+        <Unknown reason={'no ' + label.toLowerCase() + ' given'} />
+      ) : (
+        <div className="v num reading">
+          {reading.days + OF + days} <span className="caption">avg {formatDayReading(reading.mean)}</span>
+        </div>
+      )}
     </div>
   );
 }

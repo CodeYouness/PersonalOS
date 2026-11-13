@@ -42,7 +42,8 @@ describe('the week at a glance', () => {
     const html = renderToStaticMarkup(createElement(ReviewFigures, { figures: figures() }));
     expect(html).toContain('no spending recorded');
     expect(html).toContain('no meals recorded');
-    expect(html).toContain('none rated');
+    expect(html).toContain('no mood given');
+    expect(html).toContain('no energy given');
     expect(html).not.toMatch(/>0</);
     expect(html).not.toContain('So far');
   });
@@ -62,6 +63,17 @@ describe('the week at a glance', () => {
     const none = render(0);
     expect(none).not.toContain('Average, 4 weeks');
     expect(none).toContain('none of the 4 weeks before had spending');
+  });
+
+  it('shows the mood and the energy apart, each with its own days', () => {
+    const log = (/** @type {string} */ date, /** @type {any} */ over) => ({ date, habits: {}, meals: [], measurements: [], notes: [], mood: null, energy: null, ...over });
+    const html = renderToStaticMarkup(
+      createElement(ReviewFigures, {
+        figures: figures({ dailyLogs: [log('2026-10-05', { mood: 4, energy: 2 }), log('2026-10-06', { mood: 3 })] }),
+      })
+    );
+    expect(html).toMatch(/Mood<\/div><div class="v num reading">2\u2009\/\u20097 <span class="caption">avg 3.5</);
+    expect(html).toMatch(/Energy<\/div><div class="v num reading">1\u2009\/\u20097 <span class="caption">avg 2.0</);
   });
 
   it('says "so far" for the week in progress', () => {

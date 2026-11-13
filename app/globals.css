@@ -359,7 +359,7 @@ button:disabled { cursor: not-allowed; }
 .habit-minus:hover { background: var(--surface-4); color: var(--ink-muted); }
 
 /* ==========================================================================
-   HOME — card-close-day (#243). The chosen rating is neutral, never green or red.
+   HOME — card-close-day (#243). The chosen mood or energy is neutral, never green or red.
    ========================================================================== */
 .day-rating { display: flex; flex-direction: column; gap: var(--s-sm); }
 .rating-scale { display: flex; gap: var(--s-xs); }
@@ -987,7 +987,7 @@ a.cite { text-decoration: none; }
 .review-list .days { flex-basis: 100%; padding-left: 22px; }
 /* An unknown figure: a dash and the reason, never a zero. */
 .unknown { color: var(--ink-tertiary); }
-.rating { color: var(--ink-muted); } /* neutral on purpose: a low day is information, not a reprimand */
+.reading { color: var(--ink-muted); } /* neutral on purpose: a low day is information, not a reprimand */
 .review-entry { padding: var(--s-sm) 0; border-bottom: 1px solid var(--hairline); }
 .review-entry:last-child { border-bottom: none; }
 .review-entry .when { display: flex; align-items: baseline; gap: var(--s-xs); }

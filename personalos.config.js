@@ -296,9 +296,12 @@ export const limits = Object.freeze({
   reviewLeverMaxLength: 300,
   /** Three is a decision, ten is a list. Shown by the Session card. */
   sessionTaskCount: 3,
-  /** The scale a day is rated on, both ends included (ADR 0035). */
-  dayRatingMin: 1,
-  dayRatingMax: 5,
+  /**
+   * The one scale a day's mood and its energy are each read on, both ends
+   * included (ADR 0035, 0037). One scale for both, so the two read alike.
+   */
+  dayReadingMin: 1,
+  dayReadingMax: 5,
   /** How far back the Health card aggregates. */
   healthWindowDays: 30,
   /** How far ahead recurring calendar events are expanded. */

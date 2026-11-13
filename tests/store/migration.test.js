@@ -968,3 +968,46 @@ describe('migration v19 to v20', () => {
     expect(migrate(once)).toEqual(once);
   });
 });
+
+describe('migration v20 to v21', () => {
+  /**
+   * A v20 document: one day rated, one rated then cleared, one written before
+   * the rating existed (no key at all).
+   */
+  const v20Document = () => ({
+    ...migrate(v12Document()),
+    schemaVersion: 20,
+    dailyLogs: {
+      '2026-03-01': { date: '2026-03-01', habits: { habit_move: true }, meals: [], measurements: [], notes: [], rating: 4 },
+      '2026-03-02': { date: '2026-03-02', habits: {}, meals: [], measurements: [], notes: [], rating: null },
+      '2026-03-03': { date: '2026-03-03', habits: { habit_move: false }, meals: [], measurements: [], notes: [] },
+    },
+  });
+
+  it('makes every stored rating the day\'s mood and keeps no rating key', () => {
+    const before = v20Document();
+    const migrated = migrate(before);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    const { rating: _four, ...rated } = before.dailyLogs['2026-03-01'];
+    const { rating: _cleared, ...cleared } = before.dailyLogs['2026-03-02'];
+    expect(migrated.dailyLogs['2026-03-01']).toEqual({ ...rated, mood: 4 });
+    expect(migrated.dailyLogs['2026-03-02']).toEqual({ ...cleared, mood: null });
+    // A day that never had a rating gets no mood key: absent reads as unset.
+    expect(migrated.dailyLogs['2026-03-03']).toEqual(before.dailyLogs['2026-03-03']);
+    // Energy is new: nothing is invented for it.
+    expect(Object.values(migrated.dailyLogs).some((/** @type {any} */ log) => 'energy' in log)).toBe(false);
+    expect({ ...migrated, dailyLogs: {}, schemaVersion: 0 }).toEqual({ ...before, dailyLogs: {}, schemaVersion: 0 });
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v20Document());
+    expect(migrate(once)).toEqual(once);
+  });
+
+  it('does not mutate the document it was given', () => {
+    const before = v20Document();
+    migrate(before);
+    expect(before.dailyLogs['2026-03-01'].rating).toBe(4);
+  });
+});

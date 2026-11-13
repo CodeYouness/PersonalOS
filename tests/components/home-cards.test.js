@@ -1,7 +1,7 @@
 /**
  * What the Home cards added by spec #232 decide to draw: the Today card's
  * lever-or-focus line and its "Review last week" note (#241), and the Close
- * the day card's rating line and open habits (#243, #235). Static markup;
+ * the day card's mood and energy lines and open habits (#243, #235). Static markup;
  * tapping and saving are checked in the browser.
  */
 
@@ -58,16 +58,30 @@ describe('the Close the day card', () => {
   /** @param {any} over */
   function close(over = {}) {
     return renderToStaticMarkup(
-      createElement(CloseDayView, { date: '2026-10-07', rating: null, open: [], scale: [1, 2, 3, 4, 5], ...over })
+      createElement(CloseDayView, { date: '2026-10-07', mood: null, energy: null, open: [], scale: [1, 2, 3, 4, 5], ...over })
     );
   }
 
-  it('says nothing about a rating for an unrated day', () => {
+  it('asks for the mood and the energy, each with its own taps', () => {
+    const html = close();
+    expect(html).toContain('Mood');
+    expect(html).toContain('Energy');
+    expect(html).toContain('aria-label="Mood"');
+    expect(html).toContain('aria-label="Energy"');
+    expect(html.match(/rating-btn/g)).toHaveLength(10);
+  });
+
+  it('says nothing about a value for a day given neither', () => {
     expect(close()).not.toContain('You gave it');
   });
 
-  it('says what the day was given once it is rated', () => {
-    expect(close({ rating: 4 })).toContain('You gave it 4');
+  it('says what the day was given, the mood and the energy apart', () => {
+    const moodOnly = close({ mood: 4 });
+    expect(moodOnly).toContain('You gave it 4');
+    expect(moodOnly.match(/You gave it/g)).toHaveLength(1);
+    const both = close({ mood: 4, energy: 2 });
+    expect(both).toContain('You gave it 4');
+    expect(both).toContain('You gave it 2');
   });
 
   it('names the habits still open, or says nothing is left', () => {
