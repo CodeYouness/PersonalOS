@@ -30,10 +30,11 @@ const SUITES = ['classify', 'checkin'];
 
 /**
  * Compared when no --model is given: Haiku 5.5, the default since #198, and
- * Sonnet 5, every call's model before it. Not Sonnet 5.5, which refuses the forced tool_choice
- * the classifier uses.
+ * Sonnet 5.5, the current Sonnet, as the stronger model to measure it
+ * against. Sonnet 5.5 refuses a forced tool_choice, so the provider offers
+ * it the tool instead (lib/ai/providers/anthropic.js).
  */
-const DEFAULT_MODELS = ['claude-haiku-5-5', 'claude-sonnet-5'];
+const DEFAULT_MODELS = ['claude-haiku-5-5', 'claude-sonnet-5-5'];
 
 /** When and where PRICES were read, printed with the report so stale figures show. */
 const PRICES_READ = '2026-10-15 from https://platform.claude.com/docs/en/about-claude/pricing';
@@ -41,8 +42,8 @@ const PRICES_READ = '2026-10-15 from https://platform.claude.com/docs/en/about-c
 /**
  * Micro-dollars per million tokens. Haiku 5.5 is the price for prompts up to
  * 100,000 tokens: a capture is a few thousand. Sonnet 5 is what every call
- * ran on before #198; Sonnet 5.5 refuses the classifier's forced tool, so a run
- * of it reports that in one line. A model missing here is still scored.
+ * ran on before #198, kept so a run of it is still priced. A model missing
+ * here is still scored.
  *
  * @type {Record<string, import('./eval-classify/score.js').Price>}
  */

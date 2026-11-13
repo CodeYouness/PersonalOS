@@ -86,6 +86,40 @@ describe('callTool', () => {
     });
   });
 
+  it('offers the tool instead of forcing it on a model that refuses a forced tool', async () => {
+    mockCreate.mockResolvedValueOnce(reply());
+
+    await callTool({ ...REQUEST, model: 'claude-sonnet-5-5' });
+
+    const sent = mockCreate.mock.calls[0][0];
+    expect(sent.tool_choice).toStrictEqual({ type: 'auto', disable_parallel_tool_use: true });
+    expect(sent.system).toBe(
+      'Today is 2026-09-24.\n\nAnswer only by calling the `file_it` tool, exactly once. Write no text before or after the call.'
+    );
+    expect(sent.tools).toHaveLength(1);
+  });
+
+  it.each(['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-fable-5-2', 'claude-fable-5-1', 'claude-sonnet-5-5-20261001'])(
+    'does not force the tool on %s',
+    async (model) => {
+      mockCreate.mockResolvedValueOnce(reply());
+      await callTool({ ...REQUEST, model });
+      expect(mockCreate.mock.calls[0][0].tool_choice.type).toBe('auto');
+    }
+  );
+
+  it.each(['claude-haiku-5-5', 'claude-sonnet-5', 'claude-sonnet-5-50'])('still forces the tool on %s', async (model) => {
+    mockCreate.mockResolvedValueOnce(reply());
+    await callTool({ ...REQUEST, model });
+    expect(mockCreate.mock.calls[0][0].tool_choice).toStrictEqual({ type: 'tool', name: 'file_it' });
+    expect(mockCreate.mock.calls[0][0].system).toBe('Today is 2026-09-24.');
+  });
+
+  it('throws when an unforced model answers in text', async () => {
+    mockCreate.mockResolvedValueOnce(reply({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Done.' }] }));
+    await expect(callTool({ ...REQUEST, model: 'claude-sonnet-5-5' })).rejects.toThrow(/did not call file_it/);
+  });
+
   it('builds the client with the configured key', async () => {
     mockCreate.mockResolvedValueOnce(reply());
 
