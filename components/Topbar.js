@@ -182,10 +182,10 @@ export default function Topbar() {
         </div>
       </header>
 
-      {/* Sibling of #topbar, not a child: #topbar's backdrop-filter creates
-          a containing block for position:fixed descendants, which would
-          clip the drawer and scrim to the 56px topbar strip instead of the
-          viewport. */}
+      {/* Sibling of #topbar, not a child: a filter or transform on #topbar
+          would create a containing block for position:fixed descendants,
+          clipping the drawer and scrim to the 56px topbar strip instead of
+          the viewport. */}
       <CaptureLogDrawer
         isOpen={isLogOpen}
         onClose={() => setLogOpen(false)}

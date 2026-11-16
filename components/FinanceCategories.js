@@ -126,7 +126,7 @@ export default function FinanceCategories({ categories }) {
                 ))}
             </select>
           </div>
-          <button type="submit" className="btn-primary" disabled={isSaving || name.trim() === ''}>
+          <button type="submit" className="btn-ghost" disabled={isSaving || name.trim() === ''}>
             Add
           </button>
         </form>

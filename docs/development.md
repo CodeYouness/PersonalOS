@@ -92,8 +92,9 @@ tool will not tell you:
   (`scripts/sandbox-seed.js`), so the streak runs up to today and the weekends
   in it are Deep work's days off. Meals, weights and notes stay on their
   January days.
-- **One theme.** The app and the mockup are dark only; a light theme has
-  nothing to check.
+- **One theme.** The app is light only, "Olive on bone"
+  (`docs/design/ui-rules.md`, ADR 0038); there is no dark theme to check.
+  The mockup is still dark: it shows layout, not the look.
 - **The model.** The banner says `model: off`, or `model: on` with the model
   each call type will use, and a key exported in your shell counts. Off, a
   question answers "No model configured". To see a path that returns before the model is called, start it with a fake key

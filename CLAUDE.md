@@ -52,7 +52,8 @@ lib/integrations/  contract + registry; no concrete integration yet
 lib/config/        the only module that reads process.env
 personalos.config.js  closed vocabularies and product configuration
 data/seed.json     demo starting state, versioned, never written to
-design/mockup.html the mockup every screen and card is ported from
+design/mockup.html the original mockup: layout history, not the look
+docs/design/ui-rules.md  how every screen looks (ADR 0038)
 docs/              architecture, domain, development, roadmap, decisions
 ```
 

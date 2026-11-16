@@ -8,11 +8,15 @@ import { allocation } from '@/lib/domain/derive/finance.js';
 
 /** @typedef {import('@/lib/domain/derive/finance.js').AccountRow} AccountRow */
 
-/** The allocation bar's parts, in order, with the mockup's colours. */
+/**
+ * The allocation bar's parts, in order. The assets are a neutral ramp of the
+ * ink (docs/design/ui-rules.md: state colours are for state); a debt is
+ * money owed, so it takes the danger colour.
+ */
 const ALLOCATION_PARTS = {
-  cash: { label: 'Cash', color: 'var(--success)' },
-  invested: { label: 'Invested', color: 'var(--info)' },
-  otherAssets: { label: 'Other assets', color: 'var(--primary)' },
+  cash: { label: 'Cash', color: 'var(--series-1)' },
+  invested: { label: 'Invested', color: 'var(--series-2)' },
+  otherAssets: { label: 'Other assets', color: 'var(--series-3)' },
   debt: { label: 'Debt', color: 'var(--danger)' },
 };
 

@@ -194,7 +194,7 @@ function BalanceEditor({ balance, todayKey, isSaving, onSave, onCancel }) {
       <td className="finance-row-actions">
         <button
           type="button"
-          className="btn-primary"
+          className="btn-ghost"
           disabled={isSaving || parsed === null}
           onClick={() => parsed !== null && onSave({ amount: parsed, date })}
         >

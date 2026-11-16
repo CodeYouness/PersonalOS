@@ -194,7 +194,9 @@ only what has not been sent yet.
   enforces. It forces the tool where the model accepts that, and offers it
   where the model does not (Sonnet 5.5, ADR 0030).
 - **Cards.** Each owns a screen section and its own API route, and never
-  reaches into another card's data.
+  reaches into another card's data. How it looks follows
+  `docs/design/ui-rules.md` (ADR 0038), styled in `app/globals.css` with its
+  tokens.
 
 ## The AI context layer
 
