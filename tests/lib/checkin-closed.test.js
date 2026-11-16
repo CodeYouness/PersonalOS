@@ -65,6 +65,24 @@ describe('a habit question', () => {
     expect(actionsForAnswer(CHECK, { skip: 'bored' })).toMatchObject({ ok: true });
   });
 
+  it('unticks a check ticked that day before giving it a reason, so an answer can be changed', () => {
+    expect(actionsForAnswer(CHECK, { skip: 'too-heavy' }, { habits: { habit_move: true } })).toEqual({
+      ok: true,
+      requests: [
+        { name: 'habit.set', params: { habitId: 'habit_move', value: false } },
+        { name: 'habit.skip', params: { habitId: 'habit_move', reason: 'too-heavy' } },
+      ],
+    });
+    // Not ticked: the reason alone.
+    expect(actionsForAnswer(CHECK, { skip: 'too-heavy' }, { habits: { habit_move: false } })).toMatchObject({
+      requests: [{ name: 'habit.skip' }],
+    });
+    // A counter's count is lowered first, by a value: the store refuses a reason beside a kept one.
+    expect(actionsForAnswer(COUNTER, { skip: 'forgotten' }, { habits: { habit_water: 8 } })).toMatchObject({
+      requests: [{ name: 'habit.skip' }],
+    });
+  });
+
   it('refuses a count for a check habit', () => {
     expect(errorOf(actionsForAnswer(CHECK, { value: 1 }))).toMatch(/count/);
   });

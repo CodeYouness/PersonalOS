@@ -103,6 +103,36 @@ export function dayHeading(dayKey) {
 }
 
 /**
+ * A day said in full, as a screen reader hears it: "Friday 14 November".
+ *
+ * @param {string} dayKey
+ * @returns {string}
+ */
+export function dayFull(dayKey) {
+  return dayKeyToUtcDate(dayKey).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+}
+
+/**
+ * A day's weekday by name, "Friday".
+ *
+ * @param {string} dayKey
+ * @returns {string}
+ */
+export function weekdayName(dayKey) {
+  return dayKeyToUtcDate(dayKey).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+}
+
+/**
+ * A day's number in its month, "14".
+ *
+ * @param {string} dayKey
+ * @returns {string}
+ */
+export function dayOfMonth(dayKey) {
+  return String(dayKeyToUtcDate(dayKey).getUTCDate());
+}
+
+/**
  * The period a slipped goal is in: "2nd week", "3rd month" (ADR 0021).
  *
  * @param {number} period from lib/domain/derive/goals.js's slippedPeriod

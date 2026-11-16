@@ -109,6 +109,13 @@ describe('POST /api/checkin, the open answer with a model', () => {
     // The habit the sentence ticked is answered now.
     expect(body.questions.find((/** @type {{ id: string }} */ question) => question.id === 'habit:habit_move').answered).toBe(true);
     expect(callTool).toHaveBeenCalledTimes(1);
+    // The note, with what was filed from it -- shown nowhere else -- each line undoable on its own.
+    expect(body.notes).toHaveLength(1);
+    expect(body.notes[0]).toMatchObject({ text: SENTENCE, actionId: body.receipt.lines[0].actionId, undoable: true });
+    expect(body.notes[0].filed.map((/** @type {{ name: string, undoable: boolean }} */ line) => [line.name, line.undoable])).toEqual([
+      ['habit.set', true],
+      ['expense.record', true],
+    ]);
 
     // One undo, on the entry's line, takes the whole answer back.
     const entryLine = body.receipt.lines[0];

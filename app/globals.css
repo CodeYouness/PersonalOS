@@ -479,68 +479,154 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--primary); widt
 
 /* ==========================================================================
    HOME — card-checkin (ADR 0037). The check-in: first on Home, and the main
-   thing in the evening, mostly on a phone. Built at 390px first -- one
-   column, each row stacked, every tap target at least 36px tall -- then
-   widened: a label beside its controls, and the receipt in a column of its
-   own. No new colours: a stronger hairline is all that sets it apart, and
-   the chosen mood or energy is neutral, never green or red. Rebuilt in the
-   next ticket; here it only takes the look's colours and type.
+   thing in the evening, mostly on a phone. One question at a time, for a day
+   of the last seven. Built at 390px first -- one column, 44px targets, the
+   strip's seven days 44px wide with 2px between them -- then widened only to
+   a readable measure: on a 1200px card the content keeps 720px, centred, so
+   no button is stretched across the page.
+
+   Colour per docs/design/ui-rules.md: neutral throughout. State colours mark
+   state only -- a day filled (success) or partly (warning) in the strip, a
+   question not answered in the sheet, the yesterday banner, a habit kept --
+   and the time bar is the neutral series ramp. The chosen mood or energy is
+   neutral, never green or red.
    ========================================================================== */
 #card-checkin { border-color: var(--hairline-strong); }
-.checkin-title { display: flex; flex-direction: column; gap: 2px; margin-right: auto; min-width: 0; }
-.checkin-progress { font-size: 13px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-#card-checkin.is-done .checkin-progress { color: var(--ink-subtle); }
-.checkin-body { display: flex; flex-direction: column; gap: var(--s-md); }
-.checkin-rows { display: flex; flex-direction: column; }
-.checkin-row {
-  display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-xs);
-  padding: var(--s-sm) 0; border-bottom: 1px solid var(--hairline);
-}
-.checkin-row:first-child { padding-top: 0; }
-.checkin-label { font-size: 14px; color: var(--ink); min-width: 0; }
-.checkin-line { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-xs); }
-.checkin-line .checkin-label { flex: 1 1 auto; }
-.checkin-stepper { display: flex; align-items: center; gap: var(--s-xs); }
-.checkin-count { min-width: 48px; text-align: center; font-size: 14px; }
-.checkin-buttons { display: flex; gap: var(--s-xs); margin-left: auto; }
-.checkin-reasons { display: flex; flex-wrap: wrap; gap: var(--s-xs); }
-.checkin-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-xs); }
-.checkin-actions .caption { margin-right: auto; }
-.checkin .btn-ghost { min-height: 36px; }
-.checkin .btn-ghost:disabled { opacity: 0.5; }
-.checkin .btn-ghost.is-open { border-color: var(--hairline-tertiary); background: var(--surface-4); color: var(--ink); }
-.checkin .time-step-btn { width: 36px; height: 36px; }
+.checkin-inner { width: 100%; max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--s-md); min-width: 0; }
+#card-checkin .card-head { margin-bottom: 0; }
 .checkin .caption.is-error { margin-bottom: 0; }
+.checkin .btn-ghost:disabled, .checkin .btn-primary:disabled { opacity: 0.5; }
+/* A text link in the check-in is a whole target, not just its words. */
+.checkin .link-btn { min-height: var(--control-h); padding: 0 var(--s-xxs); }
+.checkin .link-btn:disabled { opacity: 0.5; text-decoration-color: transparent; }
+
+/* The week strip: seven days, the one shown chosen, a mark for how far each is. */
+.checkin-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.checkin-day {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 0; min-height: 64px; padding: 6px 0; border-radius: var(--r-xs);
+  border: 1px solid transparent; color: var(--ink-subtle);
+  transition: background-color var(--m-out) var(--ease), border-color var(--m-out) var(--ease);
+}
+.checkin-day:hover:not(:disabled) { background: var(--surface-2); transition-duration: var(--m-in); }
+.checkin-day:disabled { cursor: default; }
+.checkin-day.is-shown { background: var(--surface-4); border-color: var(--ink); color: var(--ink); }
+.checkin-day[aria-current='date'] .checkin-day-name { color: var(--ink); font-weight: var(--w-label); }
+.checkin-day-name { font-size: 13px; line-height: 1.2; }
+.checkin-day-num { font-size: 15px; line-height: 1.2; color: var(--ink); text-align: center; }
+.checkin-mark { width: 10px; height: 10px; margin-top: 2px; border-radius: var(--r-full); border: 1.5px solid var(--hairline-tertiary); }
+.checkin-day.is-filled .checkin-mark { background: var(--success); border-color: var(--success); }
+.checkin-day.is-partly .checkin-mark { border-color: var(--warning); background: linear-gradient(90deg, var(--warning) 50%, transparent 50%); }
+
+/* The headline and the day's progress, a segment per question. */
+.checkin-headline { outline-offset: 4px; }
+.checkin-progress-bar { display: flex; gap: 3px; }
+.checkin-segment { flex: 1; height: 6px; border-radius: 2px; background: var(--surface-3); }
+.checkin-segment.is-answered { background: var(--series-1); }
+.checkin-segment.is-asked { box-shadow: inset 0 0 0 1px var(--ink); }
+
+/* Yesterday, not filled: quiet, a line and its link. */
+.checkin-banner {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0 var(--s-sm);
+  padding: 0 var(--s-sm); border-radius: var(--r-sm);
+  background: var(--warning-soft); color: var(--warning);
+}
+.checkin-banner .caption { color: inherit; }
+
+/* The question card. */
+.checkin-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-sm);
+  padding: var(--s-lg); border: 1px solid var(--hairline); border-radius: var(--r-sm);
+}
+.checkin-question {
+  font-size: 28px; line-height: 1.15; letter-spacing: var(--track-heading); font-weight: var(--w-display);
+  overflow-wrap: anywhere; outline-offset: 4px;
+}
+.checkin-sub { color: var(--ink-muted); }
+.checkin-yes { width: 100%; max-width: 320px; }
+.checkin-chips { display: flex; flex-wrap: wrap; gap: var(--s-xs); }
+.checkin-chip.is-chosen { background: var(--surface-4); border-color: var(--ink); }
+.checkin-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-xs); width: 100%; }
+.checkin-actions .caption { margin-right: auto; }
+.checkin-stepper { display: flex; align-items: center; gap: var(--s-xs); }
+.checkin-count { min-width: 64px; text-align: center; font-size: 18px; }
+.checkin .time-step-btn { width: var(--control-h); height: var(--control-h); flex: none; }
+.checkin .time-areas { width: 100%; }
+.checkin-reading { display: flex; flex-direction: column; gap: var(--s-xxs); width: 100%; max-width: 360px; }
+.checkin-card .rating-btn { height: 56px; max-width: none; font-size: 18px; }
+.checkin-sheet .rating-scale { max-width: 320px; }
+.checkin-sheet .rating-btn { height: var(--control-h); }
+.checkin-scale-ends { display: flex; justify-content: space-between; }
+.checkin-nav { display: flex; justify-content: space-between; width: 100%; margin-top: var(--s-xs); }
+.checkin-more { display: flex; justify-content: center; }
+
+/* The note. */
+.checkin-label { font-size: 16px; color: var(--ink); min-width: 0; }
 .checkin-open { display: flex; flex-direction: column; gap: var(--s-xs); }
-.checkin-open textarea.input { min-height: 64px; }
-.checkin-receipt { display: flex; flex-direction: column; gap: var(--s-xxs); padding-top: var(--s-sm); border-top: 1px solid var(--hairline); }
+.checkin-open textarea.input { min-height: 72px; }
+.checkin-notes { display: flex; flex-direction: column; gap: var(--s-md); }
+.checkin-note { margin: 0; display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-xs); }
+.checkin-note-text {
+  margin: 0; padding-left: var(--s-sm); border-left: 2px solid var(--hairline-strong);
+  color: var(--ink-muted); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.checkin-note .checkin-receipt { align-self: stretch; }
+
+/* What was filed from a note: a short list, each line with its Undo. */
+.checkin-receipt { display: flex; flex-direction: column; gap: var(--s-xxs); }
 .checkin-lines { display: flex; flex-direction: column; }
 .checkin-receipt-line {
   display: flex; align-items: center; flex-wrap: wrap; gap: 2px var(--s-xs);
-  min-height: 36px; padding: 2px 0; font-size: 13px; color: var(--ink-muted);
+  min-height: var(--control-h-dense); padding: 2px 0; font-size: 13px; color: var(--ink-muted);
 }
 .checkin-receipt-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .checkin-receipt-line.is-undone { color: var(--ink-tertiary); }
 .checkin-receipt-line.is-rejected,
 .checkin-receipt-line.is-failed { color: var(--ink-subtle); }
 .checkin-receipt-line .caption.is-error { flex-basis: 100%; }
-.checkin-receipt-line .btn-ghost { min-height: 32px; padding: 4px 10px; font-size: 13px; }
-/* A counter on a phone: its name on a line, the stepper and buttons under it. */
-@media (max-width: 480px) {
-  .checkin-habit.is-counter .checkin-line .checkin-label { flex-basis: 100%; }
-}
+.checkin-receipt-line .btn-ghost { min-height: var(--control-h-dense); padding: 0 12px; font-size: 13px; }
+
+/* How the day went. */
+.checkin-summary { display: flex; flex-direction: column; gap: var(--s-md); }
+.checkin-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-xs); margin: 0; }
+.checkin-tile { display: flex; flex-direction: column; gap: 2px; padding: var(--s-sm); border: 1px solid var(--hairline); border-radius: var(--r-sm); min-width: 0; }
+.checkin-tile dd { margin: 0; }
+.checkin-tile-value { font-size: 20px; line-height: 1.25; letter-spacing: var(--track-heading); font-weight: var(--w-display); text-align: left; }
+.checkin-tile-unit { font-size: 13px; letter-spacing: 0; font-weight: var(--w-body); color: var(--ink-subtle); }
+.checkin-time-split { display: flex; flex-direction: column; gap: var(--s-xs); }
+.checkin-timebar { display: flex; gap: 2px; height: 12px; }
+.checkin-timebar-part { min-width: 4px; border-radius: 2px; }
+.checkin-legend { display: flex; flex-wrap: wrap; gap: var(--s-xxs) var(--s-md); font-size: 13px; color: var(--ink-muted); }
+.checkin-legend li { display: flex; align-items: center; gap: 6px; }
+.checkin-swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.checkin .series-1 { background: var(--series-1); }
+.checkin .series-2 { background: var(--series-2); }
+.checkin .series-3 { background: var(--series-3); }
+.checkin-habit-list { display: flex; flex-direction: column; }
+.checkin-habit-line { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-sm); padding: var(--s-xs) 0; border-bottom: 1px solid var(--hairline); }
+.checkin-habit-name { min-width: 0; overflow-wrap: anywhere; }
+.checkin-habit-state { flex: none; font-size: 13px; color: var(--ink-subtle); text-align: right; }
+.checkin-habit-line.is-kept .checkin-habit-state { color: var(--success); font-weight: var(--w-label); }
+.checkin-summary-foot { display: flex; justify-content: flex-start; }
+
+/* The sheet of every answer. A question not answered is marked at its edge. */
+.checkin-sheet { display: flex; flex-direction: column; gap: var(--s-lg); }
+.checkin-sheet > h3 { outline-offset: 4px; }
+.checkin-sheet-group { display: flex; flex-direction: column; gap: var(--s-xs); }
+.checkin-sheet-rows { display: flex; flex-direction: column; }
+.checkin-sheet-row { display: flex; flex-direction: column; gap: var(--s-xs); padding: var(--s-sm) 0; border-bottom: 1px solid var(--hairline); }
+.checkin-sheet-row.is-open, .checkin-sheet-group.is-open { padding-left: var(--s-sm); border-left: 2px solid var(--warning); }
+.checkin-sheet-foot { display: flex; justify-content: flex-end; }
+
 @media (max-width: 760px) {
   #card-checkin { padding: var(--s-md); }
+  .checkin-card { padding: var(--s-md); }
 }
-@media (min-width: 761px) {
-  .checkin-reading { grid-template-columns: 220px minmax(0, 1fr); align-items: center; }
-  .checkin-reading .is-error { grid-column: 2; }
+@media (max-width: 480px) {
+  .checkin-question { font-size: 20px; line-height: 1.25; }
 }
-/* Wide: the questions on the left, the receipt -- once there is one -- beside them. */
-@media (min-width: 1000px) {
-  .checkin-body:has(> .checkin-receipt) { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: var(--s-md) var(--s-xl); align-items: start; }
-  .checkin-rows, .checkin-open { grid-column: 1; }
-  .checkin-receipt { grid-column: 2; grid-row: 1 / span 2; padding: 0 0 0 var(--s-lg); border-top: none; border-left: 1px solid var(--hairline); }
+@media (min-width: 600px) {
+  .checkin-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* The five taps of a reading, mood or energy (#243). */
