@@ -1,14 +1,17 @@
 /**
- * The day's check-in receipt (ADR 0037, docs/domain.md "Receipt"): one line
- * per thing filed, in the order it was made, newest last. A done line that
- * can still be undone offers Undo, named after the line; an undone one is
- * struck through; a rejected or failed one says why. Pure: the lines, which
- * undo is running and why one was refused come in as props.
+ * Lines of the check-in's receipt (ADR 0037, docs/domain.md "Receipt"): one
+ * line per thing filed, in the order it was made, newest last. The panel
+ * shows what the small model filed from a note this way -- shown nowhere
+ * else, so it keeps its Undo -- and what was not filed from the last one.
+ * A done line that can still be undone offers Undo, named after the line;
+ * an undone one is struck through; a rejected or failed one says why. Pure:
+ * the lines, which undo is running and why one was refused come in as props.
  *
  * A rejected line's text already carries its reason ("Not done: ..."), so
  * the reason is not said twice.
  *
  * @param {{
+ *   title?: string,
  *   lines: readonly import('@/lib/actions/registry.js').ReceiptLine[],
  *   errors: Readonly<Record<string, string>>,
  *   pending: string | null,
@@ -16,10 +19,10 @@
  * }} props `errors` why an undo was refused, by action id; `pending` the
  *   panel's running request, `undo:<actionId>` for an undo
  */
-export function CheckinReceipt({ lines, errors, pending, onUndo }) {
+export function CheckinReceipt({ title = 'Filed from your note', lines, errors, pending, onUndo }) {
   return (
-    <section className="checkin-receipt" aria-label="What the check-in filed today">
-      <span className="eyebrow">Filed today</span>
+    <section className="checkin-receipt" aria-label={title}>
+      <span className="eyebrow">{title}</span>
       <ol className="checkin-lines">
         {lines.map((line, index) => {
           const actionId = line.actionId;

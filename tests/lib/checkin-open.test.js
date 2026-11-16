@@ -276,6 +276,57 @@ describe('the open answer, read by the model', () => {
   });
 });
 
+describe('the open answer after closed answers the same day', () => {
+  /** @returns {string} the system prompt of the one call made */
+  const systemSent = () => /** @type {any} */ (callTool.mock.calls[0])[0].system;
+
+  it('does not file again a habit a closed answer already ticked: one "ticked" line, not two', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    await checkin.answerCheckin(DAY, [{ questionId: 'habit:habit_move', value: { done: true } }]);
+    modelFiles(GYM_AND_LUNCH);
+
+    const { lines } = await answerOpen();
+
+    expect(lines.map((line) => [line.name, line.status])).toEqual([
+      ['journal.add', 'done'],
+      ['expense.record', 'done'],
+    ]);
+    // The model is told only the habits the day leaves open.
+    expect(systemSent()).not.toContain('habit_move');
+    expect(systemSent()).toContain('habit_read');
+    const ticked = (await checkin.checkinReceipt(DAY)).lines.filter((line) => line.name === 'habit.set');
+    expect(ticked.map((line) => line.text)).toEqual(['Move for 30 minutes ticked']);
+    vi.restoreAllMocks();
+  });
+
+  it('counts a closed answer given in the same request, before the open one', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    modelFiles([
+      { action: 'habit.skip', params: { habitId: 'habit_read', reason: 'forgotten' } },
+      { action: 'time.set', params: { area: 'study', minutes: 60 } },
+      { action: 'task.create', params: { title: 'Book the dentist' } },
+    ]);
+
+    const { lines } = await checkin.answerCheckin(
+      DAY,
+      [
+        { questionId: 'habit:habit_read', value: { skip: 'too-heavy' } },
+        { questionId: 'time', value: { areas: { work: 240 } } },
+        { questionId: 'open', value: { text: 'Too tired to read; an hour of study; must book the dentist' } },
+      ],
+      { readOpenAnswer: interpret.readOpenAnswer }
+    );
+
+    expect(lines.map((line) => line.name)).toEqual(['habit.skip', 'time.set', 'journal.add', 'task.create']);
+    const log = await store.getDailyLog(DAY);
+    expect(log.skips.habit_read).toBe('too-heavy');
+    expect(log.time).toEqual({ work: 240 });
+    expect(systemSent()).not.toContain('habit_read');
+    expect(systemSent()).toContain('time is already declared');
+    vi.restoreAllMocks();
+  });
+});
+
 describe('undoing an open answer', () => {
   it('takes back the entry with everything drawn from it', async () => {
     modelFiles(GYM_AND_LUNCH);

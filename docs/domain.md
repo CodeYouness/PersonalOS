@@ -1519,18 +1519,30 @@ actions, kept as action records under the origin `checkin`, so the day's
 check-in receipt is `receiptFor({ day, origin: { type: 'checkin' } })`.
 
 **Is not** a form with a confirmation at each step. The answers are filed at
-once and the receipt is where you correct them: undoing a line opens its
-question again.
+once, and an answer is corrected by answering again: the same closed answer,
+filed over what the day holds. Undoing a line still opens its question again,
+and is how what was filed from a note is taken back.
 
 **Is done** when every question but the open one is answered
-(`isCheckinDone`). Nothing marks it done; it is read off the data.
+(`isCheckinDone`). Nothing marks it done; it is read off the data. A day is
+**filled** when it is done, **not filled** when no question but the open one
+is answered, and **partly filled** in between (`checkinFill`); a habit given
+a skip reason, paused included, is answered.
+
+**The week** is the seven days ending today, in the user's timezone, each
+filled, partly filled or not (`checkinWeek`, `lib/domain/derive/checkin.js`),
+computed from the same questions each day would ask -- derived on every
+read, never stored (rule 6). Any of the seven can be filled and changed;
+never a future day.
 
 `GET /api/checkin?day=` asks a day -- today unless one is named, never a
-future one -- and answers the questions, `done` and the day's receipt.
-`POST /api/checkin` takes `{ day?, answers: [{ questionId, value }] }`,
-files them and answers the questions recomputed, `receipt` -- the lines of
-that request alone, rejected ones included -- and `dayReceipt`, the day's
-whole check-in receipt. GET calls no model, and neither does a closed
+future one -- and answers the questions, `done`, `answers` (the day's mood,
+energy, time, habit values and skip reasons), `notes` (each open answer kept,
+in its words, with the lines of what was filed from it), the day's receipt
+and `week`. `POST /api/checkin` takes `{ day?, answers: [{ questionId, value
+}] }`, files them and answers the same, recomputed, with `receipt` -- the
+lines of that request alone, rejected ones included -- and `dayReceipt`, the
+day's whole check-in receipt. GET calls no model, and neither does a closed
 answer; an open answer is read by the small model, after its journal entry
 is kept (see Check-in question).
 
@@ -1538,17 +1550,36 @@ is kept (see Check-in question).
 where the Close the day card was -- that card is gone, and its mood, energy,
 time, open habits and journal line are the check-in's questions now. The
 panel reads the day as GET does, through `lib/checkin/day.js`, so loading
-Home calls no model and no integration (rule 3). It shows one row per
-question still open, in order -- a habit's Done or Skip with a reason, a
-counter stepped to its target, five taps for mood and for energy, the day's
-time declared per area and saved as one answer, or "Nothing to declare" --
-and the open question's box under them, emptied after each save so it can be
-used again. Each answer is POSTed as it is given and the panel is redrawn
-from what the server answers, never from what it sent; then the rest of Home
-is re-read, so the Habits card follows. An answered question leaves the
-list; once only the open one is left the panel reads "Done for today" and
-shows the receipt and the box. The receipt lists the day's lines, newest
-last, each with Undo while it can be undone.
+Home calls no model and no integration (rule 3). The day it shows is in the
+address, `?checkin=YYYY-MM-DD`, one of the week's seven days; anything else
+is today.
+
+At the top, the week as a strip of seven days, each marked filled, partly
+filled or not, the day shown chosen; the day's headline -- "Today · 4 left",
+"Friday · 1 left", "Yesterday is filled" -- and a bar with one segment per
+question. While today is shown and yesterday is not filled, a quiet banner
+offers it ("Yesterday isn't filled yet -- Fill it"); older open days are left
+to the strip.
+
+Then **one question at a time**: the first one left, in a card -- a check
+habit's one Yes and its skip reasons as the "no, because"; a counter's
+stepper and Save, then the reasons; five taps for mood and for energy; the
+time stepped per area in half hours and saved as one answer, or "Nothing to
+declare". Each answer is POSTed as it is given, the panel is redrawn from
+what the server answers, never from what it sent, and the card moves on;
+then the rest of Home is re-read, so the Habits card follows. Back goes to
+the question before, answered or not; "Skip for now" sets one aside until
+the others are asked. The open question never counts as left.
+
+Once the day is filled, **its summary** replaces the card: mood, energy,
+habits kept out of those scheduled and not paused, the time declared with a
+bar by area (`checkinSummary`), each habit kept or why not, and the notes.
+Under a note, what the small model filed from it is listed with an Undo per
+line, since nothing else shows it; then the box for another note
+("Anything worth noting?", optional, emptied once kept). **Edit answers**
+opens the sheet of every answer of the day -- also offered while a day is
+being filled -- where each is changed in place by answering again, a note can
+be removed with what was filed from it, and another added.
 
 ### Check-in question
 
@@ -1573,7 +1604,9 @@ is not asked yet.
 **Is answered** by a closed answer, turned into actions by rules
 (`lib/checkin/closed.js`), never by a model: a habit takes `{ done: true }`
 (`habit.set`, a counter filled to that day's target), a counter `{ value: n }`,
-any habit `{ skip: reason }` (`habit.skip`); mood and energy `{ value }`;
+any habit `{ skip: reason }` (`habit.skip`; on a check ticked that day,
+`habit.set` `false` first, since a reason is never kept beside a habit kept --
+a counter at its target is lowered by a `{ value }` first); mood and energy `{ value }`;
 time `{ areas: { <area>: minutes } }` (a `time.set` per area) or
 `{ none: true }` (`time.none`); the open question `{ text }`. The values are
 the actions' to check; an answer to a question the day does not ask, a value
@@ -1586,8 +1619,13 @@ the records it names (`lib/checkin/interpret.js`, ADR 0037's second tier):
 "ho fatto palestra e speso 18 euro di pranzo" ticks the habit and records
 the expense. The model is offered every action a model may ask for but
 `journal.add` -- the entry is never filed twice -- and is told the day, the
-habits the day asks about (by id), your expense categories (by id) and the
-names of the accounts money is spent from. What it asks for is filed through
+habits the day still holds nothing for (by id), whether the day's time is
+already declared, your expense categories (by id) and the names of the
+accounts money is spent from. The day is read again after the entry is kept,
+so the closed answers given before it, in the same request too, count: a
+request for a habit that already has a value or a skip reason, or for time on
+a day already declared, is dropped -- "went to the gym" after "Gym: done"
+does not tick the gym twice. What it asks for is filed through
 the registry like any request: an unknown habit, an amount that is not whole
 cents, a category that is not yours is a rejected line, and the rest are
 filed. Each action is made under the origin `checkin` with the entry as its

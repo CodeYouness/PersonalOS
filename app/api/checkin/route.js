@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { answerCheckin, checkinReceipt, questionsFor } from '@/lib/checkin/day.js';
+import { answerCheckin, checkinDay } from '@/lib/checkin/day.js';
 import { readOpenAnswer } from '@/lib/checkin/interpret.js';
 import { isDayKey, today } from '@/lib/domain/dates.js';
 import { refuseUnlessAllowed } from '@/lib/phone-gate.js';
@@ -69,10 +69,13 @@ function bodyProblem(body) {
 
 /**
  * The day's check-in (ADR 0037): the questions computed from the store, which
- * are answered, whether the check-in is done, and the day's check-in receipt
- * as kept -- a line per action, undone ones included. `?day=YYYY-MM-DD` asks
- * a past day; a future one is refused. Loading it calls no model and no
- * integration (rule 3), and writes nothing.
+ * are answered, whether the check-in is done, what the day was answered with
+ * (`answers`), the notes kept and what was filed from each (`notes`), the
+ * day's check-in receipt as kept -- a line per action, undone ones included
+ * -- and the week strip: the seven days ending today, each filled, partly
+ * filled or not (`week`). `?day=YYYY-MM-DD` asks a past day; a future one is
+ * refused. Loading it calls no model and no integration (rule 3), and writes
+ * nothing: the week is derived on every read (rule 6).
  *
  * Gated like the capture routes: the phone will answer the check-in, and the
  * gate is defence in depth for a path `tailscale serve` might expose.
@@ -87,8 +90,7 @@ export async function GET(request) {
   if (day === null) return refuse(error);
 
   try {
-    const [{ questions, done }, receipt] = await Promise.all([questionsFor(day), checkinReceipt(day)]);
-    return NextResponse.json({ ok: true, day, questions, done, receipt });
+    return NextResponse.json({ ok: true, ...(await checkinDay(day, today())) });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     console.error('[checkin] could not read the check-in for ' + day + ':', message);
@@ -111,12 +113,13 @@ export async function GET(request) {
  * model, and only on this POST. With no key, or a model that fails, the
  * entry is all that is filed, and the request still succeeds (rule 2).
  *
- * The answer is the day's questions recomputed after the writes, `done`, and
- * two receipts. `receipt` is the lines of this request alone, in the order
- * of its answers -- rejected ones included, which are never kept -- so a
- * screen tells this request's lines apart by the response itself, not by
- * matching ids against the day. `dayReceipt` is the whole day's check-in
- * receipt as kept, the same one GET answers with.
+ * The answer is the day as GET reads it after the writes -- questions,
+ * `done`, `answers`, `notes`, `week` -- and two receipts. `receipt` is the
+ * lines of this request alone, in the order of its answers -- rejected ones
+ * included, which are never kept -- so a screen tells this request's lines
+ * apart by the response itself, not by matching ids against the day.
+ * `dayReceipt` is the whole day's check-in receipt as kept, the one GET
+ * answers as `receipt`.
  *
  * @param {Request} request
  */
@@ -132,8 +135,8 @@ export async function POST(request) {
 
   try {
     const receipt = await answerCheckin(day, body.answers, { readOpenAnswer });
-    const [{ questions, done }, dayReceipt] = await Promise.all([questionsFor(day), checkinReceipt(day)]);
-    return NextResponse.json({ ok: true, day, questions, done, receipt, dayReceipt });
+    const read = await checkinDay(day, today());
+    return NextResponse.json({ ok: true, ...read, receipt, dayReceipt: read.receipt });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     console.error('[checkin] could not file the answers for ' + day + ':', message);

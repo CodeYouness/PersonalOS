@@ -161,7 +161,7 @@ then, on that POST only, `lib/checkin/interpret.js` asks the small model
 (`defaultModels.checkin`, through `lib/ai/provider.js`) for a list of
 actions -- one forced tool, `file_actions`, offering every model-callable
 action but `journal.add`, each with its schema from the registry, and told
-the day, the habits it asks about, your categories and account names. The
+the day, the habits it still leaves open, your categories and account names. The
 list is shape-checked there and filed through `runActions` like any other,
 so every value is checked by the action's own `parse`; each action is made
 under the origin `checkin` with the entry as its id, and each record it
@@ -172,12 +172,24 @@ test holds this too. No key, an error, a timeout (`limits.checkinTimeoutMs`),
 a reply cut off at `limits.checkinMaxTokens` or junk: the entry is all that
 is filed, and the answer still succeeds (rule 2).
 
+The open answer's reader is told only what the day still leaves open --
+the habits with no value and no skip reason, whether the time is declared --
+read again after the entry is kept, and a request for something the day
+already says is dropped before `runActions`, so a closed answer is never
+filed twice from the note.
+
 The check-in's screen is the panel at the top of Home: a server component
-(`components/CheckinPanel.js`) reads the day through `lib/checkin/day.js`
-and hands it to a client panel whose state transitions live in a pure
-reducer (`components/checkinReducer.js`). The panel shows the server's state
--- what the page was rendered with, or what the route answered -- and keeps
-only what has not been sent yet.
+(`components/CheckinPanel.js`) reads the day the address names
+(`?checkin=`, one of the last seven, else today) through
+`lib/checkin/day.js`'s `checkinDay` -- the questions, the day's answers, its
+notes with what was filed from each, and the week strip, derived by
+`checkinWeek` on every read -- and hands it to a client panel whose state
+transitions live in a pure reducer (`components/checkinReducer.js`). The
+panel shows the server's state -- what the page was rendered with, or what
+the route answered -- and keeps only what has not been sent yet and where
+you are: the question shown, those set aside, whether the sheet of every
+answer is open. Picking a day changes the address, so the server reads it;
+the panel fetches nothing on load.
 
 ## Extension points
 

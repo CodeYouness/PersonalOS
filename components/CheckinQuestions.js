@@ -1,40 +1,45 @@
+import { questionText, whenSaid } from '@/components/checkinWords.js';
+import { canGoBack, canGoOn, closedQuestions, counterValue, savedCount, timeChanges, timeShown } from '@/components/checkinReducer.js';
 import { RatingButtons } from '@/components/DayRating.js';
 import { TimeSteppers } from '@/components/DayTime.js';
 import { formatMinutes } from '@/components/format.js';
-import { counterValue, savedCount } from '@/components/checkinReducer.js';
 import { dayTimeTotal } from '@/lib/domain/derive/time.js';
 
 /**
- * The check-in's rows (ADR 0037): one per question still to ask, and the box
- * for the open one under them. Pure: what each row shows comes from the
- * panel's state, and every tap goes back through a handler -- an answer as
- * the closed shape lib/checkin/closed.js takes, so the row never decides
- * what is filed. Every button names what it answers, so a screen reader
- * hears "Done: Read", not "Done"; nothing hangs on a key, so it works the
- * same on a phone.
+ * The check-in's questions, one at a time (ADR 0037): the card that asks the
+ * question shown, the pieces the sheet of every answer reuses -- a habit's
+ * reasons, a counter's stepper -- and the note's box. Pure: what each shows
+ * comes from the panel's state, and every tap goes back through a handler as
+ * the closed shape lib/checkin/closed.js takes, so nothing here decides what
+ * is filed. Every button says what it answers, so a screen reader hears
+ * "Read: Too heavy", not "Too heavy"; nothing hangs on a key, so it works
+ * the same on a phone.
  *
  * @typedef {import('@/lib/domain/derive/checkin.js').Question} Question
  * @typedef {import('@/components/checkinReducer.js').CheckinState} CheckinState
  *
- * @typedef {object} RowHandlers
- * @property {(questionId: string, value: unknown) => void} onAnswer
- * @property {(questionId: string) => void} onToggleSkip
- * @property {(questionId: string, value: number) => void} onCount
- * @property {(area: string, minutes: number) => void} onTime
- *
- * @typedef {object} RowSettings
+ * @typedef {object} CheckinSettings
  * @property {readonly { key: string, label: string }[]} areas
  * @property {number} step
  * @property {number} max
  * @property {readonly number[]} scale
  * @property {readonly { key: string, label: string }[]} skipReasons
+ *
+ * @typedef {object} AnswerHandlers
+ * @property {(questionId: string, value: unknown) => void} onAnswer
+ * @property {(questionId: string, value: number) => void} onCount
+ * @property {(area: string, minutes: number) => void} onTime
  */
 
 /** What the two readings are called, where a tap group needs a name. */
-const READING_NAMES = Object.freeze({ mood: 'Mood', energy: 'Energy' });
+export const READING_NAMES = Object.freeze({ mood: 'Mood', energy: 'Energy' });
 
-/** @param {{ error: string | undefined }} props */
-function RowError({ error }) {
+/**
+ * Why a question's last answer did not land, said once where it was asked.
+ *
+ * @param {{ error: string | undefined }} props
+ */
+export function AnswerError({ error }) {
   if (error === undefined) return null;
   return (
     <p className="caption is-error" role="status">
@@ -44,199 +49,231 @@ function RowError({ error }) {
 }
 
 /**
- * A habit: Done, or Skip with a reason; a counter steps its count to its
- * target first, and Save sends the count once it moved.
+ * A habit's skip reasons, each its own button. The one the day holds is
+ * chosen; picking another answers again. Off for a counter already at its
+ * target -- a reason is never beside a habit kept; the count comes down first.
  *
- * @param {{ question: Question, state: CheckinState, busy: boolean, skipReasons: RowSettings['skipReasons'] } & RowHandlers} props
+ * @param {{
+ *   question: Question,
+ *   chosen: string | null,
+ *   disabled: boolean,
+ *   skipReasons: CheckinSettings['skipReasons'],
+ *   onAnswer: AnswerHandlers['onAnswer'],
+ * }} props
  */
-function HabitRow({ question, state, busy, skipReasons, onAnswer, onToggleSkip, onCount }) {
-  const { id, label, target } = question;
-  const counter = question.habitType === 'counter';
-  const count = counterValue(state, question);
-  const moved = counter && count !== savedCount(state, question);
-  const atTarget = typeof target === 'number' && target > 0 && count >= target;
-  const skipping = state.skipping === id;
-  const reasonsId = 'checkin-skip-' + question.subjectId;
-
+export function ReasonChips({ question, chosen, disabled, skipReasons, onAnswer }) {
   return (
-    <li className={'checkin-row checkin-habit' + (counter ? ' is-counter' : '')}>
-      <div className="checkin-line">
-        <span className="checkin-label">{label}</span>
-        {counter && (
-          <span className="checkin-stepper">
-            <button
-              type="button"
-              className="time-step-btn"
-              aria-label={'Fewer ' + label}
-              disabled={busy || count === 0}
-              onClick={() => onCount(id, count - 1)}
-            >
-              &minus;
-            </button>
-            <span className="checkin-count num">
-              {count}
-              {typeof target === 'number' && target > 0 ? <> / {target}</> : null}
-            </span>
-            <button
-              type="button"
-              className="time-step-btn"
-              aria-label={'More ' + label}
-              disabled={busy || atTarget}
-              onClick={() => onCount(id, count + 1)}
-            >
-              +
-            </button>
-          </span>
+    <div className="checkin-chips" role="group" aria-label={'Why ' + question.label + ' was not done'}>
+      {skipReasons.map((reason) => (
+        <button
+          key={reason.key}
+          type="button"
+          className={'btn-ghost checkin-chip' + (chosen === reason.key ? ' is-chosen' : '')}
+          aria-label={question.label + ': ' + reason.label}
+          aria-pressed={chosen === reason.key}
+          disabled={disabled}
+          onClick={() => {
+            if (chosen !== reason.key) onAnswer(question.id, { skip: reason.key });
+          }}
+        >
+          {reason.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * A counter's − / + stepper, from nothing to its target that day.
+ *
+ * @param {{ question: Question, count: number, disabled: boolean, onCount: AnswerHandlers['onCount'] }} props
+ */
+export function CounterStepper({ question, count, disabled, onCount }) {
+  const { id, label, target } = question;
+  const atTarget = typeof target === 'number' && target > 0 && count >= target;
+  return (
+    <span className="checkin-stepper">
+      <button type="button" className="time-step-btn" aria-label={'Fewer: ' + label} disabled={disabled || count === 0} onClick={() => onCount(id, count - 1)}>
+        &minus;
+      </button>
+      <span className="checkin-count num" aria-live="polite">
+        {count}
+        {typeof target === 'number' && target > 0 ? <> / {target}</> : null}
+      </span>
+      <button type="button" className="time-step-btn" aria-label={'More: ' + label} disabled={disabled || atTarget} onClick={() => onCount(id, count + 1)}>
+        +
+      </button>
+    </span>
+  );
+}
+
+/**
+ * Whether a counter's count reaches its target: the day kept.
+ *
+ * @param {Question} question
+ * @param {number} count
+ * @returns {boolean}
+ */
+export function countKeeps(question, count) {
+  return typeof question.target === 'number' && question.target > 0 && count >= question.target;
+}
+
+/**
+ * The body of a habit's card. A check: one Yes, the view's filled button,
+ * and the reasons for a no. A counter: its stepper and Save, then the reasons.
+ *
+ * @param {{ question: Question, state: CheckinState, busy: boolean, when: string, skipReasons: CheckinSettings['skipReasons'] } & AnswerHandlers} props
+ */
+function HabitBody({ question, state, busy, when, skipReasons, onAnswer, onCount }) {
+  const habitId = question.subjectId ?? '';
+  const chosen = state.answers.skips[habitId] ?? null;
+  if (question.habitType === 'counter') {
+    const count = counterValue(state, question);
+    const moved = count !== savedCount(state, question);
+    return (
+      <>
+        <p className="checkin-sub">How many {when}?</p>
+        <div className="checkin-actions">
+          <CounterStepper question={question} count={count} disabled={busy} onCount={onCount} />
+          <button type="button" className="btn-primary" aria-label={'Save ' + question.label} disabled={busy || !moved} onClick={() => onAnswer(question.id, { value: count })}>
+            Save
+          </button>
+        </div>
+        <p className="caption">Not done? Say why:</p>
+        <ReasonChips question={question} chosen={chosen} disabled={busy || countKeeps(question, count)} skipReasons={skipReasons} onAnswer={onAnswer} />
+      </>
+    );
+  }
+  const kept = state.answers.habits[habitId] === true;
+  return (
+    <>
+      <p className="checkin-sub">Done {when}?</p>
+      <button
+        type="button"
+        className="btn-primary checkin-yes"
+        aria-label={'Yes: ' + question.label}
+        aria-pressed={kept}
+        disabled={busy}
+        onClick={() => {
+          if (!kept) onAnswer(question.id, { done: true });
+        }}
+      >
+        Yes
+      </button>
+      <p className="caption">No, because…</p>
+      <ReasonChips question={question} chosen={chosen} disabled={busy} skipReasons={skipReasons} onAnswer={onAnswer} />
+    </>
+  );
+}
+
+/**
+ * The body of the time card: a stepper per area in half hours, then
+ * "Nothing to declare" on a day not declared, and Save.
+ *
+ * @param {{ question: Question, state: CheckinState, busy: boolean, filled: boolean } & Pick<CheckinSettings, 'areas' | 'step' | 'max'> & Pick<AnswerHandlers, 'onAnswer' | 'onTime'>} props
+ *   `filled` whether Save is the view's filled button
+ */
+export function TimeBody({ question, state, busy, filled, areas, step, max, onAnswer, onTime }) {
+  const shown = timeShown(state);
+  const changes = timeChanges(state);
+  const total = dayTimeTotal({ time: shown }) ?? 0;
+  const changed = Object.keys(changes).length > 0;
+  return (
+    <>
+      <TimeSteppers areas={areas} time={shown} step={step} max={max} disabled={busy} onSet={onTime} />
+      <div className="checkin-actions">
+        <span className="caption num">{total === 0 ? 'In half hours, as best you remember.' : formatMinutes(total) + ' in all'}</span>
+        {state.answers.time === null && (
+          <button type="button" className="btn-ghost" disabled={busy} onClick={() => onAnswer(question.id, { none: true })}>
+            Nothing to declare
+          </button>
         )}
-        <span className="checkin-buttons">
-          {moved && (
-            <button type="button" className="btn-ghost" aria-label={'Save ' + label} disabled={busy} onClick={() => onAnswer(id, { value: count })}>
-              Save
-            </button>
-          )}
-          <button type="button" className="btn-ghost" aria-label={'Done: ' + label} disabled={busy} onClick={() => onAnswer(id, { done: true })}>
-            Done
-          </button>
-          <button
-            type="button"
-            className={'btn-ghost' + (skipping ? ' is-open' : '')}
-            aria-label={'Skip ' + label + '…'}
-            aria-expanded={skipping}
-            aria-controls={skipping ? reasonsId : undefined}
-            onClick={() => onToggleSkip(id)}
-          >
-            Skip…
-          </button>
-        </span>
+        <button
+          type="button"
+          className={filled ? 'btn-primary' : 'btn-ghost'}
+          aria-label="Save time"
+          disabled={busy || !changed}
+          onClick={() => onAnswer(question.id, { areas: changes })}
+        >
+          Save
+        </button>
       </div>
-      {skipping && (
-        <div id={reasonsId} className="checkin-reasons" role="group" aria-label={'Why ' + label + ' was skipped'}>
-          {skipReasons.map((reason) => (
-            <button
-              key={reason.key}
-              type="button"
-              className="btn-ghost"
-              aria-label={label + ': ' + reason.label}
-              disabled={busy}
-              onClick={() => onAnswer(id, { skip: reason.key })}
-            >
-              {reason.label}
-            </button>
-          ))}
+    </>
+  );
+}
+
+/**
+ * The card that asks one question: where it stands in the day ("3 of 7"),
+ * the question put for its day, its taps, why its last answer did not land,
+ * and Back and Skip for now -- Next when you went back to one answered. Its
+ * heading takes the focus when an answer moves the card on (./Checkin.js).
+ *
+ * @param {{
+ *   question: Question,
+ *   state: CheckinState,
+ *   today: string,
+ *   onBack: () => void,
+ *   onNext: () => void,
+ * } & CheckinSettings & AnswerHandlers} props
+ */
+export function QuestionCard({ question, state, today, areas, step, max, scale, skipReasons, onAnswer, onCount, onTime, onBack, onNext }) {
+  const busy = state.pending !== null;
+  const closed = closedQuestions(state);
+  const when = whenSaid(state.day, today);
+  const kind = question.kind;
+  return (
+    <section className={'checkin-card is-' + kind} aria-labelledby="checkin-question">
+      <span className="caption num">
+        {closed.indexOf(question) + 1} of {closed.length}
+        {question.answered ? ' · answered' : ''}
+      </span>
+      <h3 id="checkin-question" className="checkin-question" tabIndex={-1}>
+        {questionText(question, state.day, today)}
+      </h3>
+      {kind === 'habit' && (
+        <HabitBody question={question} state={state} busy={busy} when={when} skipReasons={skipReasons} onAnswer={onAnswer} onCount={onCount} onTime={onTime} />
+      )}
+      {(kind === 'mood' || kind === 'energy') && (
+        <div className="checkin-reading">
+          <RatingButtons scale={scale} value={state.answers[kind]} label={READING_NAMES[kind]} disabled={busy} onPick={(value) => onAnswer(question.id, { value })} />
+          <span className="checkin-scale-ends caption" aria-hidden="true">
+            <span>Low</span>
+            <span>High</span>
+          </span>
         </div>
       )}
-      <RowError error={state.errors[id]} />
-    </li>
-  );
-}
-
-/**
- * Mood or energy: five taps, the tap is the answer.
- *
- * @param {{ question: Question, state: CheckinState, busy: boolean, scale: readonly number[], onAnswer: RowHandlers['onAnswer'] }} props
- */
-function ReadingRow({ question, state, busy, scale, onAnswer }) {
-  const name = question.kind === 'mood' || question.kind === 'energy' ? READING_NAMES[question.kind] : question.label;
-  return (
-    <li className="checkin-row checkin-reading">
-      <span className="checkin-label">{question.label}</span>
-      <RatingButtons scale={scale} value={null} label={name} disabled={busy} onPick={(value) => onAnswer(question.id, { value })} />
-      <RowError error={state.errors[question.id]} />
-    </li>
-  );
-}
-
-/**
- * The day's time: steppers per area, kept here until Save time sends them
- * as one answer; or "Nothing to declare".
- *
- * @param {{ question: Question, state: CheckinState, busy: boolean } & Pick<RowSettings, 'areas' | 'step' | 'max'> & Pick<RowHandlers, 'onAnswer' | 'onTime'>} props
- */
-function TimeRow({ question, state, busy, areas, step, max, onAnswer, onTime }) {
-  const total = dayTimeTotal({ time: state.time }) ?? 0;
-  return (
-    <li className="checkin-row checkin-time">
-      <span className="checkin-label">{question.label}</span>
-      <TimeSteppers areas={areas} time={state.time} step={step} max={max} disabled={busy} onSet={onTime} />
-      <div className="checkin-actions">
-        <span className="caption">{total === 0 ? 'In half hours, as best you remember.' : formatMinutes(total) + ' to save'}</span>
-        <button type="button" className="btn-ghost" disabled={busy} onClick={() => onAnswer(question.id, { none: true })}>
-          Nothing to declare
+      {kind === 'time' && (
+        <TimeBody question={question} state={state} busy={busy} filled areas={areas} step={step} max={max} onAnswer={onAnswer} onTime={onTime} />
+      )}
+      <AnswerError error={state.errors[question.id]} />
+      <div className="checkin-nav">
+        <button type="button" className="link-btn" disabled={busy || !canGoBack(state)} onClick={onBack}>
+          Back
         </button>
-        <button type="button" className="btn-ghost" disabled={busy || total === 0} onClick={() => onAnswer(question.id, { areas: state.time })}>
-          Save time
+        <button type="button" className="link-btn" disabled={busy || !canGoOn(state)} onClick={onNext}>
+          {question.answered ? 'Next' : 'Skip for now'}
         </button>
       </div>
-      <RowError error={state.errors[question.id]} />
-    </li>
+    </section>
   );
 }
 
 /**
- * The rows still to ask, in the order the day asks them.
- *
- * @param {{ rows: readonly Question[], state: CheckinState } & RowSettings & RowHandlers} props
- */
-export function CheckinRows({ rows, state, areas, step, max, scale, skipReasons, onAnswer, onToggleSkip, onCount, onTime }) {
-  const busy = state.pending !== null;
-  return (
-    <ul className="checkin-rows">
-      {rows.map((question) => {
-        switch (question.kind) {
-          case 'habit':
-            return (
-              <HabitRow
-                key={question.id}
-                question={question}
-                state={state}
-                busy={busy}
-                skipReasons={skipReasons}
-                onAnswer={onAnswer}
-                onToggleSkip={onToggleSkip}
-                onCount={onCount}
-                onTime={onTime}
-              />
-            );
-          case 'mood':
-          case 'energy':
-            return <ReadingRow key={question.id} question={question} state={state} busy={busy} scale={scale} onAnswer={onAnswer} />;
-          case 'time':
-            return (
-              <TimeRow
-                key={question.id}
-                question={question}
-                state={state}
-                busy={busy}
-                areas={areas}
-                step={step}
-                max={max}
-                onAnswer={onAnswer}
-                onTime={onTime}
-              />
-            );
-          default:
-            return null;
-        }
-      })}
-    </ul>
-  );
-}
-
-/**
- * The open question's box: saved as a journal entry, word for word, and
- * emptied once saved so it can be used again. A save that did not land
- * leaves the text where it was, and says so.
+ * The note's box: kept as a journal entry, word for word, and emptied once
+ * kept so it can be used again. A save that did not land leaves the text
+ * where it was, and says so.
  *
  * @param {{
  *   label: string,
  *   text: string,
  *   busy: boolean,
  *   error: string | undefined,
+ *   filled: boolean,
  *   onType: (text: string) => void,
  *   onSave: () => void,
- * }} props
+ * }} props `filled` whether Save is the view's filled button
  */
-export function CheckinOpen({ label, text, busy, error, onType, onSave }) {
+export function NoteBox({ label, text, busy, error, filled, onType, onSave }) {
   return (
     <form
       className="checkin-open"
@@ -252,8 +289,7 @@ export function CheckinOpen({ label, text, busy, error, onType, onSave }) {
         id="checkin-open-text"
         className="input"
         rows={2}
-        aria-label={label}
-        placeholder="Kept word for word in today's journal"
+        placeholder="Optional. Kept word for word in the journal."
         value={text}
         onChange={(event) => onType(event.target.value)}
       />
@@ -265,7 +301,7 @@ export function CheckinOpen({ label, text, busy, error, onType, onSave }) {
             {error.replace(/\.$/, '') + '. The text is still here.'}
           </span>
         )}
-        <button type="submit" className="btn-ghost" disabled={busy || text.trim() === ''}>
+        <button type="submit" className={filled ? 'btn-primary' : 'btn-ghost'} aria-label="Save note" disabled={busy || text.trim() === ''}>
           Save
         </button>
       </div>

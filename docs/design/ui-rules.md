@@ -100,7 +100,7 @@ truly cannot take 44: table row editors, the capture log's actions, text
 links in a row, the weekday picker. Known smaller ones, on purpose: heat-map
 cells (one of thirty in a row), a tag's ×, the citation chips (32), the
 habit up/down pair (30, stacked), a table row's disclosure (28), the
-check-in's own controls until it is rebuilt.
+Undo on a line filed from a check-in note (40).
 
 ## Motion
 

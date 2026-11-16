@@ -3,133 +3,218 @@
  * components that draw it so the transitions are testable without a DOM, as
  * captureBarReducer.js is for the capture bar.
  *
- * What the day says -- the questions, whether the check-in is done, the
- * day's receipt, the habits' values -- is only ever the server's: what the
- * page was rendered with (`loaded`, again on every `router.refresh()`), what
- * POST /api/checkin answered (`answered`) or what GET answered after an undo
- * (`undoSettled`). The panel never moves a question on its own memory of
- * what it sent. What it keeps itself is only what has not been sent: a
- * counter's count, the time being declared, the open answer being typed,
- * which skip list is open, and why a request failed.
+ * What a day says -- its questions, whether it is done, what it was answered
+ * with, its notes and the week strip -- is only ever the server's: what the
+ * page was rendered with (`loaded`, again on every `router.refresh()` and
+ * when another day is picked), what POST /api/checkin answered (`answered`)
+ * or what GET answered after an undo (`undoSettled`). The panel never moves
+ * a question on its own memory of what it sent. What it keeps itself is
+ * only what has not been sent, and where you are:
+ *
+ * - which question is shown -- the first one left, unless you went back
+ *   (`cursor`) or set some aside for now (`aside`);
+ * - whether the sheet of every answer is open (`sheet`);
+ * - a counter's count, the time being declared, the note being typed;
+ * - why a request failed, said once where it happened.
  *
  *   idle --submit--> pending --answered / failed--> idle
  *   idle --undoStart--> pending --undoSettled--> idle
  *
- * One request at a time, for the whole panel: `pending` names the row it
- * runs for, and every button waits, so two answers never land out of order.
+ * One request at a time, for the whole panel: `pending` names what it runs
+ * for, and every button waits, so two answers never land out of order. A
+ * new day loaded starts clean: nothing typed or stepped carries from one day
+ * to another.
  */
 
-import { openQuestions } from '@/lib/domain/derive/checkin.js';
+import { OPEN_QUESTION_ID } from '@/lib/domain/derive/checkin.js';
 
 /**
  * @typedef {import('@/lib/domain/derive/checkin.js').Question} Question
+ * @typedef {import('@/lib/domain/derive/checkin.js').CheckinAnswers} CheckinAnswers
+ * @typedef {import('@/lib/domain/derive/checkin.js').CheckinWeekDay} CheckinWeekDay
+ * @typedef {import('@/lib/checkin/day.js').CheckinNote} CheckinNote
  * @typedef {import('@/lib/actions/registry.js').ReceiptLine} ReceiptLine
  *
- * @typedef {object} CheckinServerState what the day says, as the server read it
+ * @typedef {object} CheckinServerState what a day says, as the server read it
+ * @property {string} day the day shown
  * @property {Question[]} questions
  * @property {boolean} done
- * @property {ReceiptLine[]} lines the day's check-in receipt as kept
+ * @property {CheckinAnswers} answers
+ * @property {CheckinNote[]} notes
+ * @property {CheckinWeekDay[]} week the seven days ending today, oldest first
  *
- * @typedef {object} CheckinAnswerResponse what POST /api/checkin answers
- * @property {Question[]} questions
- * @property {boolean} done
- * @property {{ lines: ReceiptLine[] }} receipt this request's lines alone
- * @property {{ lines: ReceiptLine[] }} dayReceipt the day's, as kept
+ * @typedef {CheckinServerState & { receipt: { lines: ReceiptLine[] } }} CheckinAnswerResponse
+ *   what POST /api/checkin answers: the day after the writes, and this request's lines alone
  *
- * @typedef {object} CheckinState
- * @property {Question[]} questions
- * @property {boolean} done
- * @property {ReceiptLine[]} lines the day's check-in receipt as kept
- * @property {ReceiptLine[]} unkept the last answer's lines the day keeps no
- *   record of -- a rejected one -- shown after the kept ones until the next request
- * @property {Record<string, boolean | number>} values the day's habit values, by habit id
- * @property {string | null} pending the row a request runs for: a question id, or `undo:<actionId>`
+ * @typedef {object} CheckinLocal
+ * @property {string | null} pending what a request runs for: a question id, or `undo:<actionId>`
  * @property {Record<string, string>} errors why a question's last answer did not land, by question id
- * @property {Record<string, string>} lineErrors why a line's undo was refused, by action id
- * @property {string | null} skipping the habit question whose skip reasons are shown
+ * @property {Record<string, string>} lineErrors why an undo was refused, by action id
+ * @property {ReceiptLine[]} noteProblems what was drawn from the last note and not
+ *   filed, said once, until the next request
+ * @property {string | null} cursor the question shown because you went back to it
+ * @property {string[]} aside questions set aside for now, the longest ago first
+ * @property {boolean} sheet whether the sheet of every answer is open
  * @property {Record<string, number>} counts a counter's count not yet sent, by question id
- * @property {Record<string, number>} time the time being declared, minutes by area; an area at nothing has no key
- * @property {string | null} openText the open answer being typed; null before anything is typed
- *   in this mount, so the panel shows the draft the browser kept
+ * @property {Record<string, number> | null} time the time being declared, minutes by
+ *   area -- an area at nothing has no key; null while untouched, showing what is saved
+ * @property {string | null} openText the note being typed; null before anything is
+ *   typed for this day in this mount, so the panel shows the draft the browser kept
+ *
+ * @typedef {CheckinServerState & CheckinLocal} CheckinState
  *
  * @typedef {
- *   | ({ type: 'loaded', values?: Record<string, boolean | number> } & CheckinServerState)
+ *   | ({ type: 'loaded' } & CheckinServerState)
  *   | { type: 'submit', questionId: string }
  *   | { type: 'answered', questionId: string, response: CheckinAnswerResponse }
  *   | { type: 'failed', questionId: string, error: string }
  *   | { type: 'undoStart', actionId: string }
  *   | { type: 'undoSettled', actionId: string, error: string | null, server: CheckinServerState | null }
- *   | { type: 'toggleSkip', questionId: string }
  *   | { type: 'count', questionId: string, value: number }
  *   | { type: 'time', area: string, minutes: number }
  *   | { type: 'type', text: string }
+ *   | { type: 'back' }
+ *   | { type: 'next' }
+ *   | { type: 'openSheet' }
+ *   | { type: 'closeSheet' }
  * } CheckinAction
  */
 
-/**
- * @param {CheckinServerState & { values: Record<string, boolean | number> }} initial
- * @returns {CheckinState}
- */
-export function initialCheckinState({ questions, done, lines, values }) {
+/** @returns {CheckinLocal} */
+function freshLocal() {
   return {
-    questions,
-    done,
-    lines,
-    unkept: [],
-    values,
     pending: null,
     errors: {},
     lineErrors: {},
-    skipping: null,
+    noteProblems: [],
+    cursor: null,
+    aside: [],
+    sheet: false,
     counts: {},
-    time: {},
+    time: null,
     openText: null,
   };
 }
 
 /**
- * The questions still to ask as rows, in order -- the open one is not a row,
- * it is the box under them.
+ * @param {CheckinServerState} server
+ * @returns {CheckinServerState} only the server's fields, whatever else came with them
+ */
+function serverPart({ day, questions, done, answers, notes, week }) {
+  return { day, questions, done, answers, notes, week };
+}
+
+/**
+ * @param {CheckinServerState} server
+ * @returns {CheckinState}
+ */
+export function initialCheckinState(server) {
+  return { ...serverPart(server), ...freshLocal() };
+}
+
+/**
+ * Every question but the open one, in the order the day asks them: what is
+ * answered one at a time, and what "left" counts.
  *
- * @param {CheckinState} state
+ * @param {Pick<CheckinState, 'questions'>} state
  * @returns {Question[]}
  */
-export function rowsToAsk(state) {
-  return openQuestions(state.questions).filter((question) => question.kind !== 'open');
+export function closedQuestions(state) {
+  return state.questions.filter((question) => question.kind !== 'open');
 }
 
 /**
  * How far the day's check-in is: questions answered out of every question
- * but the open one, which never closes.
+ * but the open one, which never closes and is never "left".
  *
- * @param {CheckinState} state
- * @returns {{ answered: number, total: number, done: boolean }}
+ * @param {Pick<CheckinState, 'questions' | 'done'>} state
+ * @returns {{ answered: number, total: number, left: number, done: boolean }}
  */
 export function progress(state) {
-  const closed = state.questions.filter((question) => question.kind !== 'open');
-  return { answered: closed.filter((question) => question.answered).length, total: closed.length, done: state.done };
+  const closed = closedQuestions(state);
+  const answered = closed.filter((question) => question.answered).length;
+  return { answered, total: closed.length, left: closed.length - answered, done: state.done };
 }
 
 /**
- * The receipt as shown: the day's kept lines in the order they were made,
- * then the last answer's lines the day keeps no record of.
+ * The question the card shows, or null once the day is done -- the summary
+ * shows then. The one you went back to; else the first one left that is not
+ * set aside; else, when every one left is set aside, the one set aside
+ * longest ago, so "Skip for now" goes round them.
  *
  * @param {CheckinState} state
- * @returns {ReceiptLine[]}
+ * @returns {Question | null}
  */
-export function receiptLines(state) {
-  return state.unkept.length === 0 ? state.lines : [...state.lines, ...state.unkept];
+export function currentQuestion(state) {
+  if (state.done) return null;
+  const closed = closedQuestions(state);
+  if (state.cursor !== null) {
+    const chosen = closed.find((question) => question.id === state.cursor);
+    if (chosen !== undefined) return chosen;
+  }
+  const left = closed.filter((question) => !question.answered);
+  const first = left.find((question) => !state.aside.includes(question.id));
+  if (first !== undefined) return first;
+  const longest = state.aside.map((id) => left.find((question) => question.id === id)).find((question) => question !== undefined);
+  return longest ?? left[0] ?? null;
+}
+
+/**
+ * Whether there is a question before the one shown to go back to.
+ *
+ * @param {CheckinState} state
+ * @returns {boolean}
+ */
+export function canGoBack(state) {
+  const shown = currentQuestion(state);
+  return shown !== null && closedQuestions(state).indexOf(shown) > 0;
+}
+
+/**
+ * Whether the card can move on without an answer: the one shown is answered
+ * (you went back to it), or another question is still left.
+ *
+ * @param {CheckinState} state
+ * @returns {boolean}
+ */
+export function canGoOn(state) {
+  const shown = currentQuestion(state);
+  if (shown === null) return false;
+  return shown.answered || closedQuestions(state).some((question) => !question.answered && question.id !== shown.id);
+}
+
+/**
+ * The day the week ends on: today, as the server said it.
+ *
+ * @param {Pick<CheckinState, 'week' | 'day'>} state
+ * @returns {string}
+ */
+export function todayOf(state) {
+  return state.week.at(-1)?.day ?? state.day;
+}
+
+/**
+ * Yesterday, when it is not filled and today is the day shown: the one
+ * banner that asks for a past day. Older days left open are the strip's.
+ *
+ * @param {Pick<CheckinState, 'week' | 'day'>} state
+ * @returns {CheckinWeekDay | null}
+ */
+export function yesterdayOpen(state) {
+  const yesterday = state.week.at(-2);
+  if (yesterday === undefined || state.day !== todayOf(state)) return null;
+  return yesterday.fill === 'filled' ? null : yesterday;
 }
 
 /**
  * A counter's count as the day has it saved: nothing when it has none.
  *
- * @param {CheckinState} state
+ * @param {Pick<CheckinState, 'answers'>} state
  * @param {Question} question
  * @returns {number}
  */
 export function savedCount(state, question) {
-  const saved = question.subjectId === undefined ? undefined : state.values[question.subjectId];
+  const saved = question.subjectId === undefined ? undefined : state.answers.habits[question.subjectId];
   return typeof saved === 'number' ? saved : 0;
 }
 
@@ -137,12 +222,44 @@ export function savedCount(state, question) {
  * A counter's count as the stepper shows it: the count not yet sent, else
  * the saved one.
  *
- * @param {CheckinState} state
+ * @param {Pick<CheckinState, 'answers' | 'counts'>} state
  * @param {Question} question
  * @returns {number}
  */
 export function counterValue(state, question) {
   return question.id in state.counts ? state.counts[question.id] : savedCount(state, question);
+}
+
+/**
+ * The time as the steppers show it: what is being declared, else what is
+ * saved, else nothing.
+ *
+ * @param {Pick<CheckinState, 'answers' | 'time'>} state
+ * @returns {Record<string, number>}
+ */
+export function timeShown(state) {
+  return state.time ?? state.answers.time ?? {};
+}
+
+/**
+ * The areas Save sends, as `time.set` takes them: on a day not declared,
+ * the areas given some time; on one declared, every area whose minutes
+ * changed, one taken to nothing as 0. Empty when there is nothing to save.
+ *
+ * @param {Pick<CheckinState, 'answers' | 'time'>} state
+ * @returns {Record<string, number>}
+ */
+export function timeChanges(state) {
+  const saved = state.answers.time;
+  const shown = timeShown(state);
+  if (saved === null) return Object.fromEntries(Object.entries(shown).filter(([, minutes]) => minutes > 0));
+  /** @type {Record<string, number>} */
+  const changes = {};
+  for (const area of new Set([...Object.keys(saved), ...Object.keys(shown)])) {
+    const next = shown[area] ?? 0;
+    if (next !== (saved[area] ?? 0)) changes[area] = next;
+  }
+  return changes;
 }
 
 /**
@@ -177,26 +294,65 @@ function without(record, key) {
 }
 
 /**
- * The state after the server said what the day is: drafts and errors kept
- * only for questions still asked, a count dropped once it is what is saved.
+ * The state after the server said what a day is. Another day starts clean.
+ * The same day keeps what is not sent yet and where you are, for the
+ * questions it still asks; a count is dropped once it is what is saved.
  *
  * @param {CheckinState} state
  * @param {CheckinServerState} server
- * @param {Record<string, boolean | number>} values
  * @returns {CheckinState}
  */
-function withServer(state, server, values) {
-  const asked = new Set(openQuestions(server.questions).map((question) => question.id));
-  const next = { ...state, questions: server.questions, done: server.done, lines: server.lines, values };
-  next.errors = keepWhere(state.errors, (id) => asked.has(id));
+function withServer(state, server) {
+  if (server.day !== state.day) return initialCheckinState(server);
+  const ids = new Set(server.questions.map((question) => question.id));
+  /** @type {CheckinState} */
+  const next = { ...state, ...serverPart(server) };
+  next.errors = keepWhere(state.errors, (id) => ids.has(id));
+  next.aside = state.aside.filter((id) => ids.has(id));
+  if (state.cursor !== null && !ids.has(state.cursor)) next.cursor = null;
   next.counts = keepWhere(state.counts, (id, count) => {
-    if (!asked.has(id)) return false;
-    const habitId = server.questions.find((question) => question.id === id)?.subjectId;
-    return habitId === undefined || values[habitId] !== count;
+    const question = server.questions.find((other) => other.id === id);
+    return question !== undefined && savedCount(next, question) !== count;
   });
-  if (!asked.has('time')) next.time = {};
-  if (state.skipping !== null && !asked.has(state.skipping)) next.skipping = null;
   return next;
+}
+
+/**
+ * The state after an answer's response: moved on, its drafts cleared. What
+ * did not land is said where it was asked. For the note its own line
+ * decides: once the entry is kept the box empties -- saving it again would
+ * keep it twice -- and what was not filed from it is said under the note.
+ *
+ * @param {CheckinState} state
+ * @param {string} questionId
+ * @param {CheckinAnswerResponse} response
+ * @returns {CheckinState}
+ */
+function afterAnswer(state, questionId, response) {
+  const next = withServer({ ...state, pending: null }, response);
+  const lines = response.receipt.lines;
+  /** @param {ReceiptLine} line */
+  const problem = (line) => line.status === 'rejected' || line.status === 'failed';
+  /** @param {ReceiptLine[]} problems */
+  const say = (problems) => problems.map((line) => line.error ?? line.text).join('; ');
+
+  if (questionId === OPEN_QUESTION_ID) {
+    const [entry, ...drawn] = lines;
+    if (entry === undefined || problem(entry)) {
+      return { ...next, errors: { ...next.errors, [questionId]: entry === undefined ? 'Nothing was saved' : say([entry]) } };
+    }
+    return { ...next, openText: '', noteProblems: drawn.filter(problem) };
+  }
+
+  const problems = lines.filter(problem);
+  if (problems.length > 0) return { ...next, errors: { ...next.errors, [questionId]: say(problems) } };
+  return {
+    ...next,
+    counts: keepWhere(next.counts, (id) => id !== questionId),
+    cursor: null,
+    aside: next.aside.filter((id) => id !== questionId),
+    time: questionId === 'time' ? null : next.time,
+  };
 }
 
 /**
@@ -207,53 +363,32 @@ function withServer(state, server, values) {
 export function checkinReducer(state, action) {
   switch (action.type) {
     case 'loaded':
-      return withServer(state, action, action.values ?? state.values);
+      return withServer(state, action);
 
     case 'submit':
-      return { ...state, pending: action.questionId, errors: without(state.errors, action.questionId), unkept: [] };
+      return { ...state, pending: action.questionId, errors: without(state.errors, action.questionId), noteProblems: [] };
 
-    case 'answered': {
-      const { response, questionId } = action;
-      /** @type {ReceiptLine[]} */
-      const mine = response.receipt.lines;
-      const next = withServer(
-        { ...state, pending: null },
-        { questions: response.questions, done: response.done, lines: response.dayReceipt.lines },
-        state.values
-      );
-      next.unkept = mine.filter((line) => line.actionId === null);
-      const problems = mine.filter((line) => line.status === 'rejected' || line.status === 'failed');
-      if (problems.length > 0) {
-        next.errors = { ...next.errors, [questionId]: problems.map((line) => line.error ?? line.text).join('; ') };
-        return next;
-      }
-      if (questionId === 'open') next.openText = '';
-      if (questionId === 'time') next.time = {};
-      if (next.skipping === questionId) next.skipping = null;
-      return next;
-    }
+    case 'answered':
+      return afterAnswer(state, action.questionId, action.response);
 
     case 'failed':
       return { ...state, pending: null, errors: { ...state.errors, [action.questionId]: action.error } };
 
     case 'undoStart':
-      return { ...state, pending: 'undo:' + action.actionId, lineErrors: without(state.lineErrors, action.actionId), unkept: [] };
+      return { ...state, pending: 'undo:' + action.actionId, lineErrors: without(state.lineErrors, action.actionId), noteProblems: [] };
 
     case 'undoSettled': {
       const settled = { ...state, pending: null };
-      const next = action.server === null ? settled : withServer(settled, action.server, state.values);
+      const next = action.server === null ? settled : withServer(settled, action.server);
       if (action.error !== null) next.lineErrors = { ...next.lineErrors, [action.actionId]: action.error };
       return next;
     }
-
-    case 'toggleSkip':
-      return { ...state, skipping: state.skipping === action.questionId ? null : action.questionId };
 
     case 'count':
       return { ...state, counts: { ...state.counts, [action.questionId]: clampCount(state, action.questionId, action.value) } };
 
     case 'time': {
-      const time = { ...state.time };
+      const time = { ...timeShown(state) };
       if (action.minutes > 0) time[action.area] = action.minutes;
       else delete time[action.area];
       return { ...state, time };
@@ -261,6 +396,27 @@ export function checkinReducer(state, action) {
 
     case 'type':
       return { ...state, openText: action.text };
+
+    case 'back': {
+      const shown = currentQuestion(state);
+      const closed = closedQuestions(state);
+      const index = shown === null ? -1 : closed.indexOf(shown);
+      return index > 0 ? { ...state, cursor: closed[index - 1].id } : state;
+    }
+
+    case 'next': {
+      const shown = currentQuestion(state);
+      if (shown === null) return state;
+      if (!shown.answered) return { ...state, cursor: null, aside: [...state.aside.filter((id) => id !== shown.id), shown.id] };
+      const closed = closedQuestions(state);
+      return { ...state, cursor: closed[closed.indexOf(shown) + 1]?.id ?? null };
+    }
+
+    case 'openSheet':
+      return { ...state, sheet: true };
+
+    case 'closeSheet':
+      return { ...state, sheet: false, counts: {}, time: null };
 
     default:
       return state;
