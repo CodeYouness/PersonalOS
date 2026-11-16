@@ -322,7 +322,7 @@ function JournalCorrection({ entry, todayKey, isBusy, onSave, onCancel }) {
         <button type="button" className="btn-ghost" disabled={isBusy} onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="btn-primary" disabled={isBusy || text.trim() === '' || date === ''}>
+        <button type="submit" className="btn-ghost" disabled={isBusy || text.trim() === '' || date === ''}>
           Save
         </button>
       </div>

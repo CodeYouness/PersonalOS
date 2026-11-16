@@ -300,7 +300,7 @@ function HabitEditor({ habit, isPending, disabled, onCancel, onSave }) {
       <WeekdayPicker days={days} label={'Days for ' + habit.label} onChange={setDays} />
       <p className="caption edit-note">From today. Earlier days keep the days and target they had.</p>
       <div className="actions">
-        <button type="submit" className="btn-primary" disabled={disabled}>
+        <button type="submit" className="btn-ghost" disabled={disabled}>
           {isPending ? 'Saving…' : 'Save'}
         </button>
         <button type="button" className="btn-ghost" disabled={disabled} onClick={onCancel}>

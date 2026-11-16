@@ -54,11 +54,11 @@ export default function HealthCard({ averages, rows, mealsByDay, weight, target,
         </p>
 
         <div className="avg-strip">
-          <Average label="protein" value={averages.protein} unit="g" />
-          <Average label="carbs" value={averages.carbs} unit="g" />
-          <Average label="fat" value={averages.fat} unit="g" />
+          <Average label="Protein" value={averages.protein} unit="g" />
+          <Average label="Carbs" value={averages.carbs} unit="g" />
+          <Average label="Fat" value={averages.fat} unit="g" />
           <div className="avg">
-            <div className="k">weight</div>
+            <div className="k">Weight</div>
             <div className="v">
               {weight === null ? '—' : formatWeight(weight.latest)}
               {weight !== null && <span className="caption">kg</span>}

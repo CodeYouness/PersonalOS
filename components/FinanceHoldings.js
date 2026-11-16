@@ -308,7 +308,7 @@ function TradeEditor({ trade, todayKey, isSaving, onSave, onRefuse, onCancel }) 
         <input aria-label="Fee" className="input num" inputMode="decimal" value={fee} onChange={(event) => setFee(event.target.value)} />
       </td>
       <td className="finance-row-actions">
-        <button type="button" className="btn-primary" disabled={isSaving} onClick={save}>
+        <button type="button" className="btn-ghost" disabled={isSaving} onClick={save}>
           Save
         </button>
         <button type="button" className="btn-ghost" onClick={onCancel}>
@@ -346,7 +346,7 @@ function PriceEditor({ price, todayKey, isSaving, onSave, onCancel }) {
       <td className="finance-row-actions">
         <button
           type="button"
-          className="btn-primary"
+          className="btn-ghost"
           disabled={isSaving || parsed === null}
           onClick={() => parsed !== null && onSave({ price: parsed, date })}
         >
