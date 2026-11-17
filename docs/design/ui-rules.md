@@ -134,6 +134,20 @@ scrollbar-color: var(--hairline-tertiary) transparent`, with the
 scroll: the grid's columns are `minmax(0, 1fr)`, a wide table scrolls inside
 its card, and the nav scrolls sideways with its bar hidden.
 
+## Top bar
+
+The brand, "PersonalOS" with its mark, is the link Home (ADR 0049), named
+"PersonalOS, home"; on a phone only the mark shows, a 44px target. Home is
+not a nav item. The nav lists the other screens; the current one is its
+word in the ink with a 2px bar under it.
+
+## Tables
+
+A row is one line. A long name or description is cut with an ellipsis, the
+whole of it in its `title` and in the panel the row opens; a note after it
+("since 2 Jan") is never the part cut. The value is the last column,
+right-aligned. A table wider than its card scrolls inside its own box.
+
 ## Home
 
 Action first (ADR 0040). Home is one readable column at the check-in's

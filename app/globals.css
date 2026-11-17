@@ -275,7 +275,15 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--primary); widt
   background: var(--canvas);
   border-bottom: 1px solid var(--hairline);
 }
-.brand { display: flex; align-items: center; gap: var(--s-xs); flex: none; }
+/* The brand is the way Home (ADR 0049): a link in the ink, no underline, a
+   44px target whose hover is a nav item's; the focus ring is the global one. */
+.brand {
+  display: flex; align-items: center; gap: var(--s-xs); flex: none;
+  min-height: var(--control-h); padding: 0 6px; margin-left: -6px; border-radius: var(--r-xs);
+  color: var(--ink); text-decoration: none;
+  transition: background-color var(--m-out) var(--ease);
+}
+.brand:hover { background: var(--surface-1); transition-duration: var(--m-in); }
 .brand-mark { width: 18px; height: 18px; color: var(--primary); }
 .brand-name { font-size: 15px; font-weight: var(--w-strong); letter-spacing: -0.02em; }
 /* The nav scrolls sideways when it does not fit, rather than pushing the
@@ -1277,13 +1285,40 @@ a.cite { text-decoration: none; }
 .finance-amount { white-space: nowrap; }
 .finance-amount.is-quiet { color: var(--ink-subtle); }
 
-/* The accounts table: fixed columns, so the folded accounts' table lines up
-   with it; it scrolls inside its box when narrow. */
-.finance-accounts-table { table-layout: fixed; min-width: 520px; }
-.finance-accounts-table th:nth-child(2) { width: 88px; }
-.finance-accounts-table th:nth-child(3) { width: 120px; }
-.finance-accounts-table th:nth-child(4) { width: 96px; }
-.finance-accounts-table th:nth-child(5) { width: 104px; }
+/* The accounts table (ADR 0049): two fixed columns, the value last, so the
+   folded accounts' table lines up with it; a name too long for its column is
+   cut, never wrapped. It fits a phone without scrolling. */
+.finance-accounts-table { table-layout: fixed; }
+.finance-accounts-table th:nth-child(2) { width: 136px; }
+.finance-accounts-updated { margin-bottom: var(--s-xs); }
+/* A section's head: its name with the allocation bar's mark, and its
+   subtotal in the value column. Not sticky: only the table's head is. */
+.finance-table .finance-section-head th,
+.finance-table .finance-section-head td {
+  position: static; background: none;
+  padding-top: var(--s-md);
+  font-size: 16px; font-weight: var(--w-label); color: var(--ink);
+  border-bottom: 1px solid var(--hairline-strong);
+}
+.finance-table .finance-section-head td.caption { font-size: 13px; color: var(--ink-subtle); }
+.finance-section-name { display: inline-flex; align-items: center; gap: 6px; }
+.finance-section-name .caption { font-weight: var(--w-body); }
+
+/* One line, cut with an ellipsis (ADR 0049): long text never makes a row
+   tall; the whole of it is in the title, and in the panel one click away. A
+   note after the cut text ("since 2 Jan", "· not counted") is never cut. */
+.finance-cut { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.finance-cut-text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.finance-cut > .caption { flex: none; white-space: nowrap; }
+/* Transactions: fixed columns, so a long text is cut rather than widening
+   the table -- the date and the amount wide enough for "12 Dec 2025" and
+   "− 12,345.67", the category and the account a fifth each, the description
+   the rest. Under 640px the table scrolls in its box, never the page. */
+.finance-transactions-table { table-layout: fixed; min-width: 640px; }
+.finance-transactions-table th:nth-child(1) { width: 120px; }
+.finance-transactions-table th:nth-child(3),
+.finance-transactions-table th:nth-child(4) { width: 20%; }
+.finance-transactions-table th:nth-child(5) { width: 128px; }
 /* A fold inside a card: "N more accounts", the whole summary the target. */
 .finance-fold { margin-top: var(--s-xxs); border-top: 1px solid var(--hairline); }
 .finance-fold > summary {
@@ -1430,11 +1465,14 @@ a.cite { text-decoration: none; }
   .board { grid-template-columns: minmax(0, 1fr); }
   #topbar { padding: 0 var(--s-md); gap: var(--s-xs); }
   .nav { margin-left: 0; }
+  /* Narrower items, the same 44px height: more of the nav before it scrolls. */
+  .nav-item { padding: 0 8px; }
   #capture-log { width: 100%; }
 }
 /* A phone: the brand keeps its mark and gives its name's room to the nav. */
 @media (max-width: 480px) {
   .brand-name { display: none; }
+  .brand { min-width: var(--control-h); justify-content: center; }
 }
 
 /* ==========================================================================
@@ -1484,3 +1522,9 @@ a.cite { text-decoration: none; }
 .review-actions { display: flex; gap: var(--s-xs); align-items: center; margin-top: var(--s-lg); flex-wrap: wrap; }
 .review-actions .caption { margin-right: auto; }
 .review-error { color: var(--danger); font-size: 16px; margin: var(--s-sm) 0 0; }
+
+/* On a phone the account's name comes first: the "since" note, which is in
+   the account's panel too, gives its room to the name. */
+@media (max-width: 480px) {
+  .finance-accounts-table .finance-stale { display: none; }
+}

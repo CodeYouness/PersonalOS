@@ -98,7 +98,7 @@ export function transferEnds(transaction) {
     : { from: counter, to: transaction.accountId };
 }
 
-/** How the table names a kind, as the mockup does: "invested", "debt". */
+/** How the account panel names a kind, as the mockup does: "invested", "debt". */
 /** @type {Record<import('@/lib/domain/types.js').FinanceAccount['kind'], string>} */
 export const KIND_LABELS = { cash: 'cash', investment: 'invested', asset: 'asset', liability: 'debt' };
 
@@ -170,16 +170,4 @@ export function transactionUrl(id) {
  */
 export function syncedNote(source) {
   return 'Synced from ' + source + ': its trades, prices and balances are the broker’s and are not corrected here.';
-}
-
-/**
- * Up, down or flat for a change in what you are worth. For a debt the
- * caller flips it: owing more is down.
- *
- * @param {number | null} change
- * @returns {string}
- */
-export function changeClass(change) {
-  if (change === null || change === 0) return 'flat';
-  return change > 0 ? 'up' : 'down';
 }
