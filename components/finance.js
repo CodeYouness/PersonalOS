@@ -171,3 +171,15 @@ export function transactionUrl(id) {
 export function syncedNote(source) {
   return 'Synced from ' + source + ': its trades, prices and balances are the broker’s and are not corrected here.';
 }
+
+/**
+ * Up, down or flat for a change in what you are worth. For a debt the
+ * caller flips it: owing more is down.
+ *
+ * @param {number | null} change
+ * @returns {string}
+ */
+export function changeClass(change) {
+  if (change === null || change === 0) return 'flat';
+  return change > 0 ? 'up' : 'down';
+}

@@ -310,7 +310,7 @@ describe('finance figures: a month', () => {
     expect(item(items, 'figure:spending:2026-06')).toBeUndefined();
     expect(item(items, 'figure:income:2026-01')).toBeUndefined();
     expect(items.some((one) => one.id.startsWith('figure:category:2026-01:'))).toBe(false);
-    // The history starts at the first month-end on or after it, as the History card does.
+    // The history starts at the first month-end on or after it, as the history does.
     const months = financeOverview(inputsOf(archive), TODAY).history.map((row) => row.month);
     expect(months[months.length - 1]).toBe('2026-07');
     expect(item(items, 'figure:net-worth:2026-06')).toBeUndefined();

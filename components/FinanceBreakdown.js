@@ -1,8 +1,7 @@
 import Link from 'next/link';
 
-import { financesHref, KIND_LABELS } from '@/components/finance.js';
+import { changeClass, financesHref, KIND_LABELS } from '@/components/finance.js';
 import FinanceSyncLine from '@/components/FinanceSyncLine.js';
-import { changeClass } from '@/components/FinanceHistory.js';
 import { formatEuro, formatMoney, formatMoneyChange, shortDate } from '@/components/format.js';
 import { allocation } from '@/lib/domain/derive/finance.js';
 

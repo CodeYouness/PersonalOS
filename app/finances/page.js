@@ -5,7 +5,6 @@ import FinanceFlows from '@/components/FinanceFlows.js';
 import FinanceSettings from '@/components/FinanceSettings.js';
 import FinanceTags from '@/components/FinanceTags.js';
 import { lineName } from '@/components/finance.js';
-import FinanceHistory from '@/components/FinanceHistory.js';
 import { monthLabel } from '@/components/format.js';
 import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
@@ -45,8 +44,9 @@ export const dynamic = 'force-dynamic';
  * absent or not a month; `?transaction=<id>` opens a transaction's panel
  * (#134). An id that no longer exists selects nothing. With no account
  * selected, the panel adds one; with no transaction selected, the panel
- * beside the list records a movement. The History card sits under the
- * account panel (#118), the Categories card (#136) under the movement one.
+ * beside the list records a movement. The Categories card (#136) sits under
+ * the movement one. The monthly history has no card of its own: the net
+ * worth line of Income & spending draws it (ADR 0047).
  *
  * `?category=<line>` selects a line of the Income & spending section (#137)
  * -- a category, or Uncategorised spending or income -- and lists that
@@ -161,7 +161,6 @@ export default async function FinancesScreen({ searchParams }) {
               place={place}
             />
           )}
-          <FinanceHistory history={overview.history} />
         </div>
         <div className="finance-side span-7">
           <FinanceFlows
