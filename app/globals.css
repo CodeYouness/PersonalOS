@@ -1358,6 +1358,39 @@ a.cite { text-decoration: none; }
 .finance-cut { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .finance-cut-text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .finance-cut > .caption { flex: none; white-space: nowrap; }
+
+/* What the holdings earned (ADR 0051). The Invested section's one line sits
+   under its head, inside the head's rule; its parts wrap between them, never
+   inside one. A profit or a loss is toned and always signed. */
+.finance-table .finance-section-head:has(+ .finance-section-note) th,
+.finance-table .finance-section-head:has(+ .finance-section-note) td { border-bottom: none; }
+.finance-table .finance-section-note td {
+  padding-top: 0; font-size: 13px; color: var(--ink-subtle);
+  border-bottom: 1px solid var(--hairline-strong);
+}
+.finance-invested-note { display: flex; flex-wrap: wrap; column-gap: var(--s-sm); }
+.finance-invested-note > span { white-space: nowrap; }
+/* The Investments fold: a table wider than a phone, so it scrolls in its box. */
+.finance-investments > .finance-table-scroll { margin-top: var(--s-xxs); }
+.finance-investments-table { table-layout: fixed; min-width: 520px; }
+.finance-investments-table th:nth-child(2),
+.finance-investments-table th:nth-child(3),
+.finance-investments-table th:nth-child(4) { width: 96px; }
+.finance-investments-table th:nth-child(5) { width: 76px; }
+.finance-table .finance-investments-total th,
+.finance-table .finance-investments-total td {
+  position: static; background: none;
+  font-size: 16px; font-weight: var(--w-label); color: var(--ink);
+  border-top: 1px solid var(--hairline-strong); border-bottom: none;
+}
+.finance-investments-lines {
+  list-style: none; margin: var(--s-sm) 0 var(--s-xs); padding: 0 var(--s-sm);
+  display: grid; gap: var(--s-xxs); font-size: 16px;
+}
+/* A holding's panel: label and amount, one per row. */
+.finance-table.finance-position th { position: static; background: none; border-bottom: 1px solid var(--hairline); }
+.finance-position tbody tr:last-child th { border-bottom: none; }
+.finance-position td.num { white-space: nowrap; }
 /* Transactions: fixed columns, so a long text is cut rather than widening
    the table -- the date and the amount wide enough for "12 Dec 2025" and
    "− 12,345.67", the category and the account a fifth each, the description

@@ -27,8 +27,9 @@ import {
   tagFlows,
   yearFlows,
 } from '@/lib/domain/derive/finance.js';
-import { percent as formatPercent } from '@/lib/domain/format.js';
-import { formatMoney } from '@/lib/ai/context/render.js';
+import { investmentReturns } from '@/lib/domain/derive/investments.js';
+import { formatReturn, percent as formatPercent } from '@/lib/domain/format.js';
+import { formatMoney, formatMoneyChange } from '@/lib/ai/context/render.js';
 
 /** Thursday 24 September 2026, noon in Rome. */
 const NOON = new Date('2026-09-24T10:00:00Z');
@@ -501,5 +502,49 @@ describe('finance figures: tags', () => {
     const ids = items.filter((one) => one.id.startsWith('figure:tag:2026-09:')).map((one) => one.id);
     expect(new Set(ids).size).toBe(3);
     for (const id of ids) expect(isCitationId(id)).toBe(true);
+  });
+});
+
+describe('finance figures: investments (ADR 0051)', () => {
+  it('says what the holdings cost, are worth and earned, as the Investments fold does', async () => {
+    const { archive, items } = await build();
+    const { totals, since, latest, taxPercent } = investmentReturns(inputsOf(archive), TODAY);
+
+    const now = item(items, 'figure:investments:now');
+    expect(now?.label).toBe('Investments now');
+    expect(now?.opens).toBe('/finances');
+    expect(isCitationId('figure:investments:now')).toBe(true);
+    // The seed's World ETF: 25 units for 1,001 + 1,046 + 542; at January's 108.20.
+    expect(totals).toMatchObject({ cost: 258900, value: 270500, gain: 11600 });
+    expect(now?.content).toContain(
+      'Investments today (24 Sep 2026), 1 holding: cost ' + eur(258900) + ', value ' + eur(270500) +
+        ', profit or loss ' + formatMoneyChange(11600, 'EUR') + ' (' + formatReturn(/** @type {number} */ (totals.gainRatio)) + ' of the cost)'
+    );
+    expect(now?.content).toContain('After ' + taxPercent + '% tax on each gain, a loss not reduced: ' + formatMoneyChange(/** @type {number} */ (totals.afterTax), 'EUR'));
+    expect(now?.content).toContain('Realised by sells to date, not in the profit above: ' + formatMoneyChange(0, 'EUR'));
+    expect(since).toBe('2025-12-01');
+    expect(latest).toBe('2026-01-02');
+    expect(now?.content).toContain('Change since 1 Dec 2025, the last price day before 2 Jan 2026, on the units held today: ' + formatMoneyChange(9250, 'EUR'));
+    // The seed's index portfolio is valued by balance.
+    expect(now?.content).toContain('1 investment valued by its balance is not in these figures.');
+  });
+
+  it('gives the year to date, money put in or taken out not counted', async () => {
+    const { archive, items } = await build();
+    const { totals } = investmentReturns(inputsOf(archive), TODAY);
+
+    const year = item(items, 'figure:investments:2026-ytd');
+    expect(year?.label).toBe('Investments, 2026 to date');
+    // 20 units at December's 104.50, then 542 put in on 2 January.
+    expect(totals.ytd).toBe(270500 - 209000 - 54200);
+    expect(year?.content).toContain('Investments\' change in 2026 to date (from 1 Jan 2026): ' + formatMoneyChange(7300, 'EUR'));
+    expect(year?.content).toContain(formatReturn(/** @type {number} */ (totals.ytdRatio)) + ' of the money at work');
+  });
+
+  it('has no investment figure without a holding', async () => {
+    const archive = await read.readArchive();
+    const items = figures.financeFigures({ ...archive, accounts: archive.accounts.filter((one) => one.valuation !== 'units') }, { today: TODAY });
+
+    expect(items.filter((one) => one.id.startsWith('figure:investments:'))).toEqual([]);
   });
 });

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   dayKeyRange,
+  daysBetween,
   dayKeysEndingAt,
   formatTimeInZone,
   isDayKey,
@@ -70,6 +71,24 @@ describe('isDayKey', () => {
     expect(isDayKey('2026-1-1')).toBe(false);
     expect(isDayKey(20260101)).toBe(false);
     expect(isDayKey(null)).toBe(false);
+  });
+});
+
+describe('daysBetween', () => {
+  it('counts calendar days from one day key to another, across a year and a leap day', () => {
+    expect(daysBetween('2026-01-01', '2026-01-01')).toBe(0);
+    expect(daysBetween('2025-12-31', '2026-01-02')).toBe(2);
+    expect(daysBetween('2028-02-28', '2028-03-01')).toBe(2);
+    expect(daysBetween('2026-01-10', '2026-01-03')).toBe(-7);
+  });
+
+  it('is unaffected by daylight saving transitions', () => {
+    expect(daysBetween('2026-03-28', '2026-03-30')).toBe(2);
+    expect(daysBetween('2026-10-24', '2026-10-26')).toBe(2);
+  });
+
+  it('refuses a string that is not a day key', () => {
+    expect(() => daysBetween('2026-02-30', '2026-03-01')).toThrow();
   });
 });
 

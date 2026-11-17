@@ -15,6 +15,7 @@ describe('the formats the screens and the figures share', () => {
     'formatCount',
     'formatMinutes',
     'formatPercentChange',
+    'formatReturn',
     'formatWeight',
     'monthLabel',
     'ordinal',
@@ -29,6 +30,17 @@ describe('the formats the screens and the figures share', () => {
     expect(shared.percent(-0.08)).toBe('−8%');
     expect(shared.formatPercentChange(-0.08)).toBe('−8%');
     expect(shared.formatChange(-1.2)).toBe('−1.2');
+  });
+
+  it('writes a return to a tenth of a percent, always signed, with the real minus', () => {
+    expect(shared.formatReturn(0.16258)).toBe('+16.3%');
+    expect(shared.formatReturn(-0.1)).toBe('−10.0%');
+    expect(shared.formatReturn(0.00049)).toBe('0.0%');
+    expect(shared.formatReturn(-0.0004)).toBe('0.0%');
+    expect(shared.formatReturn(1.5)).toBe('+150.0%');
+    // Half away from zero, as money rounds.
+    expect(shared.formatReturn(0.0125)).toBe('+1.3%');
+    expect(shared.formatReturn(-0.0125)).toBe('−1.3%');
   });
 
   it('writes time in hours and minutes, leaving out a part that is zero', () => {
