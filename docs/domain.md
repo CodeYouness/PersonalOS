@@ -1298,6 +1298,73 @@ the work.
 Neither account may move after the day it was archived; the day itself is
 allowed, so an account can be emptied the day it closes.
 
+### Statement
+
+**Is** a bank's or a card's export of an account's movements, imported by
+`npm run data:import-statement` (ADR 0041). **For an account that has
+statements, the statements are its transactions** (ADR 0037): a spoken
+expense is for cash and accounts without one, and the dry run lists any
+movement on the account, in the statement's range, that did not come from a
+statement, so a month is never counted twice.
+
+- **One product, one account.** A file that holds several products -- a
+  Revolut export's current account, savings and deposit -- has an account per
+  product, each named on the command line; a product with no account named
+  is refused, listing the products found. The account is found by name, or
+  created as `cash`, valued by balance, with no origin: it is yours, the
+  statement only feeds it, so you can still type a balance on it.
+- **A movement's origin** is `{ source: 'statement', externalId, detail }`.
+  The **externalId** is `<account id>:id:<bank id>` when the file gives the
+  bank's id for the movement, and otherwise `<account id>:<hash>`, the hash
+  of the timestamp (or the day, when the bank gives only a day), the signed
+  amount, the bank's raw text for the row and an **occurrence index** among
+  otherwise identical rows of the account -- so two identical coffees on one
+  day are two movements, and stay two on a re-import in any order. A fee
+  charged on a row is a movement of its own, `<that id>:fee`. Re-importing
+  the same or a later, overlapping export writes only what is new or
+  changed; a bank that rewrites a past row's text makes a new movement, and
+  the report counts the imported movements its range no longer has.
+- **The bank's detail** -- its own category and subcategory, the merchant, the
+  counterparty, the movement type, the value date, a card's foreign-exchange
+  fee and cashback -- is kept on the origin's `detail`, flat text, for
+  categorising. It is the source's: a re-import rewrites it with the rest of
+  the source's zone, and never touches yours.
+- **Fees.** Revolut's `Costo` (a currency exchange's fee, the tax withheld on
+  interest) is a movement of its own beside the amount, since the two are
+  categorised differently, and the running balance is after both. A card's
+  foreign-exchange fee and cashback are not applied -- nothing in the file
+  says whether the amount already includes them -- and the dry run prints
+  their totals.
+- **The opening balance.** A statement with a running balance makes the
+  balance before its first movement known: unless a balance already anchors
+  the account before the file starts, the import records it, dated the day
+  before the first movement, so that day's movements count on top of it (ADR
+  0024). A statement with no running balance leaves a new account
+  **unknown** until you record a balance -- the dry run says so and how.
+- **The balance check** compares the file's last balance with the account's
+  value after the import, from `accountValueOn`, and prints both and the
+  difference. Neither is ever adjusted to match.
+- **Dates.** A movement is dated by the day the bank shows it started -- the
+  local time in the file, which has no zone -- not the day it completed: the
+  day it started is the day the money was spent.
+- **The running balance follows the bank's booking order**, which is not
+  always the order the movements happened: Revolut's `Saldo` follows
+  completion (the file's own order), so a card payment started on day 1 and
+  completed on day 2 sits in the chain where it completed. The chain, the
+  opening balance and the check walk that order; the opening balance is
+  dated before the earliest movement, so it plus every movement is the last
+  balance. A file newest first is read backwards, several rows of one day
+  included.
+- **A balance column may hold float noise**, `1011.5899999999999` or
+  `-4.547473508864641e-13` for a zero: it is rounded to the cent, exponent
+  notation included. An amount is never read in exponent notation -- it is
+  what moved, not noise -- and a sign that disagrees with the file's own
+  direction column (`Entrata` positive, `Uscita` negative) blocks.
+- **A line that cannot be read blocks the write**, and while one is there the
+  dry run computes no opening balance and no check: the line would be
+  missing from the chain and the sum, and a difference printed without it
+  would be wrong. At most ten blocking lines are printed, then how many more.
+
 ### Transfer
 
 **Is** a transaction with a `counterAccountId`: money moved between two
@@ -1469,9 +1536,12 @@ rows are left alone and listed as a warning.
 **ExternalOrigin** is on every synced record: `source`, `externalId`,
 `syncedAt`, `sourceUpdatedAt`. `source` is a closed vocabulary, `ORIGIN_SOURCES` in
 `personalos.config.js` -- `scalable`, `degiro`, `sheet` (the spreadsheet
-import), `google-calendar`, and `demo` (the seed's sample rows, which are not
+import), `statement` (a bank or card statement, see Statement),
+`google-calendar`, and `demo` (the seed's sample rows, which are not
 a source: see FinanceAccount) -- validated at the store boundary, so an
-unknown source is refused. New synced records are stamped by `syncedOrigin()`. The pair `(source, externalId)` is the
+unknown source is refused. New synced records are stamped by `syncedOrigin()`. An origin may carry a
+`detail`: what the source said that the record has no field for, flat text
+under short keys, checked at the store (ADR 0041). The pair `(source, externalId)` is the
 deduplication key. It is what makes an import idempotent, and what lets a live
 source supersede a stale hand-entered row instead of sitting beside it and
 double counting.

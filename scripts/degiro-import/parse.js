@@ -24,6 +24,7 @@
  */
 
 import { isDayKey } from '../../lib/domain/dates.js';
+import { parseCsv } from '../csv.js';
 
 const REQUIRED = {
   date: 'data',
@@ -38,47 +39,6 @@ const REQUIRED = {
 };
 
 const ISIN_SHAPE = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
-
-/**
- * RFC 4180 records: quoted fields, doubled quotes, commas and newlines inside quotes.
- *
- * @param {string} text
- * @returns {string[][]}
- */
-export function parseCsv(text) {
-  /** @type {string[][]} */
-  const records = [];
-  /** @type {string[]} */
-  let record = [];
-  let field = '';
-  let quoted = false;
-  const source = text.codePointAt(0) === 0xfeff ? text.slice(1) : text;
-  for (let at = 0; at < source.length; at += 1) {
-    const char = source[at];
-    if (quoted) {
-      if (char === '"' && source[at + 1] === '"') {
-        field += '"';
-        at += 1;
-      } else if (char === '"') quoted = false;
-      else field += char;
-    } else if (char === '"') quoted = true;
-    else if (char === ',') {
-      record.push(field);
-      field = '';
-    } else if (char === '\n' || char === '\r') {
-      if (char === '\r' && source[at + 1] === '\n') at += 1;
-      record.push(field);
-      field = '';
-      records.push(record);
-      record = [];
-    } else field += char;
-  }
-  if (field !== '' || record.length > 0) {
-    record.push(field);
-    records.push(record);
-  }
-  return records.filter((r) => r.some((cell) => cell.trim() !== ''));
-}
 
 /**
  * A decimal with a comma ("1.234,56", "-12,5", "7") as an integer in

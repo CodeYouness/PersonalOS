@@ -299,14 +299,18 @@ export const FINANCE_CURRENCIES = Object.freeze(['EUR']);
  * of. Closed, like every vocabulary here; the store refuses an origin whose
  * source is not one of these values. `demo` marks the seed's sample rows and
  * does NOT make an account synced (docs/domain.md, FinanceAccount).
+ * `statement` is a bank or card statement imported by
+ * `npm run data:import-statement` (ADR 0041): its transactions and the
+ * opening balance it read, never an account.
  *
- * @type {Readonly<{ scalable: 'scalable', degiro: 'degiro', demo: 'demo', sheet: 'sheet', googleCalendar: 'google-calendar' }>}
+ * @type {Readonly<{ scalable: 'scalable', degiro: 'degiro', demo: 'demo', sheet: 'sheet', statement: 'statement', googleCalendar: 'google-calendar' }>}
  */
 export const ORIGIN_SOURCES = Object.freeze({
   scalable: 'scalable',
   degiro: 'degiro',
   demo: 'demo',
   sheet: 'sheet',
+  statement: 'statement',
   googleCalendar: 'google-calendar',
 });
 
