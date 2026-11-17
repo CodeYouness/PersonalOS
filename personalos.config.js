@@ -427,6 +427,13 @@ export const limits = Object.freeze({
    * or an empty pot stays one click away without taking a row.
    */
   financeQuietAccountDays: 90,
+  /**
+   * Finances' accounts table (ADR 0049) says "since 2 Jan" after an account
+   * whose value is older than this many days: about a month and its slack,
+   * so a balance typed once a month never shows it, and one forgotten does.
+   * The table prints no per-row date otherwise.
+   */
+  financeStaleAccountDays: 35,
   /** How far back the Health card aggregates. */
   healthWindowDays: 30,
   /** How far ahead recurring calendar events are expanded. */

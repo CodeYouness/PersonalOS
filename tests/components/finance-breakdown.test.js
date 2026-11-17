@@ -2,7 +2,8 @@
  * The Net worth card of Finances (ADR 0048): the net worth line over all
  * tracked time under the headline, whatever month Income & spending reads,
  * with its change over the span, 30 days and a year; and the accounts table
- * with the quiet ones folded. Every row here is invented.
+ * by kind (ADR 0049), each section with the allocation's subtotal, the quiet
+ * accounts folded. Every row here is invented.
  */
 
 import { createElement } from 'react';
@@ -15,8 +16,8 @@ import { financeOverview, quietAccounts, worthChart } from '@/lib/domain/derive/
 const TODAY = '2026-04-20';
 
 /** @returns {any} */
-const account = (/** @type {string} */ id, /** @type {string} */ name) => ({
-  id, name, kind: 'cash', currency: 'EUR', origin: null, archivedOn: null, valuation: 'balance',
+const account = (/** @type {string} */ id, /** @type {string} */ name, kind = 'cash') => ({
+  id, name, kind, currency: 'EUR', origin: null, archivedOn: null, valuation: 'balance',
   createdAt: '', updatedAt: '', source: 'user',
 });
 /** @returns {any} */
@@ -37,9 +38,9 @@ const inputs = {
   transactions: [],
 };
 
-/** @param {{ place?: any, observations?: any[] }} [options] */
-function render({ place = { month: '2026-01' }, observations = inputs.observations } = {}) {
-  const finance = { ...inputs, observations };
+/** @param {{ place?: any, observations?: any[], accounts?: any[] }} [options] */
+function render({ place = { month: '2026-01' }, observations = inputs.observations, accounts = inputs.accounts } = {}) {
+  const finance = { ...inputs, accounts, observations };
   const overview = financeOverview(finance, TODAY);
   return renderToStaticMarkup(
     createElement(FinanceBreakdown, {
@@ -99,6 +100,82 @@ describe('FinanceBreakdown', () => {
     it('takes the whole row with no account selected, and leaves room for its panel otherwise', () => {
       expect(render()).toContain('class="card span-12"');
       expect(render({ place: { month: '2026-01', account: 'account_current' } })).toContain('class="card span-7"');
+    });
+  });
+
+  describe('the accounts by kind (ADR 0049)', () => {
+    const accounts = [
+      ...inputs.accounts,
+      account('account_pension', 'Pension fund with a name long enough to be cut', 'investment'),
+      account('account_loan', 'Car loan', 'liability'),
+    ];
+    const observations = [
+      ...inputs.observations,
+      // 46 days before today: stale.
+      balance('account_pension', '2026-03-05', 1200000),
+      balance('account_loan', '2026-04-01', 300000),
+    ];
+    const html = render({ accounts, observations });
+
+    it('lists two columns, the account and its value last -- no type, no 30-day change, no date per row', () => {
+      expect(html).toContain('<thead><tr><th>Account</th><th class="num">Value</th></tr></thead>');
+      expect(html).not.toContain('>Type<');
+      expect(html).not.toContain('>30d<');
+      expect(html).not.toContain('>As of<');
+    });
+
+    it('splits the accounts into sections in net worth\'s order, each with its subtotal, a debt as what is owed', () => {
+      const heads = [...html.matchAll(/<tr class="finance-section-head"><th scope="rowgroup"><span class="finance-section-name"><i class="dot" style="color:[^"]+"><\/i>([^<]+)(?:<span class="caption">([^<]+)<\/span>)?<\/span><\/th><td class="num">([^<]+)<\/td><\/tr>/g)]
+        .map((match) => [match[1], match[2] ?? null, match[3]]);
+
+      expect(heads).toEqual([
+        ['Cash', null, '6,500'],
+        ['Invested', null, '12,000'],
+        ['Debt', 'what you owe', '3,000'],
+      ]);
+      const table = html.slice(html.indexOf('<table'));
+      expect(table.indexOf('>Current<')).toBeLessThan(table.indexOf('>Invested'));
+      expect(table.indexOf('>Invested')).toBeLessThan(table.indexOf('>Pension fund'));
+      expect(table.indexOf('>Pension fund')).toBeLessThan(table.indexOf('>Debt'));
+      expect(table.indexOf('>Debt')).toBeLessThan(table.indexOf('>Car loan<'));
+    });
+
+    it('gives each section the same amount as its part of the allocation bar', () => {
+      expect(html).toContain('Cash <span class="num">€\u20096,500</span>');
+      expect(html).toContain('Invested <span class="num">€\u200912,000</span>');
+      expect(html).toContain('Debt <span class="num">€\u20093,000</span>');
+    });
+
+    it('says once when the newest value is from', () => {
+      expect(html.match(/Last updated/g)).toHaveLength(1);
+      expect(html).toContain('<p class="caption finance-accounts-updated">Last updated 5 Apr</p>');
+      expect(html.indexOf('Last updated')).toBeLessThan(html.indexOf('<table'));
+    });
+
+    it('marks only a stale account with the day its value is from, after its name', () => {
+      expect(html).toContain(
+        'title="Pension fund with a name long enough to be cut" href="/finances?account=account_pension&amp;month=2026-01">Pension fund with a name long enough to be cut</a><span class="caption finance-stale">since 5 Mar</span>'
+      );
+      expect(html.match(/finance-stale/g)).toHaveLength(2); // the pension, and the folded old card
+      expect(html).toContain('>Current</a></span></td>');
+    });
+
+    it('folds the quiet accounts once, at the end, in their sections without a subtotal', () => {
+      const fold = html.slice(html.indexOf('finance-more-accounts'));
+
+      expect(fold).toContain('<span class="finance-fold-name">1 more account</span>');
+      expect(fold).toContain('Cash</span></th><td></td></tr>');
+      expect(fold).toContain('>Old card</a><span class="caption finance-stale">since 20 Oct 2025</span>');
+    });
+
+    it('says a kind with no value at all is unknown, not zero', () => {
+      const unknown = render({
+        accounts,
+        observations: observations.filter((row) => row.accountId !== 'account_pension'),
+        place: { month: '2026-01', account: 'account_pension' },
+      });
+
+      expect(unknown).toMatch(/Invested<\/span><\/th><td class="num caption">unknown<\/td>/);
     });
   });
 

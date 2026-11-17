@@ -4,6 +4,9 @@
 - **Date** 2026-11-17
 - **Amends** [0044](0044-spending-over-time-reads-by-the-months-rules.md) (the chart switch, the net worth line's months),
   [0046](0046-spending-by-tag.md) (the capped list), [0040](0040-home-shows-what-needs-you.md) (Home's money reading)
+- **Amended by** [0049](0049-accounts-by-kind-and-the-brand-is-home.md): the
+  accounts table is Account and Value in sections by kind, with one date for
+  the table; the quiet fold keeps the sections
 
 ## Context
 
@@ -92,7 +95,9 @@ already reads: no second implementation, no model, no integration.
   with nothing recorded on it -- a movement (either end of a transfer), a
   balance or a trade -- from `limits.financeQuietAccountDays` (90) days
   before today to today folds under "N more accounts", a second table with
-  the same fixed columns. The selected account is always shown.
+  the same fixed columns. The selected account is always shown. **Amended
+  by 0049:** two columns, Account and Value, in sections by kind; the fold
+  comes once, at the end, in the same sections without subtotals.
 - **The month's list is capped too**: `limits.financeYearListMax` became
   `limits.financeListMax` (50), and a month with nothing selected lists its
   newest 50 like a year, saying "The newest 50 of 96 in March 2026" with a

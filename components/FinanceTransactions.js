@@ -29,6 +29,11 @@ import { formatMoney, formatMoneyChange, shortDate } from '@/components/format.j
  * transfer between your own accounts is neither: it shows the amount moved,
  * quieter, and names both ends, "from → to". Dates never wrap.
  *
+ * A row is one line (ADR 0049): a long description, category or account
+ * name is cut with an ellipsis, the whole of it in its `title` and in the
+ * movement's panel, one click away. The description takes the room the
+ * other columns leave (fixed columns, app/globals.css).
+ *
  * @param {{
  *   transactions: Transaction[],
  *   accounts: FinanceAccount[],
@@ -112,27 +117,37 @@ export default function FinanceTransactions({ transactions, accounts, categories
                   const selected = transaction.id === place.transaction;
                   const transfer = transaction.counterAccountId !== null;
                   const category = categoryName(transaction.categoryId);
+                  const description = transaction.description === '' ? '(no description)' : transaction.description;
+                  const filedUnder = transfer ? 'Transfer' : category ?? 'Uncategorised';
+                  const where = transfer
+                    ? accountName(transferEnds(transaction).from) + ' → ' + accountName(transferEnds(transaction).to)
+                    : accountName(transaction.accountId);
                   return (
                     <tr key={transaction.id} className={selected ? 'is-selected' : undefined}>
                       <td className="num finance-date">{shortDate(transaction.date, todayKey)}</td>
                       <td>
-                        <Link
-                          href={financesHref({ ...place, transaction: transaction.id })}
-                          scroll={false}
-                          className="finance-account-link"
-                          aria-current={selected ? 'true' : undefined}
-                        >
-                          {transaction.description === '' ? '(no description)' : transaction.description}
-                        </Link>
-                        {transaction.notCounted && <span className="caption"> · not counted</span>}
+                        <span className="finance-cut">
+                          <Link
+                            href={financesHref({ ...place, transaction: transaction.id })}
+                            scroll={false}
+                            className="finance-account-link finance-cut-text"
+                            title={description}
+                            aria-current={selected ? 'true' : undefined}
+                          >
+                            {description}
+                          </Link>
+                          {transaction.notCounted && <span className="caption">· not counted</span>}
+                        </span>
                       </td>
                       <td className={transfer || category === null ? 'caption' : undefined}>
-                        {transfer ? 'Transfer' : category ?? 'Uncategorised'}
+                        <span className="finance-cut-text" title={filedUnder}>
+                          {filedUnder}
+                        </span>
                       </td>
                       <td className="caption">
-                        {transfer
-                          ? accountName(transferEnds(transaction).from) + ' → ' + accountName(transferEnds(transaction).to)
-                          : accountName(transaction.accountId)}
+                        <span className="finance-cut-text" title={where}>
+                          {where}
+                        </span>
                       </td>
                       <Amount transaction={transaction} />
                     </tr>

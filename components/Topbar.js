@@ -10,7 +10,11 @@ import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
 /**
  * The shell's persistent top navigation, ported from design/mockup.html.
  *
- * Home, CRM (#52), Goals (#96), Habits (#38), Journal (#159), Nutrition
+ * The brand is the way Home (ADR 0049), as is customary: "PersonalOS" links
+ * to `/`, named "PersonalOS, home" -- its word is hidden on a phone, its mark
+ * stays -- and is the current page there. Home is not a nav item.
+ *
+ * CRM (#52), Goals (#96), Habits (#38), Journal (#159), Nutrition
  * (#69) and Finances (#113) have screens behind them and are links. The mockup's "Nutrition & Health" became Nutrition, after
  * Habits, when its first card landed (docs/spec.md); Health joins that screen
  * later, and Review (#239) is a link too. A screen not built yet would be
@@ -31,12 +35,11 @@ import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
 /**
  * The mockup's nav, in its order but for Nutrition, which the spec places
  * after Habits, and Goals, which it places after CRM. Journal follows Habits,
- * as in the mockup (#163). A screen with an `href` is a link; one without is not built
+ * as in the mockup (#163). Home is the brand (ADR 0049). A screen with an `href` is a link; one without is not built
  * yet and renders disabled in place, so graduating a screen never shuffles
  * the positions of the others.
  */
 const SCREENS = [
-  { label: 'Home', href: '/' },
   { label: 'CRM', href: '/crm' },
   { label: 'Goals', href: '/goals' },
   { label: 'Habits', href: '/habits' },
@@ -147,7 +150,7 @@ export default function Topbar() {
   return (
     <>
       <header id="topbar">
-        <div className="brand">
+        <Link href="/" className="brand" aria-label="PersonalOS, home" aria-current={pathname === '/' ? 'page' : undefined}>
           <svg className="brand-mark" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <rect x="1.5" y="1.5" width="17" height="17" rx="5" stroke="currentColor" strokeWidth="1.6" />
             <path
@@ -159,7 +162,7 @@ export default function Topbar() {
             />
           </svg>
           <span className="brand-name">PersonalOS</span>
-        </div>
+        </Link>
 
         <nav className="nav">
           {SCREENS.map((screen) =>

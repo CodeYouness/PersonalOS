@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  accountSections,
+  accountStaleSince,
   accountValueOn,
   allocation,
   averageMark,
@@ -1688,5 +1690,85 @@ describe('the movements without a category', () => {
     expect(uncategorisedCounts(transactions, categories, ['2026-03'])).toEqual({ spending: 2, income: 1 });
     expect(uncategorisedCounts(transactions, categories, ['2026-02', '2026-03'])).toEqual({ spending: 3, income: 1 });
     expect(uncategorisedCounts(transactions, categories, ['2026-04'])).toEqual({ spending: 0, income: 0 });
+  });
+});
+
+describe('the accounts table, by kind', () => {
+  const inputs = {
+    accounts: [
+      account({ id: 'account_loan', kind: 'liability' }),
+      account({ id: 'account_current', kind: 'cash' }),
+      account({ id: 'account_pension', kind: 'investment' }),
+      account({ id: 'account_savings', kind: 'cash' }),
+      account({ id: 'account_wallet', kind: 'cash' }),
+      account({ id: 'account_crypto', kind: 'investment' }),
+    ],
+    observations: [
+      observation({ id: 'observation_1', accountId: 'account_current', amount: 120000, date: '2026-04-01' }),
+      observation({ id: 'observation_2', accountId: 'account_savings', amount: 500000, date: '2026-03-01' }),
+      // An overdraft lowers the cash subtotal.
+      observation({ id: 'observation_3', accountId: 'account_wallet', amount: -2000, date: '2026-04-10' }),
+      observation({ id: 'observation_4', accountId: 'account_loan', amount: 715000, date: '2026-02-01' }),
+    ],
+    trades: [],
+    prices: [],
+    transactions: [],
+  };
+  const today = '2026-04-20';
+  const overview = financeOverview(inputs, today);
+  const ids = (/** @type {{ account: { id: string } }[]} */ list) => list.map((row) => row.account.id);
+
+  it('groups the accounts as net worth is written -- cash, invested, other assets, debt -- leaving out a kind with none', () => {
+    const sections = accountSections(overview, overview.accounts);
+
+    expect(sections.map((section) => [section.kind, section.part, ids(section.rows)])).toEqual([
+      ['cash', 'cash', ['account_current', 'account_savings', 'account_wallet']],
+      ['investment', 'invested', ['account_pension', 'account_crypto']],
+      ['liability', 'debt', ['account_loan']],
+    ]);
+  });
+
+  it('subtotals each kind with the allocation bar\'s own amount, a debt as what is owed', () => {
+    const sections = accountSections(overview, overview.accounts);
+    const parts = allocation(overview);
+
+    expect(sections.find((section) => section.kind === 'cash')?.subtotal).toBe(120000 + 500000 - 2000);
+    expect(sections.find((section) => section.kind === 'liability')?.subtotal).toBe(715000);
+    for (const section of sections) {
+      if (section.subtotal === null) continue;
+      expect(section.subtotal).toBe(parts.find((part) => part.key === section.part)?.amount);
+    }
+  });
+
+  it('leaves an unknown value out of the subtotal, and a kind with no value at all is unknown, not zero', () => {
+    const sections = accountSections(overview, overview.accounts);
+
+    expect(sections.find((section) => section.kind === 'investment')?.subtotal).toBeNull();
+    const known = financeOverview({ ...inputs, observations: [...inputs.observations, observation({ id: 'observation_5', accountId: 'account_pension', amount: 300000, date: '2026-04-02' })] }, today);
+    expect(accountSections(known, known.accounts).find((section) => section.kind === 'investment')?.subtotal).toBe(300000);
+  });
+
+  it('groups any list of the rows -- the folded ones too -- and keeps the subtotal of the whole kind', () => {
+    const shown = overview.accounts.filter((row) => row.account.id !== 'account_savings');
+
+    expect(accountSections(overview, shown).find((section) => section.kind === 'cash')?.subtotal).toBe(120000 + 500000 - 2000);
+    expect(accountSections(overview, [])).toEqual([]);
+  });
+});
+
+describe('an account nobody has updated in a while', () => {
+  /** @returns {any} */
+  const row = (/** @type {string | null} */ valueDate) => ({ account: account({}), value: valueDate === null ? null : 100, valueDate, change30d: null });
+
+  it('is stale from the day after its value is 35 days old, and says since when', () => {
+    // 35 days before 20 April is 16 March.
+    expect(accountStaleSince(row('2026-03-16'), '2026-04-20')).toBeNull();
+    expect(accountStaleSince(row('2026-03-15'), '2026-04-20')).toBe('2026-03-15');
+    expect(accountStaleSince(row('2026-04-20'), '2026-04-20')).toBeNull();
+    expect(limits.financeStaleAccountDays).toBe(35);
+  });
+
+  it('is never stale while unknown: it already says so', () => {
+    expect(accountStaleSince(row(null), '2026-04-20')).toBeNull();
   });
 });

@@ -92,7 +92,7 @@ describe('FinanceTransactions', () => {
       const html = render({ transactions: [t('tx_loan', 'Loan back', { amount: 5000, notCounted: true })] });
 
       expect(html).toContain('<td class="num finance-amount is-quiet">+\u200950.00</td>');
-      expect(html).toContain(' · not counted');
+      expect(html).toContain('<span class="caption">· not counted</span>');
     });
 
     it('shows a transfer as the amount moved, quieter, naming where it went', () => {
@@ -106,6 +106,28 @@ describe('FinanceTransactions', () => {
 
     it('keeps a date on one line', () => {
       expect(render({})).toContain('<td class="num finance-date">2 Mar</td>');
+    });
+  });
+
+  describe('a row is one line (ADR 0049)', () => {
+    const long = 'Card payment at a very long merchant name that goes on and on, Lisboa PT';
+
+    it('cuts a long description with an ellipsis, the whole of it in its title, still the link to its panel', () => {
+      const html = render({ transactions: [t('tx_long', long, { notCounted: true })] });
+
+      expect(html).toContain('<td><span class="finance-cut"><a ');
+      expect(html).toContain(
+        'class="finance-account-link finance-cut-text" title="' + long + '" href="/finances?month=2026-03&amp;transaction=tx_long">' + long + '</a>'
+      );
+      // The note is outside the cut text, so it is never the part cut away.
+      expect(html).toContain('</a><span class="caption">· not counted</span></span></td>');
+    });
+
+    it('keeps the category and the account on one line, each whole in its title', () => {
+      const html = render({ transactions: [t('tx_move', 'To savings', { amount: -30000, counterAccountId: 'account_b' })] });
+
+      expect(html).toContain('<span class="finance-cut-text" title="Transfer">Transfer</span>');
+      expect(html).toContain('<span class="finance-cut-text" title="Current → Savings">Current → Savings</span>');
     });
   });
 

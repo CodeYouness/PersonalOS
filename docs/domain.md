@@ -1149,6 +1149,16 @@ movement on either end, a balance or a trade -- in the last
 accounts" (`quietAccounts`, ADR 0048): it still counts, and is one click
 away. The selected account is always shown.
 
+**The accounts table reads by kind** (ADR 0049): Account and Value, the
+value last, in sections -- cash, invested, other assets, debt
+(`accountSections`) -- each with its subtotal, which is the allocation bar's
+amount for that part, a debt as what is owed; a kind with no value at all is
+unknown, not zero. The table says once when its newest value is from ("Last
+updated 17 Nov"). An account whose value is older than
+`limits.financeStaleAccountDays` (35) days is **stale** and says "since
+2 Jan" after its name (`accountStaleSince`); an unknown one is never
+stale.
+
 **Deleting is for a mistake.** It removes the account with its balances and
 every link to them, after a confirmation. An account that transactions belong
 to cannot be deleted -- money that moved is never lost -- and is archived
