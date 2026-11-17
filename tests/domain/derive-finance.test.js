@@ -19,9 +19,12 @@ import {
   spendingAverages,
   spendingParts,
   trendBars,
+  trendHigh,
   trendMonths,
   UNCATEGORISED_INCOME,
   UNCATEGORISED_SPENDING,
+  worthLine,
+  worthTrend,
   yearFlows,
   yearMonths,
 } from '@/lib/domain/derive/finance.js';
@@ -982,6 +985,102 @@ describe('spending over time: the trend, the average, the year', () => {
       expect(trendBars([{ month: '2026-01', income: 300000, spending: 100000, left: 200000 }])).toEqual([
         { income: 1, spending: 0.33, left: 0.67 },
       ]);
+    });
+
+    it('scales to the highest income or spending drawn, which the axis prints', () => {
+      expect(
+        trendHigh([
+          { month: '2026-01', income: 200000, spending: 50000, left: 150000 },
+          { month: '2026-02', income: null, spending: null, left: null },
+          { month: '2026-03', income: -5000, spending: 250000, left: -255000 },
+        ])
+      ).toBe(250000);
+      expect(trendHigh([{ month: '2026-01', income: null, spending: null, left: null }])).toBe(0);
+      expect(trendHigh([])).toBe(0);
+    });
+  });
+
+  describe('net worth over the trend\'s months', () => {
+    const accounts = [account({ id: 'account_current', kind: 'cash' }), account({ id: 'account_pension', kind: 'investment' })];
+    const observations = [
+      observation({ id: 'observation_1', accountId: 'account_current', amount: 100000, date: '2026-02-10' }),
+      observation({ id: 'observation_2', accountId: 'account_current', amount: 150000, date: '2026-04-05' }),
+      observation({ id: 'observation_3', accountId: 'account_current', amount: 170000, date: '2026-05-03' }),
+    ];
+    const inputs = { accounts, observations, trades: [], prices: [], transactions: [] };
+    const months = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05'];
+
+    it('reads each month\'s end from the history, the current month as of today', () => {
+      const { history } = financeOverview(inputs, '2026-05-12');
+
+      // The pension has no value: it is left out, never counted as zero.
+      expect(worthTrend(history, months, '2026-05-12')).toEqual([
+        { month: '2026-01', netWorth: null, asOf: null },
+        { month: '2026-02', netWorth: 100000, asOf: '2026-02-28' },
+        { month: '2026-03', netWorth: 100000, asOf: '2026-03-31' },
+        { month: '2026-04', netWorth: 150000, asOf: '2026-04-30' },
+        { month: '2026-05', netWorth: 170000, asOf: '2026-05-12' },
+      ]);
+    });
+
+    it('leaves a month the history does not draw unknown: before "tracked since", or after today', () => {
+      const { history } = financeOverview({ ...inputs, trackedSince: '2026-03-15' }, '2026-05-12');
+
+      expect(worthTrend(history, [...months, '2026-06'], '2026-05-12').map((row) => row.netWorth)).toEqual([
+        null, null, 100000, 150000, 170000, null,
+      ]);
+    });
+
+    it('agrees with the history card, month for month', () => {
+      const { history } = financeOverview(inputs, '2026-05-12');
+      const trend = worthTrend(history, months, '2026-05-12');
+
+      for (const row of history) expect(trend.find((each) => each.month === row.month)?.netWorth).toBe(row.netWorth);
+    });
+  });
+
+  describe('the net worth line', () => {
+    /** @param {string} month @param {number | null} netWorth */
+    const w = (month, netWorth) => ({ month, netWorth, asOf: netWorth === null ? null : month + '-28' });
+
+    it('scales the line from its lowest month to its highest, leaves an unknown month a gap, and gives the change over the span', () => {
+      expect(worthLine([w('2026-01', null), w('2026-02', 100000), w('2026-03', 120000), w('2026-04', null), w('2026-05', 150000)])).toEqual({
+        points: [null, 0, 0.4, null, 1],
+        low: 100000,
+        high: 150000,
+        first: w('2026-02', 100000),
+        newest: w('2026-05', 150000),
+        change: 50000,
+      });
+    });
+
+    it('keeps a small wobble small: the scale spans at least a tenth of the largest value', () => {
+      // 130,000.00 and 130,400.00: a 400.00 difference is not drawn as the chart's full height.
+      const line = worthLine([w('2026-01', 13000000), w('2026-02', 13040000)]);
+
+      expect(line.low).toBe(12368000);
+      expect(line.high).toBe(13672000);
+      expect(line.points).toEqual([0.48, 0.52]);
+      expect(line.change).toBe(40000);
+    });
+
+    it('draws a flat line in the middle, never NaN', () => {
+      expect(worthLine([w('2026-01', 100000), w('2026-02', 100000)]).points).toEqual([0.5, 0.5]);
+      expect(worthLine([w('2026-01', 0), w('2026-02', 0)])).toMatchObject({ points: [0.5, 0.5], low: 0, high: 0, change: 0 });
+    });
+
+    it('crosses zero on its own scale', () => {
+      expect(worthLine([w('2026-01', -50000), w('2026-02', 50000)])).toMatchObject({ points: [0, 1], low: -50000, high: 50000 });
+    });
+
+    it('has no change with one known month, and nothing at all with none', () => {
+      expect(worthLine([w('2026-01', null), w('2026-02', 80000)])).toMatchObject({ change: null, newest: w('2026-02', 80000) });
+      expect(worthLine([w('2026-01', null)])).toEqual({ points: [null], low: null, high: null, first: null, newest: null, change: null });
+      expect(worthLine([])).toEqual({ points: [], low: null, high: null, first: null, newest: null, change: null });
+    });
+
+    it('rounds to two decimals', () => {
+      expect(worthLine([w('2026-01', 0), w('2026-02', 100000), w('2026-03', 300000)]).points).toEqual([0, 0.33, 1]);
     });
   });
 

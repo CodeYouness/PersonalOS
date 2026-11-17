@@ -1131,15 +1131,25 @@ a.cite { text-decoration: none; }
 /* Income & spending's controls: the Month / Year switch beside the picker. */
 #card-finance-flows .card-head { flex-wrap: wrap; }
 .finance-flow-controls { display: flex; align-items: center; justify-content: flex-end; gap: var(--s-xs); flex-wrap: wrap; }
-.finance-flow-controls .segmented .seg {
+.finance-flow-controls .segmented .seg, .finance-chart-switch .seg {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
   padding: 0 var(--s-sm); text-decoration: none;
 }
-/* The trend: two bars a month against the highest drawn (data marks, radius
-   2), what was left as an ink tick on the income bar. It scrolls inside its
-   own box, with 4px of room for a focus ring, never the page. */
-.finance-trend { margin: -4px -4px var(--s-md); padding: 4px; overflow-x: auto; }
-.finance-trend-plot { display: flex; gap: 4px; min-width: min-content; }
+/* The trend (ADR 0044): one row of month links under a chart switch, and a
+   scale column beside it, the same for both charts so switching moves
+   nothing. Net worth: an ink line on its own scale, a hairline at its top
+   and bottom, an ink dot per month. Income & spending: two bars a month
+   against the highest drawn (data marks, radius 2), what was left as an ink
+   tick on the income bar. The months scroll inside their own box, with 4px
+   of room for a focus ring, never the page. The box runs right to left so it
+   opens at its newest end, CSS alone; its months still read left to right. */
+.finance-trend { --trend-h: 96px; margin: 0 0 var(--s-md); }
+.finance-chart-switch { margin-bottom: var(--s-sm); }
+.finance-trend-frame { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-xs); align-items: start; }
+.finance-trend-scroll { margin: -4px; padding: 4px; overflow-x: auto; direction: rtl; }
+/* No gap between months: each month's middle is then at an even step, where
+   the line's points are drawn. */
+.finance-trend-plot { position: relative; display: flex; min-width: min-content; direction: ltr; }
 .finance-trend-month {
   flex: 1 0 44px; display: flex; flex-direction: column; gap: 4px;
   padding: 4px 4px 2px; border-radius: var(--r-xs); color: var(--ink-subtle); text-decoration: none;
@@ -1149,8 +1159,32 @@ a.cite { text-decoration: none; }
 .finance-trend-month.is-selected { background: var(--surface-3); color: var(--ink); }
 .finance-trend-bars {
   position: relative; display: flex; align-items: flex-end; gap: 2px;
-  height: 96px; border-bottom: 1px solid var(--hairline-strong);
+  height: var(--trend-h); border-bottom: 1px solid var(--hairline-strong);
 }
+/* The line's scale is not zero, so no baseline under its months. */
+.finance-trend.is-worth .finance-trend-bars { border-bottom-color: transparent; }
+/* Top 4px: the month link's own padding. The bottom pixel is the baseline. */
+.finance-worth-line {
+  position: absolute; left: 0; top: 4px; width: 100%; height: calc(var(--trend-h) - 1px);
+  overflow: visible; pointer-events: none;
+}
+.finance-worth-line path {
+  fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.finance-worth-line .is-grid { stroke: var(--hairline-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.finance-worth-point {
+  position: absolute; left: 50%; z-index: 1; width: 6px; height: 6px; transform: translate(-50%, 50%);
+  border-radius: var(--r-full); background: var(--ink);
+}
+.finance-worth-point.is-selected { width: 12px; height: 12px; background: var(--surface-3); border: 2px solid var(--ink); }
+.finance-trend-axis {
+  position: relative; width: 7ch; height: calc(var(--trend-h) - 1px); margin-top: 4px;
+  font-size: 13px; line-height: 1.3; color: var(--ink-subtle); white-space: nowrap;
+}
+.finance-trend-axis span { position: absolute; left: 0; text-align: left; }
+.finance-trend-axis .is-top { top: 0; transform: translateY(-50%); }
+.finance-trend-axis .is-bottom { bottom: 0; transform: translateY(50%); }
 .finance-trend-bars i { display: block; flex: 1; min-width: 0; border-radius: 2px 2px 0 0; }
 .finance-trend-bars .is-income { background: var(--series-2); }
 .finance-trend-bars .is-spending { background: var(--series-1); }

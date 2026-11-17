@@ -14,6 +14,12 @@ yet: what an "average month" averages over, what a month with nothing in a
 category counts as, what "a year" is when the year is not over or tracking
 began in the middle of it, and what a year is compared with.
 
+Seen as bars, the trend answered how money flowed each month but not where
+it left you: what was asked of it first was how net worth grows over time,
+with the bars kept beside it. Net worth month by month already existed --
+the History card's table -- and a line of it needs a scale rule nobody had
+written either.
+
 `yearFlows` already existed, and was the obvious place for a year. It is
 the twelve months ending with a month -- the "Saved over 12 months" rate the
 card and the question context both show.
@@ -49,9 +55,45 @@ card and the question context both show.
   month is among them, so picking one of them does not move the rest, and
   otherwise the twelve ending with it. A month with nothing counted is an
   empty slot, never a bar of zero.
-- **No chart library.** Inline CSS marks in the existing tones: the series
-  tones for parts of a whole and for the two flows, the ink for what was
-  left, and no state colour -- spending above its average is not an error.
+- **The trend has two charts, net worth first.** Over the same months, a
+  switch above the trend draws net worth at each month's end as a line --
+  the default, since how net worth grows is the question most often asked
+  of it -- or income and spending as bars. The choice is in the address,
+  `?chart=flows`, in the style of `?period`: the default is never written,
+  so every address from before reads the line, and every link that spreads
+  the place keeps it. It combines with Month / Year: both charts cover the
+  trend's months in a month and the year's in a year.
+- **The line reads the history; it is not a second net worth.** `worthTrend`
+  takes the month-end values from `financeOverview`'s history -- the month
+  still running as of today -- so the line and the History card cannot
+  disagree. A month the history does not draw (before the first value,
+  before "tracked since", after today) is unknown: a gap in the line and an
+  outlined slot, never a zero.
+- **The line's scale is its own lowest and highest value, not zero, with a
+  floor.** A line is read by its slope and position, not by its length, and
+  from zero a year that grew by 5% is a flat line. A scale fitted to the
+  values alone would draw a few hundred euros on a hundred thousand as a
+  cliff, so the scale spans at least a tenth of the largest value
+  (`WORTH_MIN_SPAN`), widened evenly around the values. Because the bottom
+  is not zero, it is printed: the scale's bottom and top sit in a column
+  beside the chart, and the newest value and the change from the first
+  known month are written under it. The bars keep zero at the bottom -- a
+  bar is read by its length -- and the same column prints their top.
+- **Switching moves nothing.** Both charts share the row of month links,
+  their labels and the scale column, so the hit areas stay where they were.
+  The months sit edge to edge, so each month's middle -- where the line's
+  point is -- falls at an even step and the line can be one stretched SVG.
+- **The trend opens at its newest end.** On a phone the months scroll
+  inside the card. The scroll box runs right to left, so CSS alone opens it
+  at its newest month, before any script runs; the months still read left
+  to right. A selected month further back is brought into view by a ref
+  callback that moves that box, never the page -- the card remounts on
+  every month picked, so without it the month just tapped would scroll away.
+- **No chart library.** Inline CSS marks and one inline SVG in the existing
+  tones: the series tones for parts of a whole and for the two flows, the
+  ink for what was left and for the net worth line, hairlines for its
+  scale, and no state colour -- spending above its average is not an error,
+  and a fall in net worth is read from the line, not from a colour.
 
 ## Consequences
 
@@ -61,4 +103,10 @@ card and the question context both show.
 - A year's transaction list, with no line selected, is the whole year's.
 - The window and the threshold are constants, `AVERAGE_MONTHS` and
   `AVERAGE_MIN_MONTHS` in `lib/domain/derive/finance.js`; the trend's length
-  is `TREND_MONTHS`.
+  is `TREND_MONTHS`; the line's least span is `WORTH_MIN_SPAN`.
+- The net worth line and the History card show the same month-end values:
+  the line twelve months of them, the card every month since tracking began,
+  with each month's change. Whether the card still earns its place is open.
+- The line inherits the history's reading of an account with no value yet:
+  it is left out, so the month an account gets its first balance is a step
+  in the line that is not growth.

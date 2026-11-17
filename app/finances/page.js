@@ -8,6 +8,7 @@ import FinanceHistory from '@/components/FinanceHistory.js';
 import { monthLabel } from '@/components/format.js';
 import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
+import { financesChart } from '@/lib/domain/addresses.js';
 import { isMonthKey, monthOf, today, yearOf } from '@/lib/domain/dates.js';
 import {
   calendarYearFlows,
@@ -20,6 +21,7 @@ import {
   savingsRate,
   spendingAverages,
   trendMonths,
+  worthTrend,
   yearFlows,
 } from '@/lib/domain/derive/finance.js';
 import { brokerStaleness } from '@/lib/domain/derive/sync-staleness.js';
@@ -55,11 +57,21 @@ export const dynamic = 'force-dynamic';
  * instead of the month (calendarYearFlows); anything else, or nothing, reads
  * the month. A selected line then lists the year's transactions.
  *
- * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], transaction?: string | string[], category?: string | string[] }> }} props
+ * `?chart=flows` has the section's trend draw income and spending as bars;
+ * anything else, or nothing, draws net worth as a line (ADR 0044). Both
+ * cover the same months: the trend's twelve in a month, the year's in a year.
+ *
+ * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], chart?: string | string[], transaction?: string | string[], category?: string | string[] }> }} props
  */
 export default async function FinancesScreen({ searchParams }) {
-  const { account: accountParam, month: monthParam, period: periodParam, transaction: transactionParam, category: categoryParam } =
-    await searchParams;
+  const {
+    account: accountParam,
+    month: monthParam,
+    period: periodParam,
+    chart: chartParam,
+    transaction: transactionParam,
+    category: categoryParam,
+  } = await searchParams;
   const todayKey = today();
   const [finance, syncStates, selected, profile, selectedTransaction] = await Promise.all([
     getFinanceInputs(),
@@ -86,6 +98,8 @@ export default async function FinancesScreen({ searchParams }) {
   const year = period === 'year' ? calendarYearFlows(transactions, categories, month, months) : null;
   const flows = year ?? monthFlows(transactions, categories, month);
   const periodMonths = year?.months ?? [month];
+  const chart = financesChart(chartParam);
+  const chartMonths = year === null ? trendMonths(months, month) : periodMonths;
   const periodTransactions = transactions.filter(
     (transaction) => periodMonths.includes(monthOf(transaction.date)) && (category === null || lineHolds(transaction, category, categories))
   );
@@ -96,7 +110,7 @@ export default async function FinancesScreen({ searchParams }) {
       ? []
       : rows.filter((row) => row.accountId === selected.id).sort((a, b) => b.date.localeCompare(a.date));
   /** @type {import('@/components/finance.js').FinancesPlace} */
-  const place = { account: selected?.id ?? null, month, period, category, transaction: selectedTransaction?.id ?? null };
+  const place = { account: selected?.id ?? null, month, period, chart, category, transaction: selectedTransaction?.id ?? null };
 
   return (
     <section id="screen-finances" className="screen is-active">
@@ -129,11 +143,14 @@ export default async function FinancesScreen({ searchParams }) {
             key={period + month}
             flows={flows}
             period={period}
+            chart={chart}
             yearRate={period === 'year' ? null : savingsRate(yearFlows(transactions, categories, month))}
-            trend={flowTrend(transactions, categories, period === 'year' ? periodMonths : trendMonths(months, month))}
+            trend={flowTrend(transactions, categories, chartMonths)}
+            worth={worthTrend(overview.history, chartMonths, todayKey)}
             averages={period === 'year' ? null : spendingAverages(transactions, categories, month, months)}
             months={months}
             month={month}
+            todayKey={todayKey}
             place={place}
           />
           <FinanceTransactions

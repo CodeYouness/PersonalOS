@@ -5,6 +5,7 @@ import {
   dayLabel,
   formatChange,
   formatEuro,
+  formatEuroShort,
   formatMoney,
   formatMoneyChange,
   formatPercentChange,
@@ -97,6 +98,19 @@ describe('money formatting', () => {
   it('puts the euro sign in front, with a thin space', () => {
     expect(formatEuro(8432055)).toBe('€\u200984,321');
     expect(formatEuro(-50000)).toBe('−€\u2009500');
+  });
+
+  it('shortens an amount on a chart\'s scale, rounding half away from zero', () => {
+    expect(formatEuroShort(0)).toBe('\u20ac\u20090');
+    expect(formatEuroShort(95049)).toBe('\u20ac\u2009950');
+    expect(formatEuroShort(100000)).toBe('\u20ac\u20091k');
+    expect(formatEuroShort(424900)).toBe('\u20ac\u20094.2k');
+    expect(formatEuroShort(1234500)).toBe('\u20ac\u200912.3k');
+    expect(formatEuroShort(9996000)).toBe('\u20ac\u2009100k');
+    expect(formatEuroShort(13040000)).toBe('\u20ac\u2009130k');
+    expect(formatEuroShort(99960000)).toBe('\u20ac\u20091M');
+    expect(formatEuroShort(123456700)).toBe('\u20ac\u20091.23M');
+    expect(formatEuroShort(-1234500)).toBe('\u2212\u20ac\u200912.3k');
   });
 
   it('signs a change, with a real minus', () => {

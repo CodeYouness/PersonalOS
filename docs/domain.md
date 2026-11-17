@@ -1498,12 +1498,27 @@ of it is derived (`monthFlows`, `yearFlows`, `savingsRate`), never stored.
 Over time (ADR 0044), every number by the month's own rules -- one
 implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
 
-- **The trend** (`flowTrend`, `trendBars`): income and spending per month as
-  two bars, what was left as a tick on the income bar. It draws the newest
-  twelve months on offer while the selected month is among them, else the
-  twelve ending with it (`trendMonths`); in the year reading, the year's
-  months. A month with nothing counted is an empty slot, not a bar of zero.
-  Each month is a link that reads it.
+- **The trend** draws one of two charts over the same months: the newest
+  twelve on offer while the selected month is among them, else the twelve
+  ending with it (`trendMonths`); in the year reading, the year's months.
+  Each month is a link that reads it, and a switch above (`?chart=flows`;
+  the line is the default and never written) picks the chart.
+  - **Net worth** (`worthTrend`, `worthLine`), the default: a line through
+    net worth at each month's end -- today, for the month still running --
+    read from **the history** below, so the two never disagree. A month the
+    history does not draw (before the first value, before "tracked since",
+    after today) is **unknown**: a gap in the line, never a zero. Its scale
+    runs from the line's lowest value to its highest, not from zero -- a
+    line is read by its slope, and from zero a year of saving 5% is flat --
+    widened evenly to at least a tenth of the largest value
+    (`WORTH_MIN_SPAN`), so a few hundred euros on a hundred thousand stay a
+    near-flat line. The scale's bottom and top are printed beside it; the
+    newest value and the change from the first known month are written
+    under it.
+  - **Income & spending** (`flowTrend`, `trendBars`): two bars a month, what
+    was left as a tick on the income bar, on a scale from zero to the
+    highest bar (`trendHigh`). A month with nothing counted is an empty
+    slot, not a bar of zero.
 - **A line's average month** (`spendingAverages`), beside each top-level
   spending line and Uncategorised, in the month reading only: the mean of
   that line over the months on offer before the selected one, at most
@@ -1550,7 +1565,9 @@ ADR 0008's exception applies to it again.
 ### The history
 
 Month-end net worth for every month from the first balance or trade to today,
-and its change from the month before -- derived, never stored (ADR 0022). An
+and its change from the month before -- derived, never stored (ADR 0022). The
+History card lists it; the net worth line of Income & spending's trend draws
+the months of it the trend covers (ADR 0044). An
 archived account counts, with its movements, on every day before it was
 archived; between two balances a cash account follows its movements (ADR
 0024), and otherwise a value stays flat between two balances or prices; a
