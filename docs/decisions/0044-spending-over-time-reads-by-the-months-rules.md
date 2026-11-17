@@ -3,7 +3,10 @@
 - **Status** accepted; amended by [0046](0046-spending-by-tag.md) and
   [0048](0048-finances-reads-at-a-glance.md), which removes the chart switch:
   the net worth line moved to the Net worth card and covers all tracked time,
-  and Income & spending draws only its bars
+  and Income & spending draws only its bars; and by
+  [0050](0050-income-and-spending-reads-as-a-circle.md): the average month
+  is the year's only, each line's total over the year's months, and the
+  composition bar shows only in the table view
 - **Date** 2026-11-17
 
 ## Context

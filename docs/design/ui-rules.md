@@ -36,8 +36,8 @@ derivation and its contrast in a comment, never a hex in a rule.
 
 ## State colours
 
-For state only (overdue, done, warning, error, estimated), never decoration
-or categories. Each is 4.5:1 or better on the ground, on a card and on its
+For state only (overdue, done, warning, error, estimated, a period that
+spent more than came in), never decoration or categories. Each is 4.5:1 or better on the ground, on a card and on its
 own soft background.
 
 | Token | Value | Soft background |
@@ -99,8 +99,10 @@ is never the label.
 truly cannot take 44: table row editors, the capture log's actions, text
 links in a row, the weekday picker. Known smaller ones, on purpose: heat-map
 cells (one of thirty in a row), a tag's ×, the citation chips (32), the
-habit up/down pair (30, stacked), a table row's disclosure (28), the
-Undo on a line filed from a check-in note (40).
+habit up/down pair (30, stacked), a table row's disclosure (28) and a
+line's name that opens its subcategories (28), the Undo on a line filed from
+a check-in note (40), and the parts of Income & spending's circle (a ring
+about 28 to 33px thick, each part also reachable by keyboard; ADR 0050).
 
 ## Motion
 

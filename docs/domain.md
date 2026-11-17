@@ -1516,10 +1516,35 @@ income, spending and what is left; the **savings rate**, (income − spending)
 when income is zero or less, never 0% or −∞%; **fixed vs variable**
 spending by each transaction's own category flag; and a table per kind of
 category with each one's total (a parent's including its subcategories), its
-share of the month, and its change from the previous month in € and %, or
-"n.d." when the previous month was zero. Uncategorised money is a line of
-its own. Transfers and not-counted transactions are left out everywhere. All
-of it is derived (`monthFlows`, `yearFlows`, `savingsRate`), never stored.
+share of the month, and its change from the previous month in €.
+Uncategorised money is a line of its own. Transfers and not-counted
+transactions are left out everywhere. All of it is derived (`monthFlows`,
+`yearFlows`, `savingsRate`), never stored.
+
+**The circle** (ADR 0050) is how the card shows a period by default: what
+came in is the whole, split clockwise from the top into three parts
+(`flowCircle`), the breakdown beside it. `?view=table` shows the breakdown
+alone as a table instead; the circle is the default and never written
+(`financesView`).
+
+- **Invested** is money put into investments in the period, in cash
+  (`periodInvested`): every trade dated in it, on any holding, a buy at what
+  it cost -- units at its price, rounded half up to the cent, plus its fee --
+  less every sell at what it brought back, less its fee. Read from the
+  trades alone; a payment to a broker is a transfer or not counted (Ledger),
+  so it is never counted twice. In the circle it is never below zero: a
+  period that sold more than it bought invests nothing, and says how much
+  more it sold. Drawn up to what spending left of the income; what it
+  invested beyond that came **from earlier savings**, and is said.
+- **Kept** is what neither took: income less spent less invested, never
+  below zero. It is not **left** (income − spending): what was left is
+  invested plus kept, and the savings rate is still left over income.
+- **Spent** is the period's spending, drawn up to the income. Spending
+  beyond the income -- **overspending** -- is an arc outside the ring in the
+  danger tone, as a share of the income, a full outer ring past twice it,
+  and always said in words: "Spent € X more than came in". Without income
+  the ring is an empty outline; with nothing recorded and no trade, the card
+  says so in one line.
 
 Over time (ADR 0044), every number by the month's own rules -- one
 implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
@@ -1538,29 +1563,28 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   has counted movements on no category -- the ones the Uncategorised lines
   hold -- one line at the top of the card says how many and links to review
   them, by direction (ADR 0048).
-- **A line's average month** (`spendingAverages`), beside each top-level
-  spending line and Uncategorised, in the month reading only: the mean of
-  that line over the months on offer before the selected one, at most
-  **twelve**, a month with no movement in the line counting as **zero** --
-  the month was tracked, so nothing was spent. Rounded to a cent. Not shown
-  with fewer than **three** such months: one or two months are a
-  coincidence, not a habit. A paired mark sets the month's total over the
-  average (`averageMark`). **Every line with an average above zero is
-  listed**, at zero in a month with nothing in it -- no share, no change --
-  so a month without the gym reads as under its usual month
-  (`spendingLinesWithAverage`, ADR 0046); `monthFlows`, which the question
-  context reads, lists only lines with money this month or the last. The
-  caption explaining the average is printed only under a spending table
-  with rows. **A line with nothing in the period is folded** (`foldedLines`,
-  ADR 0048): the lines at a total of zero, in either table, go into one row
-  at its end, "N categories with nothing this month", which opens to show
-  them with their averages -- by itself when the selected line is one of
-  them. The tables head their total "Spent" and "Received".
+- **The breakdown** (ADR 0050): income first, then spending, then a
+  summary -- income, spent, invested, kept, the savings rates against the
+  target, fixed and variable -- as the final account. Each table's columns
+  are the line, its Share and its amount, last, headed "Spent" or
+  "Received"; the table view adds the change from the period before. **A
+  line's name opens its subcategories** when it has some, with what was
+  spent in each and a link to the line's movements; otherwise it lists its
+  movements. **A line with nothing in the period is folded**
+  (`foldedLines`, ADR 0048): the lines at a total of zero, in either table,
+  go into one row at its end, "N categories with nothing this month", which
+  opens to show them -- by itself when the selected line is one of them.
+- **A line's average month** (`lineAverages`) is the year's only, in the
+  table view: the line's total over the year's months on offer, a month with
+  no movement counting as **zero** -- the month was tracked -- rounded to a
+  cent; every line, subcategories and Uncategorised included. A month has no
+  average (ADR 0050 removed the twelve months before it and the paired
+  mark).
 - **The year reading** (`?period=year`, `calendarYearFlows`): the selected
   month's **calendar year to date** -- its months on offer, from January or
   "tracked since" to December or today's month -- with the month's figures,
-  tables and savings rate ("Saved in 2026") over those months. Its change
-  column compares with the **same months a year before** (January to
+  tables, circle and savings rate ("Saved in 2026") over those months, and
+  in the table view each line's average month. Its change column compares with the **same months a year before** (January to
   November against January to November, never a whole year), and only when
   every one of them was on offer and something was counted in them;
   otherwise it is blank. A selected line lists the year's transactions.
@@ -1575,10 +1599,11 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   the up tone for money in, "−" in the ink for money out; a movement not
   counted keeps its sign and is quieter; a transfer shows the amount moved,
   quieter, and names both ends. Dates never wrap.
-- **The composition** (`spendingParts`): one bar of the period's spending by
-  top-level category and Uncategorised, each line's part of what the lines
-  with money spent add up to -- a net refund has no part. The spending
-  table is its legend: a line with a part carries its tone.
+- **The composition** (`spendingParts`), in the table view: one bar of the
+  period's spending by top-level category and Uncategorised, each line's
+  part of what the lines with money spent add up to -- a net refund has no
+  part. The spending table is its legend: a line with a part carries its
+  tone.
 
 **The target savings rate** (`profile.financeSavingsTarget`, ADR 0045) is a
 whole percent from 1 to 99, or none, set in Settings, under Manage. Each savings
@@ -2126,7 +2151,7 @@ something.
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
 | reviews (answers, lever, completedAt) | a review's week figures: habits, intake, spending, what was closed |
 | action records (name, params, day, origin, recordRef, before, status, error, the receipt line's text) | whether a receipt line can be undone now |
-| journal entries | the month's flows (income, spending, what is left, per category with share and change), the savings rate, fixed vs variable -- transfers and not-counted transactions excluded; whether a transaction is a transfer |
+| journal entries | the month's flows (income, spending, what is left, per category with share and change), the savings rate, fixed vs variable, what was invested (from the trades) and kept, a line's average month in a year -- transfers and not-counted transactions excluded; whether a transaction is a transfer |
 | memory entries | current net worth, an account's value between balances, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
