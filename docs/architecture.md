@@ -145,7 +145,11 @@ The check-in (ADR 0037) is the registry's first caller. Its questions are
 **derived**, never stored: `checkinQuestions` in
 `lib/domain/derive/checkin.js` reads the day's log and the habits -- a habit
 scheduled that day, mood, energy, time, and the open question -- and says
-which the day already answers. Its answers **go through the registry**:
+which the day already answers. A habit counted from a time area (ADR 0039)
+is not a question: `countedHabits` lists it beside them, and its day is
+derived from the time by `habitValueOn` in `lib/domain/derive/habits.js`, the
+one reading of a habit's day that every habit number goes through. Its
+answers **go through the registry**:
 `lib/checkin/closed.js` turns a closed answer into action requests by rules,
 and `lib/checkin/day.js` recomputes the questions from the store (never
 trusting a client's list), runs the requests under the origin `checkin` and
@@ -174,9 +178,12 @@ is filed, and the answer still succeeds (rule 2).
 
 The open answer's reader is told only what the day still leaves open --
 the habits with no value and no skip reason, whether the time is declared --
-read again after the entry is kept, and a request for something the day
-already says is dropped before `runActions`, so a closed answer is never
-filed twice from the note.
+and the habits counted from a time area, as time and never as habits to
+tick; read again after the entry is kept, and a request for something the
+day already says, or for a habit counted from time, is dropped before
+`runActions`, so a closed answer is never filed twice from the note and a
+habit the time answers is never ticked. The store refuses that tick anyway
+(`logHabitValue`), so no caller can go round the rule.
 
 The check-in's screen is the panel at the top of Home: a server component
 (`components/CheckinPanel.js`) reads the day the address names

@@ -1,3 +1,4 @@
+import { countedHint } from '@/components/checkinWords.js';
 import { formatMinutes } from '@/components/format.js';
 import { checkinSummary } from '@/lib/domain/derive/checkin.js';
 
@@ -6,6 +7,8 @@ import { checkinSummary } from '@/lib/domain/derive/checkin.js';
  * mood, energy, habits kept out of those counted, the time declared -- its
  * total and a bar by area -- then each habit kept or why not. Read off the
  * day's questions and answers by `checkinSummary`, the one implementation.
+ * A habit counted from a time area (ADR 0039) says the area's time instead
+ * of a tick: "From Training 1h", "No Training time".
  * Pure; what follows it in the panel -- the notes, the note box, "Edit
  * answers" -- comes in as children.
  *
@@ -24,7 +27,12 @@ import { checkinSummary } from '@/lib/domain/derive/checkin.js';
  * }} props `name` the day as the panel names it
  */
 export function CheckinSummary({ state, name, areas, scale, skipReasons, children }) {
-  const summary = checkinSummary({ questions: state.questions, answers: state.answers, timeAreas: areas.map((area) => area.key) });
+  const summary = checkinSummary({
+    questions: state.questions,
+    answers: state.answers,
+    timeAreas: areas.map((area) => area.key),
+    counted: state.counted,
+  });
   const top = scale.at(-1) ?? 5;
   const areaLabel = (/** @type {string} */ key) => areas.find((area) => area.key === key)?.label ?? key;
   const reasonLabel = (/** @type {string} */ key) => skipReasons.find((reason) => reason.key === key)?.label ?? key;
@@ -86,7 +94,7 @@ export function CheckinSummary({ state, name, areas, scale, skipReasons, childre
           {summary.habits.map((habit) => (
             <li key={habit.id} className={'checkin-habit-line is-' + habit.state}>
               <span className="checkin-habit-name">{habit.label}</span>
-              <span className="checkin-habit-state">{habitWord(habit, reasonLabel)}</span>
+              <span className="checkin-habit-state">{habitWord(habit, reasonLabel, areaLabel)}</span>
             </li>
           ))}
         </ul>
@@ -99,13 +107,18 @@ export function CheckinSummary({ state, name, areas, scale, skipReasons, childre
 
 /**
  * What a habit's line says of it: "Kept", "8 of 8", "Skipped: Too heavy",
- * "Paused", "3 of 8, no reason".
+ * "Paused", "3 of 8, no reason" -- and for a habit counted from a time area,
+ * "From Training 1h", "No Training time", "From Training time, not declared".
  *
  * @param {import('@/lib/domain/derive/checkin.js').SummaryHabit} habit
  * @param {(key: string) => string} reasonLabel
+ * @param {(key: string) => string} areaLabel
  * @returns {string}
  */
-function habitWord(habit, reasonLabel) {
+function habitWord(habit, reasonLabel, areaLabel) {
+  if (habit.countedFrom !== null && (habit.state === 'kept' || habit.state === 'missed' || habit.state === 'open')) {
+    return countedHint(habit.countedFrom, habit.minutes, areaLabel);
+  }
   const count = habit.habitType === 'counter' && typeof habit.value === 'number' ? habit.value + ' of ' + (habit.target ?? 0) : null;
   switch (habit.state) {
     case 'kept':

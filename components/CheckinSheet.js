@@ -1,13 +1,18 @@
 import { CheckinNotes } from '@/components/CheckinNotes.js';
 import { AnswerError, CounterStepper, NoteBox, READING_NAMES, ReasonChips, TimeBody, countKeeps } from '@/components/CheckinQuestions.js';
 import { counterValue, savedCount } from '@/components/checkinReducer.js';
+import { countedHint } from '@/components/checkinWords.js';
 import { RatingButtons } from '@/components/DayRating.js';
+import { checkinSummary } from '@/lib/domain/derive/checkin.js';
 
 /**
  * The sheet of every answer of a day (ADR 0037): each question with what the
  * day holds, changeable in place -- a changed answer is a new answer through
  * the same POST, filed at once, so there is nothing to save but a count or
- * the time, which wait for their Save. Then the day's notes, each removable
+ * the time, which wait for their Save. A habit counted from a time area
+ * (ADR 0039) is listed with the others, kept or not as the saved time says,
+ * with a hint in place of Yes; its reasons stay, for a day it was not kept.
+ * Then the day's notes, each removable
  * with what was filed from it, and a box for another. Open from the summary
  * and from a day still being filled. Done, the view's one filled button,
  * closes it. Pure.
@@ -28,6 +33,9 @@ export function CheckinSheet({ state, name, openText, areas, step, max, scale, s
   const busy = state.pending !== null;
   const habits = state.questions.filter((question) => question.kind === 'habit');
   const time = state.questions.find((question) => question.kind === 'time');
+  const areaLabel = (/** @type {string} */ key) => areas.find((area) => area.key === key)?.label ?? key;
+  // Read as the summary reads them, from the answers saved: one rule.
+  const counted = checkinSummary({ questions: [], answers: state.answers, timeAreas: [], counted: state.counted }).habits;
 
   return (
     <section className="checkin-sheet" aria-labelledby="checkin-sheet-title">
@@ -35,7 +43,7 @@ export function CheckinSheet({ state, name, openText, areas, step, max, scale, s
         {name}&rsquo;s answers
       </h3>
 
-      {habits.length > 0 && (
+      {habits.length + counted.length > 0 && (
         <div className="checkin-sheet-group">
           <h4 className="eyebrow">Habits</h4>
           <ul className="checkin-sheet-rows">
@@ -84,6 +92,19 @@ export function CheckinSheet({ state, name, openText, areas, step, max, scale, s
                     onAnswer={onAnswer}
                   />
                   <AnswerError error={state.errors[question.id]} />
+                </li>
+              );
+            })}
+            {counted.map((habit) => {
+              const id = 'habit:' + habit.id;
+              /** @type {import('@/lib/domain/derive/checkin.js').Question} */
+              const question = { id, kind: 'habit', subjectId: habit.id, label: habit.label, answered: true, habitType: 'check', target: null };
+              return (
+                <li key={id} className={'checkin-sheet-row' + (habit.state === 'open' ? ' is-open' : '')}>
+                  <span className="checkin-label">{habit.label}</span>
+                  <span className="caption">{countedHint(habit.countedFrom ?? '', habit.minutes, areaLabel)}</span>
+                  <ReasonChips question={question} chosen={habit.skip} disabled={busy || habit.state === 'kept'} skipReasons={skipReasons} onAnswer={onAnswer} />
+                  <AnswerError error={state.errors[id]} />
                 </li>
               );
             })}

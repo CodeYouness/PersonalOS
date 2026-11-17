@@ -9,7 +9,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import HabitsHistory from '@/components/HabitsHistory.js';
-import HabitsManager from '@/components/HabitsManager.js';
+import HabitsManager, { HabitEditor } from '@/components/HabitsManager.js';
 import { historyRows } from '@/lib/domain/derive/habits.js';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh() {} }) }));
@@ -103,5 +103,49 @@ describe('HabitsHistory: skip reasons (ADR 0037)', () => {
     const markup = renderToStaticMarkup(createElement(HabitsHistory, { rows: [row], todayKey: '2026-10-16' }));
     expect(markup).toContain('<span class="heat-rate num">—</span>');
     expect(markup).not.toContain('0%');
+  });
+});
+
+describe('HabitsManager: counted from a time area (ADR 0039)', () => {
+  const counted = { ...gym, countedFrom: 'training' };
+  const html = renderToStaticMarkup(
+    createElement(HabitsManager, { habits: /** @type {any} */ ([counted, water]), todayKey: '2026-10-13' })
+  );
+
+  it('says on the row which area\'s time it is counted from', () => {
+    expect(html).toContain('check · Mon Wed Fri · counted from Training time');
+    expect(html).not.toContain('Every day · counted from');
+  });
+
+  it('offers the add form a labelled choice of area for a check, none chosen', () => {
+    const add = html.slice(html.indexOf('class="add-habit"'));
+    expect(add).toContain('<label class="caption" for="counted-new">Counted from time on</label>');
+    expect(add).toMatch(/<select id="counted-new" class="input">/);
+    expect(add).toContain('<option value="" selected="">—</option>');
+    for (const area of ['Work', 'Projects', 'Training', 'Refereeing']) expect(add).toContain('>' + area + '</option>');
+    expect(add).not.toContain('Study');
+  });
+
+  it('offers the editor of a check its area, chosen, and none to a counter', () => {
+    const props = { isPending: false, disabled: false, onCancel() {}, onSave() {} };
+    const check = renderToStaticMarkup(createElement(HabitEditor, { habit: /** @type {any} */ (counted), ...props }));
+    expect(check).toContain('Counted from time on');
+    expect(check).toContain('<option value="training" selected="">Training</option>');
+    const counter = renderToStaticMarkup(createElement(HabitEditor, { habit: /** @type {any} */ (water), ...props }));
+    expect(counter).not.toContain('Counted from time on');
+  });
+});
+
+describe('HabitsHistory: a habit counted from a time area (ADR 0039)', () => {
+  const counted = { ...gym, countedFrom: 'training', periods: [{ from: '2026-10-01', to: null, days: [1, 2, 3, 4, 5, 6, 7], target: null }] };
+  const rows = historyRows(/** @type {any} */ ([counted]), /** @type {any} */ ([
+    { ...log('2026-10-12', {}), time: { training: 60 } },
+    { ...log('2026-10-13', {}), time: { work: 60 } },
+  ]));
+  const html = renderToStaticMarkup(createElement(HabitsHistory, { rows, todayKey: '2026-10-15' }));
+
+  it('draws a day the time kept as a cell that is not a tick, and opens a day it did not for a reason only', () => {
+    expect(html).toContain('<i class="heat-cell" data-v="full" role="img" aria-label="Gym, 2026-10-12: done, from Training time"></i>');
+    expect(html).toMatch(/<button[^>]*data-v="zero"[^>]*aria-label="Gym, 2026-10-13: not done, from Training time"[^>]*aria-expanded="false"/);
   });
 });

@@ -457,6 +457,8 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--primary); widt
   background: none; border: none; color: inherit; font: inherit; font-size: 16px; cursor: pointer;
 }
 .habit.is-done .habit-label { color: var(--ink-muted); }
+/* A habit counted from a time area (ADR 0039): shown, never tapped. */
+.habit-label.is-counted { display: flex; align-items: center; cursor: default; }
 /* A day off (#186): after the scheduled habits, faded, and still tickable.
    Its tick is outlined, never green -- recorded, and not part of the ring. */
 .habit.is-off { opacity: 0.6; }
@@ -645,6 +647,8 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--primary); widt
 .time-area { display: flex; align-items: center; gap: var(--s-xs); color: var(--ink-muted); }
 .time-area.has-time { color: var(--ink); }
 .time-label { flex: 1; min-width: 0; }
+/* What an area's time answers, "counts as Gym" (ADR 0039), under its name. */
+.time-counts { display: block; }
 .time-value { min-width: 56px; text-align: right; }
 .time-step-btn {
   width: var(--control-h-dense); height: var(--control-h-dense); border-radius: var(--r-xs);
@@ -687,6 +691,8 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--primary); widt
 .habit-manage.is-editing { flex-wrap: wrap; gap: var(--s-xs); }
 .habit-manage.is-editing .input:not(.input-target) { flex: 1; min-width: 140px; }
 .edit-note { flex-basis: 100%; }
+/* "Counted from time on" (ADR 0039): its own line in the add form and the editor. */
+.habit-counted-field { flex-basis: 100%; margin-bottom: 0; }
 .icon-btn {
   width: var(--control-h); height: var(--control-h); border-radius: var(--r-xs);
   display: flex; align-items: center; justify-content: center;

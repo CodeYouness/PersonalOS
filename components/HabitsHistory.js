@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { percent } from '@/components/format.js';
-import { heatCellState, isComplete, takesSkipReason } from '@/lib/domain/derive/habits.js';
+import { timeAreaLabel } from '@/lib/domain/day-time.js';
+import { countedFromArea, heatCellState, isComplete, takesSkipReason } from '@/lib/domain/derive/habits.js';
 import { HABIT_SKIP_REASON_KEYS } from '@/lib/domain/habit-skip.js';
 import { HABIT_SKIP_REASONS } from '@/personalos.config.js';
 
@@ -32,6 +33,10 @@ import { HABIT_SKIP_REASONS } from '@/personalos.config.js';
  * flips on one click. A reason is written on its own route and rolls back
  * the same way a value does; a value that completes the day drops the
  * reason here as the store does.
+ *
+ * A habit counted from a time area (ADR 0039) is never ticked here: its
+ * cells are the day's time, read on the server. A past day it was not kept
+ * still opens its reasons, with no "Done".
  *
  * @param {{
  *   rows: ReturnType<typeof import('@/lib/domain/derive/habits.js').historyRows>,
@@ -282,8 +287,14 @@ function HeatCell({ habit, date, target, value, skip, state, takesReason, disabl
       : state === 'off' || state === 'off-done'
         ? 'day off, ' + done
         : done;
+  const area = countedFromArea(habit);
   const label =
-    habit.label + ', ' + date + ': ' + described + (skip === null ? '' : ', ' + HABIT_SKIP_REASONS[skip].toLowerCase());
+    habit.label + ', ' + date + ': ' + described + (skip === null ? '' : ', ' + HABIT_SKIP_REASONS[skip].toLowerCase()) +
+    (area === null ? '' : ', from ' + timeAreaLabel(area) + ' time');
+
+  if (area !== null && !takesReason) {
+    return <i className="heat-cell" data-v={state} role="img" aria-label={label} />;
+  }
 
   if (habit.type === 'check' && !takesReason) {
     return (
@@ -333,7 +344,8 @@ function HeatCell({ habit, date, target, value, skip, state, takesReason, disabl
 
 /**
  * A cell's correction. A counter's: − n / target +, saving on every click. A
- * check's, opened only to give a reason: "Done", which ticks it. Then, when
+ * check's, opened only to give a reason: "Done", which ticks it -- not for a
+ * habit counted from a time area, whose day the time keeps (ADR 0039). Then, when
  * the day takes a reason (`skip` is not undefined), the reasons, the one
  * given pressed; choosing it again clears it. Esc and a click outside close
  * it, and Esc puts the focus back on the cell it came from, so the keyboard
@@ -376,7 +388,7 @@ function CellPopover({ habit, date, target, count, skip, disabled, onSave, onSki
 
   return (
     <div className="heat-pop" ref={popover} role="group" aria-label={'Correct ' + habit.label + ', ' + date}>
-      {habit.type === 'check' ? (
+      {countedFromArea(habit) !== null ? null : habit.type === 'check' ? (
         <button
           type="button"
           className="btn-ghost"

@@ -149,12 +149,12 @@ export default function Checkin({ server, areas, step, max, scale, skipReasons }
 
   // The page re-read gives new props: they are the server's state, so they
   // replace the panel's, during render, as React adjusts state to props.
-  const { day, questions, done, answers, notes, week } = server;
-  const snapshot = JSON.stringify([day, questions, done, answers, notes, week]);
+  const { day, questions, counted, done, answers, notes, week } = server;
+  const snapshot = JSON.stringify([day, questions, counted, done, answers, notes, week]);
   const [seen, setSeen] = useState(snapshot);
   if (seen !== snapshot) {
     setSeen(snapshot);
-    dispatch({ type: 'loaded', day, questions, done, answers, notes, week });
+    dispatch({ type: 'loaded', day, questions, counted, done, answers, notes, week });
   }
 
   // The kept draft is read once hydrated -- the server has none, so the

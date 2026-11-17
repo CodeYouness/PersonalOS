@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { listActions } from '@/lib/actions/registry.js';
+import { TIME_AREA_KEYS } from '@/lib/domain/day-time.js';
 import { CASES, CONTEXT } from '@/scripts/eval-checkin/cases.js';
 import { scoreCase, summarise } from '@/scripts/eval-checkin/score.js';
 
@@ -91,6 +92,23 @@ describe('the cases', () => {
       if (params.habitId !== undefined) expect(habits.has(/** @type {string} */ (params.habitId))).toBe(true);
       if (params.categoryId !== undefined) expect(categories.has(/** @type {string} */ (params.categoryId))).toBe(true);
       if (params.amount !== undefined) expect(Number.isSafeInteger(params.amount)).toBe(true);
+      if (params.area !== undefined) expect(TIME_AREA_KEYS).toContain(params.area);
+    }
+  });
+
+  it('read an hour at the gym, counted from Training time, as training time and never as a habit (ADR 0039)', () => {
+    expect(CONTEXT.counted).toEqual([{ name: 'Gym', area: 'training' }]);
+    expect(CONTEXT.habits.some((habit) => habit.name === 'Gym')).toBe(false);
+    const gymHours = CASES.filter(
+      (testCase) =>
+        testCase.expected.length === 1 &&
+        testCase.expected[0].action === 'time.set' &&
+        JSON.stringify(testCase.expected[0].params) === JSON.stringify({ area: 'training', minutes: 60 }) &&
+        /gym|palestra/i.test(testCase.text)
+    );
+    expect(gymHours.length).toBeGreaterThanOrEqual(2);
+    for (const testCase of CASES.filter((other) => /gym|palestra/i.test(other.text))) {
+      expect([...testCase.expected, ...(testCase.optional ?? [])].some((want) => want.action === 'habit.set')).toBe(false);
     }
   });
 });

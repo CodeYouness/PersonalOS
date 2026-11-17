@@ -167,8 +167,9 @@ function HabitBody({ question, state, busy, when, skipReasons, onAnswer, onCount
 }
 
 /**
- * The body of the time card: a stepper per area in half hours, then
- * "Nothing to declare" on a day not declared, and Save.
+ * The body of the time card: a stepper per area in half hours, each saying
+ * which habits its time counts as (ADR 0039), then "Nothing to declare" on
+ * a day not declared, and Save.
  *
  * @param {{ question: Question, state: CheckinState, busy: boolean, filled: boolean } & Pick<CheckinSettings, 'areas' | 'step' | 'max'> & Pick<AnswerHandlers, 'onAnswer' | 'onTime'>} props
  *   `filled` whether Save is the view's filled button
@@ -178,9 +179,14 @@ export function TimeBody({ question, state, busy, filled, areas, step, max, onAn
   const changes = timeChanges(state);
   const total = dayTimeTotal({ time: shown }) ?? 0;
   const changed = Object.keys(changes).length > 0;
+  /** @type {Record<string, string>} what each area's time answers: "counts as Gym" (ADR 0039) */
+  const counts = {};
+  for (const habit of state.counted ?? []) {
+    counts[habit.area] = (counts[habit.area] === undefined ? 'Counts as ' : counts[habit.area] + ', ') + habit.label;
+  }
   return (
     <>
-      <TimeSteppers areas={areas} time={shown} step={step} max={max} disabled={busy} onSet={onTime} />
+      <TimeSteppers areas={areas} time={shown} step={step} max={max} disabled={busy} onSet={onTime} counts={counts} />
       <div className="checkin-actions">
         <span className="caption num">{total === 0 ? 'In half hours, as best you remember.' : formatMinutes(total) + ' in all'}</span>
         {state.answers.time === null && (

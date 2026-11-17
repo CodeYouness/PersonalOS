@@ -218,7 +218,7 @@ describe('the open answer, read by the model', () => {
 
   it('files what the registry accepts and refuses the rest: an unknown habit, a float amount, an action not offered', async () => {
     modelFiles([
-      { action: 'habit.set', params: { habitId: 'habit_gym', value: true } },
+      { action: 'habit.set', params: { habitId: 'habit_swim', value: true } },
       { action: 'expense.record', params: { amount: 12.5, note: 'caffè' } },
       { action: 'money.send', params: { amount: 1000 } },
       { action: 'mood.set', params: { value: 4 } },
@@ -236,7 +236,7 @@ describe('the open answer, read by the model', () => {
       ['time.set', 'done'],
       ['expense.record', 'done'],
     ]);
-    expect(lines[1].error).toMatch(/habit_gym/);
+    expect(lines[1].error).toMatch(/habit_swim/);
     expect(lines[2].error).toMatch(/whole number of cents/);
     expect((await store.getDailyLog(DAY)).time).toEqual({ work: 90 });
     expect((await store.getDailyLog(DAY)).mood).toBeNull();
@@ -303,7 +303,7 @@ describe('the open answer after closed answers the same day', () => {
     vi.spyOn(console, 'info').mockImplementation(() => {});
     modelFiles([
       { action: 'habit.skip', params: { habitId: 'habit_read', reason: 'forgotten' } },
-      { action: 'time.set', params: { area: 'study', minutes: 60 } },
+      { action: 'time.set', params: { area: 'refereeing', minutes: 60 } },
       { action: 'task.create', params: { title: 'Book the dentist' } },
     ]);
 
@@ -312,7 +312,7 @@ describe('the open answer after closed answers the same day', () => {
       [
         { questionId: 'habit:habit_read', value: { skip: 'too-heavy' } },
         { questionId: 'time', value: { areas: { work: 240 } } },
-        { questionId: 'open', value: { text: 'Too tired to read; an hour of study; must book the dentist' } },
+        { questionId: 'open', value: { text: 'Too tired to read; an hour of refereeing; must book the dentist' } },
       ],
       { readOpenAnswer: interpret.readOpenAnswer }
     );
@@ -323,6 +323,33 @@ describe('the open answer after closed answers the same day', () => {
     expect(log.time).toEqual({ work: 240 });
     expect(systemSent()).not.toContain('habit_read');
     expect(systemSent()).toContain('time is already declared');
+    vi.restoreAllMocks();
+  });
+});
+
+describe('the open answer and a habit counted from a time area (ADR 0039)', () => {
+  /** @returns {string} the system prompt of the one call made */
+  const systemSent = () => /** @type {any} */ (callTool.mock.calls[0])[0].system;
+
+  it('tells the model the gym is counted from training, never a habit, and drops a request to tick it', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    modelFiles([
+      { action: 'habit.set', params: { habitId: 'habit_gym', value: true } },
+      { action: 'habit.skip', params: { habitId: 'habit_gym', reason: 'forgotten' } },
+      { action: 'time.set', params: { area: 'training', minutes: 60 } },
+    ]);
+
+    const { lines } = await answerOpen('Went to the gym for an hour');
+
+    expect(lines.map((line) => [line.name, line.status])).toEqual([
+      ['journal.add', 'done'],
+      ['time.set', 'done'],
+    ]);
+    expect(systemSent()).toContain('Gym (from training)');
+    expect(systemSent()).not.toContain('habit_gym');
+    const log = await store.getDailyLog(DAY);
+    expect(log.habits).toEqual({});
+    expect(log.time).toEqual({ training: 60 });
     vi.restoreAllMocks();
   });
 });

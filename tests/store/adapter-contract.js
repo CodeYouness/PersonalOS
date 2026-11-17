@@ -1072,8 +1072,8 @@ export function runAdapterContract(label, load) {
         });
 
         it('removes an area set to zero, leaving the day declared', async () => {
-          await store.setDayTime({ date: DAY, area: 'study', minutes: 30 });
-          expect((await store.setDayTime({ date: DAY, area: 'study', minutes: 0 })).time).toEqual({});
+          await store.setDayTime({ date: DAY, area: 'refereeing', minutes: 30 });
+          expect((await store.setDayTime({ date: DAY, area: 'refereeing', minutes: 0 })).time).toEqual({});
           expect((await store.getDailyLog(DAY)).time).toEqual({});
           // Zero on a day not declared declares it, with nothing.
           expect((await store.setDayTime({ date: '2026-04-03', area: 'work', minutes: 0 })).time).toEqual({});
@@ -1237,6 +1237,65 @@ export function runAdapterContract(label, load) {
         const events = await store.getEvents({});
         const ticked = events.filter((event) => event.type === 'habit.ticked' && event.subject === 'habit_water');
         expect(ticked).toHaveLength(1);
+      });
+    });
+
+    describe('a habit counted from a time area (ADR 0039)', () => {
+      // The seed's Gym is a daily check counted from Training time.
+      const DAY = '2026-04-02';
+
+      it('creates a check counted from an area, and stores no key for one ticked by hand', async () => {
+        const counted = await store.createHabit({ label: 'Run', type: 'check', target: null, countedFrom: 'training' });
+        expect(counted.countedFrom).toBe('training');
+        const byHand = await store.createHabit({ label: 'Stretch', type: 'check', target: null, countedFrom: null });
+        expect('countedFrom' in byHand).toBe(false);
+        const profile = await store.getProfile();
+        expect(profile.habits.find((habit) => habit.id === counted.id)?.countedFrom).toBe('training');
+      });
+
+      it('refuses an area not in TIME_AREAS -- study included, part of Projects -- and a counter, writing nothing', async () => {
+        const before = (await store.getProfile()).habits.length;
+        for (const input of [
+          { label: 'Run', type: 'check', target: null, countedFrom: 'study' },
+          { label: 'Run', type: 'check', target: null, countedFrom: 'Training' },
+          { label: 'Run', type: 'check', target: null, countedFrom: 3 },
+          { label: 'Laps', type: 'counter', target: 4, countedFrom: 'training' },
+        ]) {
+          await expect(store.createHabit(/** @type {any} */ (input))).rejects.toThrow(/countedFrom/);
+        }
+        await expect(store.updateHabit('habit_water', { countedFrom: 'training' })).rejects.toThrow(/check habit only/);
+        expect((await store.getProfile()).habits.length).toBe(before);
+      });
+
+      it('sets, changes and clears the area on a habit by a patch', async () => {
+        expect((await store.updateHabit('habit_read', { countedFrom: 'projects' })).countedFrom).toBe('projects');
+        expect((await store.updateHabit('habit_gym', { countedFrom: 'refereeing' })).countedFrom).toBe('refereeing');
+        const cleared = await store.updateHabit('habit_gym', { countedFrom: null });
+        expect('countedFrom' in cleared).toBe(false);
+        // Ticked by hand again, it takes a tick.
+        expect((await store.logHabitValue({ date: DAY, habitId: 'habit_gym', value: true })).habits.habit_gym).toBe(true);
+      });
+
+      it('refuses a tick, by hand or in a day\'s habits patch, with a sentence that says where its day comes from', async () => {
+        const before = await store.getDailyLog(DAY);
+        await expect(store.logHabitValue({ date: DAY, habitId: 'habit_gym', value: true })).rejects.toThrow(
+          /Gym is counted from Training time/
+        );
+        await expect(store.updateDailyLog(DAY, { habits: { habit_gym: true } })).rejects.toThrow(/counted from Training time/);
+        expect(await store.getDailyLog(DAY)).toEqual(before);
+        // A patch that leaves it as it was is not a tick.
+        await store.updateDailyLog(DAY, { habits: { habit_move: true } });
+        expect((await store.getDailyLog(DAY)).habits).toEqual({ habit_move: true });
+      });
+
+      it('takes a reason on a day the time does not keep it, and drops it once the time does', async () => {
+        await store.setHabitSkip({ date: DAY, habitId: 'habit_gym', reason: 'too-heavy' });
+        await store.setDayTime({ date: DAY, area: 'work', minutes: 60 });
+        expect((await store.getDailyLog(DAY)).skips).toEqual({ habit_gym: 'too-heavy' });
+
+        const kept = await store.setDayTime({ date: DAY, area: 'training', minutes: 60 });
+        expect(kept.skips).toEqual({});
+        await expect(store.setHabitSkip({ date: DAY, habitId: 'habit_gym', reason: 'forgotten' })).rejects.toThrow(/kept/);
       });
     });
 

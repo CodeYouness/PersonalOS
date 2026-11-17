@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { actionsForAnswer } from '@/lib/checkin/closed.js';
+import { actionsForAnswer, actionsForCounted } from '@/lib/checkin/closed.js';
 
 /** @type {import('@/lib/domain/derive/checkin.js').Question} */
 const CHECK = { id: 'habit:habit_move', kind: 'habit', subjectId: 'habit_move', label: 'Move', answered: false, habitType: 'check', target: null };
@@ -119,11 +119,11 @@ describe('mood and energy', () => {
 
 describe('the time question', () => {
   it('declares each area named, one request each, in the order given', () => {
-    expect(actionsForAnswer(TIME, { areas: { work: 120, study: 30 } })).toEqual({
+    expect(actionsForAnswer(TIME, { areas: { work: 120, refereeing: 30 } })).toEqual({
       ok: true,
       requests: [
         { name: 'time.set', params: { area: 'work', minutes: 120 } },
-        { name: 'time.set', params: { area: 'study', minutes: 30 } },
+        { name: 'time.set', params: { area: 'refereeing', minutes: 30 } },
       ],
     });
   });
@@ -160,5 +160,24 @@ describe('any question', () => {
 
   it('refuses a question of a kind it does not know', () => {
     expect(errorOf(actionsForAnswer(/** @type {any} */ ({ id: 'x', kind: 'appointment', label: 'x', answered: false }), { done: true }))).toBeTruthy();
+  });
+});
+
+describe('a habit counted from a time area (ADR 0039)', () => {
+  const GYM = { id: 'habit_gym', label: 'Gym', area: 'training' };
+
+  it('takes a reason, as habit.skip', () => {
+    expect(actionsForCounted(GYM, { skip: 'too-heavy' })).toEqual({
+      ok: true,
+      requests: [{ name: 'habit.skip', params: { habitId: 'habit_gym', reason: 'too-heavy' } }],
+    });
+  });
+
+  it('refuses a tick or a count with the sentence that says its day is the time\'s', () => {
+    for (const value of [{ done: true }, { value: 1 }, null]) {
+      const result = actionsForCounted(GYM, value);
+      expect(result.ok).toBe(false);
+      expect(!result.ok && result.error).toMatch(/Gym is counted from Training time/);
+    }
   });
 });

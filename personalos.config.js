@@ -330,12 +330,13 @@ export const MEASUREMENT_METRICS = Object.freeze({ weight: 'kg' });
  * the screens show, in the order they show them. Closed: an area is added
  * here, and documented in docs/domain.md, never accepted as a free string.
  * Time is declared by you, never measured from a screen or a calendar.
+ * A check habit may be counted from one of them (ADR 0039). Study was one;
+ * it is part of Projects since schema 23 (ADR 0039).
  *
  * @type {Readonly<Record<string, string>>}
  */
 export const TIME_AREAS = Object.freeze({
   work: 'Work',
-  study: 'Study',
   projects: 'Projects',
   training: 'Training',
   refereeing: 'Refereeing',

@@ -81,11 +81,11 @@ describe('the week at a glance', () => {
     const log = (/** @type {string} */ date, /** @type {any} */ time) => ({ date, habits: {}, meals: [], measurements: [], notes: [], mood: null, energy: null, time });
     const html = renderToStaticMarkup(
       createElement(ReviewFigures, {
-        figures: figures({ dailyLogs: [log('2026-10-05', { work: 240, study: 30 }), log('2026-10-06', {}), log('2026-10-07', null)] }),
+        figures: figures({ dailyLogs: [log('2026-10-05', { work: 240, projects: 30 }), log('2026-10-06', {}), log('2026-10-07', null)] }),
       })
     );
     expect(html).toMatch(/Work<\/div><div class="v num">4h<\/div>/);
-    expect(html).toMatch(/Study<\/div><div class="v num">30m<\/div>/);
+    expect(html).toMatch(/Projects<\/div><div class="v num">30m<\/div>/);
     expect(html).toMatch(/Time declared<\/div><div class="v num">4h 30m <span class="caption">2\u2009\/\u20097 days<\/span>/);
     // An area with no time on the declared days gets no row.
     expect(html).not.toContain('Refereeing');

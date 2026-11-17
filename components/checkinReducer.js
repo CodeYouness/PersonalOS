@@ -30,6 +30,7 @@ import { OPEN_QUESTION_ID } from '@/lib/domain/derive/checkin.js';
 
 /**
  * @typedef {import('@/lib/domain/derive/checkin.js').Question} Question
+ * @typedef {import('@/lib/domain/derive/checkin.js').CountedHabit} CountedHabit
  * @typedef {import('@/lib/domain/derive/checkin.js').CheckinAnswers} CheckinAnswers
  * @typedef {import('@/lib/domain/derive/checkin.js').CheckinWeekDay} CheckinWeekDay
  * @typedef {import('@/lib/checkin/day.js').CheckinNote} CheckinNote
@@ -38,6 +39,8 @@ import { OPEN_QUESTION_ID } from '@/lib/domain/derive/checkin.js';
  * @typedef {object} CheckinServerState what a day says, as the server read it
  * @property {string} day the day shown
  * @property {Question[]} questions
+ * @property {CountedHabit[]} [counted] the habits the day's time answers, never
+ *   a question (ADR 0039); none when absent
  * @property {boolean} done
  * @property {CheckinAnswers} answers
  * @property {CheckinNote[]} notes
@@ -100,8 +103,8 @@ function freshLocal() {
  * @param {CheckinServerState} server
  * @returns {CheckinServerState} only the server's fields, whatever else came with them
  */
-function serverPart({ day, questions, done, answers, notes, week }) {
-  return { day, questions, done, answers, notes, week };
+function serverPart({ day, questions, counted = [], done, answers, notes, week }) {
+  return { day, questions, counted, done, answers, notes, week };
 }
 
 /**
@@ -304,7 +307,9 @@ function without(record, key) {
  */
 function withServer(state, server) {
   if (server.day !== state.day) return initialCheckinState(server);
-  const ids = new Set(server.questions.map((question) => question.id));
+  // A habit counted from time is answered by its id too -- with a reason,
+  // from the sheet -- so what it was told stays with it.
+  const ids = new Set([...server.questions.map((question) => question.id), ...(server.counted ?? []).map((habit) => 'habit:' + habit.id)]);
   /** @type {CheckinState} */
   const next = { ...state, ...serverPart(server) };
   next.errors = keepWhere(state.errors, (id) => ids.has(id));

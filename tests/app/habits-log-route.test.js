@@ -108,3 +108,12 @@ describe('PUT /api/habits/log', () => {
     expect(response.status).toBe(400);
   });
 });
+
+describe('PUT /api/habits/log on a habit counted from a time area (ADR 0039)', () => {
+  it('is a 400 with the sentence that says its day is the time\'s, writing nothing', async () => {
+    const response = await put({ date: dates.today(), habitId: 'habit_gym', value: true });
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toMatch(/Gym is counted from Training time/);
+    expect((await store.getDailyLog(dates.today())).habits).toEqual({});
+  });
+});

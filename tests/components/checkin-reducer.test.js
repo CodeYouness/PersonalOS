@@ -275,8 +275,8 @@ describe('drafts', () => {
 
   it('declares time per area as a draft, dropping an area brought back to nothing, and sends only what has time', () => {
     let state = checkinReducer(fresh(), { type: 'time', area: 'work', minutes: 60 });
-    state = checkinReducer(state, { type: 'time', area: 'study', minutes: 30 });
-    state = checkinReducer(state, { type: 'time', area: 'study', minutes: 0 });
+    state = checkinReducer(state, { type: 'time', area: 'refereeing', minutes: 30 });
+    state = checkinReducer(state, { type: 'time', area: 'refereeing', minutes: 0 });
     expect(state.time).toEqual({ work: 60 });
     expect(timeChanges(state)).toEqual({ work: 60 });
     state = checkinReducer(state, {
@@ -289,12 +289,12 @@ describe('drafts', () => {
   });
 
   it('changes a declared day\'s time from what is saved, an area taken to nothing sent as 0', () => {
-    let state = fresh({ questions: questionsWith({ time: true }), answers: answers({ time: { work: 240, study: 60 } }) });
+    let state = fresh({ questions: questionsWith({ time: true }), answers: answers({ time: { work: 240, refereeing: 60 } }) });
     expect(timeChanges(state)).toEqual({});
-    state = checkinReducer(state, { type: 'time', area: 'study', minutes: 0 });
+    state = checkinReducer(state, { type: 'time', area: 'refereeing', minutes: 0 });
     state = checkinReducer(state, { type: 'time', area: 'projects', minutes: 30 });
     expect(state.time).toEqual({ work: 240, projects: 30 });
-    expect(timeChanges(state)).toEqual({ study: 0, projects: 30 });
+    expect(timeChanges(state)).toEqual({ refereeing: 0, projects: 30 });
   });
 
   it('empties the note box once its entry is kept, and says once what was not filed from it', () => {

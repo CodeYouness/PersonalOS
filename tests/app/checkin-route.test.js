@@ -207,7 +207,7 @@ describe('POST /api/checkin', () => {
       answers: [
         { questionId: 'habit:habit_water', value: { done: true } },
         { questionId: 'mood', value: { value: 4 } },
-        { questionId: 'time', value: { areas: { work: 120, study: 30 } } },
+        { questionId: 'time', value: { areas: { work: 120, refereeing: 30 } } },
       ],
     });
 
@@ -220,7 +220,7 @@ describe('POST /api/checkin', () => {
       'Glasses of water 8',
       'Mood 4',
       'Work 2h',
-      'Study 30m',
+      'Refereeing 30m',
     ]);
     expect(answered(body, 'habit:habit_water')).toBe(true);
     expect(answered(body, 'mood')).toBe(true);
@@ -230,7 +230,7 @@ describe('POST /api/checkin', () => {
     const log = await store.getDailyLog(DAY);
     expect(log.habits.habit_water).toBe(8);
     expect(log.mood).toBe(4);
-    expect(log.time).toEqual({ work: 120, study: 30 });
+    expect(log.time).toEqual({ work: 120, refereeing: 30 });
 
     const after = await get();
     expect(answered(after.body, 'habit:habit_water')).toBe(true);
@@ -318,7 +318,7 @@ describe('POST /api/checkin', () => {
       answers: [
         { questionId: 'habit:habit_move', value: { done: true } },
         { questionId: 'mood', value: { value: 4 } },
-        { questionId: 'time', value: { areas: { work: 240, study: 60 } } },
+        { questionId: 'time', value: { areas: { work: 240, refereeing: 60 } } },
       ],
     });
 
@@ -326,7 +326,7 @@ describe('POST /api/checkin', () => {
       answers: [
         { questionId: 'habit:habit_move', value: { skip: 'too-heavy' } },
         { questionId: 'mood', value: { value: 2 } },
-        { questionId: 'time', value: { areas: { work: 180, study: 0 } } },
+        { questionId: 'time', value: { areas: { work: 180, refereeing: 0 } } },
       ],
     });
 
@@ -335,7 +335,7 @@ describe('POST /api/checkin', () => {
       ['Move for 30 minutes: Too heavy', 'done'],
       ['Mood 2', 'done'],
       ['Work 3h', 'done'],
-      ['Study 0m', 'done'],
+      ['Refereeing 0m', 'done'],
     ]);
     expect(body.answers).toMatchObject({ mood: 2, time: { work: 180 }, habits: { habit_move: false }, skips: { habit_move: 'too-heavy' } });
     expect(answered(body, 'habit:habit_move')).toBe(true);
@@ -418,5 +418,34 @@ describe('POST /api/checkin', () => {
 
     expect(status).toBe(401);
     expect((await store.getDailyLog(DAY)).mood).toBeNull();
+  });
+});
+
+describe('a habit counted from a time area (ADR 0039)', () => {
+  it('is not asked: the day lists it apart, and the time question answers it', async () => {
+    const { body } = await get();
+    expect(body.questions.some((/** @type {{ id: string }} */ question) => question.id === 'habit:habit_gym')).toBe(false);
+    expect(body.counted).toEqual([{ id: 'habit_gym', label: 'Gym', area: 'training' }]);
+
+    await post({ answers: [{ questionId: 'time', value: { areas: { training: 60 } } }] });
+    const profile = await store.getProfile();
+    const log = await store.getDailyLog(DAY);
+    const { habitValueOn } = await import('@/lib/domain/derive/habits.js');
+    const gym = profile.habits.find((habit) => habit.id === 'habit_gym');
+    expect(gym && habitValueOn(gym, log)).toBe(true);
+    expect(log.habits).toEqual({});
+  });
+
+  it('refuses a tick by its id with the sentence that says so, and takes a reason', async () => {
+    const ticked = await post({ answers: [{ questionId: 'habit:habit_gym', value: { done: true } }] });
+    expect(ticked.status).toBe(200);
+    expect(ticked.body.receipt.lines).toMatchObject([{ status: 'rejected' }]);
+    expect(ticked.body.receipt.lines[0].error).toMatch(/Gym is counted from Training time/);
+
+    const skipped = await post({ answers: [{ questionId: 'habit:habit_gym', value: { skip: 'too-heavy' } }] });
+    expect(skipped.body.receipt.lines.map((/** @type {{ name: string, status: string }} */ line) => [line.name, line.status])).toEqual([
+      ['habit.skip', 'done'],
+    ]);
+    expect(skipped.body.answers.skips).toEqual({ habit_gym: 'too-heavy' });
   });
 });
