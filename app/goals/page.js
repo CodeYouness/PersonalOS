@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * The Goals screen: "what did I promise myself" (docs/spec.md). Reads the
- * saved goals once per request and renders them through the same
- * derivation as the home card -- `todayKey` included, since
+ * saved goals once per request and renders them through goalBoard --
+ * `todayKey` included, since
  * lib/domain/dates.js has no configured timezone in the browser.
  *
  * `?goal=<id>` selects a goal and opens the panel (#98), by id so a capture

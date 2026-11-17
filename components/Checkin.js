@@ -127,7 +127,7 @@ export function CheckinView(props) {
  *
  * Every answer POSTs one closed answer to /api/checkin for the day shown,
  * and the panel is redrawn from what the server answered, then the page is
- * re-read (`router.refresh()`) so the Habits and Today cards follow; the
+ * re-read (`router.refresh()`) so Home's sections and tiles follow; the
  * next question's heading takes the focus. An undo POSTs to
  * /api/actions/[id]/undo and re-reads the day with GET /api/checkin, refused
  * or not. A request that fails says so where it was asked, and the page is

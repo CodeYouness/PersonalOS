@@ -19,12 +19,11 @@ import { HABIT_SKIP_REASONS } from '@/personalos.config.js';
  * cells and rates are derived on the server (`historyRows`); this island only
  * writes and shows the write.
  *
- * A correction is optimistic on the cell it touched and re-read on failure,
- * the same bargain `HabitsList` makes on the home card -- one habit's value
- * for one day rolls back cleanly. Every settle calls `router.refresh()`, so
- * the rates, the rest of the column (a day that had nothing recorded stops
- * being outlined once anything is) and the home card's streak catch up from
- * the server rather than from a guess made here.
+ * A correction is optimistic on the cell it touched and re-read on failure:
+ * one habit's value for one day rolls back cleanly. Every settle calls
+ * `router.refresh()`, so the rates, the rest of the column (a day that had
+ * nothing recorded stops being outlined once anything is) and the summary's
+ * streak catch up from the server rather than from a guess made here.
  *
  * A past day the habit was scheduled and not kept takes a skip reason (ADR
  * 0037): such a cell opens a popover -- a check's with "Done" beside the

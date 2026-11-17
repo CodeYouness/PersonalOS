@@ -496,8 +496,9 @@ shows.
 ## Appointment
 
 **Is** a thing happening at a specific day and time, from a capture with an
-explicit date and time or from a synced external calendar. The Calendar card
-is a query over these.
+explicit date and time or from a synced external calendar. Home's "Needs
+you" lists today's that have not started yet (see Home); no screen lists them
+by week since the Calendar card left Home (ADR 0040).
 
 **Is not** a `Task`: a task is a commitment with a band, never a due date,
 because dated lists rot. An appointment is exactly a due date — that is what
@@ -692,14 +693,15 @@ total. A habit with no scheduled day in the week is left out.
 where you look at the day. It is part of the review that wrote it: it is not
 a task and not a goal, and nothing completes it.
 
-*Where it is shown*: the Today card on Home. This week's lever is derived
+*Where it is shown*: Home's "Worth noting", first ("This week's lever: …"),
+linking to the review that set it. This week's lever is derived
 (`lastWeekReview` in `lib/domain/derive/review.js`), never stored: it is the
 `lever` of the **completed** review whose `from` is the Monday before this
 week's Monday. A lever set on Sunday shows from Monday; an unfinished review's
-never shows; an empty one is none. With a lever the card shows it in place of
-`Profile.focus`, which is left as it is; without one the card shows `focus`.
-While last week's review is absent or unfinished the card also links to it
-(`/review?week=<monday>`). Loading Home reads the saved review and nothing else.
+never shows; an empty one is none. While last week's review is absent or
+unfinished, Home's "Needs you" links to it (`/review?week=<monday>`). Loading
+Home reads the saved review and nothing else. `Profile.focus` is no longer
+shown on Home (ADR 0040).
 
 Answers and lever have length limits, `limits.reviewAnswerMaxLength` and
 `limits.reviewLeverMaxLength`. An answer or the lever may be empty.
@@ -784,7 +786,7 @@ neither extends nor breaks the streak — and so is a day on which every habit
 scheduled was **paused** (a skip reason, below). A day still in progress does not break it —
 breaking a streak at 00:01 would be punishing someone for waking up. It
 is counted over the last 365 days, one window shared by every screen that
-shows it, so the home card and the Habits screen can never disagree — the
+shows it, so the Habits screen and an answer can never disagree — the
 Habits screen's thirty-day window does not cut it down (ADR 0017).
 
 The **thirty-day summary** on the Habits screen averages completion over the
@@ -811,8 +813,8 @@ Several habits may be counted from one area.
 **Its day is derived, never stored** (rule 6): `habitValueOn(habit, log)` in
 `lib/domain/derive/habits.js` is the one reading of a habit's day, and every
 reader goes through it -- the rate, the heatmap and its rate, completion, the
-streak, the summary, the week's figures, the home card, the check-in and the
-question context. On a day whose time is declared:
+streak, the summary, the week's figures, Home's habit figures, the check-in
+and the question context. On a day whose time is declared:
 
 - **kept** when the area has more than zero minutes;
 - **not kept** when it has none -- "nothing to declare" included -- a miss
@@ -876,8 +878,8 @@ was kept -- "5 of 6 this week" (ADR 0037). `habitRate` in
 paused), `rate` (`kept / scheduled`, **null** when nothing was scheduled --
 unknown, never 0), `paused`, and `missed` by reason, where a scheduled day not
 kept with no reason given is `unrecorded`. A habit is read by its rate before
-the global streak: the home card shows each habit's week so far, and the
-Review screen's habit rows are this rate, paused days left out of the
+the global streak: Home's habits tile and "worth noting" read it (see
+Home), and the Review screen's habit rows are this rate, paused days left out of the
 "x / y" and the misses named by reason.
 
 The heatmap's rate (`ratesByHabit`) is the other reading, unchanged in kind:
@@ -1562,6 +1564,61 @@ Rejected lines were never kept and are not on it. Undo is
 
 ---
 
+## Home
+
+**Is** the Today place (ADR 0037): the check-in, then what needs you, then
+what is worth noting, then four tiles -- built around what needs a gesture,
+not around cards to explore (ADR 0040). A section is there only when it has
+something to say. Everything on it is derived on each load from what the
+store holds (`lib/domain/derive/home.js`); nothing is stored for it, and
+loading it calls no model and no integration (rule 3,
+`tests/app/home-page-imports.test.js`). Today and the time are one instant
+read in `USER_TIMEZONE` (`homeClock`, rule 4).
+
+**Needs you** (`needsYou`), in this order, each only when present:
+
+| Row | What | Opens |
+| --- | --- | --- |
+| an appointment | today's, not started yet (start time at or after now), earliest first; one a sync no longer sees (`confirmed: false`) is left out | nothing: no screen lists appointments |
+| a task | overdue or due today (`dueToday`: the `today` band, overdue derived from `band` + `bandSetOn`), most urgent first, at most `limits.homeTaskCount`; overdue ones say by how many days, in the danger colour | the CRM with the task's panel |
+| and N more | the tasks past the cap | the CRM |
+| captures not filed | how many of the captures the log shows (`limits.captureLogCount`) are still `unclassified` | the capture log |
+| last week's review | while it is absent or unfinished (`lastWeekReview().pending`) | the Review screen on that week |
+
+Yesterday's check-in is not repeated here: the check-in panel offers it.
+With none of these, one line: "Nothing needs you right now."
+
+**Worth noting** (`worthNoting`): at most `limits.homeNotesMax` sentences,
+each a number and what it is compared with -- descriptive, no cause, no
+verdict (ADR 0037) -- and each linking to the screen that shows it. Absent
+when nothing differs. In this order:
+
+| Note | Says it when | Links to |
+| --- | --- | --- |
+| this week's lever | last week's completed review set one | that review |
+| a habit missed | a habit active today was not kept on its last `limits.homeMissedRunDays` scheduled days running before today, walking back at most four weeks: a kept day ends the run; a paused day, a day with nothing recorded, or the time not declared for a habit counted from it, is passed over (`missedRuns`) | Habits |
+| habits kept | the habits kept so far this week (`keptSoFar`) and over the four whole weeks before (`keptBaseline`) differ by `limits.homeKeptRatePoints` whole percentage points or more, each resting on at least `limits.homeKeptRateMinDays` habit-days | Habits |
+| spending | last week's spending (`weekFigures`, the month's rules) is `limits.homeSpendingRatio` or more off the weekly mean of the weeks before it, with at least `limits.homeSpendingMinWeeks` of them -- the week in progress is never compared with whole weeks | Finances |
+| net worth | net worth moved over 30 days by `limits.homeNetWorthRatio` or more of its value then; nothing while it is unknown | Finances |
+
+**The habits kept so far this week** sum every habit's `habitRate` from
+Monday to yesterday, and today for a habit already answered -- kept, or given
+a reason; a habit still open today is not a miss yet, so the figure does not
+dip each morning. Null, shown as a dash, while nothing was due.
+
+**The tiles** (`homeTiles`), one number and one label each, the whole tile a
+link: Habits (the kept rate above; "No habits yet" with none active), Money
+(net worth and its 30-day change; "No balance yet" while no account has a
+value -- unknown, not zero), Goals (how many are open), Journal (entries
+dated this week, else the last entry's day within a year).
+
+**Is not** where anything is ticked, edited or explored: the habits are
+ticked by the check-in and on the Habits screen, and every other block reads
+what those wrote. A check-in answer refreshes the route, so the sections and
+tiles follow it.
+
+---
+
 ## Check-in
 
 **Is** the one conversation a day in which the system asks and you answer:
@@ -1624,7 +1681,7 @@ time stepped per area in half hours and saved as one answer, or "Nothing to
 declare" -- an area some habit is counted from says so under its name
 ("Counts as Gym"). Each answer is POSTed as it is given, the panel is redrawn from
 what the server answers, never from what it sent, and the card moves on;
-then the rest of Home is re-read, so the Habits card follows. Back goes to
+then the rest of Home is re-read, so its sections and tiles follow. Back goes to
 the question before, answered or not; "Skip for now" sets one aside until
 the others are asked. The open question never counts as left.
 

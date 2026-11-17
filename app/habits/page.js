@@ -13,8 +13,7 @@ export const dynamic = 'force-dynamic';
  * (`#card-habits-manage`) and the history heatmap (`#card-habits-history`).
  *
  * A server component that reads the list and the window once per request,
- * with only the editing and the corrections as client islands -- the same
- * split as HabitsCard and HabitsList. Every cell, rate and summary number is
+ * with only the editing and the corrections as client islands. Every cell, rate and summary number is
  * derived here, so the browser is never asked to decide what a day means,
  * and a tick or a correction moves them on the refresh that follows.
  *
