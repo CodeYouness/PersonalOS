@@ -5,25 +5,26 @@ import {
   accountStaleSince,
   accountValueOn,
   allocation,
-  averageMark,
   calendarYearFlows,
+  circleArc,
   dayUnitsReachedZero,
   financeOverview,
   firstDayUnitsGoNegative,
+  flowCircle,
   flowMonths,
   flowTrend,
   foldedLines,
+  lineAverages,
   lineHolds,
   listedTransactions,
   meetsSavingsTarget,
   monthFlows,
   monthsWith,
   netWorthOn,
+  periodInvested,
   quietAccounts,
   savingsRate,
   sparkBars,
-  spendingAverages,
-  spendingLinesWithAverage,
   spendingParts,
   tagFlows,
   tagHolds,
@@ -1102,67 +1103,6 @@ describe('spending over time: the trend, the average, the year', () => {
     });
   });
 
-  describe('a category against its monthly average', () => {
-    it('averages the twelve months on offer before the selected one, a month without movement counting as zero', () => {
-      const transactions = [
-        t('2025-02-10', -999999, 'cat_shopping'), // thirteen months back: outside the window
-        t('2025-03-10', -12000, 'cat_shopping'),
-        t('2025-09-01', -24000, 'cat_shopping'),
-        t('2026-03-10', -999999, 'cat_shopping'), // the selected month itself
-      ];
-      const averages = spendingAverages(transactions, categories, '2026-03', offer('2025-01', '2026-03'));
-
-      expect(averages?.months).toBe(12);
-      expect(averages?.byLine.get('cat_shopping')).toBe(3000);
-      expect(averages?.byLine.get('cat_home')).toBe(0);
-    });
-
-    it('rolls a parent up from its subcategories, keeps Uncategorised as a line, and rounds to a cent', () => {
-      const transactions = [
-        t('2026-01-01', -9000, 'cat_rent'),
-        t('2026-01-02', -1000, 'cat_home'),
-        t('2026-02-05', -1000, null),
-        t('2026-02-06', 4000, null), // money in: not uncategorised spending
-      ];
-      const averages = spendingAverages(transactions, categories, '2026-04', offer('2026-01', '2026-04'));
-
-      expect(averages?.byLine.get('cat_home')).toBe(3333);
-      expect(averages?.byLine.get(UNCATEGORISED_SPENDING)).toBe(333);
-    });
-
-    it('counts by the month\'s rules: a refund reduces, a transfer and a not-counted movement do not count', () => {
-      const transactions = [
-        t('2026-01-10', -9000, 'cat_shopping'),
-        t('2026-02-10', 3000, 'cat_shopping'),
-        t('2026-02-11', -50000, null, { counterAccountId: 'account_y' }),
-        t('2026-03-11', -50000, 'cat_shopping', { notCounted: true }),
-      ];
-      const averages = spendingAverages(transactions, categories, '2026-04', offer('2026-01', '2026-04'));
-
-      expect(averages?.byLine.get('cat_shopping')).toBe(2000);
-      expect(averages?.byLine.get(UNCATEGORISED_SPENDING)).toBe(0);
-    });
-
-    it('is not shown with fewer than three months before the selected one on offer', () => {
-      expect(spendingAverages([], categories, '2026-03', offer('2026-01', '2026-03'))).toBeNull();
-      expect(spendingAverages([], categories, '2026-04', offer('2026-01', '2026-04'))).not.toBeNull();
-      // Months before "tracked since" are not on offer and do not count.
-      expect(spendingAverages([t('2025-10-01', -100, 'cat_shopping')], categories, '2026-02', offer('2026-01', '2026-02'))).toBeNull();
-    });
-  });
-
-  describe('the paired mark: a month against its average', () => {
-    it('scales both to the larger of the two', () => {
-      expect(averageMark(20000, 10000)).toEqual({ total: 1, average: 0.5 });
-      expect(averageMark(5000, 10000)).toEqual({ total: 0.5, average: 1 });
-    });
-
-    it('draws a net refund as nothing and two zeros as nothing, never NaN', () => {
-      expect(averageMark(-3000, 10000)).toEqual({ total: 0, average: 1 });
-      expect(averageMark(0, 0)).toEqual({ total: 0, average: 0 });
-    });
-  });
-
   describe('a calendar year, to date', () => {
     const transactions = [
       t('2025-02-01', 180000, 'cat_salary'),
@@ -1301,56 +1241,6 @@ describe('spending by tag', () => {
 
     expect(march.map((one) => one.amount)).toEqual([-12000, 2000]);
     expect(tagHolds(t('2026-03-01', -100, null, ['other']), 'lisbon trip')).toBe(false);
-  });
-});
-
-describe('every spending line with an average is listed in a month', () => {
-  /** @returns {any} */
-  const category = (/** @type {any} */ o) => ({ name: o.id, kind: null, parentId: null, fixedCost: false, archived: false, ...o });
-  const categories = [
-    category({ id: 'cat_home', kind: 'expense' }),
-    category({ id: 'cat_gym', kind: 'expense' }),
-    category({ id: 'cat_gifts', kind: 'expense' }),
-    category({ id: 'cat_salary', kind: 'income' }),
-  ];
-  const offered = flowMonths([], '2026-05-15', '2026-01-01');
-  const transactions = [
-    transaction({ date: '2026-01-05', amount: -9000, categoryId: 'cat_gym' }),
-    transaction({ date: '2026-01-06', amount: -3000 }),
-    transaction({ date: '2026-03-05', amount: -100000, categoryId: 'cat_home' }),
-    transaction({ date: '2026-05-05', amount: -100000, categoryId: 'cat_home' }),
-  ];
-
-  it('adds a line of zero for a category with nothing this month or last whose average is above zero, in the categories\' order', () => {
-    const flows = monthFlows(transactions, categories, '2026-05');
-    const averages = spendingAverages(transactions, categories, '2026-05', offered);
-    const { lines, showUncategorised } = spendingLinesWithAverage(flows, averages, categories);
-
-    expect(lines.map((line) => [line.id, line.total, line.share, line.previous])).toEqual([
-      ['cat_home', 100000, 1, 0],
-      ['cat_gym', 0, 0, 0],
-    ]);
-    // Uncategorised had money in January: its average is above zero too.
-    expect(showUncategorised).toBe(true);
-  });
-
-  it('leaves out a category whose average is zero', () => {
-    const flows = monthFlows(transactions, categories, '2026-05');
-    const averages = spendingAverages(transactions, categories, '2026-05', offered);
-
-    expect(spendingLinesWithAverage(flows, averages, categories).lines.some((line) => line.id === 'cat_gifts')).toBe(false);
-  });
-
-  it('is the month\'s own lines when there is no average', () => {
-    const flows = monthFlows(transactions, categories, '2026-03');
-
-    expect(spendingLinesWithAverage(flows, null, categories)).toEqual({ lines: flows.spendingCategories, showUncategorised: false });
-  });
-
-  it('leaves what monthFlows returns -- what the question context reads -- as it was', () => {
-    const flows = monthFlows(transactions, categories, '2026-05');
-
-    expect(flows.spendingCategories.map((line) => line.id)).toEqual(['cat_home']);
   });
 });
 
@@ -1770,5 +1660,189 @@ describe('an account nobody has updated in a while', () => {
 
   it('is never stale while unknown: it already says so', () => {
     expect(accountStaleSince(row(null), '2026-04-20')).toBeNull();
+  });
+});
+
+describe('what was invested in a period, from the trades (ADR 0050)', () => {
+  const trades = [
+    // 2 units at 100.00, a 1.50 fee: 201.50 out of pocket.
+    trade({ id: 'trade_1', date: '2026-03-05', direction: 'buy', units: 2 * UNIT, price: 10000, fee: 150 }),
+    // Half a unit at 3.33: 1.665, rounded half up to 1.67, no fee.
+    trade({ id: 'trade_2', date: '2026-03-20', direction: 'buy', units: UNIT / 2, price: 333, accountId: 'account_btc' }),
+    // 1 unit at 120.00, a 1.00 fee: 119.00 back.
+    trade({ id: 'trade_3', date: '2026-04-02', direction: 'sell', units: UNIT, price: 12000, fee: 100 }),
+    trade({ id: 'trade_4', date: '2026-02-27', direction: 'buy', units: UNIT, price: 5000, fee: 0 }),
+  ];
+
+  it('adds up a month\'s buys at what they cost, fees included, across every holding', () => {
+    expect(periodInvested(trades, ['2026-03'])).toEqual({ bought: 20317, sold: 0, net: 20317 });
+  });
+
+  it('takes a sell\'s proceeds, its fee taken off, from the buys', () => {
+    expect(periodInvested(trades, ['2026-04'])).toEqual({ bought: 0, sold: 11900, net: -11900 });
+  });
+
+  it('reads a year as the sum of its months', () => {
+    expect(periodInvested(trades, ['2026-01', '2026-02', '2026-03', '2026-04'])).toEqual({ bought: 25317, sold: 11900, net: 13417 });
+  });
+
+  it('is nothing in a period with no trades', () => {
+    expect(periodInvested(trades, ['2026-05'])).toEqual({ bought: 0, sold: 0, net: 0 });
+    expect(periodInvested([], ['2026-03'])).toEqual({ bought: 0, sold: 0, net: 0 });
+  });
+});
+
+describe('the circle of a period: what came in, split into spent, invested and kept (ADR 0050)', () => {
+  /** @param {number} income @param {number} spending */
+  const flows = (income, spending) => ({ income, spending });
+  /** @param {number} bought @param {number} [sold] */
+  const put = (bought, sold = 0) => ({ bought, sold, net: bought - sold });
+  /** @param {ReturnType<typeof flowCircle>} circle */
+  const drawn = (circle) => circle.parts.map((part) => [part.key, part.amount, part.start, part.end]);
+
+  it('splits the income, clockwise from the top: spent, invested, kept', () => {
+    const circle = flowCircle(flows(300000, 150000), put(50000));
+
+    expect(circle.state).toBe('parts');
+    expect(circle.income).toBe(300000);
+    expect(drawn(circle)).toEqual([
+      ['spent', 150000, 0, 0.5],
+      ['invested', 50000, 0.5, 0.6667],
+      ['kept', 100000, 0.6667, 1],
+    ]);
+    expect(circle.parts.map((part) => part.name)).toEqual(['Spent', 'Invested', 'Kept']);
+    expect(circle.parts.map((part) => part.share)).toEqual([0.5, 50000 / 300000, 100000 / 300000]);
+    expect(circle).toMatchObject({ overspent: 0, excess: null, fromSavings: 0, sold: 0 });
+  });
+
+  it('draws the whole circle as spent when spending passes income, and the excess as an arc outside it', () => {
+    const circle = flowCircle(flows(100000, 130000), put(0));
+
+    expect(drawn(circle)).toEqual([
+      ['spent', 130000, 0, 1],
+      ['invested', 0, 1, 1],
+      ['kept', 0, 1, 1],
+    ]);
+    expect(circle.parts[0].share).toBe(1.3);
+    expect(circle.overspent).toBe(30000);
+    expect(circle.excess).toBe(0.3);
+  });
+
+  it('caps the outer arc at a full turn when spending is more than twice the income', () => {
+    const circle = flowCircle(flows(100000, 350000), put(0));
+
+    expect(circle.overspent).toBe(250000);
+    expect(circle.excess).toBe(1);
+  });
+
+  it('has no parts to draw without income, and says what was spent', () => {
+    const circle = flowCircle(flows(0, 5000), put(0));
+
+    expect(circle.state).toBe('no-income');
+    expect(circle.income).toBe(0);
+    expect(drawn(circle)).toEqual([
+      ['spent', 5000, 0, 0],
+      ['invested', 0, 0, 0],
+      ['kept', 0, 0, 0],
+    ]);
+    expect(circle.parts.every((part) => part.share === null)).toBe(true);
+    expect(circle).toMatchObject({ overspent: 5000, excess: null });
+    // A net chargeback is no income either.
+    expect(flowCircle(flows(-2000, 0), put(0)).state).toBe('no-income');
+  });
+
+  it('caps what was invested at what spending left, and says how much came from earlier savings', () => {
+    const circle = flowCircle(flows(100000, 80000), put(50000));
+
+    expect(drawn(circle)).toEqual([
+      ['spent', 80000, 0, 0.8],
+      ['invested', 50000, 0.8, 1],
+      ['kept', 0, 1, 1],
+    ]);
+    expect(circle.fromSavings).toBe(30000);
+  });
+
+  it('reads all of an investment in an overspent period as from earlier savings', () => {
+    const circle = flowCircle(flows(100000, 120000), put(40000));
+
+    expect(circle.fromSavings).toBe(40000);
+    expect(circle.parts[1]).toMatchObject({ amount: 40000, start: 1, end: 1 });
+  });
+
+  it('invests nothing in a period that sold more than it bought, and says what was sold', () => {
+    const circle = flowCircle(flows(300000, 100000), put(10000, 40000));
+
+    expect(drawn(circle)).toEqual([
+      ['spent', 100000, 0, 0.3333],
+      ['invested', 0, 0.3333, 0.3333],
+      ['kept', 200000, 0.3333, 1],
+    ]);
+    expect(circle.sold).toBe(30000);
+  });
+
+  it('is empty when nothing came in, went out or was invested', () => {
+    const circle = flowCircle(flows(0, 0), put(0));
+
+    expect(circle.state).toBe('empty');
+    expect(circle).toMatchObject({ overspent: 0, excess: null, fromSavings: 0, sold: 0 });
+  });
+
+  it('reads the savings rate\'s saved as invested and kept together', () => {
+    const circle = flowCircle(flows(300000, 150000), put(50000));
+
+    expect(circle.parts[1].amount + circle.parts[2].amount).toBe(300000 - 150000);
+  });
+});
+
+describe('the circle\'s arcs (ADR 0050)', () => {
+  it('draws an arc clockwise from the top, at a radius around a centre', () => {
+    expect(circleArc(0, 0.25, 40, 50)).toBe('M 50 10 A 40 40 0 0 1 90 50');
+    expect(circleArc(0.25, 0.5, 40, 50)).toBe('M 90 50 A 40 40 0 0 1 50 90');
+  });
+
+  it('takes the long way round past half a turn', () => {
+    expect(circleArc(0, 0.75, 40, 50)).toBe('M 50 10 A 40 40 0 1 1 10 50');
+  });
+
+  it('draws a full turn as two halves, which one arc cannot', () => {
+    expect(circleArc(0, 1, 40, 50)).toBe('M 50 10 A 40 40 0 1 1 50 90 A 40 40 0 1 1 50 10');
+  });
+
+  it('draws nothing for nothing', () => {
+    expect(circleArc(0.5, 0.5, 40, 50)).toBe('');
+  });
+
+  it('rounds to two decimals', () => {
+    expect(circleArc(0, 1 / 3, 40, 50)).toBe('M 50 10 A 40 40 0 0 1 84.64 70');
+  });
+});
+
+describe('a line\'s average month in a year (ADR 0050)', () => {
+  /** @returns {any} */
+  const category = (/** @type {any} */ o) => ({ name: o.id, kind: null, parentId: null, fixedCost: false, archived: false, ...o });
+  const categories = [
+    category({ id: 'cat_home', kind: 'expense' }),
+    category({ id: 'cat_rent', parentId: 'cat_home' }),
+    category({ id: 'cat_salary', kind: 'income' }),
+  ];
+  const offered = flowMonths([], '2026-03-15', '2026-01-01');
+  const transactions = [
+    transaction({ date: '2026-01-02', amount: -60000, categoryId: 'cat_rent' }),
+    transaction({ date: '2026-02-02', amount: -40000, categoryId: 'cat_rent' }),
+    transaction({ date: '2026-02-03', amount: -10001, categoryId: 'cat_home' }),
+    transaction({ date: '2026-01-01', amount: 300000, categoryId: 'cat_salary' }),
+    transaction({ date: '2026-03-05', amount: -900 }),
+  ];
+
+  it('is each line\'s total over the year\'s months on offer, a subcategory and Uncategorised included, rounded to a cent', () => {
+    const year = calendarYearFlows(transactions, categories, '2026-03', offered);
+    const averages = lineAverages(year);
+
+    expect(year.months).toHaveLength(3);
+    expect(averages.get('cat_home')).toBe(36667); // 1,100.01 / 3
+    expect(averages.get('cat_rent')).toBe(33333);
+    expect(averages.get('cat_salary')).toBe(100000);
+    expect(averages.get(UNCATEGORISED_SPENDING)).toBe(300);
+    expect(averages.get(UNCATEGORISED_INCOME)).toBe(0);
   });
 });

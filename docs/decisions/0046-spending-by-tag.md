@@ -2,7 +2,9 @@
 
 - **Status** accepted; amended by [0048](0048-finances-reads-at-a-glance.md):
   a month with nothing selected is capped too (`limits.financeListMax`), with
-  `?span=all` to show them all
+  `?span=all` to show them all; and by
+  [0050](0050-income-and-spending-reads-as-a-circle.md): a month has no
+  average any more, so no line is listed for one
 - **Date** 2026-11-17
 
 ## Context

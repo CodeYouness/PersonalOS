@@ -9,19 +9,20 @@ import { lineName } from '@/components/finance.js';
 import { monthLabel } from '@/components/format.js';
 import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
-import { financesSpan } from '@/lib/domain/addresses.js';
+import { financesSpan, financesView } from '@/lib/domain/addresses.js';
 import { isMonthKey, monthOf, today, yearOf } from '@/lib/domain/dates.js';
 import {
   calendarYearFlows,
   financeOverview,
   flowMonths,
   flowTrend,
+  lineAverages,
   listedTransactions,
   monthFlows,
   monthsWith,
+  periodInvested,
   quietAccounts,
   savingsRate,
-  spendingAverages,
   tagFlows,
   trendMonths,
   uncategorisedCounts,
@@ -70,6 +71,11 @@ export const dynamic = 'force-dynamic';
  * instead of the month (calendarYearFlows); anything else, or nothing, reads
  * the month. A selected line then lists the year's transactions.
  *
+ * `?view=table` shows the section as a table with its comparison columns;
+ * anything else, or nothing, shows the circle of the period beside its
+ * breakdown (ADR 0050). What the circle calls invested is read from the
+ * trades of the period (periodInvested), never from a transaction.
+ *
  * The section's trend draws income and spending as bars over the trend's
  * twelve months in a month and the year's in a year. An old `?chart=` from
  * before ADR 0048 is read by nothing.
@@ -84,13 +90,14 @@ export const dynamic = 'force-dynamic';
  * Each savings rate is set against the target savings rate, when one is set
  * in Settings, under Manage (ADR 0045).
  *
- * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], transaction?: string | string[], category?: string | string[], tag?: string | string[], span?: string | string[] }> }} props
+ * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], view?: string | string[], transaction?: string | string[], category?: string | string[], tag?: string | string[], span?: string | string[] }> }} props
  */
 export default async function FinancesScreen({ searchParams }) {
   const {
     account: accountParam,
     month: monthParam,
     period: periodParam,
+    view: viewParam,
     transaction: transactionParam,
     category: categoryParam,
     tag: tagParam,
@@ -135,6 +142,7 @@ export default async function FinancesScreen({ searchParams }) {
     max: limits.financeListMax,
   });
   const periodLabel = period === 'year' ? yearOf(month) : monthLabel(month);
+  const view = financesView(viewParam);
 
   /** @type {<T extends { accountId: string, date: string }>(rows: T[]) => T[]} */
   const ofSelected = (rows) =>
@@ -142,7 +150,7 @@ export default async function FinancesScreen({ searchParams }) {
       ? []
       : rows.filter((row) => row.accountId === selected.id).sort((a, b) => b.date.localeCompare(a.date));
   /** @type {import('@/components/finance.js').FinancesPlace} */
-  const place = { account: selected?.id ?? null, month, period, category, tag, span, transaction: selectedTransaction?.id ?? null };
+  const place = { account: selected?.id ?? null, month, period, view, category, tag, span, transaction: selectedTransaction?.id ?? null };
 
   return (
     <section id="screen-finances" className="screen is-active">
@@ -175,11 +183,12 @@ export default async function FinancesScreen({ searchParams }) {
             key={period + month}
             flows={flows}
             period={period}
+            view={view}
             yearRate={period === 'year' ? null : savingsRate(yearFlows(transactions, categories, month))}
             target={profile.financeSavingsTarget}
-            categories={categories}
             trend={flowTrend(transactions, categories, trendShown)}
-            averages={period === 'year' ? null : spendingAverages(transactions, categories, month, months)}
+            invested={periodInvested(trades, periodMonths)}
+            averages={year === null ? null : lineAverages(year)}
             uncategorised={uncategorisedCounts(transactions, categories, periodMonths)}
             months={months}
             month={month}

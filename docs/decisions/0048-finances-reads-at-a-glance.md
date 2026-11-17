@@ -6,7 +6,10 @@
   [0046](0046-spending-by-tag.md) (the capped list), [0040](0040-home-shows-what-needs-you.md) (Home's money reading)
 - **Amended by** [0049](0049-accounts-by-kind-and-the-brand-is-home.md): the
   accounts table is Account and Value in sections by kind, with one date for
-  the table; the quiet fold keeps the sections
+  the table; the quiet fold keeps the sections; and by
+  [0050](0050-income-and-spending-reads-as-a-circle.md): Income & spending
+  is a circle of what came in beside its breakdown, or a table, and its
+  figures are a summary under the tables
 
 ## Context
 

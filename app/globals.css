@@ -1125,22 +1125,75 @@ a.cite { text-decoration: none; }
 .finance-entry + .field, .field + .finance-entry { margin-top: var(--s-sm); }
 .finance-check { display: flex; align-items: center; gap: var(--s-xs); min-height: var(--control-h); margin: var(--s-xs) 0 var(--s-sm); cursor: pointer; }
 .finance-month-picker { width: auto; }
-.finance-flow-totals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-sm); margin-bottom: var(--s-sm); }
-.finance-figure { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; }
-.finance-figure .num { font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.finance-fixed { margin-bottom: var(--s-md); }
 .finance-flow-table { table-layout: fixed; }
-.finance-flow-table th:first-child { width: 40%; }
-.finance-flow-table tr.is-child td:first-child { padding-left: calc(var(--s-sm) + 28px); }
-/* The disclosure triangle of a table row: 28px, in a row of 16px text. */
-.finance-disclosure {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; padding: 0; margin: -4px 2px -4px -6px; border-radius: var(--r-xs);
-  background: none; border: none; color: var(--ink-subtle); cursor: pointer; font: inherit;
+.finance-flow-table th:first-child { width: 55%; }
+/* A row is one line (ui-rules, Tables): a long name is cut, whole in its title. */
+.finance-flow-table td:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.finance-flow-table tr.is-child td:first-child { padding-left: calc(var(--s-sm) + 22px); }
+/* A line's name that opens its subcategories (ADR 0050): the name itself is
+   the button, a ▸ before it; a name that lists movements is a link instead,
+   underlined, with no mark. 28px high, as a table row's disclosure. */
+.finance-line-toggle {
+  display: inline; min-height: 28px; padding: 2px 6px 2px 0; margin: -2px 0; border-radius: var(--r-xs);
+  background: none; border: none; font: inherit; font-size: 16px; color: var(--ink); cursor: pointer; text-align: left;
+  transition: background-color var(--m-out) var(--ease);
 }
-.finance-disclosure:hover { background: var(--surface-3); color: var(--ink); }
-.finance-flow-totals.is-four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (max-width: 900px) { .finance-flow-totals, .finance-flow-totals.is-four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.finance-line-toggle:hover { background: var(--surface-3); }
+.finance-line-mark { display: inline-block; width: 22px; text-align: center; color: var(--ink-subtle); }
+/* Inside an opened line, the quiet link to its movements. */
+.finance-movements-row td { padding-top: 2px; }
+.finance-movements-row .finance-account-link { font-size: 13px; }
+/* Income & spending's body (ADR 0050): the circle on the left, the breakdown
+   on its right; stacked on a phone. The table view is the breakdown alone. */
+.finance-flow-body { display: grid; grid-template-columns: minmax(170px, 260px) minmax(0, 1fr); gap: var(--s-lg); align-items: start; }
+.finance-flow-body.is-table { grid-template-columns: minmax(0, 1fr); }
+/* Side by side down to a narrow pane: the circle on the left is the point.
+   Only a phone stacks it. */
+@media (max-width: 560px) { .finance-flow-body { grid-template-columns: minmax(0, 1fr); gap: var(--s-md); } }
+.finance-breakdown { min-width: 0; }
+/* The circle: an SVG ring whose whole is the income. Spent in the ink,
+   invested and kept in the lighter series tones, the overspending outside the
+   ring in the danger tone. A hovered or focused part is drawn thicker and the
+   others dim: only opacity changes over time. */
+.finance-circle { margin: 0; }
+.finance-circle-frame { position: relative; width: 100%; max-width: 280px; margin: 0 auto; aspect-ratio: 1; }
+.finance-circle-frame svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.finance-circle-track { fill: none; stroke: var(--hairline); stroke-width: 14; }
+.finance-circle-track.is-empty { stroke: var(--hairline-strong); stroke-width: 1.5; }
+.finance-circle-part, .finance-circle-excess {
+  fill: none; stroke-width: 14; stroke-linecap: butt;
+  transition: opacity var(--m-out) var(--ease);
+}
+.finance-circle-part.is-spent { stroke: var(--series-1); }
+.finance-circle-part.is-invested { stroke: var(--series-2); }
+.finance-circle-part.is-kept { stroke: var(--series-3); }
+.finance-circle-excess { stroke: var(--danger); stroke-width: 5; }
+.finance-circle-part.is-active { stroke-width: 18; }
+.finance-circle-excess.is-active { stroke-width: 7; }
+.finance-circle svg.has-active .finance-circle-part:not(.is-active),
+.finance-circle svg.has-active .finance-circle-excess:not(.is-active) { opacity: .35; }
+.finance-circle-centre {
+  position: absolute; inset: 22%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; text-align: center; pointer-events: none;
+}
+.finance-circle-centre .caption { line-height: 1.3; }
+.finance-circle-amount { font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); }
+/* The summary: the final account, under the tables, aligned right. */
+.finance-summary { display: flex; flex-direction: column; max-width: 420px; margin: var(--s-md) 0 0 auto; }
+.finance-summary-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s-sm); align-items: baseline;
+  padding: var(--s-xxs) 0; border-top: 1px solid var(--hairline);
+}
+.finance-summary-row dt { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 16px; color: var(--ink); }
+.finance-summary-row dd { margin: 0; }
+.finance-summary-row dd.num { font-size: 16px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.finance-summary-row dd.caption { grid-column: 1 / -1; justify-self: end; text-align: right; }
+.finance-summary-row.is-rate { border-top-color: var(--hairline-strong); }
+.finance-summary-row.is-rate + .finance-summary-row.is-rate { border-top-color: var(--hairline); }
+.finance-summary-row.is-quiet dt, .finance-summary-row.is-quiet dd.num { font-size: 13px; color: var(--ink-subtle); }
+.finance-swatch.is-spent { background: var(--series-1); }
+.finance-swatch.is-invested { background: var(--series-2); }
+.finance-swatch.is-kept { background: var(--series-3); }
 /* Income & spending's controls: the Month / Year switch beside the picker. */
 #card-finance-flows .card-head { flex-wrap: wrap; }
 .finance-flow-controls { display: flex; align-items: center; justify-content: flex-end; gap: var(--s-xs); flex-wrap: wrap; }
@@ -1197,28 +1250,23 @@ a.cite { text-decoration: none; }
 .finance-trend-tick { display: inline-block; width: 10px; height: 2px; background: var(--ink); }
 /* The composition bar sits on the spending table it is the chart of. */
 .finance-composition { margin: 0 0 var(--s-xs); }
+.finance-table-scroll + .finance-composition { margin-top: var(--s-md); }
 .finance-part-dot { display: inline-block; margin-right: 6px; vertical-align: middle; }
-/* The flow tables keep their columns and scroll inside the card when narrow. */
-.finance-flow-table { min-width: 480px; }
-.finance-flow-table.has-average { min-width: 600px; }
-.finance-flow-table.has-average th:first-child { width: 30%; }
-/* A line against its average: this period (ink) above the average (light). */
-.finance-average-mark-head, .finance-flow-table td.finance-average-mark { width: 56px; }
-.finance-average-mark span { display: flex; flex-direction: column; gap: 2px; }
-.finance-average-mark i { display: block; height: 4px; border-radius: 2px; }
-.finance-average-mark .is-total { background: var(--series-1); }
-.finance-average-mark .is-average { background: var(--series-3); }
+/* The table view's tables keep their columns and scroll inside the card
+   when narrow; the circle view's three columns fit a phone. */
+.finance-flow-table.is-wide { min-width: 520px; }
+.finance-flow-table.is-wide th:first-child { width: 36%; }
 .finance-average-note { margin: var(--s-xs) 0 0; }
-.finance-average-note + .finance-table-scroll { margin-top: var(--s-md); }
 /* A savings rate against its target (ADR 0045): words, and a quiet dot --
    filled ink when met, an ink outline when not -- never colour alone. */
 .finance-target { display: inline-flex; align-items: center; gap: 6px; text-align: right; }
+.finance-summary-row dd.finance-target { display: inline-flex; }
 .finance-target-mark {
   flex: none; width: 8px; height: 8px; border-radius: var(--r-full);
   border: 1px solid var(--ink); background: transparent;
 }
 .finance-target-mark.is-met { background: var(--ink); }
-.finance-target-note { margin: 0 0 var(--s-sm); }
+.finance-target-note { max-width: 36ch; }
 /* By tag (ADR 0046): a tag's first and last day under its name. */
 .finance-tag-days { display: block; }
 .finance-tag-note { margin: var(--s-xs) 0 0; }
