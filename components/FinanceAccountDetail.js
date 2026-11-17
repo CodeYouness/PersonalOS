@@ -24,7 +24,7 @@ const KIND_CHOICES = { cash: 'Cash', investment: 'Investment', asset: 'Asset', l
  * The Finances screen's account panel (#114), opened by `?account=<id>`:
  * what the account is worth, recorded the way it is valued -- balances
  * (FinanceBalances) or, for a holding, trades and prices (FinanceHoldings,
- * #116, #117). Every
+ * #116, #117) under what the holding earned (`position`, ADR 0051). Every
  * write posts first and then re-reads the screen, win or lose, so the table
  * and net worth show what was really saved.
  *
@@ -41,11 +41,12 @@ const KIND_CHOICES = { cash: 'Cash', investment: 'Investment', asset: 'Asset', l
  *   balances: FinanceObservation[],
  *   trades: Trade[],
  *   prices: Price[],
+ *   position?: import('@/components/FinanceHoldings.js').Position | null,
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
- * }} props
+ * }} props `position`: a holding's returns, from investmentReturns
  */
-export default function FinanceAccountDetail({ account, balances, trades, prices, todayKey, place }) {
+export default function FinanceAccountDetail({ account, balances, trades, prices, position = null, todayKey, place }) {
   const closed = financesHref({ ...place, account: null });
   const router = useRouter();
   const [error, setError] = useState(/** @type {string | null} */ (null));
@@ -156,6 +157,7 @@ export default function FinanceAccountDetail({ account, balances, trades, prices
             account={account}
             trades={trades}
             prices={prices}
+            position={position}
             write={write}
             refuse={setError}
             isSaving={isSaving}

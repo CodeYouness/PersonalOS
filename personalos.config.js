@@ -434,6 +434,18 @@ export const limits = Object.freeze({
    * The table prints no per-row date otherwise.
    */
   financeStaleAccountDays: 35,
+  /**
+   * The tax on a capital gain, in percent, that a holding's profit "after
+   * tax" is shown net of (ADR 0051): Italy's 26%, applied to every holding.
+   * A loss is not reduced by it.
+   */
+  financeCapitalGainsTaxPercent: 26,
+  /**
+   * Italy's rate on government bonds (BTP and the like), 12.5%. Claimed, not
+   * read: a holding cannot say yet that it is one, so every holding takes the
+   * rate above (ADR 0051 says what would be needed).
+   */
+  financeGovernmentBondTaxPercent: 12.5,
   /** How far back the Health card aggregates. */
   healthWindowDays: 30,
   /** How far ahead recurring calendar events are expanded. */

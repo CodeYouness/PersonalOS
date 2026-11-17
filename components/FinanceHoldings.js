@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 import { accountUrl, syncedNote } from '@/components/finance.js';
+import { HoldingPosition } from '@/components/FinanceInvestments.js';
 import { formatMoney, formatUnits, parseMoney, parseUnits, shortDate } from '@/components/format.js';
 import { isSyncedAccount } from '@/lib/domain/origin.js';
 import { TRADE_DIRECTIONS } from '@/personalos.config.js';
@@ -10,6 +11,17 @@ import { TRADE_DIRECTIONS } from '@/personalos.config.js';
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
 /** @typedef {import('@/lib/domain/types.js').Trade} Trade */
 /** @typedef {import('@/lib/domain/types.js').Price} Price */
+
+/**
+ * What a holding earned, as its panel shows it (ADR 0051): its row of
+ * investmentReturns, the day the change is measured from and the tax rate.
+ *
+ * @typedef {{
+ *   row: import('@/lib/domain/derive/investments.js').HoldingReturn,
+ *   since: string | null,
+ *   taxPercent: number,
+ * }} Position
+ */
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
@@ -19,15 +31,18 @@ const JSON_HEADERS = { 'content-type': 'application/json' };
  * record a price for a month with no trade (#117); then the trades and the
  * prices, newest first, each corrected or deleted on its row. Its value is
  * the units held times the latest price; a fee is what it cost, never what
- * it is worth.
+ * it is worth. Above it all, once it has a trade, what it earned
+ * (HoldingPosition, ADR 0051): cost, value, profit or loss gross and after
+ * tax, realised, the change since the last price day, the year to date.
  *
  * @param {import('@/components/FinanceBalances.js').PanelWrites & {
  *   account: FinanceAccount,
  *   trades: Trade[],
  *   prices: Price[],
+ *   position?: Position | null,
  * }} props
  */
-export default function FinanceHoldings({ account, trades, prices, write, refuse, isSaving, todayKey }) {
+export default function FinanceHoldings({ account, trades, prices, position = null, write, refuse, isSaving, todayKey }) {
   const [direction, setDirection] = useState(/** @type {Trade['direction']} */ ('buy'));
   const [units, setUnits] = useState('');
   const [price, setPrice] = useState('');
@@ -102,6 +117,12 @@ export default function FinanceHoldings({ account, trades, prices, write, refuse
 
   return (
     <>
+      {position !== null && trades.length > 0 && (
+        <>
+          <HoldingPosition row={position.row} since={position.since} taxPercent={position.taxPercent} todayKey={todayKey} />
+          <div className="divider" />
+        </>
+      )}
       {synced ? (
         <p className="caption">
           {syncedNote(account.origin?.source)}

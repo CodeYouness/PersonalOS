@@ -29,6 +29,7 @@ import {
   worthChart,
   yearFlows,
 } from '@/lib/domain/derive/finance.js';
+import { investmentReturns } from '@/lib/domain/derive/investments.js';
 import { brokerStaleness } from '@/lib/domain/derive/sync-staleness.js';
 import { getAccount, getFinanceInputs, getProfile, getSyncStates, getTransaction } from '@/lib/store.js';
 import { limits } from '@/personalos.config.js';
@@ -90,6 +91,10 @@ export const dynamic = 'force-dynamic';
  * Each savings rate is set against the target savings rate, when one is set
  * in Settings, under Manage (ADR 0045).
  *
+ * What the holdings earned (investmentReturns, ADR 0051) is read once: the
+ * Net worth card's Invested section and Investments fold show all of them,
+ * and a selected holding's panel shows its own.
+ *
  * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], view?: string | string[], transaction?: string | string[], category?: string | string[], tag?: string | string[], span?: string | string[] }> }} props
  */
 export default async function FinancesScreen({ searchParams }) {
@@ -113,6 +118,8 @@ export default async function FinancesScreen({ searchParams }) {
   ]);
   const { accounts, observations, trades, prices, transactions } = finance;
   const overview = financeOverview(finance, todayKey);
+  const investments = investmentReturns(finance, todayKey);
+  const earned = selected === null ? undefined : [...investments.holdings, ...investments.archived].find((row) => row.account.id === selected.id);
   const staleness = brokerStaleness(syncStates, todayKey);
   const categories = profile.financeCategories;
   // The month of the selected transaction is on offer even when the section
@@ -163,6 +170,7 @@ export default async function FinancesScreen({ searchParams }) {
           todayKey={todayKey}
           place={place}
           staleness={staleness}
+          investments={investments}
           wide={selected === null}
         />
         {selected !== null && (
@@ -173,6 +181,7 @@ export default async function FinancesScreen({ searchParams }) {
               balances={ofSelected(observations)}
               trades={ofSelected(trades)}
               prices={ofSelected(prices)}
+              position={earned === undefined ? null : { row: earned, since: investments.since, taxPercent: investments.taxPercent }}
               todayKey={todayKey}
               place={place}
             />

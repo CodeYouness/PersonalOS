@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { financesHref } from '@/components/finance.js';
+import FinanceInvestments, { GainMark, InvestedNote } from '@/components/FinanceInvestments.js';
 import FinanceSyncLine from '@/components/FinanceSyncLine.js';
 import FinanceWorthChart from '@/components/FinanceWorthChart.js';
 import { formatEuro, formatMoney, formatMoneyChange, shortDate } from '@/components/format.js';
@@ -9,6 +10,7 @@ import { limits } from '@/personalos.config.js';
 
 /** @typedef {import('@/lib/domain/derive/finance.js').AccountRow} AccountRow */
 /** @typedef {import('@/lib/domain/derive/finance.js').AccountSection} AccountSection */
+/** @typedef {import('@/lib/domain/derive/investments.js').InvestmentReturns} InvestmentReturns */
 
 /**
  * The allocation bar's parts, in order. The assets are a neutral ramp of the
@@ -45,6 +47,13 @@ const ALLOCATION_PARTS = {
  * The selected one never folds. Archived accounts are listed by name under
  * the table, so one can be opened again to restore it (#115).
  *
+ * What the holdings earned (investmentReturns, ADR 0051) stays out of the
+ * table's columns: the Invested section says it in one line under its head
+ * -- cost, profit or loss, the change since the last price day -- a
+ * holding's row adds its signed share after its name, and the Investments
+ * fold under the table lists every holding with its cost, value and profit,
+ * and the totals.
+ *
  * @param {{
  *   overview: ReturnType<typeof import('@/lib/domain/derive/finance.js').financeOverview>,
  *   chart: ReturnType<typeof import('@/lib/domain/derive/finance.js').worthChart>,
@@ -53,10 +62,11 @@ const ALLOCATION_PARTS = {
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  *   staleness?: import('@/lib/domain/derive/sync-staleness.js').BrokerStaleness | null,
+ *   investments?: InvestmentReturns | null,
  *   wide?: boolean,
  * }} props `wide`: the whole row, when no account's panel sits beside it
  */
-export default function FinanceBreakdown({ overview, chart, accounts, archived, todayKey, place, staleness = null, wide = false }) {
+export default function FinanceBreakdown({ overview, chart, accounts, archived, todayKey, place, staleness = null, investments = null, wide = false }) {
   const selectedId = place.account ?? null;
   const parts = allocation(overview).filter((part) => part.amount !== 0);
   const { line } = chart;
@@ -131,7 +141,13 @@ export default function FinanceBreakdown({ overview, chart, accounts, archived, 
           <>
             {overview.asOf !== null && <p className="caption finance-accounts-updated">Last updated {shortDate(overview.asOf, todayKey)}</p>}
             {accounts.shown.length > 0 && (
-              <AccountTable sections={accountSections(overview, accounts.shown)} selectedId={selectedId} todayKey={todayKey} place={place} />
+              <AccountTable
+                sections={accountSections(overview, accounts.shown)}
+                selectedId={selectedId}
+                todayKey={todayKey}
+                place={place}
+                investments={investments}
+              />
             )}
             {accounts.quiet.length > 0 && (
               <details className="finance-fold finance-more-accounts">
@@ -147,8 +163,12 @@ export default function FinanceBreakdown({ overview, chart, accounts, archived, 
                   todayKey={todayKey}
                   place={place}
                   subtotals={false}
+                  investments={investments}
                 />
               </details>
+            )}
+            {investments !== null && (
+              <FinanceInvestments returns={investments} todayKey={todayKey} place={place} selectedId={selectedId} />
             )}
           </>
         )}
@@ -175,6 +195,9 @@ export default function FinanceBreakdown({ overview, chart, accounts, archived, 
  * allocation bar's mark, and gives its subtotal in the value column; then its
  * accounts. Two columns, the value last. The folded accounts are a second
  * table with the same fixed columns, so the two line up, and no subtotals.
+ * The Invested section's head is followed by its one line of what the
+ * holdings earned, where there are subtotals; a holding's row carries its
+ * share after its name.
  *
  * @param {{
  *   sections: AccountSection[],
@@ -182,9 +205,11 @@ export default function FinanceBreakdown({ overview, chart, accounts, archived, 
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  *   subtotals?: boolean,
+ *   investments?: InvestmentReturns | null,
  * }} props
  */
-function AccountTable({ sections, selectedId, todayKey, place, subtotals = true }) {
+function AccountTable({ sections, selectedId, todayKey, place, subtotals = true, investments = null }) {
+  const earned = new Map((investments?.holdings ?? []).map((row) => [row.account.id, row]));
   return (
     <div className="finance-table-scroll">
       <table className="finance-table finance-accounts-table">
@@ -214,6 +239,13 @@ function AccountTable({ sections, selectedId, todayKey, place, subtotals = true 
                   <td className="num">{formatMoney(section.subtotal)}</td>
                 )}
               </tr>
+              {subtotals && section.kind === 'investment' && investments !== null && investments.totals.gain !== null && (
+                <tr className="finance-section-note">
+                  <td colSpan={2}>
+                    <InvestedNote returns={investments} todayKey={todayKey} />
+                  </td>
+                </tr>
+              )}
               {section.rows.map((row) => {
                 const staleSince = accountStaleSince(row, todayKey);
                 return (
@@ -230,6 +262,7 @@ function AccountTable({ sections, selectedId, todayKey, place, subtotals = true 
                           {row.account.name}
                         </Link>
                         {staleSince !== null && <span className="caption finance-stale">since {shortDate(staleSince, todayKey)}</span>}
+                        <GainMark row={earned.get(row.account.id)} />
                       </span>
                     </td>
                     {row.value === null ? (

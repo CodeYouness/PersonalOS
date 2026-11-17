@@ -340,6 +340,8 @@ of its own.
 | `figure:income:`, `spending:`, `left:`, `savings-rate:<YYYY>-ytd` | today's calendar year to date, as the year reading shows it (`calendarYearFlows`): from January or "tracked since" to today's month; the rate with whether it meets the target and, when not, what would have had to be left | Finances, the year |
 | `figure:tag:<YYYY-MM>:<tag key>`, `figure:tag:<YYYY>-ytd:<tag key>` | one tag of today's month or of the year to date (`tagFlows`): spending, income and movements; the year's also its totals over all time and its first and last day. The key spells the tag in the characters an id allows, anything else as `_<hex code point>_` | Finances, that period, the tag selected |
 | `figure:category:<YYYY-MM>:<line id>` | one line of the category table: total, share, change on the month before | Finances, that month |
+| `figure:investments:now` | what the holdings cost, are worth and earned today (`investmentReturns`, ADR 0051): cost, value, profit or loss and its share, after tax, realised by sells, the change since the last price day, what was left out | Finances |
+| `figure:investments:<YYYY>-ytd` | the holdings' year to date, money put in or taken out not counted, and its share of the money at work | Finances |
 | `figure:habit-streak:now` | the current streak | Habits |
 | `figure:habit-completion:30d` | completion, perfect days and days recorded over 30 days | Habits |
 | `figure:habit-rate:<habit id>:30d` | one habit's rate over 30 days, paused days left out, with how many were paused and the misses by the reason given | Habits |
@@ -1286,6 +1288,57 @@ a day, never adds one, so a holding with no trades for months follows the
 month-end prices instead of staying flat. A security the broker has no chart
 for keeps its trades and gets only today's quote, with a warning.
 
+### What a holding earned
+
+What the spreadsheet it replaces showed for each investment, and for all of
+them (ADR 0051), derived by `investmentReturns` in
+`lib/domain/derive/investments.js`, never stored. A holding is an account
+valued by units; an investment valued by balance has no trades to cost and
+is in none of these figures, which say so.
+
+- **Cost basis** -- what the units held today cost, at the **weighted
+  average cost** (`averageCost`, the broker's "prezzo medio di carico"): a
+  buy adds its units times its price plus its fee; a sell takes its units
+  out at the average cost of the units held, rounded half up to the cent.
+  A day is read whole, its buys before its sells. Trades that sell a unit
+  never bought -- which the store refuses -- leave the cost unknown.
+- **Value** -- the holding's value today, `accountValueOn`: the same number
+  as the accounts table.
+- **Profit or loss** (gross, "P/L") -- value minus cost basis, and its share
+  of the cost basis. Unknown when the value or the cost is: a holding with no
+  trade is left out of the totals and named, never counted as zero.
+- **After tax** -- the gain less `limits.financeCapitalGainsTaxPercent`
+  (26%, Italy's), on each holding on its own; a loss is not reduced, and does
+  not lower the tax on another holding's gain. Every holding takes the one
+  rate: a holding cannot say yet that it is a government bond (12.5%,
+  `limits.financeGovernmentBondTaxPercent`, claimed).
+- **Realised** -- what every sell to date made: its units times its price
+  less its fee, minus the cost of the units it sold. Apart from the profit or
+  loss, which is on the units still held. A holding archived -- sold
+  completely -- counts only for this.
+- **The change since the last price day** -- the units held today at
+  today's price against the price in use on the last day before the newest on
+  which any open holding has a price (a trade's or a Price). One day for
+  every holding, so the rows add up. Not "today": the broker sync writes a
+  price on each day it runs and one per month-end (ADR 0031), so the screen
+  names the day ("since 14 Nov"). A holding first bought after it is left
+  out and counted.
+- **The year to date** -- the value now, less the value at the end of
+  31 December (nothing, for a holding first bought this year, whose year
+  starts at its first trade), less the money put in since -- each trade's
+  money as Income & spending's invested counts it (`tradeCash`, under
+  `periodInvested`). Its share is of the **money at work**: the value at the
+  start plus each sum put in, less each taken out, weighted by the share of
+  the period it was in (the modified Dietz return). A holding archived with
+  units still held has none.
+
+The Net worth card shows it in three places: one line under the Invested
+section's head (cost, profit or loss and its share, the change since the
+last price day), a holding's signed share after its name, and the
+**Investments** fold under the accounts table -- every holding with its
+cost, value and profit or loss, the totals, and the rest in words. A
+holding's panel shows all of it for that holding, to the cent.
+
 **A Trade is not a Transaction.** It changes what you hold, not money in or
 out. The cash that paid for a buy -- a transfer from a cash account, never
 spending -- belongs to the transactions piece.
@@ -2152,7 +2205,7 @@ something.
 | reviews (answers, lever, completedAt) | a review's week figures: habits, intake, spending, what was closed |
 | action records (name, params, day, origin, recordRef, before, status, error, the receipt line's text) | whether a receipt line can be undone now |
 | journal entries | the month's flows (income, spending, what is left, per category with share and change), the savings rate, fixed vs variable, what was invested (from the trades) and kept, a line's average month in a year -- transfers and not-counted transactions excluded; whether a transaction is a transfer |
-| memory entries | current net worth, an account's value between balances, a holding's units held and value, the monthly history and the 30-day and 1-year changes |
+| memory entries | current net worth, an account's value between balances, a holding's units held and value, its cost basis, profit or loss, realised, change since the last price day and year to date, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
 | daily logs (ticks, skip reasons, meals, measurements, the day's mood and energy, the day's time declared against areas) | the average mood and energy over a week or 30 days, and how many days each rests on; a day's total time and the time by area over a span, over the declared days |
