@@ -1,17 +1,18 @@
 import Link from 'next/link';
 
 import { financesHref, transferEnds } from '@/components/finance.js';
-import { formatMoney, monthLabel, shortDate } from '@/components/format.js';
+import { formatMoney, shortDate } from '@/components/format.js';
 
 /** @typedef {import('@/lib/domain/types.js').Transaction} Transaction */
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
 /** @typedef {import('@/lib/domain/types.js').FinanceCategory} FinanceCategory */
 
 /**
- * The month's transactions on the Finances screen (#134), newest first --
- * the month picked in the Income & spending section above, and with a line
- * selected there (#137), only the transactions in it, with a way back to
- * all of them. Each row opens its panel by id (`?transaction=<id>`).
+ * The period's transactions on the Finances screen (#134), newest first --
+ * the month, or the year, the Income & spending section above reads, and
+ * with a line selected there (#137), only the transactions in it, with a
+ * way back to all of them. `periodLabel` names the period when the list is
+ * empty: "March 2026", "2026". Each row opens its panel by id (`?transaction=<id>`).
  *
  * A transfer reads "from → to" and has no category; a not-counted movement
  * says so. A movement's amount is signed from its account's side, the way
@@ -23,12 +24,12 @@ import { formatMoney, monthLabel, shortDate } from '@/components/format.js';
  *   accounts: FinanceAccount[],
  *   categories: FinanceCategory[],
  *   lineName: string | null,
- *   month: string,
+ *   periodLabel: string,
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceTransactions({ transactions, accounts, categories, lineName, month, todayKey, place }) {
+export default function FinanceTransactions({ transactions, accounts, categories, lineName, periodLabel, todayKey, place }) {
   /** @param {string} id */
   const accountName = (id) => accounts.find((account) => account.id === id)?.name ?? 'an account that no longer exists';
   /** @param {string | null} id */
@@ -49,7 +50,7 @@ export default function FinanceTransactions({ transactions, accounts, categories
       <div className="card-body">
         {transactions.length === 0 ? (
           <p className="caption">
-            Nothing recorded {lineName === null ? '' : 'in ' + lineName + ' '}in {monthLabel(month)}.
+            Nothing recorded {lineName === null ? '' : 'in ' + lineName + ' '}in {periodLabel}.
           </p>
         ) : (
           <table className="finance-table">

@@ -13,6 +13,7 @@ import {
   formatUnits,
   formatWeight,
   monthLabel,
+  monthShort,
   ordinal,
   parseMoney,
   parseUnits,
@@ -102,6 +103,13 @@ describe('money formatting', () => {
     expect(formatMoneyChange(214000)).toBe('+\u20092,140');
     expect(formatMoneyChange(-190500)).toBe('−\u20091,905');
     expect(formatMoneyChange(0)).toBe('0');
+  });
+});
+
+describe('monthShort', () => {
+  it('names a month in a column of months: "Jan"', () => {
+    expect(monthShort('2026-01')).toBe('Jan');
+    expect(monthShort('2025-12')).toBe('Dec');
   });
 });
 

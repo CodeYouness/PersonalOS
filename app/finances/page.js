@@ -5,10 +5,23 @@ import FinanceFlows from '@/components/FinanceFlows.js';
 import FinanceSettings from '@/components/FinanceSettings.js';
 import { lineName } from '@/components/finance.js';
 import FinanceHistory from '@/components/FinanceHistory.js';
+import { monthLabel } from '@/components/format.js';
 import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
-import { isMonthKey, monthOf, monthRange, today } from '@/lib/domain/dates.js';
-import { financeOverview, flowMonths, lineHolds, monthFlows, monthsWith, savingsRate, yearFlows } from '@/lib/domain/derive/finance.js';
+import { isMonthKey, monthOf, today, yearOf } from '@/lib/domain/dates.js';
+import {
+  calendarYearFlows,
+  financeOverview,
+  flowMonths,
+  flowTrend,
+  lineHolds,
+  monthFlows,
+  monthsWith,
+  savingsRate,
+  spendingAverages,
+  trendMonths,
+  yearFlows,
+} from '@/lib/domain/derive/finance.js';
 import { brokerStaleness } from '@/lib/domain/derive/sync-staleness.js';
 import { getAccount, getFinanceInputs, getProfile, getSyncStates, getTransaction } from '@/lib/store.js';
 
@@ -38,10 +51,15 @@ export const dynamic = 'force-dynamic';
  * transaction -- and today's otherwise. The Settings
  * card (#138) sets "tracked since".
  *
- * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], transaction?: string | string[], category?: string | string[] }> }} props
+ * `?period=year` has the section read the month's calendar year to date
+ * instead of the month (calendarYearFlows); anything else, or nothing, reads
+ * the month. A selected line then lists the year's transactions.
+ *
+ * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], transaction?: string | string[], category?: string | string[] }> }} props
  */
 export default async function FinancesScreen({ searchParams }) {
-  const { account: accountParam, month: monthParam, transaction: transactionParam, category: categoryParam } = await searchParams;
+  const { account: accountParam, month: monthParam, period: periodParam, transaction: transactionParam, category: categoryParam } =
+    await searchParams;
   const todayKey = today();
   const [finance, syncStates, selected, profile, selectedTransaction] = await Promise.all([
     getFinanceInputs(),
@@ -63,11 +81,14 @@ export default async function FinancesScreen({ searchParams }) {
   );
   const month = isMonthKey(monthParam) && months.includes(/** @type {string} */ (monthParam)) ? /** @type {string} */ (monthParam) : monthOf(todayKey);
   const category = typeof categoryParam === 'string' && lineName(categoryParam, categories) !== null ? categoryParam : null;
-  const { from, to } = monthRange(month);
-  const monthTransactions = transactions.filter(
-    (transaction) => transaction.date >= from && transaction.date <= to && (category === null || lineHolds(transaction, category, categories))
+  /** @type {'month' | 'year'} */
+  const period = periodParam === 'year' ? 'year' : 'month';
+  const year = period === 'year' ? calendarYearFlows(transactions, categories, month, months) : null;
+  const flows = year ?? monthFlows(transactions, categories, month);
+  const periodMonths = year?.months ?? [month];
+  const periodTransactions = transactions.filter(
+    (transaction) => periodMonths.includes(monthOf(transaction.date)) && (category === null || lineHolds(transaction, category, categories))
   );
-  const flows = monthFlows(transactions, categories, month);
 
   /** @type {<T extends { accountId: string, date: string }>(rows: T[]) => T[]} */
   const ofSelected = (rows) =>
@@ -75,7 +96,7 @@ export default async function FinancesScreen({ searchParams }) {
       ? []
       : rows.filter((row) => row.accountId === selected.id).sort((a, b) => b.date.localeCompare(a.date));
   /** @type {import('@/components/finance.js').FinancesPlace} */
-  const place = { account: selected?.id ?? null, month, category, transaction: selectedTransaction?.id ?? null };
+  const place = { account: selected?.id ?? null, month, period, category, transaction: selectedTransaction?.id ?? null };
 
   return (
     <section id="screen-finances" className="screen is-active">
@@ -105,20 +126,22 @@ export default async function FinancesScreen({ searchParams }) {
         </div>
         <div className="finance-side span-7">
           <FinanceFlows
-            key={month}
+            key={period + month}
             flows={flows}
-            monthRate={savingsRate(flows)}
-            yearRate={savingsRate(yearFlows(transactions, categories, month))}
+            period={period}
+            yearRate={period === 'year' ? null : savingsRate(yearFlows(transactions, categories, month))}
+            trend={flowTrend(transactions, categories, period === 'year' ? periodMonths : trendMonths(months, month))}
+            averages={period === 'year' ? null : spendingAverages(transactions, categories, month, months)}
             months={months}
             month={month}
             place={place}
           />
           <FinanceTransactions
-            transactions={monthTransactions}
+            transactions={periodTransactions}
             accounts={accounts}
             categories={categories}
             lineName={category === null ? null : lineName(category, categories)}
-            month={month}
+            periodLabel={period === 'year' ? yearOf(month) : monthLabel(month)}
             todayKey={todayKey}
             place={place}
           />

@@ -13,6 +13,7 @@ import {
   toDayKey,
   weekDayKeys,
   weekdayOf,
+  yearOf,
 } from '@/lib/domain/dates.js';
 
 describe('toDayKey', () => {
@@ -266,5 +267,11 @@ describe('month keys', () => {
     expect(monthRange('2026-01')).toEqual({ from: '2026-01-01', to: '2026-01-31' });
     expect(monthRange('2028-02')).toEqual({ from: '2028-02-01', to: '2028-02-29' });
     expect(monthRange('2026-12')).toEqual({ from: '2026-12-01', to: '2026-12-31' });
+  });
+
+  it('names the calendar year a month belongs to, and refuses a lookalike', () => {
+    expect(yearOf('2026-01')).toBe('2026');
+    expect(yearOf('2025-12')).toBe('2025');
+    expect(() => yearOf('2026-13')).toThrow();
   });
 });

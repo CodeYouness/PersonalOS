@@ -123,6 +123,17 @@ export function weekdayName(dayKey) {
 }
 
 /**
+ * A month in a column of months, as the Income & spending trend labels its
+ * bars: "Jan".
+ *
+ * @param {string} month YYYY-MM
+ * @returns {string}
+ */
+export function monthShort(month) {
+  return dayKeyToUtcDate(month + '-01').toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
+}
+
+/**
  * A day's number in its month, "14".
  *
  * @param {string} dayKey
