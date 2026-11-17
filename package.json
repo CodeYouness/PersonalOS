@@ -27,6 +27,7 @@
     "data:import-ledger": "node scripts/import-ledger.js",
     "data:import-degiro": "node scripts/import-degiro.js",
     "data:import-statement": "node scripts/import-statement.js",
+    "data:categorise": "node scripts/categorise.js",
     "sync:calendar": "node scripts/sync-calendar.js",
     "sync:scalable": "node scripts/sync-scalable.js",
     "eval:classify": "node scripts/eval-classify.js",
