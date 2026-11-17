@@ -643,6 +643,9 @@ is making the promise again, so its age starts over (ADR 0021).
 
 A goal made from a capture gets the horizon `week`; you change it on the
 Goals screen. The classifier does not read a horizon from the sentence.
+Dragging a goal to another group on that screen is the same act as choosing
+its horizon in the panel -- the same write, so its age starts over too; an
+open goal moves, a done one does not (ADR 0054).
 
 **Slipped** — an open goal past the calendar period its horizon named: a
 `week` goal from the Monday-to-Sunday week after the one in `horizonSetOn`,

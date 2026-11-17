@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { goalUrl } from '@/components/GoalDetail.js';
+import { goalUrl } from '@/components/goals.js';
 import { messageOf, request } from '@/components/request.js';
 import { goalsHref } from '@/components/GoalList.js';
 

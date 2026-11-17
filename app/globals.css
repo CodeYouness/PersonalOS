@@ -899,6 +899,42 @@ textarea.input.grows { resize: none; max-height: 60vh; max-height: 60svh; }
 .goal-done[open] summary .name::before { content: '▾ '; }
 .goal-done .goal-name { color: var(--ink-subtle); text-decoration: none; }
 .goal-done .goal-name:hover { color: var(--ink); }
+/* Dragging a goal to another group (ADR 0054). A mouse picks up the whole
+   row; a finger only the grip, which alone takes `touch-action: none`, so the
+   rest of the row still scrolls the page. The grip is the row's full height
+   and 32px wide, the row's left padding included. The row's text is not
+   selectable and has no long-press callout: holding it is a drag. */
+.goal-groups .goal-row { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.goal-grip {
+  flex: none; align-self: stretch; display: flex; align-items: center; justify-content: center;
+  width: 32px; margin: -10px -4px -10px calc(-1 * var(--s-xs));
+  color: var(--ink-subtle); cursor: grab; touch-action: none;
+}
+/* 4px of room around a group, given back outside, so the mark of the group
+   that will receive the goal fills the card body's own 4px and is not
+   clipped. That mark: a field's step and an ink ring. */
+.goal-group { margin: -4px; padding: 4px; border-radius: var(--r-sm); transition: background-color var(--m-out) var(--ease); }
+.goal-group.is-target { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--ink); }
+.goal-group.is-target .col-head .name { color: var(--ink); }
+.goal-drop-empty {
+  display: flex; align-items: center; min-height: var(--control-h); margin: 0; padding: 0 var(--s-xs);
+  border: 1px dashed var(--hairline-tertiary); border-radius: var(--r-xs);
+}
+.goal-row.is-lifted { opacity: 0.4; }
+.goal-groups.is-dragging, .goal-groups.is-dragging * { cursor: grabbing; }
+.goal-groups.is-dragging .goal-row:not(.is-selected):hover { background: none; }
+/* The goal being carried floats over the page, so it takes the float's
+   shadow; it follows the pointer by transform and never animates. */
+.goal-ghost {
+  position: fixed; left: 0; top: 0; z-index: 70; pointer-events: none;
+  display: flex; align-items: center; gap: var(--s-sm);
+  min-height: var(--control-h); padding: 10px var(--s-xs);
+  background: var(--surface-elevated); color: var(--ink);
+  border: 1px solid var(--hairline-strong); border-radius: var(--r-sm);
+  box-shadow: var(--shadow-float);
+}
+.goal-ghost .goal-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-ghost .goal-grip { align-self: center; margin: 0 -4px 0 calc(-1 * var(--s-xs)); }
 
 /* ==========================================================================
    CAPTURE BAR
