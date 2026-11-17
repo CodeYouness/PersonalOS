@@ -1453,6 +1453,11 @@ statement, so a month is never counted twice.
   notation included. An amount is never read in exponent notation -- it is
   what moved, not noise -- and a sign that disagrees with the file's own
   direction column (`Entrata` positive, `Uscita` negative) blocks.
+- **A card that exports JSON** -- Bybit's -- is converted first, by
+  `npm run data:convert-bybit`, into the `card-normalised` CSV the import
+  reads. The conversion keeps the merchant identity: a movement at a
+  timestamp an earlier converted file already has takes that file's
+  merchant, so a raw name and a cleaned-up one never make two movements.
 - **A line that cannot be read blocks the write**, and while one is there the
   dry run computes no opening balance and no check: the line would be
   missing from the chain and the sum, and a difference printed without it

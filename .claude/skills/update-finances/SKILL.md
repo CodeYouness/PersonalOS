@@ -40,7 +40,17 @@ personal goes in this file, a commit, a PR or a test.
 3. **Convert** to the statement shape the account's format reads
    (`scripts/statement-import/formats/`; the header and the vocabulary of
    each are in the file's comment). Save the converted CSV in
-   `data/finance/` beside the original. Rules that hold for every source:
+   `data/finance/` beside the original.
+
+   **A Bybit card's JSON is converted by the script**, not by hand:
+   `npm run data:convert-bybit -- <file.json> --known <earlier.csv> ...`
+   (every earlier converted CSV of the card, so a movement already imported
+   keeps its merchant), then again with `--out <new.csv>`. It applies the
+   rules below and lists what it left out, any problem (it then writes
+   nothing), the rows whose identity is the name as given -- note those in
+   `agent-notes.md` -- and the available balance to record in step 6.
+
+   Rules that hold for every source:
    - one row per movement that moved money; an authorisation that was
      reversed, or a doubled authorisation the source says was annulled, is
      not a movement;
