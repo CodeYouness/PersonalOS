@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 24,
+  "schemaVersion": 25,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -858,6 +858,7 @@
       "categoryId": "cat_consulting",
       "note": "",
       "notCounted": false,
+      "countedOver": null,
       "tags": [],
       "origin": {
         "source": "demo",
@@ -880,6 +881,7 @@
       "categoryId": "cat_teaching",
       "note": "",
       "notCounted": false,
+      "countedOver": null,
       "tags": [],
       "origin": {
         "source": "demo",
@@ -902,6 +904,7 @@
       "categoryId": "cat_rent",
       "note": "",
       "notCounted": false,
+      "countedOver": null,
       "tags": [],
       "origin": {
         "source": "demo",
@@ -924,6 +927,7 @@
       "categoryId": "cat_groceries",
       "note": "",
       "notCounted": false,
+      "countedOver": null,
       "tags": [],
       "origin": {
         "source": "demo",
@@ -946,6 +950,7 @@
       "categoryId": null,
       "note": "Not spending. Excluded from totals.",
       "notCounted": false,
+      "countedOver": null,
       "tags": [],
       "origin": {
         "source": "demo",

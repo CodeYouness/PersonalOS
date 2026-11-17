@@ -300,7 +300,9 @@ describe('the write', () => {
     const [category] = (await store.getProfile()).financeCategories;
     const pizza = (await movementsOf(account.id)).find((movement) => movement.description === 'Pizza Place');
     if (pizza === undefined) throw new Error('no pizza');
-    await store.updateTransaction(pizza.id, { categoryId: category.id, note: 'with the team', tags: ['work'], notCounted: true });
+    await store.updateTransaction(pizza.id, {
+      categoryId: category.id, note: 'with the team', tags: ['work'], notCounted: true, countedOver: { from: '2026-01', to: '2026-03' },
+    });
 
     const rows = typedRows();
     rows[0] = [...rows[0]];
@@ -317,6 +319,8 @@ describe('the write', () => {
       note: 'with the team',
       tags: ['work'],
       notCounted: true,
+      // The months it is counted over are yours too (ADR 0052).
+      countedOver: { from: '2026-01', to: '2026-03' },
       origin: { source: 'statement', externalId: account.id + ':id:MOV-0003', detail: { category: 'Restaurants', counterparty: 'Pizza Place' } },
     });
     expect(await movementsOf(account.id)).toHaveLength(3);

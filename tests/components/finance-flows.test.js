@@ -2,11 +2,13 @@
  * What the Income & spending card renders: the income and spending bars --
  * money in outlined, money out solid -- with no chart switch and no net worth
  * line (ADR 0048); the line counting movements without a category; and,
- * under them, the circle of the period beside its breakdown, or the
- * breakdown alone as a table (ADR 0050): income first, then spending, then
- * the summary; each line's name opening its subcategories; the lines with
- * nothing in the period folded; the year's average and comparison in the
- * table only. Every row here is invented.
+ * under them, the circle of the period with its four totals under it and
+ * the rest of the summary beside it, or the breakdown alone as a table (ADR
+ * 0050): income first, then spending, then the summary; each line's name
+ * opening its subcategories, and a subcategory's -- or a line's without any
+ * -- opening its movements in place; the lines with nothing in the period
+ * folded; the year's average and comparison in the table only. Every row
+ * here is invented.
  */
 
 import { createElement } from 'react';
@@ -21,7 +23,9 @@ const {
   flowMonths,
   flowTrend,
   lineAverages,
+  lineMovements,
   monthFlows,
+  movementLines,
   periodInvested,
   savingsRate,
   trendMonths,
@@ -42,10 +46,10 @@ const categories = [
   category({ id: 'cat_pay', name: 'Pay', kind: 'income' }),
 ];
 /** @returns {any} */
-const t = (/** @type {string} */ date, /** @type {number} */ amount, /** @type {string | null} */ categoryId) => ({
+const t = (/** @type {string} */ date, /** @type {number} */ amount, /** @type {string | null} */ categoryId, /** @type {any} */ over = {}) => ({
   id: 'tx_' + date + amount, date, amount, currency: 'EUR', description: '', accountId: 'account_a',
-  counterAccountId: null, categoryId, notCounted: false, tags: [], note: '', origin: null,
-  createdAt: '', updatedAt: '', source: 'user',
+  counterAccountId: null, categoryId, notCounted: false, countedOver: null, tags: [], note: '', origin: null,
+  createdAt: '', updatedAt: '', source: 'user', ...over,
 });
 /** @returns {any} */
 const trade = (/** @type {string} */ date, /** @type {'buy' | 'sell'} */ direction, /** @type {number} */ price) => ({
@@ -72,13 +76,15 @@ const trades = [trade('2026-04-10', 'buy', 50000)];
 /**
  * @param {'month' | 'year'} period
  * @param {string} month
- * @param {{ view?: 'circle' | 'table', target?: number | null, rows?: any[], held?: any[], place?: any }} [options]
+ * @param {{ view?: 'circle' | 'table', target?: number | null, rows?: any[], held?: any[], place?: any, max?: number }} [options]
  */
-function render(period, month, { view = 'circle', target = null, rows = transactions, held = trades, place = {} } = {}) {
+function render(period, month, { view = 'circle', target = null, rows = transactions, held = trades, place = {}, max = 50 } = {}) {
   const months = flowMonths(rows, TODAY, '2026-01-01');
   const year = period === 'year' ? calendarYearFlows(rows, categories, month, months) : null;
   const flows = year ?? monthFlows(rows, categories, month);
   const periodMonths = year?.months ?? [month];
+  // As the page does: the movements only in the table view, which shows them.
+  const movements = view === 'table' ? lineMovements(rows, categories, { months: periodMonths, lines: movementLines(flows), max }) : null;
   return renderToStaticMarkup(
     createElement(FinanceFlows, {
       flows,
@@ -90,15 +96,22 @@ function render(period, month, { view = 'circle', target = null, rows = transact
       invested: periodInvested(held, periodMonths),
       averages: year === null ? null : lineAverages(year),
       uncategorised: uncategorisedCounts(rows, categories, periodMonths),
+      movements,
       months,
       month,
+      todayKey: TODAY,
       place: { month, period, view, ...place },
     })
   );
 }
 
-/** The summary list, alone. @param {string} html */
-const summaryOf = (html) => html.slice(html.indexOf('<dl class="finance-summary"'), html.indexOf('</dl>') + 5);
+/** The summary, alone: its notes and its list. @param {string} html */
+const summaryOf = (html) => {
+  const from = html.indexOf('<div class="finance-summary');
+  return from === -1 ? '' : html.slice(from, html.indexOf('</dl></div>', from) + 11);
+};
+/** The four totals under the circle, alone. @param {string} html */
+const totalsOf = (html) => html.slice(html.indexOf('<dl class="finance-circle-totals"'), html.indexOf('</dl>') + 5);
 
 describe('FinanceFlows', () => {
   describe('the trend', () => {
@@ -162,12 +175,44 @@ describe('FinanceFlows', () => {
   });
 
   describe('the view (ADR 0050)', () => {
-    it('shows the circle by default, beside the breakdown, with no composition bar', () => {
+    it('shows the circle by default, with no table, no row of income or spending and no composition bar', () => {
       const html = render('month', '2026-04');
 
       expect(html).toContain('class="finance-flow-body"');
       expect(html).toContain('class="finance-circle"');
+      expect(html).not.toContain('<table');
+      expect(html).not.toContain('<th>Income</th>');
+      expect(html).not.toContain('Groceries');
       expect(html).not.toContain('Spending by category:');
+    });
+
+    it('puts the four totals under the circle, and the rest of the summary beside it', () => {
+      const html = render('month', '2026-04');
+      const side = html.indexOf('class="finance-circle-side"');
+
+      expect(side).toBeGreaterThan(-1);
+      expect(html.indexOf('class="finance-circle"')).toBeGreaterThan(side);
+      expect(html.indexOf('class="finance-circle-totals"')).toBeGreaterThan(html.indexOf('class="finance-circle"'));
+      expect(html.indexOf('class="finance-breakdown"')).toBeGreaterThan(html.indexOf('class="finance-circle-totals"'));
+      const order = ['>Income<', '>Spent<', '>Invested<', '>Kept<'].map((word) => totalsOf(html).indexOf(word));
+      expect(order.every((at) => at > -1)).toBe(true);
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+      expect(totalsOf(html)).toContain('€\u20093,000');
+      // Beside it: the rates, fixed and variable -- not the four totals again.
+      expect(summaryOf(html)).toContain('Saved this month');
+      expect(summaryOf(html)).toContain('Fixed');
+      expect(summaryOf(html)).not.toContain('>Income<');
+      expect(summaryOf(html)).not.toContain('>Kept<');
+    });
+
+    it('marks Spent, Invested and Kept in their part of the ring\'s tone, and Income -- the whole ring -- with none', () => {
+      const totals = totalsOf(render('month', '2026-04'));
+
+      expect(totals).toContain('<dt><i class="finance-swatch is-spent" aria-hidden="true"></i>Spent</dt>');
+      expect(totals).toContain('<dt><i class="finance-swatch is-invested" aria-hidden="true"></i>Invested</dt>');
+      expect(totals).toContain('<dt><i class="finance-swatch is-kept" aria-hidden="true"></i>Kept</dt>');
+      expect(totals).toContain('<dt>Income</dt>');
+      expect(totals).not.toContain('is-income');
     });
 
     it('offers the circle and the table, keeping the place, and never writes the circle', () => {
@@ -181,8 +226,8 @@ describe('FinanceFlows', () => {
     it('shows the breakdown alone in the table view, with the composition of spending', () => {
       const html = render('month', '2026-04', { view: 'table' });
 
-      expect(html).toContain('class="finance-flow-body is-table"');
-      expect(html).not.toContain('class="finance-circle"');
+      expect(html).not.toContain('class="finance-flow-body"');
+      expect(html).not.toContain('class="finance-circle');
       expect(html).toContain('role="img" aria-label="Spending by category: Home 67%, Food 33%"');
       expect(html).toContain('href="/finances?month=2026-04&amp;period=year&amp;view=table"');
     });
@@ -240,7 +285,7 @@ describe('FinanceFlows', () => {
 
   describe('the breakdown (ADR 0050)', () => {
     it('lists income first, then spending, then the summary', () => {
-      const html = render('month', '2026-04');
+      const html = render('month', '2026-04', { view: 'table' });
 
       expect(html.indexOf('<th>Income</th>')).toBeGreaterThan(-1);
       expect(html.indexOf('<th>Income</th>')).toBeLessThan(html.indexOf('<th>Spending</th>'));
@@ -248,7 +293,7 @@ describe('FinanceFlows', () => {
     });
 
     it('reads the summary as the final account: income, spent, invested, kept, then what was saved', () => {
-      const summary = summaryOf(render('month', '2026-04'));
+      const summary = summaryOf(render('month', '2026-04', { view: 'table' }));
       const order = ['>Income<', '>Spent<', '>Invested<', '>Kept<', 'Saved this month', 'Saved over 12 months', 'Fixed'].map((word) => summary.indexOf(word));
 
       expect(order.every((at) => at > -1)).toBe(true);
@@ -257,8 +302,7 @@ describe('FinanceFlows', () => {
       expect(summary).toContain('€\u2009500.00');
     });
 
-    it('gives each part of the summary its swatch in the circle view, and none in the table', () => {
-      expect(summaryOf(render('month', '2026-04'))).toContain('finance-swatch is-invested');
+    it('gives the summary no swatch in the table, where there is no circle', () => {
       expect(summaryOf(render('month', '2026-04', { view: 'table' }))).not.toContain('finance-swatch');
     });
 
@@ -266,16 +310,12 @@ describe('FinanceFlows', () => {
       const big = render('month', '2026-04', { held: [trade('2026-04-10', 'buy', 200000)] });
       // 1,500 left after spending, 2,000 invested.
       expect(summaryOf(big)).toContain('€\u2009500.00 of it from earlier savings');
+      expect(summaryOf(render('month', '2026-04', { view: 'table', held: [trade('2026-04-10', 'buy', 200000)] }))).toContain(
+        '€\u2009500.00 of it from earlier savings'
+      );
 
       const sold = render('month', '2026-04', { held: [trade('2026-01-10', 'buy', 30000), trade('2026-04-10', 'sell', 30000)] });
       expect(summaryOf(sold)).toContain('Sold €\u2009300.00 more than bought');
-    });
-
-    it('heads the tables Share then the amount in the circle view, the amount last', () => {
-      const html = render('month', '2026-04');
-
-      expect(html).toContain('<th>Spending</th><th class="num">Share</th><th class="num">Spent</th></tr>');
-      expect(html).toContain('<th>Income</th><th class="num">Share</th><th class="num">Received</th></tr>');
     });
 
     it('adds the change from last month in the month\'s table, and never an average or a % column', () => {
@@ -291,7 +331,7 @@ describe('FinanceFlows', () => {
 
       expect(html).toContain('<th>Spending</th><th class="num">Share</th><th class="num">Average</th><th class="num">vs 2025</th><th class="num">Spent</th></tr>');
       // Home: 3,000 over January to April.
-      expect(html).toMatch(/>Home<\/a><\/td><td class="num caption">77%<\/td><td class="num caption">750.00<\/td><td class="num"><\/td><td class="num">3,000.00<\/td>/);
+      expect(html).toMatch(/>Home<\/button><\/td><td class="num caption">77%<\/td><td class="num caption">750.00<\/td><td class="num"><\/td><td class="num">3,000.00<\/td>/);
       expect(html).toContain('Average: per month over the 4 months of 2026 on offer.');
       // The year before was not tracked: no change is shown.
       expect(html).not.toMatch(/>\+\u2009/);
@@ -299,33 +339,81 @@ describe('FinanceFlows', () => {
     });
   });
 
-  describe('a line\'s name', () => {
-    it('opens a line with subcategories, and lists the movements of one without', () => {
-      const html = render('month', '2026-04');
+  describe('a line\'s name, in the table view', () => {
+    const closed = (/** @type {string} */ name) =>
+      '<button type="button" class="finance-line-toggle" aria-expanded="false"><span class="finance-line-mark" aria-hidden="true">▸</span>' + name + '</button>';
 
-      expect(html).toMatch(/<button type="button" class="finance-line-toggle" aria-expanded="false"><span class="finance-line-mark" aria-hidden="true">▸<\/span>Food<\/button>/);
+    it('opens a line\'s subcategories, and a line without any its movements -- both closed at first', () => {
+      const html = render('month', '2026-04', { view: 'table' });
+
+      expect(html).toContain(closed('Food'));
       expect(html).not.toContain('>Groceries<');
-      expect(html).toContain('href="/finances?month=2026-04&amp;category=cat_home">Home</a>');
+      expect(html).toContain(closed('Home'));
+      expect(html).not.toContain('finance-movement-row');
     });
 
-    it('shows a selected subcategory open, with what was spent in it and the line\'s own movements', () => {
-      const html = render('month', '2026-04', { place: { category: 'cat_groceries' } });
+    it('makes a subcategory\'s name the disclosure of its movements, keeping the line\'s own link', () => {
+      const html = render('month', '2026-04', { view: 'table', place: { category: 'cat_food' } });
 
       expect(html).toContain('aria-expanded="true"><span class="finance-line-mark" aria-hidden="true">▾</span>Food</button>');
-      expect(html).toMatch(/aria-current="true" href="\/finances\?month=2026-04&amp;category=cat_groceries">Groceries<\/a><\/td><td class="num caption">33%<\/td><td class="num">500.00<\/td>/);
-      expect(html).toContain('href="/finances?month=2026-04&amp;category=cat_food">Movements in Food</a>');
+      // Share, the change from last month, then what was spent.
+      expect(html).toMatch(new RegExp(closed('Groceries') + '</td><td class="num caption">33%</td><td class="num">[^<]*</td><td class="num">500.00</td>'));
+      expect(html).toContain('href="/finances?month=2026-04&amp;view=table&amp;category=cat_food">Movements in Food</a>');
+    });
+
+    it('opens a selected subcategory\'s movements in place: date, description and amount as the Transactions card signs it', () => {
+      const html = render('month', '2026-04', { view: 'table', place: { category: 'cat_groceries' } });
+
+      expect(html).toContain('aria-expanded="true"><span class="finance-line-mark" aria-hidden="true">▾</span>Groceries</button>');
+      expect(html).toContain('<span class="num finance-date">3 Apr</span>');
+      expect(html).toContain('href="/finances?month=2026-04&amp;view=table&amp;category=cat_groceries&amp;transaction=tx_2026-04-03-50000">(no description)</a>');
+      expect(html).toContain('<td class="num finance-amount">−\u2009500.00</td>');
+      expect(html).toContain('href="/finances?month=2026-04&amp;view=table&amp;category=cat_groceries">Movements in Groceries</a>');
+    });
+
+    it('opens the movements of a selected line without subcategories the same way', () => {
+      const html = render('month', '2026-04', { view: 'table', place: { category: 'cat_home' } });
+
+      expect(html).toContain('aria-expanded="true"><span class="finance-line-mark" aria-hidden="true">▾</span>Home</button>');
+      expect(html).toContain('<span class="num finance-date">2 Apr</span>');
+      expect(html).toContain('<td class="num finance-amount">−\u20091,000.00</td>');
+    });
+
+    it('lists only the newest movements, and links the rest to the line\'s listing', () => {
+      const many = [...transactions, t('2026-04-05', -1000, 'cat_home'), t('2026-04-06', -2000, 'cat_home')];
+      const html = render('month', '2026-04', { view: 'table', rows: many, max: 2, place: { category: 'cat_home' } });
+
+      expect(html).toContain('<span class="num finance-date">6 Apr</span>');
+      expect(html).toContain('<span class="num finance-date">5 Apr</span>');
+      expect(html).not.toContain('<span class="num finance-date">2 Apr</span>');
+      expect(html).toContain('href="/finances?month=2026-04&amp;view=table&amp;category=cat_home">and 1 more</a>');
+    });
+
+    it('shows a movement counted over months with its part, which of them it is and the day it was paid (ADR 0052)', () => {
+      const spread = t('2026-04-15', 90000, 'cat_pay', { id: 'tx_bonus', description: 'Bonus', countedOver: { from: '2026-02', to: '2026-04' } });
+      const html = render('month', '2026-03', { view: 'table', rows: [...transactions, spread], place: { category: 'cat_pay' } });
+
+      expect(html).toContain('<span class="num finance-date">Mar</span>');
+      expect(html).toContain('>Bonus</a><span class="caption">· 2 of 3 · paid 15 Apr</span>');
+      expect(html).toContain('<td class="num finance-amount up">+\u2009300.00</td>');
+    });
+
+    it('says when an opened line holds no movement in the period', () => {
+      const html = render('month', '2026-04', { view: 'table', place: { category: 'cat_gym' } });
+
+      expect(html).toContain('No movements this month');
     });
   });
 
   describe('a category with nothing this month', () => {
     it('is folded into one row at the end of the spending table, opening when it is selected', () => {
       // Gym: 60.00 in March, nothing in April.
-      const html = render('month', '2026-04');
+      const html = render('month', '2026-04', { view: 'table' });
       expect(html).toContain('aria-expanded="false"><span class="finance-quiet-mark" aria-hidden="true">▸</span>1 category with nothing this month</button>');
       expect(html).not.toContain('>Gym<');
 
-      const open = render('month', '2026-04', { place: { category: 'cat_gym' } });
-      expect(open).toMatch(/>Gym<\/a><\/td><td class="num caption">0%<\/td><td class="num">0.00<\/td>/);
+      const open = render('month', '2026-04', { view: 'table', place: { category: 'cat_gym' } });
+      expect(open).toMatch(/>Gym<\/button><\/td><td class="num caption">0%<\/td><td class="num">[^<]*<\/td><td class="num">0.00<\/td>/);
     });
   });
 

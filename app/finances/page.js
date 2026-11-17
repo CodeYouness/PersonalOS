@@ -17,9 +17,11 @@ import {
   flowMonths,
   flowTrend,
   lineAverages,
+  lineMovements,
   listedTransactions,
   monthFlows,
   monthsWith,
+  movementLines,
   periodInvested,
   quietAccounts,
   savingsRate,
@@ -72,10 +74,14 @@ export const dynamic = 'force-dynamic';
  * instead of the month (calendarYearFlows); anything else, or nothing, reads
  * the month. A selected line then lists the year's transactions.
  *
- * `?view=table` shows the section as a table with its comparison columns;
- * anything else, or nothing, shows the circle of the period beside its
- * breakdown (ADR 0050). What the circle calls invested is read from the
- * trades of the period (periodInvested), never from a transaction.
+ * `?view=table` shows the section as a table with its comparison columns,
+ * where a subcategory -- or a line without any -- opens its movements of the
+ * period in place (lineMovements, handed only to the table view); anything
+ * else, or nothing, shows the circle of the period with its totals and the
+ * rest of the summary, and no table (ADR 0050). What the circle calls
+ * invested is read from the trades of the period (periodInvested), never
+ * from a transaction. A movement counted over several months (ADR 0052) is
+ * read in each of them by every flow, and listed by its date.
  *
  * The section's trend draws income and spending as bars over the trend's
  * twelve months in a month and the year's in a year. An old `?chart=` from
@@ -150,6 +156,11 @@ export default async function FinancesScreen({ searchParams }) {
   });
   const periodLabel = period === 'year' ? yearOf(month) : monthLabel(month);
   const view = financesView(viewParam);
+  // The movements a line opens in place, only where they are shown: the
+  // table view. The period's counted movements, the fields a row prints,
+  // each line's newest few (ADR 0052).
+  const movements =
+    view === 'table' ? lineMovements(transactions, categories, { months: periodMonths, lines: movementLines(flows), max: limits.financeListMax }) : null;
 
   /** @type {<T extends { accountId: string, date: string }>(rows: T[]) => T[]} */
   const ofSelected = (rows) =>
@@ -199,8 +210,10 @@ export default async function FinancesScreen({ searchParams }) {
             invested={periodInvested(trades, periodMonths)}
             averages={year === null ? null : lineAverages(year)}
             uncategorised={uncategorisedCounts(transactions, categories, periodMonths)}
+            movements={movements}
             months={months}
             month={month}
+            todayKey={todayKey}
             place={place}
           />
         </div>

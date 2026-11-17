@@ -421,6 +421,13 @@ export const limits = Object.freeze({
    */
   financeListMax: 50,
   /**
+   * A movement may be counted over the months it is for (ADR 0052) -- a
+   * salary for three months paid at once, a year's insurance -- at most this
+   * many months, both ends included. Two years: a longer range is a typo
+   * more often than a plan.
+   */
+  financeCountedOverMaxMonths: 24,
+  /**
    * Finances' accounts table (ADR 0048) folds an account worth zero or
    * unknown under "N more accounts" when nothing -- a movement, a balance, a
    * trade -- was recorded on it in this many days up to today. A closed card

@@ -131,6 +131,25 @@ describe('FinanceTransactions', () => {
     });
   });
 
+  describe('a movement counted over months (ADR 0052)', () => {
+    it('stays on the day it was paid, with a quiet note of the months it counts in', () => {
+      const html = render({
+        transactions: [t('tx_pay', 'Salary', { date: '2026-03-12', amount: 300000, categoryId: 'cat_pay', countedOver: { from: '2026-01', to: '2026-03' } })],
+      });
+
+      expect(html).toContain('<td class="num finance-date">12 Mar</td>');
+      expect(html).toContain('<td class="num finance-amount up">+\u20093,000.00</td>');
+      expect(html).toContain('</a><span class="caption">· counted over Jan–Mar</span></span></td>');
+    });
+
+    it('names the years of a range across one, and says nothing on a transfer or a movement not counted', () => {
+      const across = { from: '2025-11', to: '2026-01' };
+      expect(render({ transactions: [t('tx_pay', 'Salary', { countedOver: across })] })).toContain('· counted over Nov 2025–Jan 2026');
+      expect(render({ transactions: [t('tx_move', 'Moved', { counterAccountId: 'account_b', countedOver: across })] })).not.toContain('counted over');
+      expect(render({ transactions: [t('tx_aside', 'Aside', { notCounted: true, countedOver: across })] })).not.toContain('counted over');
+    });
+  });
+
   it('offers no span without a tag', () => {
     expect(render({ lineName: 'Food', place: { month: '2026-03', category: 'cat_food' } })).not.toContain('All time');
   });

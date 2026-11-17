@@ -671,7 +671,8 @@ describe('migration v11 to v12', () => {
 
   it('changes nothing else about a transaction', () => {
     const before = v11Document();
-    const { amount, notCounted, tags, ...rest } = migrate(before).transactions[1];
+    // countedOver is v25's (ADR 0052), not this migration's.
+    const { amount, notCounted, tags, countedOver, ...rest } = migrate(before).transactions[1];
     const { amount: a, kind, ...restBefore } = before.transactions[1];
 
     expect(rest).toEqual(restBefore);
@@ -1143,6 +1144,51 @@ describe('migration v23 to v24', () => {
 
   it('is idempotent', () => {
     const once = migrate(v23Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});
+
+describe('migration v24 to v25', () => {
+  /** A v24 document: transactions say nothing about the months they are for. */
+  const v24Document = () => {
+    const migrated = migrate(v12Document());
+    return {
+      ...migrated,
+      schemaVersion: 24,
+      transactions: migrated.transactions.map((/** @type {any} */ transaction) => {
+        const { countedOver, ...rest } = transaction;
+        return rest;
+      }),
+    };
+  };
+
+  it('gives every transaction no range of months, so each counts in the month of its date as before', () => {
+    const before = v24Document();
+    const migrated = migrate(before);
+
+    expect(before.transactions.length).toBeGreaterThan(0);
+    expect(migrated.transactions.every((/** @type {any} */ transaction) => transaction.countedOver === null)).toBe(true);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('changes nothing else', () => {
+    const before = v24Document();
+    const migrated = migrate(before);
+
+    expect({ ...migrated, transactions: [], schemaVersion: 0 }).toEqual({ ...before, transactions: [], schemaVersion: 0 });
+    expect(migrated.transactions.map((/** @type {any} */ { countedOver, ...rest }) => rest)).toEqual(before.transactions);
+  });
+
+  it('keeps a range already there', () => {
+    const before = v24Document();
+    const [first, ...rest] = before.transactions;
+    const kept = migrate({ ...before, transactions: [{ ...first, countedOver: { from: '2026-01', to: '2026-03' } }, ...rest] });
+
+    expect(kept.transactions[0].countedOver).toEqual({ from: '2026-01', to: '2026-03' });
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v24Document());
     expect(migrate(once)).toEqual(once);
   });
 });

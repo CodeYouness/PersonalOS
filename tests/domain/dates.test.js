@@ -7,6 +7,7 @@ import {
   formatTimeInZone,
   isDayKey,
   isMonthKey,
+  monthKeyRange,
   monthOf,
   monthRange,
   shiftDayKey,
@@ -195,6 +196,21 @@ describe('dayKeyRange', () => {
 
   it('rejects a reversed range', () => {
     expect(() => dayKeyRange('2026-01-02', '2026-01-01')).toThrow();
+  });
+});
+
+describe('monthKeyRange', () => {
+  it('lists every month from the first to the last, oldest first, across a year', () => {
+    expect(monthKeyRange('2026-11', '2027-02')).toEqual(['2026-11', '2026-12', '2027-01', '2027-02']);
+  });
+
+  it('accepts a single month', () => {
+    expect(monthKeyRange('2026-09', '2026-09')).toEqual(['2026-09']);
+  });
+
+  it('rejects a reversed range and a key that is not a month', () => {
+    expect(() => monthKeyRange('2026-10', '2026-09')).toThrow();
+    expect(() => monthKeyRange('2026-9', '2026-10')).toThrow();
   });
 });
 

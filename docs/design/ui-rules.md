@@ -99,8 +99,8 @@ is never the label.
 truly cannot take 44: table row editors, the capture log's actions, text
 links in a row, the weekday picker. Known smaller ones, on purpose: heat-map
 cells (one of thirty in a row), a tag's ×, the citation chips (32), the
-habit up/down pair (30, stacked), a table row's disclosure (28) and a
-line's name that opens its subcategories (28), the Undo on a line filed from
+habit up/down pair (30, stacked), a table row's disclosure (28), a
+line's name that opens its subcategories or its movements (28), the Undo on a line filed from
 a check-in note (40), and the parts of Income & spending's circle (a ring
 about 28 to 33px thick, each part also reachable by keyboard; ADR 0050).
 

@@ -208,6 +208,7 @@ const withTransactions = (lines) => (seed, count) => {
       categoryId: next() < 0.15 ? null : pick(categories, next),
       note: '',
       notCounted: false,
+      countedOver: null,
       tags: [],
       origin: {
         source: 'sheet',

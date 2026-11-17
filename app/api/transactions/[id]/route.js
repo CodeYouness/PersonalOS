@@ -5,10 +5,11 @@ import { deleteTransaction, getTransaction, updateTransaction } from '@/lib/stor
 export const dynamic = 'force-dynamic';
 
 /**
- * What correcting a movement changes (#134): any of its own fields. Never
- * its origin -- where it came from is not a correction.
+ * What correcting a movement changes (#134): any of its own fields, the
+ * months it is counted over included (ADR 0052) -- the store checks the
+ * range. Never its origin -- where it came from is not a correction.
  */
-const EDITABLE = ['date', 'amount', 'accountId', 'counterAccountId', 'categoryId', 'description', 'note', 'tags', 'notCounted'];
+const EDITABLE = ['date', 'amount', 'accountId', 'counterAccountId', 'categoryId', 'description', 'note', 'tags', 'notCounted', 'countedOver'];
 
 /**
  * Correct a movement in place. Choosing a counter account turns it into a

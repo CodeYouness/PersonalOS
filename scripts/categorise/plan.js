@@ -495,7 +495,9 @@ export function planApply({ review, transactions, categories }) {
 /**
  * Spending and income over the days the movements cover, on every account,
  * before and after the patches -- from `totalsBetween`, the screens' own
- * derivation, never adjusted. Null when there is nothing to cover.
+ * rules read by day, never adjusted: a movement counted over several months
+ * (ADR 0052) counts whole on its day here. Null when there is nothing to
+ * cover.
  *
  * @param {Transaction[]} transactions every one
  * @param {FinanceCategory[]} categories
