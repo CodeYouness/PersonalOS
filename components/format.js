@@ -123,6 +123,17 @@ export function weekdayName(dayKey) {
 }
 
 /**
+ * A month in a column of months, as the Income & spending trend labels its
+ * bars: "Jan".
+ *
+ * @param {string} month YYYY-MM
+ * @returns {string}
+ */
+export function monthShort(month) {
+  return dayKeyToUtcDate(month + '-01').toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
+}
+
+/**
  * A day's number in its month, "14".
  *
  * @param {string} dayKey
@@ -203,6 +214,47 @@ const THIN_SPACE = '\u2009';
 export function formatEuro(minor, options) {
   const sign = minor < 0 ? MINUS : '';
   return sign + '€' + THIN_SPACE + formatMoney(Math.abs(minor), options);
+}
+
+/**
+ * An amount on a chart's scale, short so the axis stays narrow: "€ 950",
+ * "€ 4.2k", "€ 130k", "€ 1.23M". Whole euros first, then each step rounded
+ * half away from zero with integer arithmetic, as formatMoney does.
+ *
+ * @param {number} minor
+ * @returns {string}
+ */
+export function formatEuroShort(minor) {
+  const sign = minor < 0 ? MINUS : '';
+  const euros = Math.floor((Math.abs(minor) + 50) / 100);
+  return sign + '€' + THIN_SPACE + shortAmount(euros);
+}
+
+/**
+ * @param {number} euros whole, not negative
+ * @returns {string}
+ */
+function shortAmount(euros) {
+  if (euros < 1000) return String(euros);
+  const tenths = Math.floor((euros + 50) / 100);
+  if (tenths < 1000) return decimals(tenths, 1) + 'k';
+  const thousands = Math.floor((euros + 500) / 1000);
+  if (thousands < 1000) return thousands + 'k';
+  return decimals(Math.floor((euros + 5000) / 10000), 2) + 'M';
+}
+
+/**
+ * A scaled integer as a decimal, trailing zeros dropped: (42, 1) is "4.2",
+ * (100, 2) is "1".
+ *
+ * @param {number} scaled
+ * @param {number} places
+ * @returns {string}
+ */
+function decimals(scaled, places) {
+  const unit = 10 ** places;
+  const fraction = String(scaled % unit).padStart(places, '0').replace(/0+$/, '');
+  return String(Math.floor(scaled / unit)) + (fraction === '' ? '' : '.' + fraction);
 }
 
 /**

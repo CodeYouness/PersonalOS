@@ -394,6 +394,11 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--primary); widt
 .badge-route-unclassified { background: var(--warning-soft); color: var(--warning); }
 .badge-est   { background: var(--info-soft);    color: var(--info); }
 .dot { width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; flex: none; }
+/* Text a screen reader reads and the eye does not: a chart's column name. */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
 
 /* ==========================================================================
    HOME — card-checkin (ADR 0037). The check-in: first on Home, and the main
@@ -1121,7 +1126,93 @@ a.cite { text-decoration: none; }
   background: none; border: none; color: var(--ink-subtle); cursor: pointer; font: inherit;
 }
 .finance-disclosure:hover { background: var(--surface-3); color: var(--ink); }
-@media (max-width: 900px) { .finance-flow-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.finance-flow-totals.is-four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .finance-flow-totals, .finance-flow-totals.is-four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Income & spending's controls: the Month / Year switch beside the picker. */
+#card-finance-flows .card-head { flex-wrap: wrap; }
+.finance-flow-controls { display: flex; align-items: center; justify-content: flex-end; gap: var(--s-xs); flex-wrap: wrap; }
+.finance-flow-controls .segmented .seg, .finance-chart-switch .seg {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 var(--s-sm); text-decoration: none;
+}
+/* The trend (ADR 0044): one row of month links under a chart switch, and a
+   scale column beside it, the same for both charts so switching moves
+   nothing. Net worth: an ink line on its own scale, a hairline at its top
+   and bottom, an ink dot per month. Income & spending: two bars a month
+   against the highest drawn (data marks, radius 2), what was left as an ink
+   tick on the income bar. The months scroll inside their own box, with 4px
+   of room for a focus ring, never the page. The box runs right to left so it
+   opens at its newest end, CSS alone; its months still read left to right. */
+.finance-trend { --trend-h: 96px; margin: 0 0 var(--s-md); }
+.finance-chart-switch { margin-bottom: var(--s-sm); }
+.finance-trend-frame { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-xs); align-items: start; }
+.finance-trend-scroll { margin: -4px; padding: 4px; overflow-x: auto; direction: rtl; }
+/* No gap between months: each month's middle is then at an even step, where
+   the line's points are drawn. */
+.finance-trend-plot { position: relative; display: flex; min-width: min-content; direction: ltr; }
+.finance-trend-month {
+  flex: 1 0 44px; display: flex; flex-direction: column; gap: 4px;
+  padding: 4px 4px 2px; border-radius: var(--r-xs); color: var(--ink-subtle); text-decoration: none;
+  transition: background-color var(--m-out) var(--ease), color var(--m-out) var(--ease);
+}
+.finance-trend-month:hover { background: var(--surface-2); color: var(--ink); }
+.finance-trend-month.is-selected { background: var(--surface-3); color: var(--ink); }
+.finance-trend-bars {
+  position: relative; display: flex; align-items: flex-end; gap: 2px;
+  height: var(--trend-h); border-bottom: 1px solid var(--hairline-strong);
+}
+/* The line's scale is not zero, so no baseline under its months. */
+.finance-trend.is-worth .finance-trend-bars { border-bottom-color: transparent; }
+/* Top 4px: the month link's own padding. The bottom pixel is the baseline. */
+.finance-worth-line {
+  position: absolute; left: 0; top: 4px; width: 100%; height: calc(var(--trend-h) - 1px);
+  overflow: visible; pointer-events: none;
+}
+.finance-worth-line path {
+  fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.finance-worth-line .is-grid { stroke: var(--hairline-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.finance-worth-point {
+  position: absolute; left: 50%; z-index: 1; width: 6px; height: 6px; transform: translate(-50%, 50%);
+  border-radius: var(--r-full); background: var(--ink);
+}
+.finance-worth-point.is-selected { width: 12px; height: 12px; background: var(--surface-3); border: 2px solid var(--ink); }
+.finance-trend-axis {
+  position: relative; width: 7ch; height: calc(var(--trend-h) - 1px); margin-top: 4px;
+  font-size: 13px; line-height: 1.3; color: var(--ink-subtle); white-space: nowrap;
+}
+.finance-trend-axis span { position: absolute; left: 0; text-align: left; }
+.finance-trend-axis .is-top { top: 0; transform: translateY(-50%); }
+.finance-trend-axis .is-bottom { bottom: 0; transform: translateY(50%); }
+.finance-trend-bars i { display: block; flex: 1; min-width: 0; border-radius: 2px 2px 0 0; }
+.finance-trend-bars .is-income { background: var(--series-2); }
+.finance-trend-bars .is-spending { background: var(--series-1); }
+.finance-trend-left {
+  position: absolute; left: 0; width: calc(50% - 1px); height: 2px; margin-bottom: -1px;
+  background: var(--ink); box-shadow: 0 0 0 1px var(--surface-1);
+}
+/* A month with nothing counted: an empty slot, as an unrecorded heat cell. */
+.finance-trend-month.is-empty .finance-trend-bars { border: 1px solid var(--hairline-strong); border-radius: 2px; }
+.finance-trend-label { display: flex; flex-direction: column; align-items: center; font-size: 13px; line-height: 1.3; }
+.finance-trend-year { min-height: 1.3em; color: var(--ink-subtle); }
+.finance-trend .legend { margin-top: var(--s-xs); }
+.finance-trend-tick { display: inline-block; width: 10px; height: 2px; background: var(--ink); }
+/* The composition bar sits on the spending table it is the chart of. */
+.finance-composition { margin: 0 0 var(--s-xs); }
+.finance-part-dot { display: inline-block; margin-right: 6px; vertical-align: middle; }
+/* The flow tables keep their columns and scroll inside the card when narrow. */
+.finance-flow-table { min-width: 480px; }
+.finance-flow-table.has-average { min-width: 600px; }
+.finance-flow-table.has-average th:first-child { width: 30%; }
+/* A line against its average: this period (ink) above the average (light). */
+.finance-average-mark-head, .finance-flow-table td.finance-average-mark { width: 56px; }
+.finance-average-mark span { display: flex; flex-direction: column; gap: 2px; }
+.finance-average-mark i { display: block; height: 4px; border-radius: 2px; }
+.finance-average-mark .is-total { background: var(--series-1); }
+.finance-average-mark .is-average { background: var(--series-3); }
+.finance-average-note { margin: var(--s-xs) 0 0; }
+.finance-average-note + .finance-flow-table { margin-top: var(--s-md); }
 .finance-category-group + .finance-category-group { margin-top: var(--s-md); }
 .finance-categories { list-style: none; margin: var(--s-xs) 0 var(--s-md); padding: 0; }
 .finance-category { display: flex; align-items: center; gap: var(--s-xs); padding: 2px 0; }

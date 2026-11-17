@@ -1495,6 +1495,53 @@ share of the month, and its change from the previous month in € and %, or
 its own. Transfers and not-counted transactions are left out everywhere. All
 of it is derived (`monthFlows`, `yearFlows`, `savingsRate`), never stored.
 
+Over time (ADR 0044), every number by the month's own rules -- one
+implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
+
+- **The trend** draws one of two charts over the same months: the newest
+  twelve on offer while the selected month is among them, else the twelve
+  ending with it (`trendMonths`); in the year reading, the year's months.
+  Each month is a link that reads it, and a switch above (`?chart=flows`;
+  the line is the default and never written) picks the chart.
+  - **Net worth** (`worthTrend`, `worthLine`), the default: a line through
+    net worth at each month's end -- today, for the month still running --
+    read from **the history** below, so the two never disagree. A month the
+    history does not draw (before the first value, before "tracked since",
+    after today) is **unknown**: a gap in the line, never a zero. Its scale
+    runs from the line's lowest value to its highest, not from zero -- a
+    line is read by its slope, and from zero a year of saving 5% is flat --
+    widened evenly to at least a tenth of the largest value
+    (`WORTH_MIN_SPAN`), so a few hundred euros on a hundred thousand stay a
+    near-flat line. The scale's bottom and top are printed beside it; the
+    newest value and the change from the first known month are written
+    under it.
+  - **Income & spending** (`flowTrend`, `trendBars`): two bars a month, what
+    was left as a tick on the income bar, on a scale from zero to the
+    highest bar (`trendHigh`). A month with nothing counted is an empty
+    slot, not a bar of zero.
+- **A line's average month** (`spendingAverages`), beside each top-level
+  spending line and Uncategorised, in the month reading only: the mean of
+  that line over the months on offer before the selected one, at most
+  **twelve**, a month with no movement in the line counting as **zero** --
+  the month was tracked, so nothing was spent. Rounded to a cent. Not shown
+  with fewer than **three** such months: one or two months are a
+  coincidence, not a habit. A paired mark sets the month's total over the
+  average (`averageMark`).
+- **The year reading** (`?period=year`, `calendarYearFlows`): the selected
+  month's **calendar year to date** -- its months on offer, from January or
+  "tracked since" to December or today's month -- with the month's figures,
+  tables and savings rate ("Saved in 2026") over those months. Its change
+  column compares with the **same months a year before** (January to
+  November against January to November, never a whole year), and only when
+  every one of them was on offer and something was counted in them;
+  otherwise it is blank. A selected line lists the year's transactions.
+  `yearFlows` is not this: it is the twelve months ending with a month, the
+  "Saved over 12 months" rate.
+- **The composition** (`spendingParts`): one bar of the period's spending by
+  top-level category and Uncategorised, each line's part of what the lines
+  with money spent add up to -- a net refund has no part. The spending
+  table is its legend: a line with a part carries its tone.
+
 ### Not counted
 
 **Is** a transaction with `notCounted: true`: money that moves a balance but is
@@ -1518,7 +1565,9 @@ ADR 0008's exception applies to it again.
 ### The history
 
 Month-end net worth for every month from the first balance or trade to today,
-and its change from the month before -- derived, never stored (ADR 0022). An
+and its change from the month before -- derived, never stored (ADR 0022). The
+History card lists it; the net worth line of Income & spending's trend draws
+the months of it the trend covers (ADR 0044). An
 archived account counts, with its movements, on every day before it was
 archived; between two balances a cash account follows its movements (ADR
 0024), and otherwise a value stays flat between two balances or prices; a
