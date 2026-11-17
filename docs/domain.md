@@ -1409,6 +1409,46 @@ where it has none, it is the source.
   statements, the statement movements the ledger never described count
   there, uncategorised, until they are categorised.
 
+### Categorising
+
+**Is** filing the statement movements nothing has described yet, by
+`npm run data:categorise` (ADR 0043), in two steps: **proposing** writes a
+review file and nothing else, **applying** writes what the reviewed file
+decides. The model, when asked, only proposes.
+
+- **Open.** A statement movement with no category, no counter account, and
+  counted. Only open movements are proposed for and only open movements are
+  filled: one you categorised, made a transfer or took out of the totals is
+  yours, and is left alone. A note or a tag is never touched.
+- **Merchant key.** What groups movements: the statement's merchant (a
+  card's), else its counterparty (a bank's), else the description --
+  lower case, accents, a payment processor's prefix ("PAYPAL *"), every word
+  holding a digit, a bank's "pagamento pos" and trailing reference words and
+  month names removed. One shop is one key across months. A **group** is the
+  open movements of one key and one direction, money out or money in.
+- **A transfer between your own accounts** is proposed for two open
+  movements on two different cash accounts, of exactly opposite amounts,
+  dated within two days, matched one to one, same day first. A movement with
+  more than one equally good partner pairs with none, and is listed as
+  ambiguous; a card's own row, and a movement whose bank type names a card
+  payment, a refund, a fee, interest, a tax, a salary, an exchange or cash,
+  never pairs. Accepted, both rows are not counted and neither has a counter
+  account -- the representation of a transfer whose two ends are statement
+  rows (Ledger, ADR 0042). A false transfer hides real spending, so a doubt
+  pairs nothing.
+- **A rule** is what the movements already categorised say about a key:
+  when every one of them has the same category, it is proposed for the key's
+  open movements, in either direction, and "not counted" with it when every
+  one of them is. A key whose categorised movements disagree proposes
+  nothing and is listed with its categories.
+- **The review file** is a CSV, one row per proposed transfer and per group,
+  with what the row is, the proposal and where it came from (`transfer`,
+  `rule`, `model` or nothing), and a `decision` you edit: a category path
+  (`Parent > Child`), the same with ` (not counted)`, `not counted`, or
+  nothing to skip; a transfer row takes `transfer` or nothing. Applying needs
+  only the file and the data: a group row fills every open movement of its
+  key and direction now, those imported after the file was made included.
+
 ### Transfer
 
 **Is** a transaction with a `counterAccountId`: money moved between two

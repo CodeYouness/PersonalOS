@@ -459,6 +459,19 @@ export const limits = Object.freeze({
    */
   checkinTimeoutMs: 15_000,
   /**
+   * `npm run data:categorise -- --model` (ADR 0043) asks for this many
+   * merchant keys in one call: one tool call answering a category id or
+   * none per key. Enough that a few hundred keys are a handful of calls,
+   * few enough that one failed call leaves only these unproposed.
+   */
+  categoriseBatchKeys: 40,
+  /**
+   * The ceiling on that reply. An answer is a short reference and an id,
+   * about 25 tokens; 40 of them fit with room to spare. Not measured yet. A
+   * reply cut off here is a failed call: its keys stay unproposed.
+   */
+  categoriseMaxTokens: 2048,
+  /**
    * The longest question the questions route takes (#172). A question is a
    * sentence, not a document: the cap keeps a pasted page from becoming a
    * model call, and is checked at the route, never by what the text says.
@@ -520,17 +533,18 @@ export const dashboard = Object.freeze({ screens: [] });
 
 /**
  * The model each call type runs on when its variable is unset
- * (ANTHROPIC_MODEL_CLASSIFY, _EXTRACT, _ANSWER, _CHECKIN). One per call type, never one
- * for all: answering is long reasoning over the whole context, filing a
+ * (ANTHROPIC_MODEL_CLASSIFY, _EXTRACT, _ANSWER, _CHECKIN, _CATEGORISE). One per
+ * call type, never one for all: answering is long reasoning over the whole context, filing a
  * capture is a cheap pick between closed options (ADR 0030). Model names
  * change; the variables are the real control. See docs/development.md.
  *
  * Every call asks for its one tool. A model that refuses a forced
  * tool_choice -- Sonnet 5.5, Opus 5.5 -- is offered the tool instead, by the
  * provider (lib/ai/providers/anthropic.js), so it can be named here.
- * All four are on Haiku 5.5: classify was scored by npm run eval:classify
+ * All five are on Haiku 5.5: classify was scored by npm run eval:classify
  * (#197), extract and answer follow it (ADR 0030), and so does the check-in,
- * scored by `npm run eval:classify -- --suite checkin` once it has been run.
+ * scored by `npm run eval:classify -- --suite checkin` once it has been run,
+ * and categorising, a pick from a closed list like filing (ADR 0043).
  */
 export const defaultModels = Object.freeze({
   /** Filing a capture, Refile included: lib/classify.js. */
@@ -545,6 +559,13 @@ export const defaultModels = Object.freeze({
    * lib/checkin/interpret.js.
    */
   checkin: 'claude-haiku-5-5',
+  /**
+   * Proposing a category for the statement movements no rule covers (ADR
+   * 0043): a pick from a closed list per merchant key, like filing a
+   * capture. Run by hand, `npm run data:categorise -- --model`, never by a
+   * screen. scripts/categorise/model.js.
+   */
+  categorise: 'claude-haiku-5-5',
 });
 
 /** Fallback timezone, used only when USER_TIMEZONE is unset. */

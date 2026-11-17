@@ -540,14 +540,15 @@ export function matchSides(sides, transactions, window) {
 }
 
 /**
- * How many days apart two days are, or null when more than `window`.
+ * How many days apart two days are, or null when more than `window`. Shared
+ * with categorising's transfer pairing (ADR 0043).
  *
  * @param {string} a day key
  * @param {string} b day key
  * @param {number} window
  * @returns {number | null}
  */
-function daysApart(a, b, window) {
+export function daysApart(a, b, window) {
   if (b < shiftDayKey(a, -window) || b > shiftDayKey(a, window)) return null;
   for (let distance = 0; distance <= window; distance += 1) {
     if (shiftDayKey(a, distance) === b || shiftDayKey(a, -distance) === b) return distance;

@@ -1,6 +1,7 @@
 /**
  * The one CSV reader the import scripts share (the DEGIRO import, the
- * statement import). RFC 4180: quoted fields, doubled quotes, commas and
+ * statement import, the ledger import, categorising), and the one writer
+ * (categorising's review file). RFC 4180: quoted fields, doubled quotes, commas and
  * newlines inside quotes, CRLF or LF, an optional byte-order mark and an
  * optional trailing newline. Never `split(',')`: a description with a comma
  * in it is one field.
@@ -65,4 +66,19 @@ export function parseCsvRecords(text) {
  */
 export function parseCsv(text) {
   return parseCsvRecords(text).map((record) => record.cells);
+}
+
+/**
+ * Rows as CSV text, RFC 4180: a field holding a comma, a quote or a line
+ * break is quoted, its quotes doubled; lines end with CRLF, as a spreadsheet
+ * writes them, and the file ends with one. `parseCsvRecords` reads it back
+ * cell for cell.
+ *
+ * @param {readonly (readonly string[])[]} rows the header first
+ * @returns {string}
+ */
+export function formatCsv(rows) {
+  /** @param {string} value */
+  const field = (value) => (/[",\r\n]/.test(value) ? '"' + value.replaceAll('"', '""') + '"' : value);
+  return rows.map((row) => row.map(field).join(',')).join('\r\n') + '\r\n';
 }
