@@ -26,6 +26,7 @@
     "data:remove-demo-finance": "node scripts/remove-demo-finance.js",
     "data:import-sheet": "node scripts/import-sheet.js",
     "data:import-degiro": "node scripts/import-degiro.js",
+    "data:import-statement": "node scripts/import-statement.js",
     "sync:calendar": "node scripts/sync-calendar.js",
     "sync:scalable": "node scripts/sync-scalable.js",
     "eval:classify": "node scripts/eval-classify.js",

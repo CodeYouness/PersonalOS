@@ -54,9 +54,10 @@ const DESCRIPTIONS = [
 ];
 
 /**
- * Lines the way a bank statement writes them: upper case, codes, places. No
- * importer writes these yet; measured so a bank import knows where it lands
- * (ADR 0030).
+ * Lines the way a bank statement writes them: upper case, codes, places --
+ * what `npm run data:import-statement` (ADR 0041) files as descriptions.
+ * Measured so the context limit holds for them (ADR 0030); the bank's own
+ * detail on each origin is not sent and not counted here.
  */
 const STATEMENT_LINES = [
   'PAGAMENTO POS ESSELUNGA 4127 MILANO',
@@ -282,7 +283,7 @@ export function seedContext(seed) {
 /** The two made-up mixes, by name. */
 export const MIXES = /** @type {const} */ ({
   'transactions only, as the sheet import writes them (worst today)': withTransactions(DESCRIPTIONS),
-  'transactions only, as bank statement lines (no importer yet)': withTransactions(STATEMENT_LINES),
+  'transactions only, as bank statement lines': withTransactions(STATEMENT_LINES),
   'free text (journal, memories)': withFreeText,
 });
 
