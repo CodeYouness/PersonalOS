@@ -1608,10 +1608,10 @@ ADR 0008's exception applies to it again.
 
 Month-end net worth for every month from the first balance or trade to today,
 and its change from the month before -- derived, never stored (ADR 0022). The
-History card lists it; the net worth line of Income & spending's trend draws
-the months of it the trend covers (ADR 0044). A month-end at which no account
-had a value -- the only valued account archived before it -- is 0 in the
-history and the card, and a gap in the line (ADR 0046). An
+net worth line of Income & spending's trend draws the months of it the trend
+covers (ADR 0044); it has no card of its own (ADR 0047). A month-end at which
+no account had a value -- the only valued account archived before it -- is 0
+in the history, and a gap in the line (ADR 0046). An
 archived account counts, with its movements, on every day before it was
 archived; between two balances a cash account follows its movements (ADR
 0024), and otherwise a value stays flat between two balances or prices; a

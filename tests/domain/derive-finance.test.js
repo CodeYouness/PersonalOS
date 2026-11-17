@@ -1038,7 +1038,7 @@ describe('spending over time: the trend, the average, the year', () => {
       ]);
     });
 
-    it('agrees with the history card, month for month', () => {
+    it('agrees with the monthly history, month for month', () => {
       const { history } = financeOverview(inputs, '2026-05-12');
       const trend = worthTrend(history, months, '2026-05-12');
 
