@@ -79,3 +79,35 @@ describe('HabitsList', () => {
     expect(rows[0]).not.toContain('Day off');
   });
 });
+
+describe('HabitsList: a habit counted from a time area (ADR 0039)', () => {
+  const gym = {
+    id: 'habit_gym', label: 'Gym', type: 'check', countedFrom: 'training',
+    periods: [{ from: '2026-10-01', to: null, days: [1, 2, 3, 4, 5, 6, 7], target: null }],
+  };
+  /** @param {Record<string, boolean | number>} values */
+  const render = (values) =>
+    renderToStaticMarkup(
+      createElement(HabitsList, {
+        scheduled: /** @type {any} */ ([gym]),
+        off: [],
+        todayKey: '2026-10-13',
+        values,
+        weekRates: { habit_gym: { kept: 1, scheduled: 2 } },
+      })
+    );
+
+  it('shows it kept as the time says, names the area, and offers nothing to tap', () => {
+    const html = render({ habit_gym: true });
+    expect(html).toContain('From Training time');
+    expect(html).toContain('aria-label="Kept"');
+    expect(html).toContain('is-done');
+    expect(html).not.toContain('<button');
+  });
+
+  it('shows it not kept while the time does not keep it', () => {
+    const html = render({});
+    expect(html).toContain('aria-label="Not kept"');
+    expect(html).not.toContain('is-done');
+  });
+});

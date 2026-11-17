@@ -1044,3 +1044,69 @@ describe('migration v21 to v22', () => {
     expect('actions' in before).toBe(false);
   });
 });
+
+describe('migration v22 to v23', () => {
+  /**
+   * A v22 document: days with study and projects, study alone, projects
+   * alone, nothing declared, never declared, and one past the cap -- and a
+   * kept `time.set` on study, which is history.
+   */
+  const v22Document = () => ({
+    ...migrate(v12Document()),
+    schemaVersion: 22,
+    dailyLogs: {
+      '2026-03-01': { date: '2026-03-01', habits: {}, meals: [], measurements: [], notes: [], time: { work: 240, study: 90, projects: 60 } },
+      '2026-03-02': { date: '2026-03-02', habits: {}, meals: [], measurements: [], notes: [], time: { study: 120 } },
+      '2026-03-03': { date: '2026-03-03', habits: {}, meals: [], measurements: [], notes: [], time: { projects: 30, training: 60 } },
+      '2026-03-04': { date: '2026-03-04', habits: {}, meals: [], measurements: [], notes: [], time: {} },
+      '2026-03-05': { date: '2026-03-05', habits: {}, meals: [], measurements: [], notes: [], time: null },
+      '2026-03-06': { date: '2026-03-06', habits: {}, meals: [], measurements: [], notes: [] },
+      '2026-03-07': { date: '2026-03-07', habits: {}, meals: [], measurements: [], notes: [], time: { study: 900, projects: 900 } },
+    },
+    actions: [{ id: 'action_1', name: 'time.set', params: { area: 'study', minutes: 90 }, day: '2026-03-01' }],
+  });
+
+  it('adds study to projects and removes the study key', () => {
+    const migrated = migrate(v22Document());
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.dailyLogs['2026-03-01'].time).toEqual({ work: 240, projects: 150 });
+  });
+
+  it('keeps a day declared with study alone declared, its minutes under projects', () => {
+    expect(migrate(v22Document()).dailyLogs['2026-03-02'].time).toEqual({ projects: 120 });
+  });
+
+  it('leaves a day without study, declared with nothing, or not declared as it was', () => {
+    const before = v22Document();
+    const migrated = migrate(before);
+    for (const day of ['2026-03-03', '2026-03-04', '2026-03-05', '2026-03-06']) {
+      expect(migrated.dailyLogs[day]).toEqual(before.dailyLogs[day]);
+    }
+  });
+
+  it('caps the sum at the most one area takes in a day', () => {
+    expect(migrate(v22Document()).dailyLogs['2026-03-07'].time).toEqual({ projects: 24 * 60 });
+  });
+
+  it('keeps the action records as they were said', () => {
+    const before = v22Document();
+    expect(migrate(before).actions).toEqual(before.actions);
+  });
+
+  it('changes nothing else', () => {
+    const before = v22Document();
+    const migrated = migrate(before);
+    expect({ ...migrated, dailyLogs: {}, schemaVersion: 0 }).toEqual({ ...before, dailyLogs: {}, schemaVersion: 0 });
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v22Document());
+    expect(migrate(once)).toEqual(once);
+  });
+
+  it('does not mutate the document it was given', () => {
+    const before = v22Document();
+    migrate(before);
+    expect(before.dailyLogs['2026-03-01'].time).toEqual({ work: 240, study: 90, projects: 60 });
+  });
+});

@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { targetOn } from '@/lib/domain/derive/habits.js';
+import { timeAreaLabel } from '@/lib/domain/day-time.js';
+import { countedFromArea, targetOn } from '@/lib/domain/derive/habits.js';
 
 /**
  * The compact Habits card's tap targets, ported from design/mockup.html's
@@ -28,6 +29,10 @@ import { targetOn } from '@/lib/domain/derive/habits.js';
  * (ADR 0037): a habit is read by its rate before the streak. The week is the
  * server's, from `habitRate`, and catches up on the refresh after a tick; a
  * habit with nothing scheduled in it shows none rather than 0 / 0.
+ *
+ * A habit counted from a time area (ADR 0039) is shown, kept or not as the
+ * day's time says, and is not a tap target: the store would refuse the tick,
+ * and the row says where its answer comes from instead.
  *
  * @param {{
  *   scheduled: import('@/lib/domain/types.js').Habit[],
@@ -82,6 +87,8 @@ export default function HabitsList({ scheduled, off, todayKey, values: initialVa
     const value = values[habit.id];
     const isPending = pending.has(habit.id);
     const week = <WeekRate rate={weekRates[habit.id]} />;
+    const area = countedFromArea(habit);
+    if (area !== null) return <CountedRow key={habit.id} habit={habit} area={area} done={value === true} isOff={isOff} week={week} />;
     return habit.type === 'check' ? (
       <CheckRow key={habit.id} habit={habit} done={value === true} isOff={isOff} disabled={isPending} onToggle={save} week={week} />
     ) : (
@@ -165,6 +172,36 @@ function CheckRow({ habit, done, isOff, disabled, onToggle, week }) {
       >
         {habit.label}
       </button>
+      {isOff && <span className="habit-off">Day off</span>}
+      {week}
+    </li>
+  );
+}
+
+/**
+ * A habit counted from a time area (ADR 0039): its tick is the day's time,
+ * so the row shows it and names the area, with nothing to tap.
+ *
+ * @param {{
+ *   habit: import('@/lib/domain/types.js').Habit,
+ *   area: string,
+ *   done: boolean,
+ *   isOff: boolean,
+ *   week: import('react').ReactNode,
+ * }} props
+ */
+function CountedRow({ habit, area, done, isOff, week }) {
+  return (
+    <li className={rowClass(done, isOff)}>
+      <span className={'habit-box' + (done ? ' is-done' : '')} role="img" aria-label={done ? 'Kept' : 'Not kept'}>
+        {done && (
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+            <path d="M1.5 5.2l2.3 2.3L8.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      <span className="habit-label is-counted">{habit.label}</span>
+      <span className="habit-off">From {timeAreaLabel(area)} time</span>
       {isOff && <span className="habit-off">Day off</span>}
       {week}
     </li>

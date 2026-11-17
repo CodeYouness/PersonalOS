@@ -32,7 +32,7 @@ export default async function CheckinPanel({ day }) {
   const read = await checkinDay(weekDayOrToday(day, todayKey), todayKey);
   return (
     <Checkin
-      server={{ day: read.day, questions: read.questions, done: read.done, answers: read.answers, notes: read.notes, week: read.week }}
+      server={{ day: read.day, questions: read.questions, counted: read.counted, done: read.done, answers: read.answers, notes: read.notes, week: read.week }}
       areas={AREAS}
       step={limits.timeStepMinutes}
       max={limits.timeAreaMaxMinutes}

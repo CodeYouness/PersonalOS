@@ -24,7 +24,7 @@ const YESTERDAY = '2026-10-06';
 const FRIDAY = '2026-10-02';
 const WEEK_DAYS = ['2026-10-01', FRIDAY, '2026-10-03', '2026-10-04', '2026-10-05', YESTERDAY, TODAY];
 
-const AREAS = [{ key: 'work', label: 'Work' }, { key: 'study', label: 'Study' }, { key: 'projects', label: 'Projects' }];
+const AREAS = [{ key: 'work', label: 'Work' }, { key: 'refereeing', label: 'Refereeing' }, { key: 'projects', label: 'Projects' }];
 const SKIP_REASONS = [
   { key: 'forgotten', label: 'Forgotten' },
   { key: 'too-heavy', label: 'Too heavy' },
@@ -183,7 +183,7 @@ describe('today, partly answered', () => {
     const at = { questions: questions({ read: true, water: true, mood: true, energy: true }) };
     const time = view(at);
     expect(time).toMatch(/id="checkin-question"[^>]*>Where did today&#x27;s time go\?</);
-    expect(time.match(/aria-label="(Less|More) (Work|Study|Projects)"/g)).toHaveLength(6);
+    expect(time.match(/aria-label="(Less|More) (Work|Refereeing|Projects)"/g)).toHaveLength(6);
     expect(time).toContain('Nothing to declare');
     expect(time).toMatch(/class="btn-primary" aria-label="Save time" disabled=""/);
     const declared = view(at, (state) => checkinReducer(state, { type: 'time', area: 'work', minutes: 90 }));
@@ -433,5 +433,60 @@ describe('the stateful check-in panel', () => {
     );
     expect(html).toMatch(/<h2[^>]*aria-live="polite"[^>]*>Today · 4 left</);
     expect(html).toMatch(/id="checkin-question"[^>]*>Water</);
+  });
+});
+
+describe('a habit counted from a time area (ADR 0039)', () => {
+  const COUNTED = [{ id: 'gym', label: 'Gym', area: 'training' }];
+  const WITH_TRAINING = { areas: [...AREAS, { key: 'training', label: 'Training' }] };
+
+  it('adds no question: the time card says what its area counts as', () => {
+    const html = view({ counted: COUNTED, questions: questions({ read: true, water: true, mood: true, energy: true }) }, undefined, WITH_TRAINING);
+    expect(html).toContain('Today · 1 left');
+    expect(html).toContain('<span class="caption time-counts">Counts as Gym</span>');
+    expect(html.match(/time-counts/g)).toHaveLength(1);
+  });
+
+  it('lists it in the summary, kept by the time, with the area and its minutes', () => {
+    const html = view(
+      { counted: COUNTED, questions: questions(ALL), done: true, answers: answers({ habits: { read: true, water: 8 }, time: { training: 60 } }) },
+      undefined,
+      WITH_TRAINING
+    );
+    expect(html).toMatch(/<li class="checkin-habit-line is-kept"><span class="checkin-habit-name">Gym<\/span><span class="checkin-habit-state">From Training 1h<\/span><\/li>/);
+    expect(html).toMatch(/Habits kept<\/dt><dd class="checkin-tile-value num">3<span class="checkin-tile-unit"> of 3/);
+  });
+
+  it('reads it missed on a day declared with no time for its area', () => {
+    const html = view(
+      { counted: COUNTED, questions: questions(ALL), done: true, answers: answers({ habits: { read: true, water: 8 }, time: { work: 60 } }) },
+      undefined,
+      WITH_TRAINING
+    );
+    expect(html).toMatch(/<li class="checkin-habit-line is-missed"><span class="checkin-habit-name">Gym<\/span><span class="checkin-habit-state">No Training time<\/span><\/li>/);
+  });
+
+  it('lists it in the sheet with its hint in place of Yes, and its reasons', () => {
+    const html = view(
+      { counted: COUNTED, answers: answers({ time: { work: 60 } }) },
+      (state) => checkinReducer(state, { type: 'openSheet' }),
+      WITH_TRAINING
+    );
+    const row = html.slice(html.indexOf('>Gym<'), html.indexOf('</li>', html.indexOf('>Gym<')));
+    expect(row).toContain('No Training time');
+    expect(row).not.toContain('Yes: Gym');
+    expect(row).toContain('aria-label="Gym: Too heavy"');
+    expect(row).not.toMatch(/aria-label="Gym: Too heavy"[^>]*disabled/);
+  });
+
+  it('turns its reasons off in the sheet once the time keeps it', () => {
+    const html = view(
+      { counted: COUNTED, answers: answers({ time: { training: 90 } }) },
+      (state) => checkinReducer(state, { type: 'openSheet' }),
+      WITH_TRAINING
+    );
+    const row = html.slice(html.indexOf('>Gym<'), html.indexOf('</li>', html.indexOf('>Gym<')));
+    expect(row).toContain('From Training 1h 30m');
+    expect(row).toMatch(/aria-label="Gym: Too heavy"[^>]*disabled/);
   });
 });

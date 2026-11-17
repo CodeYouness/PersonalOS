@@ -8,7 +8,9 @@ import { formatMinutes } from '@/components/format.js';
  * One − / + stepper per area, in half hours, as the check-in's time row
  * declares the day (ADR 0037, components/CheckinQuestions.js). Pure: what
  * each area shows and what a tap sends back. `time` null is a day not declared: every area reads
- * 0 and "−" is off; "+" stops at the most one area can take.
+ * 0 and "−" is off; "+" stops at the most one area can take. `counts`
+ * says under an area what its time answers -- "counts as Gym", for a habit
+ * counted from it (ADR 0039).
  *
  * @param {{
  *   areas: readonly TimeAreaOption[],
@@ -17,16 +19,20 @@ import { formatMinutes } from '@/components/format.js';
  *   max: number,
  *   disabled: boolean,
  *   onSet: (area: string, minutes: number) => void,
+ *   counts?: Readonly<Record<string, string>>,
  * }} props
  */
-export function TimeSteppers({ areas, time, step, max, disabled, onSet }) {
+export function TimeSteppers({ areas, time, step, max, disabled, onSet, counts = {} }) {
   return (
     <ul className="time-areas">
       {areas.map(({ key, label }) => {
         const minutes = time?.[key] ?? 0;
         return (
           <li key={key} className={'time-area' + (minutes > 0 ? ' has-time' : '')}>
-            <span className="time-label">{label}</span>
+            <span className="time-label">
+              {label}
+              {counts[key] !== undefined && <span className="caption time-counts">{counts[key]}</span>}
+            </span>
             <button
               type="button"
               className="time-step-btn"

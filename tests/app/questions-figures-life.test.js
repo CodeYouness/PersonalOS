@@ -157,6 +157,8 @@ describe('habits', () => {
     await store.logHabitValue({ date: shiftDayKey(TODAY, -1), habitId: 'habit_read', value: true });
     await store.logHabitValue({ date: shiftDayKey(TODAY, -1), habitId: 'habit_water', value: 8 });
     await store.logHabitValue({ date: shiftDayKey(TODAY, -1), habitId: 'habit_deep_work', value: 3 });
+    // The gym is counted from Training time (ADR 0039): an hour keeps it.
+    await store.setDayTime({ date: shiftDayKey(TODAY, -1), area: 'training', minutes: 60 });
     await store.logHabitValue({ date: shiftDayKey(TODAY, -3), habitId: 'habit_water', value: 4 });
 
     const profile = await store.getProfile();
@@ -268,7 +270,8 @@ describe('habit skip reasons (ADR 0037)', () => {
 
   it('skips a day every scheduled habit was paused on in the streak, as the home card does', async () => {
     await store.logHabitValue({ date: shiftDayKey(TODAY, -1), habitId: 'habit_move', value: true });
-    for (const habitId of ['habit_move', 'habit_read', 'habit_water', 'habit_deep_work']) {
+    // The gym is counted from Training time (ADR 0039) and still takes a reason.
+    for (const habitId of ['habit_move', 'habit_read', 'habit_water', 'habit_deep_work', 'habit_gym']) {
       await store.setHabitSkip({ date: shiftDayKey(TODAY, -2), habitId, reason: 'paused' });
     }
     await store.logHabitValue({ date: shiftDayKey(TODAY, -3), habitId: 'habit_move', value: true });
@@ -506,7 +509,7 @@ describe('time declared against areas', () => {
     await store.setDayTime({ date: TODAY, area: 'work', minutes: 90 });
     await store.declareNoTime({ date: shiftDayKey(TODAY, -2) });
     // Thirty days back is outside the thirty days ending today.
-    await store.setDayTime({ date: shiftDayKey(TODAY, -30), area: 'study', minutes: 600 });
+    await store.setDayTime({ date: shiftDayKey(TODAY, -30), area: 'refereeing', minutes: 600 });
 
     const archive = await read.readArchive();
     const expected = timeByArea(archive.logs, { from: shiftDayKey(TODAY, -29), to: TODAY });
@@ -521,7 +524,7 @@ describe('time declared against areas', () => {
     expect(find(items, TOTAL + ':work')?.content).toContain('5h 30m');
     expect(find(items, TOTAL + ':training')?.content).toContain('1h');
     // An area with no time on the declared days is no figure of its own.
-    expect(find(items, TOTAL + ':study')).toBeUndefined();
+    expect(find(items, TOTAL + ':refereeing')).toBeUndefined();
   });
 
   it('is no figure, rather than zero, when no day in the window was declared', async () => {

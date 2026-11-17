@@ -37,13 +37,13 @@ describe('timeByArea', () => {
     const result = timeByArea(
       [
         log('2026-10-05', { training: 60, work: 240 }),
-        log('2026-10-06', { work: 180, study: 30 }),
+        log('2026-10-06', { work: 180, projects: 30 }),
         log('2026-10-07'),
       ],
       SPAN
     );
-    expect(result).toEqual({ declaredDays: 2, byArea: { work: 420, study: 30, training: 60 }, total: 510 });
-    expect(Object.keys(result.byArea)).toEqual(['work', 'study', 'training']);
+    expect(result).toEqual({ declaredDays: 2, byArea: { work: 420, projects: 30, training: 60 }, total: 510 });
+    expect(Object.keys(result.byArea)).toEqual(['work', 'projects', 'training']);
   });
 
   it('counts a day declared with nothing as a declared day with no time', () => {
@@ -62,11 +62,11 @@ describe('timeByArea', () => {
       [
         log('2026-10-04', { work: 600 }),
         log('2026-10-05', { work: 60 }),
-        log('2026-10-11', { refereeing: 120 }),
+        log('2026-10-11', { projects: 120 }),
         log('2026-10-12', { work: 600 }),
       ],
       SPAN
     );
-    expect(result).toEqual({ declaredDays: 2, byArea: { work: 60, refereeing: 120 }, total: 180 });
+    expect(result).toEqual({ declaredDays: 2, byArea: { work: 60, projects: 120 }, total: 180 });
   });
 });

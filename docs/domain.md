@@ -796,6 +796,50 @@ denominator alongside it: how many of the thirty days there is anything to
 average at all. A day holding only a skip reason is recorded: it was
 answered.
 
+### Counted from a time area
+
+**Is** a check habit whose day is answered by the day's declared time, not by
+a tick (ADR 0039): the gym, counted from Training. The habit names the area in
+`countedFrom`, one of `TIME_AREAS`, on a check only -- a counter's day is a
+count, and time says only whether. A habit ticked by hand has no key.
+
+**Is not** a link. Rule 5 is about relations between entities; this is the
+habit's own configuration, like its type or its days, so it is a field on the
+habit in the profile, validated at the store boundary (`requireHabit`).
+Several habits may be counted from one area.
+
+**Its day is derived, never stored** (rule 6): `habitValueOn(habit, log)` in
+`lib/domain/derive/habits.js` is the one reading of a habit's day, and every
+reader goes through it -- the rate, the heatmap and its rate, completion, the
+streak, the summary, the week's figures, the home card, the check-in and the
+question context. On a day whose time is declared:
+
+- **kept** when the area has more than zero minutes;
+- **not kept** when it has none -- "nothing to declare" included -- a miss
+  with no reason, unless a skip reason was given (which still counts as it
+  does for any habit, `paused` leaving the rate).
+
+On a day whose time is **not declared** it is **not recorded**, as an
+unanswered habit is. A day whose time is declared counts as recorded for a
+habit counted from it (`isRecorded(log, habits)`). A tick the day already held
+from before the habit was counted from time is history and still keeps that
+day: pointing a habit at an area reads every day from its time, earlier ones
+too, but never unticks what was ticked.
+
+**Is never ticked by hand.** `logHabitValue`, a day's `habits` patch,
+`habit.set` (`PUT /api/habits/log`, the Habits screen, the model's
+`file_actions`) are refused with the sentence `countedFromRefusal` says --
+"Gym is counted from Training time, not ticked: declare the day's Training
+time instead". The model is told such habits apart, never as habits to tick,
+and a request for one drawn from an open answer is dropped. A skip reason is
+still given to it, from the Habits screen's heatmap or the check-in's sheet,
+on a day the time does not keep it; time given to the area later drops the
+reason, as a tick does.
+
+Set when a check habit is added or edited on the Habits screen ("Counted from
+time on", `—` for none), through `POST /api/habits` and `PATCH
+/api/habits/<id>` with `countedFrom` (null takes it back to ticked by hand).
+
 ### Skip reason
 
 **Is** why a scheduled habit was not kept on a day, from a closed list:
@@ -896,7 +940,7 @@ by area means **declared**, an area with no time having no key, so `{}` is
 evening's honest guess, never a stopwatch.
 
 The areas are a closed vocabulary, `TIME_AREAS` in `personalos.config.js` --
-`work`, `study`, `projects`, `training`, `refereeing`, each with the label the
+`work`, `projects`, `training`, `refereeing`, each with the label the
 screens show -- validated at the store boundary (`isTimeArea`,
 `lib/domain/day-time.js`). Minutes are whole steps of `limits.timeStepMinutes`
 (30), from 0 to `limits.timeAreaMaxMinutes` (a whole day) per area
@@ -920,6 +964,15 @@ check-in's time row offers a − / + stepper per area, saved together with
 What a span adds up to is derived, never stored (`lib/domain/derive/time.js`):
 `dayTimeTotal` and `timeByArea`, which count only declared days -- a day not
 declared is unknown, not zero; a day declared with nothing is a zero.
+
+**Study is part of Projects** (ADR 0039). It was an area of its own until
+schema 23, whose migration added every day's `study` minutes to `projects`
+(capped at a whole day) and removed the key; a day declared with study alone
+stays declared. A kept `time.set` on `study` is history: its line says what
+was said, and its undo is locked as changed since.
+
+An area's time also answers the habits **counted from** it (see Habit): a
+time write drops the skip reason of a habit it now keeps.
 
 ---
 
@@ -1447,11 +1500,11 @@ store: an action it refuses is filed as **failed** and writes nothing.
 
 | Action | Params | Writes | Model may ask | Undo restores |
 | --- | --- | --- | --- | --- |
-| `habit.set` | `habitId`, `value` | the habit's value for the day; completing it clears the day's skip reason | yes | the value before -- **none at all** when there was none, which reads as not recorded, not as "not done" -- and the skip reason completing cleared |
+| `habit.set` | `habitId`, `value` | the habit's value for the day; completing it clears the day's skip reason. Refused for a habit counted from a time area (ADR 0039) | yes | the value before -- **none at all** when there was none, which reads as not recorded, not as "not done" -- and the skip reason completing cleared |
 | `habit.skip` | `habitId`, `reason` | the day's skip reason | yes | the reason before, or none |
 | `mood.set` | `value`, 1 to 5 | the day's mood | **no**: given by tap, never read off the journal | the mood before, or unset |
 | `energy.set` | `value`, 1 to 5 | the day's energy | **no** | the energy before, or unset |
-| `time.set` | `area`, `minutes` | the area's minutes for the day, declaring the day | yes | the area's minutes before, and the day back to not declared if it was not and nothing else was declared since |
+| `time.set` | `area`, `minutes` | the area's minutes for the day, declaring the day | yes | the area's minutes before, and the day back to not declared if it was not and nothing else was declared since; a kept one on `study`, an area no more (ADR 0039), is locked |
 | `time.none` | -- | the day declared as nothing, when it was not declared | yes | the day back to not declared, if it was not; a day already declared was left as it was |
 | `journal.add` | `text` | a journal entry on the day, word for word | yes | the entry deleted |
 | `task.create` | `title`, `band` (`week` unless given) | a plain task -- no person, no goal | yes | the task deleted |
@@ -1527,7 +1580,8 @@ and is how what was filed from a note is taken back.
 (`isCheckinDone`). Nothing marks it done; it is read off the data. A day is
 **filled** when it is done, **not filled** when no question but the open one
 is answered, and **partly filled** in between (`checkinFill`); a habit given
-a skip reason, paused included, is answered.
+a skip reason, paused included, is answered. A habit counted from a time area
+is never a question, so it never adds to what is left (ADR 0039).
 
 **The week** is the seven days ending today, in the user's timezone, each
 filled, partly filled or not (`checkinWeek`, `lib/domain/derive/checkin.js`),
@@ -1536,7 +1590,9 @@ read, never stored (rule 6). Any of the seven can be filled and changed;
 never a future day.
 
 `GET /api/checkin?day=` asks a day -- today unless one is named, never a
-future one -- and answers the questions, `done`, `answers` (the day's mood,
+future one -- and answers the questions, `done`, `counted` (the habits
+scheduled that day and counted from a time area, `countedHabits`: id, label,
+area), `answers` (the day's mood,
 energy, time, habit values and skip reasons), `notes` (each open answer kept,
 in its words, with the lines of what was filed from it), the day's receipt
 and `week`. `POST /api/checkin` takes `{ day?, answers: [{ questionId, value
@@ -1565,7 +1621,8 @@ Then **one question at a time**: the first one left, in a card -- a check
 habit's one Yes and its skip reasons as the "no, because"; a counter's
 stepper and Save, then the reasons; five taps for mood and for energy; the
 time stepped per area in half hours and saved as one answer, or "Nothing to
-declare". Each answer is POSTed as it is given, the panel is redrawn from
+declare" -- an area some habit is counted from says so under its name
+("Counts as Gym"). Each answer is POSTed as it is given, the panel is redrawn from
 what the server answers, never from what it sent, and the card moves on;
 then the rest of Home is re-read, so the Habits card follows. Back goes to
 the question before, answered or not; "Skip for now" sets one aside until
@@ -1573,7 +1630,10 @@ the others are asked. The open question never counts as left.
 
 Once the day is filled, **its summary** replaces the card: mood, energy,
 habits kept out of those scheduled and not paused, the time declared with a
-bar by area (`checkinSummary`), each habit kept or why not, and the notes.
+bar by area (`checkinSummary`), each habit kept or why not, and the notes. A
+habit counted from a time area is listed with the others, kept or missed by
+the time, its line saying where from ("From Training 1h", "No Training
+time"); in the sheet it has that hint in place of Yes, and its reasons.
 Under a note, what the small model filed from it is listed with an Undo per
 line, since nothing else shows it; then the box for another note
 ("Anything worth noting?", optional, emptied once kept). **Edit answers**
@@ -1589,7 +1649,7 @@ this order:
 
 | Question | `id` | Asked when | Answered when |
 | --- | --- | --- | --- |
-| a habit | `habit:<habitId>` | the habit is scheduled that day -- a day off, or a habit not active, is not asked | complete (a check ticked, a counter at that day's target) or given a skip reason (`openHabits`) |
+| a habit | `habit:<habitId>` | the habit is scheduled that day -- a day off, a habit not active, or one counted from a time area (the time answers it, ADR 0039) is not asked | complete (a check ticked, a counter at that day's target) or given a skip reason (`openHabits`) |
 | mood | `mood` | always | the day has a mood |
 | energy | `energy` | always | the day has an energy |
 | time | `time` | there is an area in `TIME_AREAS` | the day is declared, nothing included (`time !== null`) |
@@ -1608,7 +1668,10 @@ any habit `{ skip: reason }` (`habit.skip`; on a check ticked that day,
 `habit.set` `false` first, since a reason is never kept beside a habit kept --
 a counter at its target is lowered by a `{ value }` first); mood and energy `{ value }`;
 time `{ areas: { <area>: minutes } }` (a `time.set` per area) or
-`{ none: true }` (`time.none`); the open question `{ text }`. The values are
+`{ none: true }` (`time.none`); the open question `{ text }`. A habit counted
+from a time area is not a question but is answered by its `habit:<habitId>`
+with `{ skip: reason }` only (`actionsForCounted`); `{ done }` is refused with
+the sentence that says its day is the time's. The values are
 the actions' to check; an answer to a question the day does not ask, a value
 of the wrong shape and a value its action refuses are each a rejected line,
 and the other answers are filed all the same.
@@ -1616,15 +1679,17 @@ and the other answers are filed all the same.
 **The open answer is a journal entry first**, word for word (`journal.add`),
 kept before anything reads it (rule 2). Then the small model reads it for
 the records it names (`lib/checkin/interpret.js`, ADR 0037's second tier):
-"ho fatto palestra e speso 18 euro di pranzo" ticks the habit and records
-the expense. The model is offered every action a model may ask for but
+"ho fatto palestra e speso 18 euro di pranzo" records the expense, and the
+gym's time when the sentence says how long -- the gym being counted from
+Training -- or ticks a habit ticked by hand. The model is offered every action a model may ask for but
 `journal.add` -- the entry is never filed twice -- and is told the day, the
-habits the day still holds nothing for (by id), whether the day's time is
-already declared, your expense categories (by id) and the names of the
+habits the day still holds nothing for (by id), the habits counted from a
+time area (by name and area, never as habits to tick), whether the day's
+time is already declared, your expense categories (by id) and the names of the
 accounts money is spent from. The day is read again after the entry is kept,
 so the closed answers given before it, in the same request too, count: a
-request for a habit that already has a value or a skip reason, or for time on
-a day already declared, is dropped -- "went to the gym" after "Gym: done"
+request for a habit that already has a value or a skip reason, for a habit
+counted from a time area, or for time on a day already declared, is dropped -- "went to the gym" after "Gym: done"
 does not tick the gym twice. What it asks for is filed through
 the registry like any request: an unknown habit, an amount that is not whole
 cents, a category that is not yours is a rejected line, and the rest are
@@ -1700,8 +1765,8 @@ something.
 
 | Canonical | Derived (never stored) |
 | --- | --- |
-| profile, habit definitions (including periods) | overdue, days overdue, a task's age, board column and By person group |
-| finance categories (two levels, kind on the top level, fixedCost, archived) | whether a habit is active/archived on a day; a subcategory's kind |
+| profile, habit definitions (including periods, and the time area a check is counted from) | overdue, days overdue, a task's age, board column and By person group |
+| finance categories (two levels, kind on the top level, fixedCost, archived) | whether a habit is active/archived on a day; a subcategory's kind; the day of a habit counted from a time area (`habitValueOn`) |
 | task title, note, band, bandSetOn, temperature, tags, position, completedAt | habit streak, completion ratio, per-habit rates (a habit's rate over a span: kept of scheduled, paused days, misses by reason), history heatmap cells, the thirty-day summary |
 | people | health averages, day totals |
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |

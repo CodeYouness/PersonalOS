@@ -6,7 +6,7 @@
  * `checkin.js`: on a case-insensitive disk that is `Checkin.js`.
  */
 
-import { dayFull, weekdayName } from '@/components/format.js';
+import { dayFull, formatMinutes, weekdayName } from '@/components/format.js';
 import { shiftDayKey } from '@/lib/domain/dates.js';
 
 /**
@@ -105,4 +105,18 @@ export function weekDayLabel(day, fill, today) {
 export function headline(day, today, { left, done }) {
   const name = dayName(day, today);
   return done ? name + ' is filled' : name + ' · ' + left + ' left';
+}
+
+/**
+ * Where a habit counted from a time area gets its answer, as its summary
+ * line and its row in the sheet say it (ADR 0039).
+ *
+ * @param {string} area
+ * @param {number | null} minutes the area's minutes that day; null when the time is not declared
+ * @param {(key: string) => string} areaLabel
+ * @returns {string}
+ */
+export function countedHint(area, minutes, areaLabel) {
+  if (minutes === null) return 'From ' + areaLabel(area) + ' time, not declared';
+  return minutes > 0 ? 'From ' + areaLabel(area) + ' ' + formatMinutes(minutes) : 'No ' + areaLabel(area) + ' time';
 }

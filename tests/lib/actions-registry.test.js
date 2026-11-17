@@ -206,6 +206,23 @@ describe('habit.set', () => {
   });
 });
 
+describe('habit.set on a habit counted from a time area (ADR 0039)', () => {
+  it('is refused with the sentence that says the time keeps it, writing nothing', async () => {
+    const line = await refused('habit.set', { habitId: 'habit_gym', value: true });
+    expect(line.error).toMatch(/Gym is counted from Training time/);
+    expect((await store.getDailyLog(DAY)).habits).toEqual({});
+  });
+
+  it('locks the undo of a tick made before the habit was counted from time', async () => {
+    await store.updateHabit('habit_gym', { countedFrom: null });
+    const line = await made('habit.set', { habitId: 'habit_gym', value: true });
+    await store.updateHabit('habit_gym', { countedFrom: 'training' });
+
+    expect(await registry.undoAction(/** @type {string} */ (line.actionId))).toMatchObject({ ok: false, reason: 'locked' });
+    expect((await store.getDailyLog(DAY)).habits).toEqual({ habit_gym: true });
+  });
+});
+
 describe('habit.skip', () => {
   it.each([
     ['a reason outside the list', { habitId: 'habit_read', reason: 'tired' }],
@@ -271,6 +288,7 @@ describe.each([
 describe('time.set', () => {
   it.each([
     ['an area outside the list', { area: 'chores', minutes: 60 }],
+    ['study, part of Projects since schema 23 (ADR 0039)', { area: 'study', minutes: 60 }],
     ['minutes off the half hour', { area: 'work', minutes: 45 }],
     ['more than a day', { area: 'work', minutes: 25 * 60 }],
   ])('refuses %s', async (_label, params) => {
@@ -298,10 +316,10 @@ describe('time.set', () => {
 
   it('leaves the day declared when another area was given time since', async () => {
     const line = await made('time.set', { area: 'work', minutes: 90 });
-    await store.setDayTime({ date: DAY, area: 'study', minutes: 30 });
+    await store.setDayTime({ date: DAY, area: 'refereeing', minutes: 30 });
 
     await registry.undoAction(/** @type {string} */ (line.actionId));
-    expect((await store.getDailyLog(DAY)).time).toEqual({ study: 30 });
+    expect((await store.getDailyLog(DAY)).time).toEqual({ refereeing: 30 });
   });
 
   it('refuses to undo once the area\'s time was changed since', async () => {
@@ -309,6 +327,29 @@ describe('time.set', () => {
     await store.setDayTime({ date: DAY, area: 'work', minutes: 60 });
 
     expect(await registry.undoAction(/** @type {string} */ (line.actionId))).toMatchObject({ ok: false, reason: 'locked' });
+  });
+});
+
+describe('a kept time.set on study, from before it was part of Projects (ADR 0039)', () => {
+  it('stays on the receipt as said, and its undo is locked, writing nothing', async () => {
+    await store.setDayTime({ date: DAY, area: 'projects', minutes: 90 });
+    const record = await store.createActionRecord({
+      name: 'time.set',
+      params: { area: 'study', minutes: 60 },
+      day: DAY,
+      origin: CHECKIN.origin,
+      text: 'Study 1h',
+      source: 'checkin',
+      recordRef: null,
+      before: { minutes: 0, declared: false },
+      status: 'done',
+      error: null,
+    });
+
+    const { lines } = await registry.receiptFor({ day: DAY });
+    expect(lines.find((line) => line.actionId === record.id)).toMatchObject({ text: 'Study 1h', status: 'done', undoable: false });
+    expect(await registry.undoAction(record.id)).toMatchObject({ ok: false, reason: 'locked' });
+    expect((await store.getDailyLog(DAY)).time).toEqual({ projects: 90 });
   });
 });
 
@@ -588,7 +629,7 @@ describe('receiptFor', () => {
       [
         { name: 'mood.set', params: { value: 3 } },
         { name: 'nope', params: {} },
-        { name: 'time.set', params: { area: 'study', minutes: 60 } },
+        { name: 'time.set', params: { area: 'refereeing', minutes: 60 } },
       ],
       { day: DAY, source: 'capture', origin }
     );

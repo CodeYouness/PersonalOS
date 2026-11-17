@@ -21,7 +21,7 @@ const MON = '2026-10-12';
 const TUE = '2026-10-13';
 
 const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
-const AREAS = ['work', 'study'];
+const AREAS = ['work', 'refereeing'];
 
 const move = { id: 'habit_move', label: 'Move', type: 'check', periods: [{ from: '2026-01-01', to: null, days: ALL_DAYS, target: null }] };
 const water = { id: 'habit_water', label: 'Water', type: 'counter', periods: [{ from: '2026-01-01', to: null, days: ALL_DAYS, target: 8 }] };
@@ -132,7 +132,7 @@ describe('openQuestions', () => {
   });
 
   it('is only the open question once everything else is answered', () => {
-    const asked = questions({ habits: { habit_move: true, habit_water: 9 }, skips: { habit_gym: 'paused' }, mood: 5, energy: 3, time: { study: 30 } });
+    const asked = questions({ habits: { habit_move: true, habit_water: 9 }, skips: { habit_gym: 'paused' }, mood: 5, energy: 3, time: { refereeing: 30 } });
     expect(ids(openQuestions(asked))).toEqual(['open']);
   });
 });
@@ -203,7 +203,7 @@ describe('checkinWeek', () => {
 
 describe('checkinSummary', () => {
   it('reads the readings, each habit kept, skipped, paused or open, and the time by area', () => {
-    const fields = { habits: { habit_move: true, habit_water: 5 }, skips: { habit_gym: 'too-heavy' }, mood: 4, energy: 2, time: { study: 60, work: 360 } };
+    const fields = { habits: { habit_move: true, habit_water: 5 }, skips: { habit_gym: 'too-heavy' }, mood: 4, energy: 2, time: { refereeing: 60, work: 360 } };
     const summary = checkinSummary({ questions: questions(fields), answers: checkinAnswers(log(MON, fields)), timeAreas: AREAS });
     expect(summary.mood).toBe(4);
     expect(summary.energy).toBe(2);
@@ -215,7 +215,7 @@ describe('checkinSummary', () => {
     expect(summary.habits[1]).toMatchObject({ habitType: 'counter', target: 8 });
     expect([summary.kept, summary.counted]).toEqual([1, 3]);
     // Areas in the order they are asked, not the order they were saved.
-    expect(summary.time).toEqual({ total: 420, areas: [{ area: 'work', minutes: 360 }, { area: 'study', minutes: 60 }] });
+    expect(summary.time).toEqual({ total: 420, areas: [{ area: 'work', minutes: 360 }, { area: 'refereeing', minutes: 60 }] });
   });
 
   it('leaves a paused habit out of the count, as a rate does', () => {

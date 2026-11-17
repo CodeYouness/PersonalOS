@@ -4,7 +4,7 @@ import { streakLabel } from '@/components/format.js';
 import HabitsList from '@/components/HabitsList.js';
 import HabitsRing from '@/components/HabitsRing.js';
 import { dayKeysEndingAt, today, weekDayKeys } from '@/lib/domain/dates.js';
-import { dayCompletion, habitRate, habitsForDay, STREAK_WINDOW_DAYS, streak } from '@/lib/domain/derive/habits.js';
+import { dayCompletion, habitRate, habitsForDay, habitValuesOn, STREAK_WINDOW_DAYS, streak } from '@/lib/domain/derive/habits.js';
 import { getDailyLogs, getProfile } from '@/lib/store.js';
 
 /**
@@ -19,7 +19,9 @@ import { getDailyLogs, getProfile } from '@/lib/store.js';
  * and still tickable -- the Tuesday gym session happened -- and outside the
  * ring, which is completion over today's scheduled habits only (ADR 0029).
  * Each shows its week so far, Monday to today, as the Review screen counts
- * it (`habitRate`, ADR 0037): paused days left out.
+ * it (`habitRate`, ADR 0037): paused days left out. A habit counted from a
+ * time area (ADR 0039) shows the value today's time gives it
+ * (`habitValuesOn`), and is not ticked here.
  */
 export default async function HabitsCard() {
   const profile = await getProfile();
@@ -38,6 +40,7 @@ export default async function HabitsCard() {
   const ratio = dayCompletion(profile.habits, todayLog);
   const streakDays = streak(profile.habits, windowLogs, todayKey);
   const week = { from: weekDayKeys(todayKey)[0], to: todayKey };
+  const values = habitValuesOn(profile.habits, todayLog);
   const weekRates = Object.fromEntries(
     [...scheduled, ...off].map((habit) => [habit.id, habitRate(habit, windowLogs, week)])
   );
@@ -62,11 +65,11 @@ export default async function HabitsCard() {
           <p className="caption">No active habits.</p>
         ) : (
           <HabitsList
-            key={JSON.stringify(todayLog.habits)}
+            key={JSON.stringify(values)}
             scheduled={scheduled}
             off={off}
             todayKey={todayKey}
-            values={todayLog.habits}
+            values={values}
             weekRates={weekRates}
           />
         )}

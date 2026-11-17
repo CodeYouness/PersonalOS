@@ -166,3 +166,23 @@ describe('PUT /api/habits/order', () => {
     expect((await put({})).status).toBe(400);
   });
 });
+
+describe('a habit counted from a time area (ADR 0039)', () => {
+  it('is created with its area, and a counter or an area not in the list is a 400 with the store\'s message', async () => {
+    const created = await (await post({ label: 'Swim', type: 'check', target: null, countedFrom: 'training' })).json();
+    expect(created.habit.countedFrom).toBe('training');
+
+    const counter = await post({ label: 'Laps', type: 'counter', target: 4, countedFrom: 'training' });
+    expect(counter.status).toBe(400);
+    expect((await counter.json()).message).toMatch(/check habit only/);
+    expect((await post({ label: 'Swim', type: 'check', target: null, countedFrom: 'study' })).status).toBe(400);
+  });
+
+  it('is pointed at an area, and back to ticked by hand, by a PATCH', async () => {
+    const set = await (await patch('habit_read', { countedFrom: 'projects' })).json();
+    expect(set.habit.countedFrom).toBe('projects');
+    const cleared = await (await patch('habit_read', { countedFrom: null })).json();
+    expect('countedFrom' in cleared.habit).toBe(false);
+    expect((await habits()).find((habit) => habit.id === 'habit_read')?.countedFrom).toBeUndefined();
+  });
+});

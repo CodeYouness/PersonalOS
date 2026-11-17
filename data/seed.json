@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 22,
+  "schemaVersion": 23,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -31,6 +31,13 @@
         "label": "Deep work blocks",
         "type": "counter",
         "periods": [{ "from": "2026-01-04", "to": null, "days": [1, 2, 3, 4, 5], "target": 3 }]
+      },
+      {
+        "id": "habit_gym",
+        "label": "Gym",
+        "type": "check",
+        "countedFrom": "training",
+        "periods": [{ "from": "2026-01-04", "to": null, "days": [1, 2, 3, 4, 5, 6, 7], "target": null }]
       }
     ],
     "financeTrackedSince": null,
@@ -605,7 +612,7 @@
       "measurements": [],
       "notes": [],
       "mood": 5,
-      "time": { "work": 480, "study": 90, "refereeing": 120 }
+      "time": { "work": 480, "projects": 90, "refereeing": 120 }
     },
     "2026-01-09": {
       "date": "2026-01-09",

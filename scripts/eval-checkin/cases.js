@@ -12,6 +12,9 @@
  * reasonable reading may add or leave out -- matched by name, and by the
  * params it names -- so an ambiguous sentence fails only on what is wrong.
  * An empty `expected` is "nothing to file", a real answer.
+ *
+ * The gym is counted from Training time (ADR 0039): it is never filed as a
+ * habit, and an hour at the gym is `time.set` training 60, nothing else.
  */
 
 /** @typedef {import('./score.js').Case} Case */
@@ -22,7 +25,6 @@ export const DAY = '2026-09-22';
 export const CONTEXT = {
   day: DAY,
   habits: [
-    { id: 'habit_gym', name: 'Gym', type: 'check', target: null },
     { id: 'habit_read', name: 'Read', type: 'check', target: null },
     { id: 'habit_water', name: 'Glasses of water', type: 'counter', target: 8 },
     { id: 'habit_meditate', name: 'Meditate', type: 'check', target: null },
@@ -34,9 +36,9 @@ export const CONTEXT = {
     { id: 'cat_books', name: 'Books' },
   ],
   accounts: ['Current account', 'Cash'],
+  counted: [{ name: 'Gym', area: 'training' }],
 };
 
-const GYM = { action: 'habit.set', params: { habitId: 'habit_gym', value: true } };
 const READ = { action: 'habit.set', params: { habitId: 'habit_read', value: true } };
 const MEDITATE = { action: 'habit.set', params: { habitId: 'habit_meditate', value: true } };
 
@@ -55,9 +57,22 @@ function time(area, minutes) {
 
 /** @type {readonly Case[]} */
 export const CASES = Object.freeze([
-  // A habit and money, the sentence ADR 0037 is written around.
-  { text: 'ho fatto palestra e speso 18 euro di pranzo', expected: [GYM, spent(1800, 'cat_restaurants')] },
-  { text: 'Went to the gym and spent 18 euros on lunch', expected: [GYM, spent(1800, 'cat_restaurants')] },
+  // The gym and money, the sentence ADR 0037 is written around. The gym is
+  // counted from Training time (ADR 0039): with no duration said, a reading
+  // may leave it out or guess the training time, and never ticks a habit.
+  {
+    text: 'ho fatto palestra e speso 18 euro di pranzo',
+    expected: [spent(1800, 'cat_restaurants')],
+    optional: [{ action: 'time.set', params: { area: 'training' } }],
+  },
+  {
+    text: 'Went to the gym and spent 18 euros on lunch',
+    expected: [spent(1800, 'cat_restaurants')],
+    optional: [{ action: 'time.set', params: { area: 'training' } }],
+  },
+  // An hour at the gym is an hour of training, and only that.
+  { text: 'Went to the gym for an hour', expected: [time('training', 60)] },
+  { text: "Un'ora di palestra stamattina", expected: [time('training', 60)] },
   { text: 'Spent about 20 on dinner with friends and meditated for ten minutes', expected: [spent(2000, 'cat_restaurants'), MEDITATE] },
   { text: 'Oggi ho comprato un libro a 9,90 e ne ho letto metà', expected: [spent(990, 'cat_books'), READ] },
 
@@ -69,14 +84,13 @@ export const CASES = Object.freeze([
 
   // Time against areas, and a habit with it.
   { text: "Ho letto un'ora e lavorato tre ore", expected: [READ, time('work', 180)] },
-  { text: 'Studied for two hours, then 90 minutes on my side project', expected: [time('study', 120), time('projects', 90)] },
+  { text: 'Two hours on my side project, then an hour of work', expected: [time('projects', 120), time('work', 60)] },
   { text: 'Lavorato 7 ore e mezza', expected: [time('work', 450)] },
   { text: 'Ho arbitrato una partita, due ore in tutto', expected: [time('refereeing', 120)] },
   // Mood is given by tap, never read off a sentence: only the time is filed.
   {
     text: 'Mi sentivo stanco, ma ho fatto due ore di allenamento',
     expected: [time('training', 120)],
-    optional: [GYM],
   },
 
   // A counter.

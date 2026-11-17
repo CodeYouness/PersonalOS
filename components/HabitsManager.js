@@ -5,7 +5,8 @@ import { useState, useTransition } from 'react';
 
 import { daysLabel, WEEKDAY_SHORT } from '@/components/format.js';
 import { EVERY_WEEKDAY } from '@/lib/domain/dates.js';
-import { currentPeriod, isActiveOn } from '@/lib/domain/derive/habits.js';
+import { TIME_AREA_KEYS, timeAreaLabel } from '@/lib/domain/day-time.js';
+import { countedFromArea, currentPeriod, isActiveOn } from '@/lib/domain/derive/habits.js';
 
 /**
  * The Habits screen's management card, ported from design/mockup.html's
@@ -22,6 +23,10 @@ import { currentPeriod, isActiveOn } from '@/lib/domain/derive/habits.js';
  *
  * The mockup's drag handle is an up/down pair instead: reordering is rare
  * and drag-and-drop is a keyboard and touch trap for a list this short.
+ *
+ * A check habit may be counted from a time area (ADR 0039), chosen when it
+ * is added or edited: the check-in then reads it from the day's time and
+ * never asks it, and it is no longer ticked by hand.
  *
  * Every control stays disabled until the refresh after a write has rendered,
  * not merely until the request returns. A move computed from the pre-write
@@ -86,7 +91,7 @@ export default function HabitsManager({ habits, todayKey }) {
 
   /**
    * @param {string} id
-   * @param {{ label?: string, target?: number, days?: number[], archived?: boolean }} fields
+   * @param {{ label?: string, target?: number, days?: number[], archived?: boolean, countedFrom?: string | null }} fields
    */
   const patch = (id, fields) => write(id, '/api/habits/' + id, 'PATCH', fields);
 
@@ -208,7 +213,36 @@ export default function HabitsManager({ habits, todayKey }) {
  */
 function describeHabit(habit) {
   const { days, target } = currentPeriod(habit);
-  return (habit.type === 'check' ? 'check' : 'counter · target ' + target) + ' · ' + daysLabel(days);
+  const area = countedFromArea(habit);
+  return (
+    (habit.type === 'check' ? 'check' : 'counter · target ' + target) + ' · ' + daysLabel(days) +
+    (area === null ? '' : ' · counted from ' + timeAreaLabel(area) + ' time')
+  );
+}
+
+/**
+ * The time area a check habit is counted from (ADR 0039), or none: a
+ * labelled select, its first option "—" for a habit ticked by hand.
+ *
+ * @param {{ id: string, value: string, onChange: (value: string) => void }} props
+ *   `value` an area's key, '' for none
+ */
+function CountedFromField({ id, value, onChange }) {
+  return (
+    <div className="field habit-counted-field">
+      <label className="caption" htmlFor={id}>
+        Counted from time on
+      </label>
+      <select id={id} className="input" value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">—</option>
+        {TIME_AREA_KEYS.map((key) => (
+          <option key={key} value={key}>
+            {timeAreaLabel(key)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 }
 
 /**
@@ -260,13 +294,14 @@ function WeekdayPicker({ days, label, onChange }) {
  *   isPending: boolean,
  *   disabled: boolean,
  *   onCancel: () => void,
- *   onSave: (fields: { label: string, target?: number, days: number[] }) => void,
+ *   onSave: (fields: { label: string, target?: number, days: number[], countedFrom?: string | null }) => void,
  * }} props
  */
-function HabitEditor({ habit, isPending, disabled, onCancel, onSave }) {
+export function HabitEditor({ habit, isPending, disabled, onCancel, onSave }) {
   const [label, setLabel] = useState(habit.label);
   const [target, setTarget] = useState(String(currentPeriod(habit).target ?? ''));
   const [days, setDays] = useState(currentPeriod(habit).days);
+  const [countedFrom, setCountedFrom] = useState(countedFromArea(habit) ?? '');
 
   return (
     <form
@@ -276,7 +311,11 @@ function HabitEditor({ habit, isPending, disabled, onCancel, onSave }) {
         // The type is fixed after creation (ADR 0016), so a counter always
         // sends a target and a check never does -- the store rejects either
         // the other way round.
-        onSave(habit.type === 'counter' ? { label, target: Number(target), days } : { label, days });
+        onSave(
+          habit.type === 'counter'
+            ? { label, target: Number(target), days }
+            : { label, days, countedFrom: countedFrom === '' ? null : countedFrom }
+        );
       }}
     >
       <input
@@ -298,7 +337,11 @@ function HabitEditor({ habit, isPending, disabled, onCancel, onSave }) {
         />
       )}
       <WeekdayPicker days={days} label={'Days for ' + habit.label} onChange={setDays} />
-      <p className="caption edit-note">From today. Earlier days keep the days and target they had.</p>
+      {habit.type === 'check' && <CountedFromField id={'counted-' + habit.id} value={countedFrom} onChange={setCountedFrom} />}
+      <p className="caption edit-note">
+        From today. Earlier days keep the days and target they had.
+        {habit.type === 'check' && ' Counted from time reads every day from its time, earlier ones too; a tick already given stays.'}
+      </p>
       <div className="actions">
         <button type="submit" className="btn-ghost" disabled={disabled}>
           {isPending ? 'Saving…' : 'Save'}
@@ -396,7 +439,7 @@ function HabitRow({ habit, disabled, isFirst, isLast, onEdit, onArchive, onMove 
  *
  * @param {{
  *   disabled: boolean,
- *   onAdd: (input: { label: string, type: string, target: number | null, days: number[] }) => Promise<boolean>,
+ *   onAdd: (input: { label: string, type: string, target: number | null, days: number[], countedFrom: string | null }) => Promise<boolean>,
  * }} props
  */
 function AddHabit({ disabled, onAdd }) {
@@ -404,6 +447,7 @@ function AddHabit({ disabled, onAdd }) {
   const [type, setType] = useState(/** @type {'check' | 'counter'} */ ('check'));
   const [target, setTarget] = useState('8');
   const [days, setDays] = useState(/** @type {number[]} */ ([...EVERY_WEEKDAY]));
+  const [countedFrom, setCountedFrom] = useState('');
 
   return (
     <form
@@ -415,10 +459,13 @@ function AddHabit({ disabled, onAdd }) {
           type,
           target: type === 'counter' ? Number(target) : null,
           days,
+          // Only a check is counted from time (ADR 0039).
+          countedFrom: type === 'check' && countedFrom !== '' ? countedFrom : null,
         });
         if (created) {
           setLabel('');
           setDays([...EVERY_WEEKDAY]);
+          setCountedFrom('');
         }
       }}
     >
@@ -452,6 +499,7 @@ function AddHabit({ disabled, onAdd }) {
         Add
       </button>
       <WeekdayPicker days={days} label="Days for the new habit" onChange={setDays} />
+      {type === 'check' && <CountedFromField id="counted-new" value={countedFrom} onChange={setCountedFrom} />}
     </form>
   );
 }

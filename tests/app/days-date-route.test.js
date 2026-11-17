@@ -109,7 +109,7 @@ describe('PUT /api/days/[date]', () => {
       put(day, { time: 60 }),
       put(day, { time: 'work' }),
       // One good area does not carry a bad one, nor a good mood a bad time.
-      put(day, { time: { work: 60, study: 45 } }),
+      put(day, { time: { work: 60, refereeing: 45 } }),
       put(day, { mood: 4, time: { work: 45 } }),
       put(dates.shiftDayKey(day, 1), { time: { work: 60 } }),
       put(dates.shiftDayKey(day, 1), { time: {} }),
@@ -129,8 +129,8 @@ describe('PUT /api/days/[date] with time', () => {
     // Sent again, the same minutes: a retry never doubles them.
     await put(day, { time: { work: 240 } });
     expect((await store.getDailyLog(day)).time).toEqual({ work: 240, training: 60 });
-    await put(day, { time: { work: 0, study: 30 } });
-    expect((await store.getDailyLog(day)).time).toEqual({ training: 60, study: 30 });
+    await put(day, { time: { work: 0, refereeing: 30 } });
+    expect((await store.getDailyLog(day)).time).toEqual({ training: 60, refereeing: 30 });
   });
 
   it('declares nothing on a day not declared, and never wipes minutes with it', async () => {
@@ -149,8 +149,8 @@ describe('PUT /api/days/[date] with time', () => {
 
   it('takes the time beside the mood and the energy', async () => {
     const day = dates.today();
-    expect(await (await put(day, { mood: 3, energy: 4, time: { study: 120 } })).json()).toEqual({
-      ok: true, mood: 3, energy: 4, time: { study: 120 },
+    expect(await (await put(day, { mood: 3, energy: 4, time: { refereeing: 120 } })).json()).toEqual({
+      ok: true, mood: 3, energy: 4, time: { refereeing: 120 },
     });
   });
 });
