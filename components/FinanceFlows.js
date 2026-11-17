@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { financesHref, MovementAmount } from '@/components/finance.js';
 import {
+  dayOfMonth,
   formatEuro,
   formatEuroShort,
   formatMoney,
@@ -17,6 +18,7 @@ import {
   percent,
   shortDate,
 } from '@/components/format.js';
+import Tip, { TipFigures } from '@/components/Tip.js';
 import { shiftMonth, yearOf } from '@/lib/domain/dates.js';
 import {
   circleArc,
@@ -35,11 +37,19 @@ import {
 /** @typedef {import('@/lib/domain/derive/finance.js').CategoryFlow} CategoryFlow */
 /** @typedef {import('@/lib/domain/derive/finance.js').PeriodFlows} PeriodFlows */
 /** @typedef {import('@/lib/domain/derive/finance.js').TrendMonth} TrendMonth */
+/** @typedef {import('@/lib/domain/derive/finance.js').YearColumn} YearColumn */
+/** @typedef {import('@/lib/domain/derive/finance.js').DayColumn} DayColumn */
 /** @typedef {import('@/lib/domain/derive/finance.js').FlowCircle} FlowCircle */
 /** @typedef {import('@/lib/domain/derive/finance.js').CirclePart} CirclePart */
 /** @typedef {import('@/lib/domain/derive/finance.js').LineMovement} LineMovement */
 /** @typedef {Map<string, { rows: LineMovement[], more: number }>} Movements each line's movements of the period, by line id */
 /** @typedef {CirclePart['key'] | 'over'} PartKey what the circle can emphasise */
+/**
+ * What the columns draw (ADR 0053): a month's days, with what is counted on
+ * no day, or a year's twelve months.
+ *
+ * @typedef {{ kind: 'days', days: DayColumn[], apart: { income: number, spending: number, movements: number } } | { kind: 'months', months: YearColumn[] }} ChartColumns
+ */
 
 /**
  * The parts of a whole in a chart (docs/design/ui-rules.md): the composition
@@ -52,44 +62,55 @@ const CENTRE = 60;
 const RING = 44;
 const OUTER = 56;
 
+/** The days of a month labelled under its columns: a week apart, from the 1st. */
+const DAY_TICKS = new Set(['1', '8', '15', '22', '29']);
+
+/** A year's columns are labelled every this many months, from January: the quarters. */
+const MONTH_TICK_STEP = 3;
+
 /**
  * The Income & spending section of the Finances screen (#137): what came in,
  * where it went and what was left, for a month (`?month=YYYY-MM`,
  * monthFlows) or, with `?period=year`, that month's calendar year to date
  * (calendarYearFlows).
  *
- * Top to bottom (ADR 0050): the head -- Month / Year, the month or year
- * picker, and Circle / Table (`?view=table`; the circle is the default and
- * never written); the one line counting movements without a category
- * (uncategorisedCounts, ADR 0048); the trend, income and spending as bars
- * over the twelve months around the selected one or the year's, each month a
- * link that reads it (ADR 0048); and the body.
+ * Top to bottom (ADR 0053, amending 0050): the head -- Month / Year and the
+ * month or year picker; the one line counting movements without a category
+ * (uncategorisedCounts, ADR 0048); and the body, two columns, stacked on a
+ * phone. No strip of bars across the top: what it drew is the columns.
  *
- * The body, in the circle view, has no table and no row of income or
- * spending (ADR 0050, amended): on the left the circle with its four totals
- * under it -- income, spent, invested, kept, each part marked in its tone in
- * the ring, income, the whole ring, unmarked -- and on its right the rest of
- * the summary: what was spent beyond the income, invested from earlier
- * savings or sold beyond what was bought, the savings rates against the
- * target (ADR 0045), a missed target's shortfall, fixed vs variable. Side by
- * side down to 560 px, stacked under. The circle (flowCircle) is the
- * period's income split, clockwise from the top, into what was spent,
- * invested (periodInvested, from the trades) and kept; spending beyond the
- * income is an arc outside the ring in the danger tone, and said in words.
- * Hovering or focusing a part shows it in the centre; hovering a total
- * emphasises its part.
+ * **On the left**, a switch, Circle / Columns (`?view=columns`; the circle is
+ * the default and never written), then the chart, then the period's four
+ * totals and the rest of the summary under it:
  *
- * In the table view the body is the breakdown: income, then spending, with
- * the composition of spending (spendingParts) and the comparison columns --
- * the change from last month, or in a year each line's average month
- * (lineAverages) and the change from the same months of last year -- then the
- * whole summary as the final account. A line's name with subcategories opens
- * them, with what was spent in each and a link to the line's movements
- * (`?category=<line>`); a subcategory's name, and a line's without any,
- * opens its movements of the period in place (`movements`, lineMovements,
- * ADR 0052), the newest first and "and N more" linking to the line's
- * listing. The lines with nothing in the period fold into one row at the end
- * of their table (foldedLines, ADR 0048).
+ * - The circle (flowCircle, ADR 0050): the period's income split, clockwise
+ *   from the top, into what was spent, invested (periodInvested, from the
+ *   trades) and kept; spending beyond the income an arc outside the ring in
+ *   the danger tone, and said in words. Hovering or focusing a part shows it
+ *   in the centre; hovering a total emphasises its part.
+ * - The columns: in a month one per day (dayColumns), in a year one per month
+ *   (yearColumns, each a link that reads it) -- money in outlined, money out
+ *   solid, a month's "left" a tick, on a scale from zero to the highest bar
+ *   printed beside them. Each column is focusable and shows its exact figures
+ *   on hover, focus and a tap (Tip). A day still to come, or a month the year
+ *   does not offer, is empty. What a month counts on no day -- a movement
+ *   spread over months (ADR 0052) -- is said under the days.
+ * - The four totals -- income, spent, invested, kept -- each part marked in
+ *   its tone in the ring (in the columns: income outlined, spent solid), then
+ *   the summary: what was spent beyond the income, invested from earlier
+ *   savings or sold beyond what was bought, the savings rates against the
+ *   target (ADR 0045), a missed target's shortfall, fixed vs variable.
+ *
+ * **On the right, always**, the breakdown: income, then spending, with the
+ * composition of spending (spendingParts) and the comparison columns -- the
+ * change from last month, or in a year each line's average month
+ * (lineAverages) and the change from the same months of last year. A line's
+ * name with subcategories opens them, with what was spent in each and a link
+ * to the line's movements (`?category=<line>`); a subcategory's name, and a
+ * line's without any, opens its movements of the period in place
+ * (`movements`, lineMovements, ADR 0052), the newest first and "and N more"
+ * linking to the line's listing. The lines with nothing in the period fold
+ * into one row at the end of their table (foldedLines, ADR 0048).
  *
  * Read-only, and loading it calls neither the model nor an integration.
  *
@@ -99,7 +120,7 @@ const OUTER = 56;
  *   view: import('@/lib/domain/addresses.js').FinancesView,
  *   yearRate: number | null,
  *   target: number | null,
- *   trend: TrendMonth[],
+ *   columns: ChartColumns | null,
  *   invested: { bought: number, sold: number, net: number },
  *   averages: Map<string, number> | null,
  *   uncategorised: { spending: number, income: number },
@@ -108,10 +129,9 @@ const OUTER = 56;
  *   month: string,
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
- * }} props
- *   `movements` only in the table view, which shows them
+ * }} props `columns` only in the columns view, which draws them
  */
-export default function FinanceFlows({ flows, period, view, yearRate, target, trend, invested, averages, uncategorised, movements, months, month, todayKey, place }) {
+export default function FinanceFlows({ flows, period, view, yearRate, target, columns, invested, averages, uncategorised, movements, months, month, todayKey, place }) {
   const router = useRouter();
   /** @type {[PartKey | null, (key: PartKey | null) => void]} */
   const [active, setActive] = useState(/** @type {PartKey | null} */ (null));
@@ -119,17 +139,41 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, tr
   const circle = flowCircle(flows, invested);
   const label = period === 'year' ? year : monthLabel(month);
   const years = [...new Set(months.map(yearOf))];
-  const table = view === 'table';
   /** @param {string} target */
   const go = (target) => router.push(target, { scroll: false });
-  const columns = {
-    change: table ? (period === 'year' ? 'vs ' + yearOf(shiftMonth(month, -12)) : 'vs last month') : null,
-    averages: table && period === 'year' ? averages : null,
+  const tableColumns = {
+    change: period === 'year' ? 'vs ' + yearOf(shiftMonth(month, -12)) : 'vs last month',
+    averages: period === 'year' ? averages : null,
   };
   const quietLabel = period === 'year' ? 'this year' : 'this month';
-  const shared = { quietLabel, columns, compared: flows.compared, movements, todayKey, place };
+  const shared = { quietLabel, columns: tableColumns, compared: flows.compared, movements, todayKey, place };
   const empty = circle.state === 'empty';
-  const summary = { flows, circle, period, year, yearRate, target, setActive };
+  const breakdown = (
+    <div className="finance-breakdown">
+      <FlowTable
+        title="Income"
+        totalHead="Received"
+        table={foldedLines(flows.incomeCategories, flows.uncategorisedIncome, listed(flows.uncategorisedIncome))}
+        uncategorised={flows.uncategorisedIncome}
+        parts={[]}
+        {...shared}
+      />
+      <Composition flows={flows} />
+      <FlowTable
+        title="Spending"
+        totalHead="Spent"
+        table={foldedLines(flows.spendingCategories, flows.uncategorisedSpending, listed(flows.uncategorisedSpending))}
+        uncategorised={flows.uncategorisedSpending}
+        parts={spendingParts(flows)}
+        {...shared}
+      />
+      {tableColumns.averages !== null && !empty && (
+        <p className="caption finance-average-note">
+          Average: per month over the {(flows.months?.length ?? 1) === 1 ? 'one month' : flows.months?.length + ' months'} of {year} on offer.
+        </p>
+      )}
+    </div>
+  );
 
   return (
     <article id="card-finance-flows" className="card">
@@ -185,64 +229,46 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, tr
               ))}
             </select>
           )}
-          <div className="segmented" role="group" aria-label="View">
-            {/** @type {const} */ (['circle', 'table']).map((choice) => (
-              <Link
-                key={choice}
-                href={financesHref({ ...place, view: choice })}
-                scroll={false}
-                className={'seg' + (view === choice ? ' is-on' : '')}
-                aria-current={view === choice ? 'true' : undefined}
-              >
-                {choice === 'circle' ? 'Circle' : 'Table'}
-              </Link>
-            ))}
-          </div>
         </div>
       </div>
       <div className="card-body">
         <UncategorisedLine counts={uncategorised} place={place} />
-        <Trend trend={trend} period={period} month={month} place={place} />
 
-        {empty && <p className="caption">Nothing came in or went out in {label}.</p>}
-        {table ? (
-          <div className="finance-breakdown">
-            <FlowTable
-              title="Income"
-              totalHead="Received"
-              table={foldedLines(flows.incomeCategories, flows.uncategorisedIncome, listed(flows.uncategorisedIncome))}
-              uncategorised={flows.uncategorisedIncome}
-              parts={[]}
-              {...shared}
-            />
-            <Composition flows={flows} />
-            <FlowTable
-              title="Spending"
-              totalHead="Spent"
-              table={foldedLines(flows.spendingCategories, flows.uncategorisedSpending, listed(flows.uncategorisedSpending))}
-              uncategorised={flows.uncategorisedSpending}
-              parts={spendingParts(flows)}
-              {...shared}
-            />
-            {columns.averages !== null && !empty && (
-              <p className="caption finance-average-note">
-                Average: per month over the {(flows.months?.length ?? 1) === 1 ? 'one month' : flows.months?.length + ' months'} of {year} on offer.
-              </p>
-            )}
-            {!empty && <Summary {...summary} totals />}
-          </div>
+        {empty ? (
+          <>
+            <p className="caption">Nothing came in or went out in {label}.</p>
+            {breakdown}
+          </>
         ) : (
-          !empty && (
-            <div className="finance-flow-body">
-              <div className="finance-circle-side">
+          <div className="finance-flow-body">
+            <div className="finance-flow-side">
+              <div className="segmented finance-view-switch" role="group" aria-label="Chart">
+                {/** @type {const} */ (['circle', 'columns']).map((choice) => (
+                  <Link
+                    key={choice}
+                    href={financesHref({ ...place, view: choice })}
+                    scroll={false}
+                    className={'seg' + (view === choice ? ' is-on' : '')}
+                    aria-current={view === choice ? 'true' : undefined}
+                  >
+                    {choice === 'circle' ? 'Circle' : 'Columns'}
+                  </Link>
+                ))}
+              </div>
+              {view === 'columns' && columns !== null ? (
+                columns.kind === 'days' ? (
+                  <DayColumns days={columns.days} apart={columns.apart} month={month} todayKey={todayKey} />
+                ) : (
+                  <MonthColumns months={columns.months} year={year} place={place} />
+                )
+              ) : (
                 <Circle circle={circle} label={label} active={active} setActive={setActive} />
-                <CircleTotals flows={flows} circle={circle} setActive={setActive} />
-              </div>
-              <div className="finance-breakdown">
-                <Summary {...summary} totals={false} />
-              </div>
+              )}
+              <CircleTotals flows={flows} circle={circle} columns={view === 'columns'} setActive={setActive} />
+              <Summary flows={flows} circle={circle} period={period} year={year} yearRate={yearRate} target={target} />
             </div>
-          )
+            {breakdown}
+          </div>
         )}
       </div>
     </article>
@@ -297,119 +323,200 @@ function UncategorisedLine({ counts, place }) {
 }
 
 /**
- * The trend (ADR 0044): per month, income and spending as two bars against
- * the highest drawn, and what was left as a tick on the income bar, on a
- * scale from zero to the top, printed beside it. Money in is an outlined bar,
- * money out a solid one, always in that order (ADR 0048), so they tell apart
- * without the legend. A month with nothing counted is an outlined slot,
- * never a bar of zero.
+ * A month's columns, one per day (ADR 0053, dayColumns): money in outlined,
+ * money out solid, a bar drawn only where there is money -- most days have
+ * only spending, and its bar takes the column -- on a scale from zero to the
+ * highest bar, printed beside it. Every day of the month is a column, so the
+ * days stand at even steps; the 1st, 8th, 15th, 22nd and 29th are labelled. A
+ * day still to come is an empty slot, not a column of zero. Each other day is
+ * focusable and shows its date and exact figures on hover, focus and a tap.
  *
- * Each month is a link that reads it; its name says its figures, so the
- * chart has a text equivalent. When narrow it scrolls inside the card and
- * opens at its newest end -- a right-to-left scroll box, so CSS alone puts it
- * there before any script runs -- and a selected month further back is
- * brought into view by moving that box, never the page.
+ * What the month counts on no day -- its part of a movement spread over
+ * several months -- is said under the columns, so the days and that line add
+ * up to the month's totals.
  *
  * @param {{
- *   trend: TrendMonth[],
- *   period: 'month' | 'year',
+ *   days: DayColumn[],
+ *   apart: { income: number, spending: number, movements: number },
  *   month: string,
- *   place: import('@/components/finance.js').FinancesPlace,
+ *   todayKey: string,
  * }} props
  */
-function Trend({ trend, period, month, place }) {
-  if (trend.length === 0) return null;
-  const bars = trendBars(trend);
+function DayColumns({ days, apart, month, todayKey }) {
+  const bars = trendBars(days);
   return (
-    <figure className="finance-trend">
-      <div className="finance-trend-frame">
-        <div className="finance-trend-scroll">
-          <div className="finance-trend-plot" role="group" aria-label="Income and spending by month">
-            {trend.map((row, index) => {
+    <figure className="finance-columns is-days">
+      <div className="finance-columns-frame">
+        <div className="finance-columns-main">
+          <div className="finance-columns-plot" role="group" aria-label={'Income and spending by day, ' + monthLabel(month)}>
+            {days.map((row, index) => {
               const bar = bars[index];
-              const selected = period === 'month' && row.month === month;
-              const newYear = index === 0 || yearOf(row.month) !== yearOf(trend[index - 1].month);
+              if (bar === null || row.income === null || row.spending === null) {
+                return <span key={row.day} className="finance-column is-future" aria-hidden="true" />;
+              }
+              const date = shortDate(row.day, todayKey);
+              const figures =
+                row.movements === 0
+                  ? null
+                  : [
+                      { label: 'Income', value: formatEuro(row.income, { cents: true }) },
+                      { label: 'Spending', value: formatEuro(row.spending, { cents: true }) },
+                    ];
               return (
-                <Link
-                  key={row.month}
-                  ref={selected ? revealInTrend : undefined}
-                  href={financesHref({ ...place, month: row.month, period: 'month', transaction: null })}
-                  scroll={false}
-                  className={'finance-trend-month' + (selected ? ' is-selected' : '') + (bar === null ? ' is-empty' : '')}
-                  aria-current={selected ? 'true' : undefined}
-                  aria-label={trendLabel(row)}
+                <Tip
+                  key={row.day}
+                  className="finance-column"
+                  label={figures === null ? date + ': nothing counted' : date + ': ' + figures.map((each) => each.label.toLowerCase() + ' ' + each.value).join(', ')}
+                  tip={<TipFigures head={date} rows={figures ?? []} note={figures === null ? 'Nothing counted' : null} />}
                 >
-                  <span className="finance-trend-bars" aria-hidden="true">
-                    {bar !== null && (
-                      <>
-                        <i className="is-income" style={{ height: bar.income * 100 + '%' }} />
-                        <i className="is-spending" style={{ height: bar.spending * 100 + '%' }} />
-                        {bar.left !== null && <b className="finance-trend-left" style={{ bottom: bar.left * 100 + '%' }} />}
-                      </>
-                    )}
+                  <span className="finance-column-bars" aria-hidden="true">
+                    {row.income !== 0 && <i className="is-income" style={{ height: bar.income * 100 + '%' }} />}
+                    {row.spending !== 0 && <i className="is-spending" style={{ height: bar.spending * 100 + '%' }} />}
                   </span>
-                  <span className="finance-trend-label" aria-hidden="true">
-                    {monthShort(row.month)}
-                    <span className="finance-trend-year">{newYear ? yearOf(row.month) : ' '}</span>
-                  </span>
-                </Link>
+                </Tip>
               );
             })}
           </div>
+          <div className="finance-columns-ticks" aria-hidden="true">
+            {days.map((row, index) =>
+              DAY_TICKS.has(dayOfMonth(row.day)) ? (
+                <span key={row.day} style={{ left: ((index + 0.5) / days.length) * 100 + '%' }}>
+                  {dayOfMonth(row.day)}
+                </span>
+              ) : null
+            )}
+          </div>
         </div>
-        <div className="finance-trend-axis" aria-hidden="true">
-          <span className="is-top num">{formatEuroShort(trendHigh(trend))}</span>
-          <span className="is-bottom num">{formatEuroShort(0)}</span>
-        </div>
+        <Scale high={trendHigh(days)} />
       </div>
-      <figcaption className="legend">
-        <span>
-          <i className="finance-swatch is-income" />
-          Income, money in
-        </span>
-        <span>
-          <i className="finance-swatch is-spending" />
-          Spending, money out
-        </span>
-        <span>
-          <i className="finance-trend-tick" />
-          Left
-        </span>
-      </figcaption>
+      {apart.movements > 0 && (
+        <figcaption className="caption finance-columns-apart">
+          {apartLine(apart)}
+        </figcaption>
+      )}
     </figure>
   );
 }
 
 /**
- * Brings the selected month into view inside the trend's own scroll box,
- * which opens at its newest end, when it is not already -- by moving that box
- * only, never the page. A ref callback: it runs once, as the link mounts.
+ * What a month counts on no day (ADR 0053): "€ 1,000.00 in and € 0.00 out
+ * counted over several months, on no single day: in the totals, not the
+ * columns."
  *
- * @param {HTMLAnchorElement | null} link
+ * @param {{ income: number, spending: number, movements: number }} apart
+ * @returns {string}
  */
-function revealInTrend(link) {
-  const box = link?.closest('.finance-trend-scroll');
-  if (!link || !(box instanceof HTMLElement)) return;
-  const at = link.getBoundingClientRect();
-  const view = box.getBoundingClientRect();
-  if (at.left < view.left) box.scrollLeft -= view.left - at.left;
-  else if (at.right > view.right) box.scrollLeft += at.right - view.right;
+function apartLine(apart) {
+  const amounts = [
+    ...(apart.income !== 0 ? [formatEuro(apart.income, { cents: true }) + ' in'] : []),
+    ...(apart.spending !== 0 ? [formatEuro(apart.spending, { cents: true }) + ' out'] : []),
+  ];
+  const what = apart.movements === 1 ? '1 movement' : apart.movements + ' movements';
+  return (
+    (amounts.length === 0 ? what : amounts.join(' and ') + ' from ' + what) +
+    ' counted over several months, on no single day: in the totals, not in the columns.'
+  );
 }
 
 /**
- * What a month of the bars says to a screen reader.
+ * A year's columns, one per month (ADR 0053, yearColumns): what the strip
+ * across the top of the card drew before, in the year's twelve months --
+ * income outlined, spending solid, always in that order, what was left a tick
+ * on the income bar. A month on offer is a link that reads it, and shows its
+ * figures on hover, focus and a first tap; one with nothing counted is an
+ * outlined slot; a month the year does not offer is empty and no link.
+ *
+ * @param {{ months: YearColumn[], year: string, place: import('@/components/finance.js').FinancesPlace }} props
+ */
+function MonthColumns({ months, year, place }) {
+  const bars = trendBars(months);
+  return (
+    <figure className="finance-columns is-months">
+      <div className="finance-columns-frame">
+        <div className="finance-columns-main">
+          <div className="finance-columns-plot" role="group" aria-label={'Income and spending by month, ' + year}>
+            {months.map((row, index) => {
+              if (!row.offered) return <span key={row.month} className="finance-column is-future" aria-hidden="true" />;
+              const bar = bars[index];
+              const figures = monthFigures(row);
+              return (
+                <Tip
+                  key={row.month}
+                  href={financesHref({ ...place, month: row.month, period: 'month', transaction: null })}
+                  className={'finance-column' + (bar === null ? ' is-empty' : '')}
+                  label={trendLabel(row)}
+                  tip={<TipFigures head={monthLabel(row.month)} rows={figures} note={figures.length === 0 ? 'Nothing recorded' : null} />}
+                >
+                  <span className="finance-column-bars" aria-hidden="true">
+                    {bar !== null && (
+                      <>
+                        <i className="is-income" style={{ height: bar.income * 100 + '%' }} />
+                        <i className="is-spending" style={{ height: bar.spending * 100 + '%' }} />
+                        {bar.left !== null && <b className="finance-column-left" style={{ bottom: bar.left * 100 + '%' }} />}
+                      </>
+                    )}
+                  </span>
+                </Tip>
+              );
+            })}
+          </div>
+          <div className="finance-columns-ticks" aria-hidden="true">
+            {months.map((row, index) =>
+              index % MONTH_TICK_STEP === 0 ? (
+                <span key={row.month} style={{ left: ((index + 0.5) / months.length) * 100 + '%' }}>
+                  {monthShort(row.month)}
+                </span>
+              ) : null
+            )}
+          </div>
+        </div>
+        <Scale high={trendHigh(months)} />
+      </div>
+    </figure>
+  );
+}
+
+/**
+ * The columns' scale, beside them: zero at the bottom, the highest bar at the
+ * top (trendHigh), short as an axis is.
+ *
+ * @param {{ high: number }} props
+ */
+function Scale({ high }) {
+  return (
+    <div className="finance-columns-axis" aria-hidden="true">
+      <span className="is-top num">{formatEuroShort(high)}</span>
+      <span className="is-bottom num">{formatEuroShort(0)}</span>
+    </div>
+  );
+}
+
+/**
+ * A month's exact figures, as its popover lists them: none when nothing was
+ * recorded.
+ *
+ * @param {TrendMonth} row
+ * @returns {{ label: string, value: string }[]}
+ */
+function monthFigures(row) {
+  if (row.income === null || row.spending === null || row.left === null) return [];
+  return [
+    { label: 'Income', value: formatEuro(row.income, { cents: true }) },
+    { label: 'Spending', value: formatEuro(row.spending, { cents: true }) },
+    { label: 'Left', value: formatEuro(row.left, { cents: true }) },
+  ];
+}
+
+/**
+ * What a month of the columns says to a screen reader.
  *
  * @param {TrendMonth} row
  * @returns {string}
  */
 function trendLabel(row) {
-  if (row.income === null || row.spending === null || row.left === null) return monthLabel(row.month) + ': nothing recorded';
-  return (
-    monthLabel(row.month) +
-    ': income ' + formatEuro(row.income) +
-    ', spending ' + formatEuro(row.spending) +
-    ', left ' + formatEuro(row.left)
-  );
+  const figures = monthFigures(row);
+  if (figures.length === 0) return monthLabel(row.month) + ': nothing recorded';
+  return monthLabel(row.month) + ': ' + figures.map((each) => each.label.toLowerCase() + ' ' + each.value).join(', ');
 }
 
 /**
@@ -423,7 +530,7 @@ function trendLabel(row) {
  * income (and has a native title); hovering or focusing it emphasises it,
  * dims the others and shows it in the centre. The centre otherwise says what
  * came in and when, or, overspent, by how much. It is hidden from a screen
- * reader: the parts' names and the summary beside it say all of it.
+ * reader: the parts' names and the totals under it say all of it.
  *
  * @param {{
  *   circle: FlowCircle,
@@ -526,43 +633,50 @@ function partLabel(part) {
 }
 
 /**
- * The four totals under the circle (ADR 0050, amended): what came in, then
- * what was spent, invested and kept. Each part is marked in exactly its tone
- * in the ring; income is the whole ring, so it has no mark. Whole euros, as
- * the ring's parts are named. Hovering a part's total emphasises it in the
- * circle.
+ * The four totals under the chart (ADR 0050, amended; ADR 0053): what came
+ * in, then what was spent, invested and kept. Whole euros, as the ring's
+ * parts are named. Under the circle each part is marked in exactly its tone
+ * in the ring, and income, the whole ring, has no mark; under the columns
+ * the totals are the columns' legend -- income outlined as money in is,
+ * spent solid as money out is -- and invested and kept, which no column
+ * draws, have none. Hovering a part's total emphasises it in the circle.
  *
- * @param {{ flows: PeriodFlows, circle: FlowCircle, setActive: (key: PartKey | null) => void }} props
+ * @param {{ flows: PeriodFlows, circle: FlowCircle, columns: boolean, setActive: (key: PartKey | null) => void }} props
  */
-function CircleTotals({ flows, circle, setActive }) {
+function CircleTotals({ flows, circle, columns, setActive }) {
+  /** @param {CirclePart['key']} key */
+  const swatch = (key) => (columns ? (key === 'spent' ? 'is-spending' : null) : 'is-' + key);
   return (
     <dl className="finance-circle-totals">
       <div className="finance-circle-total">
-        <dt>Income</dt>
+        <dt>
+          {columns && <i className="finance-swatch is-income" aria-hidden="true" />}
+          Income
+        </dt>
         <dd className="num">{formatEuro(flows.income)}</dd>
       </div>
-      {circle.parts.map((part) => (
-        <div key={part.key} className="finance-circle-total" onMouseEnter={() => setActive(part.key)} onMouseLeave={() => setActive(null)}>
-          <dt>
-            <i className={'finance-swatch is-' + part.key} aria-hidden="true" />
-            {part.name}
-          </dt>
-          <dd className="num">{formatEuro(part.amount)}</dd>
-        </div>
-      ))}
+      {circle.parts.map((part) => {
+        const mark = swatch(part.key);
+        return (
+          <div key={part.key} className="finance-circle-total" onMouseEnter={() => setActive(part.key)} onMouseLeave={() => setActive(null)}>
+            <dt>
+              {mark !== null && <i className={'finance-swatch ' + mark} aria-hidden="true" />}
+              {part.name}
+            </dt>
+            <dd className="num">{formatEuro(part.amount)}</dd>
+          </div>
+        );
+      })}
     </dl>
   );
 }
 
 /**
- * The final account (ADR 0050). In the table view, under the tables: income,
- * then what was spent, invested and kept, each with a note when spending
- * passed the income, an investment came out of earlier savings or more was
- * sold than bought. In the circle view, beside the circle, whose totals
- * already say the four amounts: only those notes. Then, in both, the
- * savings rates, each against the target in words and a quiet mark, never
- * colour alone (ADR 0045), what a missed target needed in a year, and fixed
- * vs variable. Hovering a part's row emphasises it in the circle.
+ * The rest of the final account, under the four totals (ADRs 0050, 0053):
+ * a note when spending passed the income, an investment came out of earlier
+ * savings or more was sold than bought; the savings rates, each against the
+ * target in words and a quiet mark, never colour alone (ADR 0045); what a
+ * missed target needed in a year; and fixed vs variable.
  *
  * @param {{
  *   flows: PeriodFlows,
@@ -571,11 +685,9 @@ function CircleTotals({ flows, circle, setActive }) {
  *   year: string,
  *   yearRate: number | null,
  *   target: number | null,
- *   totals: boolean,
- *   setActive: (key: PartKey | null) => void,
  * }} props
  */
-function Summary({ flows, circle, period, year, yearRate, target, totals, setActive }) {
+function Summary({ flows, circle, period, year, yearRate, target }) {
   const rate = savingsRate(flows);
   const shortfall = period === 'year' ? targetShortfall(flows, target) : null;
   const [spent, invested] = circle.parts;
@@ -591,37 +703,19 @@ function Summary({ flows, circle, period, year, yearRate, target, totals, setAct
     if (part === invested && circle.sold > 0) return { text: 'Sold ' + formatEuro(circle.sold, { cents: true }) + ' more than bought', down: false };
     return null;
   };
-  const notes = totals
-    ? []
-    : circle.parts.flatMap((part) => {
-        const said = note(part);
-        return said === null ? [] : [{ key: part.key, ...said }];
-      });
+  const notes = circle.parts.flatMap((part) => {
+    const said = note(part);
+    return said === null ? [] : [{ key: part.key, ...said }];
+  });
 
   return (
-    <div className={'finance-summary' + (totals ? '' : ' is-beside')}>
+    <div className="finance-summary is-beside">
       {notes.map((said) => (
         <p key={said.key} className={'caption finance-summary-note' + (said.down ? ' down' : '')}>
           {said.text}
         </p>
       ))}
       <dl>
-        {totals && (
-          <div className="finance-summary-row">
-            <dt>Income</dt>
-            <dd className="num">{formatEuro(flows.income, { cents: true })}</dd>
-          </div>
-        )}
-        {totals && circle.parts.map((part) => {
-          const said = note(part);
-          return (
-            <div key={part.key} className="finance-summary-row" onMouseEnter={() => setActive(part.key)} onMouseLeave={() => setActive(null)}>
-              <dt>{part.name}</dt>
-              <dd className="num">{formatEuro(part.amount, { cents: true })}</dd>
-              {said !== null && <dd className={'caption finance-summary-note' + (said.down ? ' down' : '')}>{said.text}</dd>}
-            </div>
-          );
-        })}
         <Rate label={period === 'year' ? 'Saved in ' + year : 'Saved this month'} rate={rate} target={target}>
           {shortfall !== null && (
             <dd className="caption finance-target-note">
@@ -669,8 +763,8 @@ function Rate({ label, rate, target, children = null }) {
 }
 
 /**
- * One bar of the period's spending by top-level category, in the table
- * view. Its legend is the spending table under it: each line with a part
+ * One bar of the period's spending by top-level category, above the
+ * spending table. Its legend is the spending table under it: each line with a part
  * carries the part's dot, and its share is already a column. The bar's own
  * name lists the parts.
  *
@@ -694,8 +788,8 @@ function Composition({ flows }) {
 
 /**
  * The columns a table shows besides the name, Share and the amount, which
- * is always last (ADR 0050): in the table view the change from the period
- * before, headed by it, and in a year each line's average month.
+ * is always last (ADR 0050): the change from the period before, headed by
+ * it, and in a year each line's average month.
  *
  * @typedef {{ change: string | null, averages: Map<string, number> | null }} Columns
  */
@@ -831,7 +925,7 @@ function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, 
 
   return (
     <div className="finance-table-scroll">
-      <table className={'finance-table finance-flow-table' + (width > 3 ? ' is-wide' : '')}>
+      <table className={'finance-table finance-flow-table' + (columns.averages !== null ? ' is-year' : '')}>
         <thead>
           <tr>
             <th>{title}</th>

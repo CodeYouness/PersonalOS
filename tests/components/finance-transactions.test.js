@@ -116,8 +116,9 @@ describe('FinanceTransactions', () => {
       const html = render({ transactions: [t('tx_long', long, { notCounted: true })] });
 
       expect(html).toContain('<td><span class="finance-cut"><a ');
+      // The title names the category and the account too: a narrow card hides their columns (ADR 0053).
       expect(html).toContain(
-        'class="finance-account-link finance-cut-text" title="' + long + '" href="/finances?month=2026-03&amp;transaction=tx_long">' + long + '</a>'
+        'class="finance-account-link finance-cut-text" title="' + long + ' — Uncategorised · Current" href="/finances?month=2026-03&amp;transaction=tx_long">' + long + '</a>'
       );
       // The note is outside the cut text, so it is never the part cut away.
       expect(html).toContain('</a><span class="caption">· not counted</span></span></td>');

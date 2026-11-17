@@ -80,19 +80,20 @@ describe('addresses: one implementation of where a record opens', () => {
     expect(financesSpan(['all', 'all'])).toBeNull();
   });
 
-  it('writes the table view of Income & spending, never the circle, its default (ADR 0050)', () => {
-    expect(financesAddress({ month: '2026-03', period: 'year', view: 'table', category: 'cat_1' })).toBe(
-      '/finances?month=2026-03&period=year&view=table&category=cat_1'
+  it('writes the columns of Income & spending, never the circle, its default (ADR 0053)', () => {
+    expect(financesAddress({ month: '2026-03', period: 'year', view: 'columns', category: 'cat_1' })).toBe(
+      '/finances?month=2026-03&period=year&view=columns&category=cat_1'
     );
     expect(financesAddress({ month: '2026-03', view: 'circle' })).toBe('/finances?month=2026-03');
     expect(financesAddress({ month: '2026-03', view: null })).toBe('/finances?month=2026-03');
   });
 
-  it('reads the view back from the address: the table, or else the circle', () => {
-    expect(financesView('table')).toBe('table');
+  it('reads the view back from the address: the columns, or else the circle -- an old table view too', () => {
+    expect(financesView('columns')).toBe('columns');
     expect(financesView(undefined)).toBe('circle');
+    expect(financesView('table')).toBe('circle');
     expect(financesView('pie')).toBe('circle');
-    expect(financesView(['table', 'table'])).toBe('circle');
+    expect(financesView(['columns', 'columns'])).toBe('circle');
   });
 
   it('addresses a Finances transaction by the month of its day', () => {

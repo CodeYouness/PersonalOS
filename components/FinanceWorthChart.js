@@ -1,4 +1,5 @@
 import { formatEuro, formatEuroShort, monthLabel, monthShort, shortDate } from '@/components/format.js';
+import Tip, { TipFigures } from '@/components/Tip.js';
 import { yearOf } from '@/lib/domain/dates.js';
 
 /** @typedef {import('@/lib/domain/derive/finance.js').WorthMonth} WorthMonth */
@@ -17,6 +18,12 @@ import { yearOf } from '@/lib/domain/dates.js';
  * beads. The months labelled under it thin out (worthTicks): wide, at most
  * twelve; on a phone, at most four, the CSS hiding the rest. No month is a
  * link: the chart reads no selected month.
+ *
+ * On the Net worth card (not compact), every month with a value is a
+ * focusable column of the plot that shows its month, the day it is read on
+ * and its net worth in full on hover, focus and a tap (Tip, ADR 0053); its
+ * dot is drawn then, if the line does not already carry one. An unknown
+ * month stays a gap: no point, nothing to show.
  *
  * Read-only and presentational: what is drawn is decided by the derivation.
  *
@@ -48,17 +55,33 @@ export default function FinanceWorthChart({ chart, todayKey, compact = false }) 
     >
       <div className="finance-worth-frame">
         <div className="finance-worth-main">
-          <div className="finance-worth-plot" aria-hidden="true">
+          <div className="finance-worth-plot" aria-hidden={compact ? 'true' : undefined}>
             <WorthPath points={line.points} />
-            {line.points.map((point, index) =>
-              point !== null && dotted(index) ? (
-                <b
-                  key={series[index].month}
-                  className={'finance-worth-point' + (series[index] === line.newest ? ' is-newest' : '')}
-                  style={{ left: middle(index), bottom: point * 100 + '%' }}
-                />
-              ) : null
-            )}
+            {line.points.map((point, index) => {
+              if (point === null) return null;
+              const row = series[index];
+              const dot = 'finance-worth-point' + (row === line.newest ? ' is-newest' : '') + (dotted(index) ? '' : ' is-hover');
+              if (compact) {
+                return dotted(index) ? <b key={row.month} className={dot} style={{ left: middle(index), bottom: point * 100 + '%' }} /> : null;
+              }
+              return (
+                <Tip
+                  key={row.month}
+                  className="finance-worth-hit"
+                  style={{ left: (index / columns) * 100 + '%', width: 100 / columns + '%' }}
+                  label={worthLabel(row, todayKey, { cents: true })}
+                  tip={
+                    <TipFigures
+                      head={monthLabel(row.month)}
+                      rows={[{ label: 'Net worth', value: formatEuro(/** @type {number} */ (row.netWorth), { cents: true }) }]}
+                      note={row.asOf === null ? null : 'on ' + shortDate(row.asOf, todayKey)}
+                    />
+                  }
+                >
+                  <b className={dot} style={{ left: '50%', bottom: point * 100 + '%' }} />
+                </Tip>
+              );
+            })}
           </div>
           <div className="finance-worth-ticks" aria-hidden="true">
             {ticks.map((tick) => (
@@ -117,13 +140,15 @@ function WorthPath({ points }) {
 
 /**
  * What a month of the line says to a screen reader: its net worth and the
- * day it is read on, or that it is unknown.
+ * day it is read on, or that it is unknown. A point's name gives the amount
+ * to the cent, as its popover does.
  *
  * @param {WorthMonth} row
  * @param {string} todayKey
+ * @param {{ cents?: boolean }} [options]
  * @returns {string}
  */
-function worthLabel(row, todayKey) {
+function worthLabel(row, todayKey, options) {
   if (row.netWorth === null || row.asOf === null) return monthLabel(row.month) + ': net worth unknown';
-  return monthLabel(row.month) + ': net worth ' + formatEuro(row.netWorth) + ' on ' + shortDate(row.asOf, todayKey);
+  return monthLabel(row.month) + ': net worth ' + formatEuro(row.netWorth, options) + ' on ' + shortDate(row.asOf, todayKey);
 }

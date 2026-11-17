@@ -33,8 +33,11 @@ import { shortDate } from '@/components/format.js';
  *
  * A row is one line (ADR 0049): a long description, category or account
  * name is cut with an ellipsis, the whole of it in its `title` and in the
- * movement's panel, one click away. The description takes the room the
- * other columns leave (fixed columns, app/globals.css).
+ * movement's panel, one click away. The card never scrolls sideways (ADR
+ * 0053): the date and the amount are as wide as their text, the others share
+ * the rest, and a narrow card drops the account, then the category
+ * (app/globals.css) -- so the description's title names them too:
+ * "Lunch — Restaurants · Current".
  *
  * @param {{
  *   transactions: Transaction[],
@@ -134,7 +137,7 @@ export default function FinanceTransactions({ transactions, accounts, categories
                             href={financesHref({ ...place, transaction: transaction.id })}
                             scroll={false}
                             className="finance-account-link finance-cut-text"
-                            title={description}
+                            title={description + ' — ' + filedUnder + ' · ' + where}
                             aria-current={selected ? 'true' : undefined}
                           >
                             {description}

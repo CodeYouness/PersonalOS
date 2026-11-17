@@ -1086,9 +1086,17 @@ a.cite { text-decoration: none; }
 .finance-side { display: flex; flex-direction: column; gap: var(--s-md); min-width: 0; min-height: 0; }
 .finance-side > .card { flex: 1 1 auto; }
 .finance-total { text-align: left; margin-bottom: var(--s-xxs); }
-.alloc { display: flex; height: 8px; border-radius: 2px; overflow: hidden; margin: var(--s-md) 0 var(--s-sm); flex: none; }
+/* The bar's ends are rounded on its parts, not clipped by the bar, so a
+   focused part's ring is drawn whole (ADR 0053). */
+.alloc { display: flex; height: 8px; margin: var(--s-md) 0 var(--s-sm); flex: none; }
 .alloc i { display: block; height: 100%; }
+.alloc i:first-child { border-top-left-radius: 2px; border-bottom-left-radius: 2px; }
+.alloc i:last-child { border-top-right-radius: 2px; border-bottom-right-radius: 2px; }
 .alloc i + i { box-shadow: inset 2px 0 0 var(--surface-1); } /* a seam between parts */
+/* A part of the net worth bar and its legend show their accounts (.tip). */
+.alloc i[role="img"] { cursor: default; }
+.legend .finance-alloc-key { border-radius: var(--r-xs); cursor: default; }
+.legend .finance-alloc-key:hover { color: var(--ink); }
 .legend { display: flex; gap: var(--s-md); flex-wrap: wrap; font-size: 13px; color: var(--ink-subtle); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .finance-table { width: 100%; border-collapse: collapse; }
@@ -1129,8 +1137,6 @@ a.cite { text-decoration: none; }
 .finance-counts-for .segmented { flex-wrap: wrap; }
 .finance-counts-note { margin: 0; }
 .finance-month-picker { width: auto; }
-.finance-flow-table { table-layout: fixed; }
-.finance-flow-table th:first-child { width: 55%; }
 /* A row is one line (ui-rules, Tables): a long name is cut, whole in its title. */
 .finance-flow-table td:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .finance-flow-table tr.is-child td:first-child { padding-left: calc(var(--s-sm) + 22px); }
@@ -1143,6 +1149,11 @@ a.cite { text-decoration: none; }
   transition: background-color var(--m-out) var(--ease);
 }
 .finance-line-toggle:hover { background: var(--surface-3); }
+/* A button is one box: the cell's ellipsis would hide all of it ("…"), so
+   the name is cut inside the button, the ▸ kept (ADR 0053: the breakdown is
+   narrower beside the chart). A part's dot before it leaves it less room. */
+.finance-line-toggle { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.finance-part-dot + .finance-line-toggle { max-width: calc(100% - 12px); }
 .finance-line-mark { display: inline-block; width: 22px; text-align: center; color: var(--ink-subtle); }
 /* Inside an opened line, the quiet link to its movements. */
 .finance-movements-row td { padding-top: 2px; }
@@ -1155,11 +1166,17 @@ a.cite { text-decoration: none; }
 .finance-movement { display: flex; align-items: baseline; gap: var(--s-xs); min-width: 0; }
 .finance-movement > .finance-date { flex: none; min-width: 6ch; color: var(--ink-subtle); }
 .finance-movement > .caption { flex: none; white-space: nowrap; }
-/* Income & spending's circle view (ADR 0050, amended): the circle with its
-   four totals under it on the left, the rest of the summary on its right;
-   stacked on a phone. No table: the table view is the breakdown alone. */
-.finance-flow-body { display: grid; grid-template-columns: minmax(170px, 260px) minmax(0, 1fr); gap: var(--s-lg); align-items: start; }
-.finance-circle-side { display: flex; flex-direction: column; gap: var(--s-md); min-width: 0; }
+/* Income & spending's body (ADR 0053, amending 0050): on the left the
+   Circle / Columns switch, the chart, its four totals and the rest of the
+   summary; on the right, always, the breakdown. The left takes two parts of
+   five, so a month's thirty-one days have room; stacked on a phone. */
+.finance-flow-body { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(0, 3fr); gap: var(--s-lg); align-items: start; }
+.finance-flow-side { display: flex; flex-direction: column; gap: var(--s-md); min-width: 0; }
+.finance-view-switch { align-self: flex-start; }
+.finance-view-switch .seg {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 var(--s-sm); text-decoration: none;
+}
 /* The four totals: two by two where the column takes two of 110px, else a
    short list. A label over its number, as a tile; each part's mark is its
    tone in the ring, income -- the whole ring -- has none. */
@@ -1170,9 +1187,10 @@ a.cite { text-decoration: none; }
 .finance-circle-total { min-width: 0; }
 .finance-circle-total dt { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: var(--w-label); color: var(--ink-subtle); }
 .finance-circle-total dd { margin: 0; font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); }
-/* Side by side down to a narrow pane: the circle on the left is the point.
-   Only a phone stacks it. */
-@media (max-width: 560px) { .finance-flow-body { grid-template-columns: minmax(0, 1fr); gap: var(--s-md); } }
+/* A card too narrow for the breakdown beside the chart -- a phone, a tablet
+   -- stacks them: measured on the card, which is what the two share. */
+#card-finance-flows .card-body { container-type: inline-size; }
+@container (max-width: 720px) { .finance-flow-body { grid-template-columns: minmax(0, 1fr); gap: var(--s-md); } }
 .finance-breakdown { min-width: 0; }
 /* The circle: an SVG ring whose whole is the income. Spent in the ink,
    invested and kept in the lighter series tones, the overspending outside the
@@ -1229,61 +1247,73 @@ a.cite { text-decoration: none; }
   flex: none; display: inline-flex; align-items: center; justify-content: center;
   padding: 0 var(--s-sm); text-decoration: none;
 }
-/* The trend (ADR 0044): one row of month links and a scale column beside
-   it. Two bars a month against the highest drawn (data marks, radius 2):
-   money in outlined, money out solid, so they tell apart without the legend
-   (ADR 0048); what was left as an ink tick on the income bar. The months
-   scroll inside their own box, with 4px of room for a focus ring, never the
-   page. The box runs right to left so it opens at its newest end, CSS alone;
-   its months still read left to right. */
-.finance-trend { --trend-h: 96px; margin: 0 0 var(--s-md); }
-.finance-trend-frame { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-xs); align-items: start; }
-.finance-trend-scroll { margin: -4px; padding: 4px; overflow-x: auto; direction: rtl; }
-/* No gap between months: each month's middle is then at an even step, where
-   the line's points are drawn. */
-.finance-trend-plot { position: relative; display: flex; min-width: min-content; direction: ltr; }
-.finance-trend-month {
-  flex: 1 0 44px; display: flex; flex-direction: column; gap: 4px;
-  padding: 4px 4px 2px; border-radius: var(--r-xs); color: var(--ink-subtle); text-decoration: none;
-  transition: background-color var(--m-out) var(--ease), color var(--m-out) var(--ease);
+/* The columns (ADR 0053): a month's days or a year's months, side by side
+   at even steps, and the scale beside them. Two bars a column against the
+   highest drawn (data marks, radius 2): money in outlined, money out solid,
+   so they tell apart without a legend (ADR 0048); a day draws only the bars
+   it has money for, so a day of spending is one bar the column's width; a
+   month's "left" is an ink tick on its income bar. Each column is focusable
+   and shows its figures in a popover (.tip). It fits its column, never
+   scrolls. */
+.finance-columns { --columns-h: 140px; margin: 0; }
+.finance-columns-frame { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-xs); align-items: start; }
+.finance-columns-main { min-width: 0; }
+.finance-columns-plot { display: flex; align-items: stretch; height: calc(var(--columns-h) + 8px); }
+.finance-column {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 4px 1px; border-radius: var(--r-xs); color: var(--ink-subtle); text-decoration: none;
+  transition: background-color var(--m-out) var(--ease);
 }
-.finance-trend-month:hover { background: var(--surface-2); color: var(--ink); }
-.finance-trend-month.is-selected { background: var(--surface-3); color: var(--ink); }
-.finance-trend-bars {
-  position: relative; display: flex; align-items: flex-end; gap: 2px;
-  height: var(--trend-h); border-bottom: 1px solid var(--hairline-strong);
+.finance-columns.is-months .finance-column { padding: 4px 3px; }
+.finance-column:not(.is-future):hover { background: var(--surface-2); transition-duration: var(--m-in); }
+.finance-column-bars {
+  position: relative; display: flex; align-items: flex-end; gap: 1px;
+  height: var(--columns-h); border-bottom: 1px solid var(--hairline-strong);
 }
-.finance-trend-axis {
-  position: relative; width: 7ch; height: calc(var(--trend-h) - 1px); margin-top: 4px;
-  font-size: 13px; line-height: 1.3; color: var(--ink-subtle); white-space: nowrap;
-}
-.finance-trend-axis span { position: absolute; left: 0; text-align: left; }
-.finance-trend-axis .is-top { top: 0; transform: translateY(-50%); }
-.finance-trend-axis .is-bottom { bottom: 0; transform: translateY(50%); }
-.finance-trend-bars i { display: block; flex: 1; min-width: 0; border-radius: 2px 2px 0 0; }
-.finance-trend-bars .is-income { background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--ink); }
-.finance-trend-bars .is-spending { background: var(--series-1); }
-.finance-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex: none; }
-.finance-swatch.is-income { box-shadow: inset 0 0 0 1.5px var(--ink); }
-.finance-swatch.is-spending { background: var(--series-1); }
-.finance-trend-left {
+.finance-columns.is-months .finance-column-bars { gap: 2px; }
+.finance-column-bars i { display: block; flex: 1; min-width: 0; border-radius: 2px 2px 0 0; }
+.finance-column-bars .is-income { background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.finance-column-bars .is-spending { background: var(--series-1); }
+/* A day still to come, or a month the year does not offer: room, and nothing in it. */
+.finance-column.is-future .finance-column-bars { border-bottom-color: var(--hairline); }
+/* A month with nothing counted: an empty slot, as an unrecorded heat cell. */
+.finance-column.is-empty .finance-column-bars { border: 1px solid var(--hairline-strong); border-radius: 2px; }
+.finance-column-left {
   position: absolute; left: 0; width: calc(50% - 1px); height: 2px; margin-bottom: -1px;
   background: var(--ink); box-shadow: 0 0 0 1px var(--surface-1);
 }
-/* A month with nothing counted: an empty slot, as an unrecorded heat cell. */
-.finance-trend-month.is-empty .finance-trend-bars { border: 1px solid var(--hairline-strong); border-radius: 2px; }
-.finance-trend-label { display: flex; flex-direction: column; align-items: center; font-size: 13px; line-height: 1.3; }
-.finance-trend-year { min-height: 1.3em; color: var(--ink-subtle); }
-.finance-trend .legend { margin-top: var(--s-xs); }
-.finance-trend-tick { display: inline-block; width: 10px; height: 2px; background: var(--ink); }
+/* The labels under the columns: a few, each centred on its column. */
+.finance-columns-ticks { position: relative; height: 1.3em; margin-top: 2px; font-size: 13px; line-height: 1.3; color: var(--ink-subtle); }
+.finance-columns-ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.finance-columns-axis {
+  position: relative; width: 7ch; height: calc(var(--columns-h) - 1px); margin-top: 4px;
+  font-size: 13px; line-height: 1.3; color: var(--ink-subtle); white-space: nowrap;
+}
+.finance-columns-axis span { position: absolute; left: 0; text-align: left; }
+.finance-columns-axis .is-top { top: 0; transform: translateY(-50%); }
+.finance-columns-axis .is-bottom { bottom: 0; transform: translateY(50%); }
+.finance-columns-apart { margin: var(--s-xs) 0 0; }
+.finance-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.finance-swatch.is-income { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.finance-swatch.is-spending { background: var(--series-1); }
 /* The composition bar sits on the spending table it is the chart of. */
 .finance-composition { margin: 0 0 var(--s-xs); }
 .finance-table-scroll + .finance-composition { margin-top: var(--s-md); }
 .finance-part-dot { display: inline-block; margin-right: 6px; vertical-align: middle; }
-/* The table view's tables keep their columns and scroll inside the card
-   when narrow; the circle view's three columns fit a phone. */
-.finance-flow-table.is-wide { min-width: 520px; }
-.finance-flow-table.is-wide th:first-child { width: 36%; }
+/* The breakdown's tables (ADR 0053): the numbers take what their text needs,
+   never wrapped or cut, and the name the rest, cut with an ellipsis -- at
+   least 7.5em of it, so a year's five columns keep their names readable and
+   scroll inside their own box on a phone (ui-rules, Tables), never the card.
+   In a narrow breakdown a month's table (name, Share, the change, the amount)
+   fits: tighter cells, and its name may shrink to 4em. */
+.finance-breakdown { container-type: inline-size; }
+.finance-flow-table { table-layout: auto; }
+.finance-flow-table :is(th, td):first-child { width: 100%; max-width: 0; min-width: 7.5em; }
+.finance-flow-table :is(th, td):not(:first-child) { white-space: nowrap; }
+@container (max-width: 520px) {
+  .finance-flow-table :is(th, td) { padding-left: var(--s-xs); padding-right: var(--s-xs); }
+  .finance-flow-table:not(.is-year) :is(th, td):first-child { min-width: 4em; }
+}
 .finance-average-note { margin: var(--s-xs) 0 0; }
 /* A savings rate against its target (ADR 0045): words, and a quiet dot --
    filled ink when met, an ink outline when not -- never colour alone. */
@@ -1331,6 +1361,13 @@ a.cite { text-decoration: none; }
   border-radius: var(--r-full); background: var(--ink);
 }
 .finance-worth-point.is-newest { width: 10px; height: 10px; background: var(--surface-1); border: 2px solid var(--ink); }
+/* Each month with a value is a column of the plot that shows its figures
+   (.tip, ADR 0053); a month the line carries no dot for shows one while it
+   is hovered or focused. */
+.finance-worth-hit { position: absolute; top: 0; bottom: 0; display: block; border-radius: var(--r-xs); }
+.finance-worth-point.is-hover { opacity: 0; }
+.finance-worth-hit:hover .finance-worth-point.is-hover,
+.finance-worth-hit:focus-visible .finance-worth-point.is-hover { opacity: 1; }
 .finance-worth-ticks { position: relative; height: 2.6em; margin-top: 4px; font-size: 13px; line-height: 1.3; color: var(--ink-subtle); }
 .finance-worth-tick {
   position: absolute; top: 0; transform: translateX(-50%);
@@ -1421,15 +1458,36 @@ a.cite { text-decoration: none; }
 .finance-table.finance-position th { position: static; background: none; border-bottom: 1px solid var(--hairline); }
 .finance-position tbody tr:last-child th { border-bottom: none; }
 .finance-position td.num { white-space: nowrap; }
-/* Transactions: fixed columns, so a long text is cut rather than widening
-   the table -- the date and the amount wide enough for "12 Dec 2025" and
-   "− 12,345.67", the category and the account a fifth each, the description
-   the rest. Under 640px the table scrolls in its box, never the page. */
-.finance-transactions-table { table-layout: fixed; min-width: 640px; }
-.finance-transactions-table th:nth-child(1) { width: 120px; }
-.finance-transactions-table th:nth-child(3),
-.finance-transactions-table th:nth-child(4) { width: 20%; }
-.finance-transactions-table th:nth-child(5) { width: 128px; }
+/* Transactions (ADR 0053): never wider than its card, so nothing scrolls
+   sideways. The date and the amount are as wide as their longest text, never
+   wrapped and never cut; the description, the category and the account
+   share the rest -- a half and two quarters -- each cut with an ellipsis
+   (max-width: 0 lets a cell be narrower than its text). A narrow card drops
+   the account, then the category: both are in the description's title and
+   in the movement's panel. Measured on the card, not the window, since the
+   card is beside a panel on a wide screen. (It once had a min-width of
+   640px, and scrolled in its box whenever the card was narrower.) */
+#card-finance-transactions .card-body { container-type: inline-size; }
+.finance-transactions-table { table-layout: auto; }
+.finance-transactions-table th:nth-child(1), .finance-transactions-table td:nth-child(1),
+.finance-transactions-table th:nth-child(5), .finance-transactions-table td:nth-child(5) { width: 1%; white-space: nowrap; }
+.finance-transactions-table :is(th, td):nth-child(2) { width: 50%; max-width: 0; }
+.finance-transactions-table :is(th, td):nth-child(3),
+.finance-transactions-table :is(th, td):nth-child(4) { width: 25%; max-width: 0; }
+/* A head is cut as its column is, so "Description" never holds it open. */
+.finance-transactions-table th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The shares always add up to the whole: a share left over would make the
+   table wider than its card to honour it. */
+@container (max-width: 600px) {
+  .finance-transactions-table th:nth-child(4), .finance-transactions-table td:nth-child(4) { display: none; }
+  .finance-transactions-table :is(th, td):nth-child(2) { width: 65%; }
+  .finance-transactions-table :is(th, td):nth-child(3) { width: 35%; }
+}
+@container (max-width: 440px) {
+  .finance-transactions-table th:nth-child(3), .finance-transactions-table td:nth-child(3) { display: none; }
+  .finance-transactions-table :is(th, td):nth-child(2) { width: 100%; }
+  .finance-transactions-table th, .finance-transactions-table td { padding-left: var(--s-xs); padding-right: var(--s-xs); }
+}
 /* A fold inside a card: "N more accounts", the whole summary the target. */
 .finance-fold { margin-top: var(--s-xxs); border-top: 1px solid var(--hairline); }
 .finance-fold > summary {
@@ -1555,6 +1613,25 @@ a.cite { text-decoration: none; }
 .journal-line select.input { width: auto; flex: none; }
 .journal-extract { margin-top: var(--s-xs); }
 .journal-extract > .btn-ghost { margin-bottom: var(--s-xxs); }
+
+/* ==========================================================================
+   TOOLTIPS (ADR 0053, ui-rules.md) -- a chart mark's exact figures, shown by
+   components/Tip.js on hover, keyboard focus and a tap. Drawn on the body,
+   fixed, so a card's overflow never clips it and it never widens the page;
+   a popover: radius 6, the float shadow. Read-only: it takes no pointer.
+   ========================================================================== */
+.tip {
+  position: fixed; z-index: 70; width: max-content; max-width: min(320px, calc(100vw - 16px));
+  padding: var(--s-xs) var(--s-sm); border-radius: var(--r-sm);
+  background: var(--surface-elevated); border: 1px solid var(--hairline-strong); box-shadow: var(--shadow-float);
+  font-size: 13px; line-height: 1.45; color: var(--ink); pointer-events: none;
+}
+.tip-head { display: block; font-weight: var(--w-label); }
+.tip-rows { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s-md); margin-top: 2px; }
+.tip-row { display: contents; }
+.tip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-muted); }
+.tip-rows .num { white-space: nowrap; }
+.tip-note { display: block; margin-top: 2px; color: var(--ink-subtle); }
 
 /* ==========================================================================
    RESPONSIVE — shell rules only; a card's own responsive tweaks are ported

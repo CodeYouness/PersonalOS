@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   accountSections,
+  allocationAccounts,
   accountStaleSince,
   accountValueOn,
   allocation,
   calendarYearFlows,
   circleArc,
+  dayColumns,
   dayUnitsReachedZero,
   financeOverview,
   firstDayUnitsGoNegative,
@@ -31,7 +33,6 @@ import {
   targetShortfall,
   trendBars,
   trendHigh,
-  trendMonths,
   UNCATEGORISED_INCOME,
   UNCATEGORISED_SPENDING,
   uncategorisedCounts,
@@ -42,9 +43,11 @@ import {
   worthMonths,
   worthTicks,
   worthTrend,
+  yearColumns,
   yearFlows,
   yearMonths,
 } from '@/lib/domain/derive/finance.js';
+import { monthKeyRange } from '@/lib/domain/dates.js';
 import { percent } from '@/lib/domain/format.js';
 import { limits } from '@/personalos.config.js';
 
@@ -906,24 +909,120 @@ describe('spending over time: the trend, the average, the year', () => {
   /** The months on offer from `first` to `last`, newest first, as flowMonths gives them. */
   const offer = (/** @type {string} */ first, /** @type {string} */ last) => flowMonths([], last + '-15', first + '-01');
 
-  describe('the months the trend draws', () => {
-    it('draws every month on offer, oldest first, when there are twelve or fewer', () => {
-      expect(trendMonths(offer('2025-12', '2026-03'), '2026-02')).toEqual(['2025-12', '2026-01', '2026-02', '2026-03']);
+  describe('a year\'s columns (ADR 0053)', () => {
+    const rows = [
+      t('2026-01-05', 200000, 'cat_salary'),
+      t('2026-01-10', -50000, 'cat_shopping'),
+      t('2026-03-01', -20000, 'cat_rent'),
+      // After today: in a month the year does not offer.
+      t('2026-05-02', -9000, 'cat_shopping'),
+    ];
+
+    it('are the twelve months, January first, each read by the month\'s rules where the year offers it', () => {
+      const columns = yearColumns(rows, categories, '2026', offer('2025-11', '2026-04'));
+
+      expect(columns.map((row) => row.month)).toEqual(monthKeyRange('2026-01', '2026-12'));
+      expect(columns[0]).toEqual({ month: '2026-01', income: 200000, spending: 50000, left: 150000, offered: true });
+      expect(columns[1]).toEqual({ month: '2026-02', income: null, spending: null, left: null, offered: true });
+      // May is after today: empty and not on offer, its movement nowhere.
+      expect(columns[4]).toEqual({ month: '2026-05', income: null, spending: null, left: null, offered: false });
     });
 
-    it('draws the newest twelve while the selected month is among them', () => {
-      const offered = offer('2024-11', '2026-06');
-      const newest = ['2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+    it('add up to the year\'s totals', () => {
+      const offered = offer('2025-11', '2026-04');
+      const year = calendarYearFlows(rows, categories, '2026-04', offered);
+      const columns = yearColumns(rows, categories, '2026', offered);
 
-      expect(trendMonths(offered, '2026-06')).toEqual(newest);
-      expect(trendMonths(offered, '2025-07')).toEqual(newest);
+      expect(columns.reduce((sum, row) => sum + (row.income ?? 0), 0)).toBe(year.income);
+      expect(columns.reduce((sum, row) => sum + (row.spending ?? 0), 0)).toBe(year.spending);
     });
 
-    it('ends at an older selected month, so it is always drawn', () => {
-      expect(trendMonths(offer('2024-11', '2026-06'), '2025-03')).toEqual([
-        '2024-11', '2024-12', '2025-01', '2025-02', '2025-03',
-      ]);
-      expect(trendMonths(offer('2023-01', '2026-06'), '2025-03').at(0)).toBe('2024-04');
+    it('leave out a month before "tracked since"', () => {
+      const columns = yearColumns([t('2025-10-03', -4000, 'cat_shopping')], categories, '2025', offer('2025-11', '2026-04'));
+
+      expect(columns[9]).toEqual({ month: '2025-10', income: null, spending: null, left: null, offered: false });
+      expect(columns[10].offered).toBe(true);
+    });
+  });
+
+  describe('a month\'s columns, one per day (ADR 0053)', () => {
+    const sum = (/** @type {any[]} */ days, /** @type {'income' | 'spending'} */ key) => days.reduce((total, day) => total + (day[key] ?? 0), 0);
+
+    it('gives each day of the month what came in and went out, by the month\'s rules', () => {
+      const { days, apart } = dayColumns(
+        [
+          t('2026-03-01', 200000, 'cat_salary'),
+          t('2026-03-01', -2500, 'cat_shopping'),
+          t('2026-03-10', -50000, 'cat_rent'),
+          // A refund reduces its day's spending.
+          t('2026-03-10', 1000, 'cat_shopping'),
+          t('2026-03-12', -700, null),
+        ],
+        categories,
+        '2026-03',
+        '2026-04-20'
+      );
+
+      expect(days).toHaveLength(31);
+      expect(days[0]).toEqual({ day: '2026-03-01', income: 200000, spending: 2500, movements: 2 });
+      expect(days[9]).toEqual({ day: '2026-03-10', income: 0, spending: 49000, movements: 2 });
+      expect(days[11]).toEqual({ day: '2026-03-12', income: 0, spending: 700, movements: 1 });
+      expect(days[1]).toEqual({ day: '2026-03-02', income: 0, spending: 0, movements: 0 });
+      expect(apart).toEqual({ income: 0, spending: 0, movements: 0 });
+    });
+
+    it('add up to the month\'s totals', () => {
+      const rows = [
+        t('2026-03-01', 200000, 'cat_salary'),
+        t('2026-03-04', -12345, 'cat_repairs'),
+        t('2026-03-31', -999, null),
+        t('2026-04-01', -5000, 'cat_shopping'),
+      ];
+      const { days, apart } = dayColumns(rows, categories, '2026-03', '2026-04-20');
+      const flows = monthFlows(rows, categories, '2026-03');
+
+      expect(sum(days, 'income') + apart.income).toBe(flows.income);
+      expect(sum(days, 'spending') + apart.spending).toBe(flows.spending);
+    });
+
+    it('leaves out a transfer and a movement not counted', () => {
+      const { days, apart } = dayColumns(
+        [
+          t('2026-03-03', -30000, null, { counterAccountId: 'account_y' }),
+          t('2026-03-04', -9000, 'cat_shopping', { notCounted: true }),
+        ],
+        categories,
+        '2026-03',
+        '2026-04-20'
+      );
+
+      expect(days.every((day) => day.income === 0 && day.spending === 0 && day.movements === 0)).toBe(true);
+      expect(apart.movements).toBe(0);
+    });
+
+    it('is a month of empty days when nothing was recorded, a day after today empty rather than zero', () => {
+      const { days } = dayColumns([], categories, '2026-04', '2026-04-20');
+
+      expect(days).toHaveLength(30);
+      expect(days[19]).toEqual({ day: '2026-04-20', income: 0, spending: 0, movements: 0 });
+      expect(days[20]).toEqual({ day: '2026-04-21', income: null, spending: null, movements: 0 });
+      expect(days.slice(20).every((day) => day.income === null && day.spending === null)).toBe(true);
+    });
+
+    it('draws a day after today that already holds something', () => {
+      const { days } = dayColumns([t('2026-04-25', -6000, 'cat_rent')], categories, '2026-04', '2026-04-20');
+
+      expect(days[24]).toEqual({ day: '2026-04-25', income: 0, spending: 6000, movements: 1 });
+    });
+
+    it('puts a movement on the day it carries, at the edges of the month too', () => {
+      const rows = [t('2026-02-28', -100, 'cat_shopping'), t('2026-03-01', -200, 'cat_shopping'), t('2026-03-31', -300, 'cat_shopping'), t('2026-04-01', -400, 'cat_shopping')];
+      const { days } = dayColumns(rows, categories, '2026-03', '2026-04-20');
+
+      expect(days[0]).toMatchObject({ day: '2026-03-01', spending: 200 });
+      expect(days[30]).toMatchObject({ day: '2026-03-31', spending: 300 });
+      expect(sum(days, 'spending')).toBe(500);
+      expect(dayColumns([], categories, '2028-02', '2028-03-01').days.at(-1)?.day).toBe('2028-02-29');
     });
   });
 
@@ -1004,6 +1103,16 @@ describe('spending over time: the trend, the average, the year', () => {
       expect(trendBars([{ month: '2026-01', income: 300000, spending: 100000, left: 200000 }])).toEqual([
         { income: 1, spending: 0.33, left: 0.67 },
       ]);
+    });
+
+    it('draws a day without a mark of what was left, and a day still to come as nothing', () => {
+      expect(
+        trendBars([
+          { income: 0, spending: 4000 },
+          { income: 8000, spending: 2000 },
+          { income: null, spending: null },
+        ])
+      ).toEqual([{ income: 0, spending: 0.5, left: null }, { income: 1, spending: 0.25, left: null }, null]);
     });
 
     it('scales to the highest income or spending drawn, which the axis prints', () => {
@@ -1643,6 +1752,51 @@ describe('the accounts table, by kind', () => {
 
     expect(accountSections(overview, shown).find((section) => section.kind === 'cash')?.subtotal).toBe(120000 + 500000 - 2000);
     expect(accountSections(overview, [])).toEqual([]);
+  });
+
+  describe('what each part of the allocation bar is made of (ADR 0053)', () => {
+    const named = financeOverview(
+      {
+        ...inputs,
+        accounts: inputs.accounts.map((each) => ({ ...each, name: each.id.replace('account_', '') })),
+        observations: [...inputs.observations, observation({ id: 'observation_5', accountId: 'account_crypto', amount: 40000, date: '2026-04-02' })],
+      },
+      today
+    );
+
+    it('lists each part\'s accounts with a value, largest first, adding up to the part', () => {
+      const parts = allocationAccounts(named);
+
+      expect(parts.map((part) => part.part)).toEqual(['cash', 'invested', 'debt']);
+      const cash = /** @type {any} */ (parts[0]);
+      expect(cash.accounts).toEqual([
+        { id: 'account_savings', name: 'savings', value: 500000 },
+        { id: 'account_current', name: 'current', value: 120000 },
+        { id: 'account_wallet', name: 'wallet', value: -2000 },
+      ]);
+      for (const part of parts) {
+        expect(part.accounts.reduce((total, row) => total + row.value, 0)).toBe(part.amount);
+        expect(part.amount).toBe(allocation(named).find((row) => row.key === part.part)?.amount);
+      }
+    });
+
+    it('leaves an account with no value out, counting it as unknown, never as zero', () => {
+      const invested = /** @type {any} */ (allocationAccounts(named).find((part) => part.part === 'invested'));
+
+      expect(invested.accounts).toEqual([{ id: 'account_crypto', name: 'crypto', value: 40000 }]);
+      expect(invested.unknown).toBe(1);
+      expect(allocationAccounts(overview).find((part) => part.part === 'invested')).toEqual({ part: 'invested', amount: null, accounts: [], unknown: 2 });
+    });
+
+    it('leaves an account worth exactly zero out: it makes up nothing', () => {
+      const zero = financeOverview({ ...inputs, observations: [...inputs.observations, observation({ id: 'observation_6', accountId: 'account_crypto', amount: 0, date: '2026-04-02' })] }, today);
+
+      expect(allocationAccounts(zero).find((part) => part.part === 'invested')).toEqual({ part: 'invested', amount: 0, accounts: [], unknown: 1 });
+    });
+
+    it('lists a debt as what is owed', () => {
+      expect(allocationAccounts(named).find((part) => part.part === 'debt')?.accounts).toEqual([{ id: 'account_loan', name: 'loan', value: 715000 }]);
+    });
   });
 });
 

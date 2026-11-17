@@ -1161,6 +1161,14 @@ updated 17 Nov"). An account whose value is older than
 2 Jan" after its name (`accountStaleSince`); an unknown one is never
 stale.
 
+**Each part of the allocation bar says what it is made of** (ADR 0053): the
+part and each of its legend's items show, on hover, focus and a tap, its
+amount and its accounts with their values, largest first
+(`allocationAccounts`, read from the same sections, so the accounts add up
+to the part). An account with an unknown value is left out and counted
+("1 account with no value, not counted"); one worth exactly zero makes up
+nothing and is not listed.
+
 **Deleting is for a mistake.** It removes the account with its balances and
 every link to them, after a confirmation. An account that transactions belong
 to cannot be deleted -- money that moved is never lost -- and is archived
@@ -1597,21 +1605,23 @@ transactions are left out everywhere. All of it is derived (`monthFlows`,
 of its date, or, when it is counted over several months, its equal part in
 each of them. `countedFlow` gives a movement's parts and every reading by
 months adds them up through `totalsOver` -- the month, the year, the twelve
-months, the trend, the savings rates and the target, fixed and variable,
+months, the columns, the savings rates and the target, fixed and variable,
 the lines, the circle, By tag's period figures, the question context's
 figures. **A reading by days is by date** (`totalsBetween`): the week review,
 Home's last week's spending and the import scripts' checks count a movement
 whole on the day it moved, so a week and a month disagree about a spread
 movement, on purpose.
 
-**The circle** (ADR 0050) is how the card shows a period by default: what
-came in is the whole, split clockwise from the top into three parts
-(`flowCircle`), with the four totals -- income, spent, invested, kept --
-under it, each part marked in its tone in the ring and income unmarked, and
-the rest of the summary beside it. The circle view shows **no table**: the
-income and spending rows are the table view's. `?view=table` shows the
-breakdown as a table instead; the circle is the default and never written
-(`financesView`).
+**The card's body** (ADR 0053, amending 0050) is two columns, stacked when
+the card is narrow: on the right, **always, the breakdown** (below); on the
+left a **Circle / Columns** switch, the chart it picks, and under it the four
+totals -- income, spent, invested, kept -- and the rest of the summary. The
+circle is the default and never written; `?view=columns` draws the columns,
+and the `?view=table` of ADR 0050 reads as the circle (`financesView`).
+
+**The circle** (ADR 0050): what came in is the whole, split clockwise from
+the top into three parts (`flowCircle`), each part marked in its tone in the
+ring and in the totals under it, income unmarked.
 
 - **Invested** is money put into investments in the period, in cash
   (`periodInvested`): every trade dated in it, on any holding, a buy at what
@@ -1635,24 +1645,32 @@ breakdown as a table instead; the circle is the default and never written
 Over time (ADR 0044), every number by the month's own rules -- one
 implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
 
-- **The trend** (`flowTrend`, `trendBars`) draws, over the newest twelve
-  months on offer while the selected month is among them, else the twelve
-  ending with it (`trendMonths`) -- in the year reading, the year's months --
-  income and spending as two bars a month, what was left as a tick on the
-  income bar, on a scale from zero to the highest bar (`trendHigh`). Money
-  in is an outlined bar and money out a solid one, so they tell apart
-  without the legend (ADR 0048). Each month is a link that reads it. A month
-  with nothing counted is an empty slot, not a bar of zero. There is no
-  chart switch any more, and an old `?chart=` is ignored (ADR 0048): net
-  worth over time is the Net worth card's line, below.
+- **The columns** (ADR 0053), the left chart's other choice -- the strip of
+  bars that ran across the top of the card (ADR 0044) is gone. Money in is
+  an outlined bar and money out a solid one (ADR 0048), on a scale from zero
+  to the highest bar (`trendBars`, `trendHigh`); each column is focusable
+  and shows its exact figures on hover, focus and a tap (a **tooltip**,
+  `components/Tip.js`). In a **month**, one column per day (`dayColumns`),
+  a bar only where there is money; a day still to come is empty, not zero.
+  **A movement counted over several months has no single day**: a movement
+  is on its day only when it counts whole in the month of its date, and any
+  other part in the month -- of a movement spread over months, paid in it or
+  not -- is on no day, said in one line under the columns, so the days and
+  that line add up exactly to the month's totals. In a **year**, its twelve
+  months (`yearColumns`, each read by `flowTrend`), what was left a tick on
+  the income bar, each month on offer a link that reads it, one with nothing
+  counted an empty slot, one the year does not offer empty and no link. An
+  old `?chart=` is ignored (ADR 0048): net worth over time is the Net worth
+  card's line, below.
 - **Movements without a category** (`uncategorisedCounts`): when the period
   has counted movements on no category -- the ones the Uncategorised lines
   hold -- one line at the top of the card says how many and links to review
   them, by direction (ADR 0048).
-- **The breakdown** (ADR 0050), the table view: income first, then
-  spending, then a summary -- income, spent, invested, kept, the savings
-  rates against the target, fixed and variable -- as the final account.
-  Each table's columns are the line, its Share, the change from the period
+- **The breakdown** (ADR 0050), on the right whatever the chart: income
+  first, then spending, with the composition bar above spending. The summary
+  -- income, spent, invested, kept, then the notes, the savings rates against
+  the target, the shortfall, fixed and variable -- is under the chart, on the
+  left (ADR 0053). Each table's columns are the line, its Share, the change from the period
   before and its amount, last, headed "Spent" or "Received". **A line's name
   opens its subcategories** when it has some, with what was spent in each
   and a link to the line's movements; **a subcategory's name, and a line's
@@ -1661,14 +1679,11 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   description, the amount signed as the Transactions card signs it, newest
   first, the newest `limits.financeListMax` and "and N more" linking to the
   line's listing. A movement counted over several months shows the month it
-  counts in, its part and "2 of 3 · paid 15 Nov". In the circle view, the
-  summary beside the circle is the notes, the rates, the shortfall, fixed
-  and variable. **A line with nothing in the period is folded**
+  counts in, its part and "2 of 3 · paid 15 Nov". **A line with nothing in the period is folded**
   (`foldedLines`, ADR 0048): the lines at a total of zero, in either table,
   go into one row at its end, "N categories with nothing this month", which
   opens to show them -- by itself when the selected line is one of them.
-- **A line's average month** (`lineAverages`) is the year's only, in the
-  table view: the line's total over the year's months on offer, a month with
+- **A line's average month** (`lineAverages`) is the year's only: the line's total over the year's months on offer, a month with
   no movement counting as **zero** -- the month was tracked -- rounded to a
   cent; every line, subcategories and Uncategorised included. A month has no
   average (ADR 0050 removed the twelve months before it and the paired
@@ -1677,7 +1692,7 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   month's **calendar year to date** -- its months on offer, from January or
   "tracked since" to December or today's month -- with the month's figures,
   tables, circle and savings rate ("Saved in 2026") over those months, and
-  in the table view each line's average month. Its change column compares with the **same months a year before** (January to
+  each line's average month. Its change column compares with the **same months a year before** (January to
   November against January to November, never a whole year), and only when
   every one of them was on offer and something was counted in them;
   otherwise it is blank. A selected line lists the year's transactions.
@@ -1694,8 +1709,11 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   movement's amount is signed from its account's side to the cent: "+" in
   the up tone for money in, "−" in the ink for money out; a movement not
   counted keeps its sign and is quieter; a transfer shows the amount moved,
-  quieter, and names both ends. Dates never wrap.
-- **The composition** (`spendingParts`), in the table view: one bar of the
+  quieter, and names both ends. Dates never wrap. The card never scrolls
+  sideways (ADR 0053): the date and the amount as wide as their text, the
+  rest shared, and a narrow card drops the account, then the category --
+  the description's title names both.
+- **The composition** (`spendingParts`), above the spending table: one bar of the
   period's spending by top-level category and Uncategorised, each line's
   part of what the lines with money spent add up to -- a net refund has no
   part. The spending table is its legend: a line with a part carries its
@@ -1764,7 +1782,9 @@ its highest, not from zero -- a line is read by its slope, and from zero a
 year of saving 5% is flat -- widened evenly to at least a tenth of the
 largest value (`WORTH_MIN_SPAN`, `worthLine`), its bottom and top printed
 beside it. It fits the width and never scrolls; few months carry a dot
-each. Its month labels thin out (`worthTicks`): the finest of every month,
+each. On the Net worth card each month with a value shows its month, its day
+and its net worth to the cent on hover, focus and a tap (ADR 0053); an
+unknown month has nothing to show. Its month labels thin out (`worthTicks`): the finest of every month,
 the quarters, the half years, each January and every second, fourth or
 eighth January that puts at most 12 labels under a wide chart and at most
 4 under a phone-width one, the year under each January and the first

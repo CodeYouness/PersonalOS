@@ -9,7 +9,10 @@
   the table; the quiet fold keeps the sections; and by
   [0050](0050-income-and-spending-reads-as-a-circle.md): Income & spending
   is a circle of what came in beside its breakdown, or a table, and its
-  figures are a summary under the tables
+  figures are a summary under the tables; and by
+  [0053](0053-columns-beside-the-breakdown-and-one-tooltip.md): the bars
+  left the top of Income & spending for its Columns view, a year's months
+  or a month's days
 
 ## Context
 

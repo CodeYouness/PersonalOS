@@ -4,6 +4,9 @@
 - **Date** 2026-11-17
 - **Amends** [0048](0048-finances-reads-at-a-glance.md) (the accounts table's
   columns and its fold)
+- **Amended by** [0053](0053-columns-beside-the-breakdown-and-one-tooltip.md):
+  Transactions no longer scrolls in its box under 640 px; a narrow card drops
+  the account, then the category
 
 ## Context
 
