@@ -1142,6 +1142,13 @@ a loan never raises last year's net worth. Restoring clears the day. Like a
 habit's periods (ADR 0015), the day is what keeps archiving from rewriting the
 past; a flag could not say which days the account was open.
 
+**A quiet account is folded, not archived.** In the Net worth card's table,
+an open account worth zero or unknown with nothing recorded on it -- a
+movement on either end, a balance or a trade -- in the last
+`limits.financeQuietAccountDays` (90) days up to today folds under "N more
+accounts" (`quietAccounts`, ADR 0048): it still counts, and is one click
+away. The selected account is always shown.
+
 **Deleting is for a mistake.** It removes the account with its balances and
 every link to them, after a confirmation. An account that transactions belong
 to cannot be deleted -- money that moved is never lost -- and is archived
@@ -1479,8 +1486,8 @@ money. The table of cases is in ADR 0042.
 ### Default account
 
 **Is** `profile.defaultAccountId`: the account a finance sentence that names
-no account is filed on (ADR 0026), chosen on the Finances screen's Settings
-card. It must be open and valued by balance; archiving, deleting or revaluing
+no account is filed on (ADR 0026), chosen in the Finances screen's Settings,
+under Manage. It must be open and valued by balance; archiving, deleting or revaluing
 that account clears it. Unset, such a sentence stays a capture and a memory
 entry.
 
@@ -1507,27 +1514,20 @@ of it is derived (`monthFlows`, `yearFlows`, `savingsRate`), never stored.
 Over time (ADR 0044), every number by the month's own rules -- one
 implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
 
-- **The trend** draws one of two charts over the same months: the newest
-  twelve on offer while the selected month is among them, else the twelve
-  ending with it (`trendMonths`); in the year reading, the year's months.
-  Each month is a link that reads it, and a switch above (`?chart=flows`;
-  the line is the default and never written) picks the chart.
-  - **Net worth** (`worthTrend`, `worthLine`), the default: a line through
-    net worth at each month's end -- today, for the month still running --
-    read from **the history** below, so the two never disagree. A month the
-    history does not draw (before the first value, before "tracked since",
-    after today) is **unknown**: a gap in the line, never a zero. Its scale
-    runs from the line's lowest value to its highest, not from zero -- a
-    line is read by its slope, and from zero a year of saving 5% is flat --
-    widened evenly to at least a tenth of the largest value
-    (`WORTH_MIN_SPAN`), so a few hundred euros on a hundred thousand stay a
-    near-flat line. The scale's bottom and top are printed beside it; the
-    newest value and the change from the first known month are written
-    under it.
-  - **Income & spending** (`flowTrend`, `trendBars`): two bars a month, what
-    was left as a tick on the income bar, on a scale from zero to the
-    highest bar (`trendHigh`). A month with nothing counted is an empty
-    slot, not a bar of zero.
+- **The trend** (`flowTrend`, `trendBars`) draws, over the newest twelve
+  months on offer while the selected month is among them, else the twelve
+  ending with it (`trendMonths`) -- in the year reading, the year's months --
+  income and spending as two bars a month, what was left as a tick on the
+  income bar, on a scale from zero to the highest bar (`trendHigh`). Money
+  in is an outlined bar and money out a solid one, so they tell apart
+  without the legend (ADR 0048). Each month is a link that reads it. A month
+  with nothing counted is an empty slot, not a bar of zero. There is no
+  chart switch any more, and an old `?chart=` is ignored (ADR 0048): net
+  worth over time is the Net worth card's line, below.
+- **Movements without a category** (`uncategorisedCounts`): when the period
+  has counted movements on no category -- the ones the Uncategorised lines
+  hold -- one line at the top of the card says how many and links to review
+  them, by direction (ADR 0048).
 - **A line's average month** (`spendingAverages`), beside each top-level
   spending line and Uncategorised, in the month reading only: the mean of
   that line over the months on offer before the selected one, at most
@@ -1541,7 +1541,11 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   (`spendingLinesWithAverage`, ADR 0046); `monthFlows`, which the question
   context reads, lists only lines with money this month or the last. The
   caption explaining the average is printed only under a spending table
-  with rows.
+  with rows. **A line with nothing in the period is folded** (`foldedLines`,
+  ADR 0048): the lines at a total of zero, in either table, go into one row
+  at its end, "N categories with nothing this month", which opens to show
+  them with their averages -- by itself when the selected line is one of
+  them. The tables head their total "Spent" and "Received".
 - **The year reading** (`?period=year`, `calendarYearFlows`): the selected
   month's **calendar year to date** -- its months on offer, from January or
   "tracked since" to December or today's month -- with the month's figures,
@@ -1549,19 +1553,25 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   column compares with the **same months a year before** (January to
   November against January to November, never a whole year), and only when
   every one of them was on offer and something was counted in them;
-  otherwise it is blank. A selected line lists the year's transactions;
-  with nothing selected, the Transactions card lists the year's newest 50
-  (`limits.financeYearListMax`) and says how many more there are and that a
-  month, a category or a tag narrows it (ADR 0046). `yearFlows` is not this:
-  it is the twelve months ending with a month, the "Saved over 12 months"
-  rate.
+  otherwise it is blank. A selected line lists the year's transactions.
+  `yearFlows` is not this: it is the twelve months ending with a month, the
+  "Saved over 12 months" rate.
+- **The Transactions card** lists, with nothing selected, the period's
+  newest `limits.financeListMax` (50) movements -- a month's as well as a
+  year's (ADRs 0046, 0048) -- says how many more there are, and offers them
+  all (`?span=all`, which with a tag means all of the tag's) or a category
+  or a tag to narrow it. A selected line or tag is listed whole. A
+  movement's amount is signed from its account's side to the cent: "+" in
+  the up tone for money in, "−" in the ink for money out; a movement not
+  counted keeps its sign and is quieter; a transfer shows the amount moved,
+  quieter, and names both ends. Dates never wrap.
 - **The composition** (`spendingParts`): one bar of the period's spending by
   top-level category and Uncategorised, each line's part of what the lines
   with money spent add up to -- a net refund has no part. The spending
   table is its legend: a line with a part carries its tone.
 
 **The target savings rate** (`profile.financeSavingsTarget`, ADR 0045) is a
-whole percent from 1 to 99, or none, set on the Settings card. Each savings
+whole percent from 1 to 99, or none, set in Settings, under Manage. Each savings
 rate the card shows -- the month's, the twelve months', the year's -- says
 under it whether it **meets** the target, in words and a quiet dot (filled
 when met, an outline when not). A rate meets it when the whole percent it is
@@ -1607,11 +1617,27 @@ ADR 0008's exception applies to it again.
 ### The history
 
 Month-end net worth for every month from the first balance or trade to today,
-and its change from the month before -- derived, never stored (ADR 0022). The
-net worth line of Income & spending's trend draws the months of it the trend
-covers (ADR 0044); it has no card of its own (ADR 0047). A month-end at which
-no account had a value -- the only valued account archived before it -- is 0
-in the history, and a gap in the line (ADR 0046). An
+and its change from the month before -- derived, never stored (ADR 0022). It
+has no card of its own (ADR 0047): **the net worth line** draws all of it.
+
+**The net worth line** (`worthChart`, ADR 0048) is in the Net worth card,
+under the headline, and compact on Home under the tiles. It covers every
+month of the history (`worthMonths`) -- all tracked time, growing by itself
+as months pass, whatever month Income & spending reads -- through net worth
+at each month's end, today for the month still running (`worthTrend`). A
+month-end at which no account had a value -- the only valued account
+archived before it -- is 0 in the history, and **unknown** on the line: a
+gap, never a zero (ADR 0046). Its scale runs from the line's lowest value to
+its highest, not from zero -- a line is read by its slope, and from zero a
+year of saving 5% is flat -- widened evenly to at least a tenth of the
+largest value (`WORTH_MIN_SPAN`, `worthLine`), its bottom and top printed
+beside it. It fits the width and never scrolls; few months carry a dot
+each. Its month labels thin out (`worthTicks`): the finest of every month,
+the quarters, the half years, each January and every second, fourth or
+eighth January that puts at most 12 labels under a wide chart and at most
+4 under a phone-width one, the year under each January and the first
+label. The Net worth card prints under it the change over its whole span,
+over 30 days and over a year. An
 archived account counts, with its movements, on every day before it was
 archived; between two balances a cash account follows its movements (ADR
 0024), and otherwise a value stays flat between two balances or prices; a
@@ -1620,7 +1646,7 @@ account's **30-day change** is its value today minus its value 30 days ago,
 blank when it had none then: a missing past is not a change from zero.
 
 **Tracked since** (`profile.financeTrackedSince`, ADR 0025) is the day your
-finance tracking started, set on the Finances screen's Settings card. Once
+finance tracking started, set in the Finances screen's Settings, under Manage. Once
 set, the history starts at the first month-end on or after it, the 1-year
 change is blank when its start falls before that month-end, and the months Income &
 spending offers start at its month. Trades before it still count toward a
@@ -1867,7 +1893,11 @@ dip each morning. Null, shown as a dash, while nothing was due.
 link: Habits (the kept rate above; "No habits yet" with none active), Money
 (net worth and its 30-day change; "No balance yet" while no account has a
 value -- unknown, not zero), Goals (how many are open), Journal (entries
-dated this week, else the last entry's day within a year).
+dated this week, else the last entry's day within a year). Under them, the
+whole row wide, the money reading goes on (ADR 0048): **the net worth line**
+over all tracked time, compact -- the same `worthChart` Finances draws --
+with its change since the first month, the whole of it a link to Finances;
+absent while there is no net worth to draw.
 
 **Is not** where anything is ticked, edited or explored: the habits are
 ticked by the check-in and on the Habits screen, and every other block reads

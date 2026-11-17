@@ -2,7 +2,7 @@ import CheckinPanel from '@/components/CheckinPanel.js';
 import { HomeTiles, NeedsYou, WorthNoting } from '@/components/HomeSections.js';
 import { env } from '@/lib/config/env.js';
 import { shiftDayKey, weekDayKeys } from '@/lib/domain/dates.js';
-import { financeOverview } from '@/lib/domain/derive/finance.js';
+import { financeOverview, worthChart } from '@/lib/domain/derive/finance.js';
 import { homeClock, homeTiles, needsYou, worthNoting } from '@/lib/domain/derive/home.js';
 import { lastWeekFrom, lastWeekReview } from '@/lib/domain/derive/review.js';
 import { BASELINE_WEEKS, weekFigures } from '@/lib/domain/derive/week.js';
@@ -34,7 +34,10 @@ const JOURNAL_LOOKBACK_DAYS = 365;
  *    line when nothing does;
  * 3. Worth noting: at most three sentences, only what differs from usual,
  *    absent otherwise;
- * 4. four tiles: habits, money, goals, journal.
+ * 4. four tiles: habits, money, goals, journal -- and under them, as part of
+ *    the money reading, the net worth line over all tracked time, the same
+ *    derivation the Finances screen draws (worthChart, ADR 0048), absent
+ *    while there is no net worth to draw.
  *
  * Everything is read once from the store and derived on each request
  * (`lib/domain/derive/home.js`): no model and no integration (rule 3,
@@ -106,7 +109,7 @@ export default async function Home({ searchParams }) {
         <CheckinPanel day={typeof checkin === 'string' ? checkin : undefined} />
         <NeedsYou needs={needs} />
         <WorthNoting notes={notes} />
-        <HomeTiles tiles={tiles} today={today} />
+        <HomeTiles tiles={tiles} today={today} worth={worthChart(overview.history, today)} />
       </div>
     </section>
   );

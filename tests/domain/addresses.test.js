@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   crmAddress,
   financesAddress,
-  financesChart,
   financesSpan,
   goalsAddress,
   journalAddress,
@@ -52,23 +51,9 @@ describe('addresses: one implementation of where a record opens', () => {
     expect(financesAddress({ month: '2026-01', period: null })).toBe('/finances?month=2026-01');
   });
 
-  it('writes the bars chart of Income & spending, never the net worth line, its default', () => {
-    expect(financesAddress({ month: '2026-01', chart: 'flows' })).toBe('/finances?month=2026-01&chart=flows');
-    expect(financesAddress({ month: '2026-01', chart: 'worth' })).toBe('/finances?month=2026-01');
-    expect(financesAddress({ month: '2026-01', chart: null })).toBe('/finances?month=2026-01');
-    expect(financesAddress({ account: 'account_a', month: '2026-01', period: 'year', chart: 'flows', category: 'cat_1' })).toBe(
-      '/finances?account=account_a&month=2026-01&period=year&chart=flows&category=cat_1'
-    );
-  });
-
-  it('reads the chart back from the address, anything else being the line', () => {
-    for (const chart of /** @type {const} */ (['worth', 'flows'])) {
-      const written = new URL(financesAddress({ month: '2026-01', chart }), 'http://localhost').searchParams.get('chart');
-      expect(financesChart(written ?? undefined)).toBe(chart);
-    }
-    expect(financesChart(undefined)).toBe('worth');
-    expect(financesChart('bars')).toBe('worth');
-    expect(financesChart(['flows', 'flows'])).toBe('worth');
+  it('no longer writes a chart: the switch is gone, and an old one is never carried on (ADR 0048)', () => {
+    const old = /** @type {any} */ ({ month: '2026-01', chart: 'flows' });
+    expect(financesAddress(old)).toBe('/finances?month=2026-01');
   });
 
   it('addresses a tag of the period, encoding whatever the user typed, and reads it back unchanged', () => {
@@ -81,6 +66,10 @@ describe('addresses: one implementation of where a record opens', () => {
       expect(written).not.toMatch(/[ #]/);
       expect(new URL(written, 'http://localhost').searchParams.get('tag')).toBe(tag);
     }
+  });
+
+  it('writes the whole list of the period, which reuses the span (ADR 0048)', () => {
+    expect(financesAddress({ month: '2026-03', span: 'all' })).toBe('/finances?month=2026-03&span=all');
   });
 
   it('reads the span back from the address: all of a tag, or else the period', () => {

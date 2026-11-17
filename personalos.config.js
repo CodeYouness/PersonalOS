@@ -413,12 +413,20 @@ export const limits = Object.freeze({
   savingsTargetMin: 1,
   savingsTargetMax: 99,
   /**
-   * Finances' Transactions card, reading a year with nothing selected (ADR
-   * 0046), lists this many of the newest movements and says how many more
-   * there are: a whole year is hundreds of rows nobody reads. A month, a
-   * category or a tag narrows it, and is listed whole.
+   * Finances' Transactions card, reading a month or a year with nothing
+   * selected (ADRs 0046, 0048), lists this many of the newest movements and
+   * says how many more there are, with a link to show them all: a month is
+   * a hundred rows, a year hundreds, and nobody reads them all. A category or
+   * a tag narrows it, and is listed whole.
    */
-  financeYearListMax: 50,
+  financeListMax: 50,
+  /**
+   * Finances' accounts table (ADR 0048) folds an account worth zero or
+   * unknown under "N more accounts" when nothing -- a movement, a balance, a
+   * trade -- was recorded on it in this many days up to today. A closed card
+   * or an empty pot stays one click away without taking a row.
+   */
+  financeQuietAccountDays: 90,
   /** How far back the Health card aggregates. */
   healthWindowDays: 30,
   /** How far ahead recurring calendar events are expanded. */

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { financesHref, transferEnds } from '@/components/finance.js';
-import { formatMoney, shortDate } from '@/components/format.js';
+import { formatMoney, formatMoneyChange, shortDate } from '@/components/format.js';
 
 /** @typedef {import('@/lib/domain/types.js').Transaction} Transaction */
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
@@ -16,14 +16,18 @@ import { formatMoney, shortDate } from '@/components/format.js';
  *
  * With a tag selected in the By tag card (ADR 0046), only its counted
  * movements, and a switch between the period's and all of them
- * (`?span=all`), whatever the period -- a trip rarely fits one month. In a
- * year with nothing selected, the page hands only the newest movements and
- * `more`, how many it left out; the card says so and how to narrow it.
+ * (`?span=all`), whatever the period -- a trip rarely fits one month. With
+ * nothing selected, the page hands only the newest movements of the month or
+ * the year and `more`, how many it left out; the card says so, offers them
+ * all (`?span=all`, ADR 0048) and says how to narrow it -- and once they are
+ * all shown, offers the newest only again.
  *
- * A transfer reads "from → to" and has no category; a not-counted movement
- * says so. A movement's amount is signed from its account's side, the way
- * it is stored -- negative when money left; a transfer shows the amount
- * moved.
+ * Money in and money out are unmistakable (ADR 0048): a movement's amount is
+ * signed from its account's side -- "+" for money in, in the up tone, "−"
+ * for money out, in the ink -- and the sign is always printed, so colour is
+ * never alone. A movement not counted keeps its sign and is quieter. A
+ * transfer between your own accounts is neither: it shows the amount moved,
+ * quieter, and names both ends, "from → to". Dates never wrap.
  *
  * @param {{
  *   transactions: Transaction[],
@@ -32,18 +36,21 @@ import { formatMoney, shortDate } from '@/components/format.js';
  *   lineName: string | null,
  *   tag: string | null,
  *   more: number,
+ *   max: number,
  *   periodLabel: string,
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceTransactions({ transactions, accounts, categories, lineName, tag, more, periodLabel, todayKey, place }) {
+export default function FinanceTransactions({ transactions, accounts, categories, lineName, tag, more, max, periodLabel, todayKey, place }) {
   /** @param {string} id */
   const accountName = (id) => accounts.find((account) => account.id === id)?.name ?? 'an account that no longer exists';
   /** @param {string | null} id */
   const categoryName = (id) => categories.find((category) => category.id === id)?.name ?? null;
   const selection = tag !== null ? 'tagged ' + tag : lineName;
   const allTime = tag !== null && place.span === 'all';
+  const wholePeriod = selection === null && place.span === 'all' && transactions.length > max;
+  const narrowing = place.period === 'year' ? 'pick a month, a category or a tag to narrow it' : 'pick a category or a tag to narrow it';
 
   return (
     <article id="card-finance-transactions" className="card">
@@ -89,57 +96,87 @@ export default function FinanceTransactions({ transactions, accounts, categories
               : 'Nothing recorded ' + (lineName === null ? '' : 'in ' + lineName + ' ') + 'in ' + periodLabel + '.'}
           </p>
         ) : (
-          <table className="finance-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Description</th>
-                <th>Category</th>
-                <th>Account</th>
-                <th className="num">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((transaction) => {
-                const selected = transaction.id === place.transaction;
-                const transfer = transaction.counterAccountId !== null;
-                const category = categoryName(transaction.categoryId);
-                return (
-                  <tr key={transaction.id} className={selected ? 'is-selected' : undefined}>
-                    <td className="num finance-date">{shortDate(transaction.date, todayKey)}</td>
-                    <td>
-                      <Link
-                        href={financesHref({ ...place, transaction: transaction.id })}
-                        scroll={false}
-                        className="finance-account-link"
-                        aria-current={selected ? 'true' : undefined}
-                      >
-                        {transaction.description === '' ? '(no description)' : transaction.description}
-                      </Link>
-                      {transaction.notCounted && <span className="caption"> · not counted</span>}
-                    </td>
-                    <td className={transfer || category === null ? 'caption' : undefined}>
-                      {transfer ? 'Transfer' : category ?? 'Uncategorised'}
-                    </td>
-                    <td className="caption">
-                      {transfer
-                        ? accountName(transferEnds(transaction).from) + ' → ' + accountName(transferEnds(transaction).to)
-                        : accountName(transaction.accountId)}
-                    </td>
-                    <td className="num">{formatMoney(transfer ? Math.abs(transaction.amount) : transaction.amount, { cents: true })}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="finance-table-scroll">
+            <table className="finance-table finance-transactions-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Account</th>
+                  <th className="num">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((transaction) => {
+                  const selected = transaction.id === place.transaction;
+                  const transfer = transaction.counterAccountId !== null;
+                  const category = categoryName(transaction.categoryId);
+                  return (
+                    <tr key={transaction.id} className={selected ? 'is-selected' : undefined}>
+                      <td className="num finance-date">{shortDate(transaction.date, todayKey)}</td>
+                      <td>
+                        <Link
+                          href={financesHref({ ...place, transaction: transaction.id })}
+                          scroll={false}
+                          className="finance-account-link"
+                          aria-current={selected ? 'true' : undefined}
+                        >
+                          {transaction.description === '' ? '(no description)' : transaction.description}
+                        </Link>
+                        {transaction.notCounted && <span className="caption"> · not counted</span>}
+                      </td>
+                      <td className={transfer || category === null ? 'caption' : undefined}>
+                        {transfer ? 'Transfer' : category ?? 'Uncategorised'}
+                      </td>
+                      <td className="caption">
+                        {transfer
+                          ? accountName(transferEnds(transaction).from) + ' → ' + accountName(transferEnds(transaction).to)
+                          : accountName(transaction.accountId)}
+                      </td>
+                      <Amount transaction={transaction} />
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
         {more > 0 && (
           <p className="caption finance-list-more">
-            The newest {transactions.length} of {transactions.length + more} in {periodLabel}. Pick a month, a category or a tag to
-            narrow it.
+            The newest {transactions.length} of {transactions.length + more} in {periodLabel}.{' '}
+            <Link href={financesHref({ ...place, span: 'all' })} scroll={false} className="finance-account-link">
+              Show all {transactions.length + more}
+            </Link>
+            , or {narrowing}.
+          </p>
+        )}
+        {wholePeriod && (
+          <p className="caption finance-list-more">
+            All {transactions.length} in {periodLabel}.{' '}
+            <Link href={financesHref({ ...place, span: null })} scroll={false} className="finance-account-link">
+              Show the newest {max}
+            </Link>
           </p>
         )}
       </div>
     </article>
   );
+}
+
+/**
+ * A movement's amount, money in or out (ADR 0048): "+ 12.40" in the up tone
+ * for money in, "− 12.40" in the ink for money out, the sign always printed.
+ * Not counted: the same sign, quieter. A transfer: the amount moved, quieter,
+ * since the money stayed yours.
+ *
+ * @param {{ transaction: Transaction }} props
+ */
+function Amount({ transaction }) {
+  if (transaction.counterAccountId !== null) {
+    return <td className="num finance-amount is-quiet">{formatMoney(Math.abs(transaction.amount), { cents: true })}</td>;
+  }
+  const shown = formatMoneyChange(transaction.amount, { cents: true });
+  if (transaction.notCounted) return <td className="num finance-amount is-quiet">{shown}</td>;
+  return <td className={'num finance-amount' + (transaction.amount > 0 ? ' up' : '')}>{shown}</td>;
 }

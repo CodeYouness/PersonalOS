@@ -118,6 +118,12 @@ describe('money formatting', () => {
     expect(formatMoneyChange(-190500)).toBe('−\u20091,905');
     expect(formatMoneyChange(0)).toBe('0');
   });
+
+  it('signs a movement to the cent when asked, money in with a plus and money out with a minus', () => {
+    expect(formatMoneyChange(1240, { cents: true })).toBe('+\u200912.40');
+    expect(formatMoneyChange(-123456, { cents: true })).toBe('−\u20091,234.56');
+    expect(formatMoneyChange(0, { cents: true })).toBe('0.00');
+  });
 });
 
 describe('monthShort', () => {

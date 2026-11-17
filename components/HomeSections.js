@@ -1,7 +1,8 @@
 import Link from 'next/link';
 
+import FinanceWorthChart from '@/components/FinanceWorthChart.js';
 import OpenCaptureLog from '@/components/OpenCaptureLog.js';
-import { formatEuro, formatMoneyChange, formatPercentChange, percent, shortDate } from '@/components/format.js';
+import { formatEuro, formatMoneyChange, formatPercentChange, monthLabel, percent, shortDate } from '@/components/format.js';
 
 /**
  * Home's three sections under the check-in (ADR 0040): what needs you, what
@@ -138,11 +139,21 @@ export function noteSentence(note) {
 
 /**
  * Four tiles, two by two on a phone and in one row on a desktop: one number,
- * one label, the whole tile the link.
+ * one label, the whole tile the link. Under them, the whole row wide, the
+ * money tile's reading goes on (ADR 0048): the net worth line over all
+ * tracked time, compact, from the derivation the Finances screen draws --
+ * the whole of it a link to Finances. Under the tiles rather than inside the
+ * money one: a line needs width, and at 390px a tile is about 175px wide, while
+ * the row is the column's whole width and leaves the two by two as it was.
+ * Absent while there is no net worth to draw.
  *
- * @param {{ tiles: import('@/lib/domain/derive/home.js').HomeTiles, today: string }} props
+ * @param {{
+ *   tiles: import('@/lib/domain/derive/home.js').HomeTiles,
+ *   today: string,
+ *   worth?: ReturnType<typeof import('@/lib/domain/derive/finance.js').worthChart> | null,
+ * }} props
  */
-export function HomeTiles({ tiles, today }) {
+export function HomeTiles({ tiles, today, worth = null }) {
   const { habits, money, goals, journal } = tiles;
   const rows = [
     {
@@ -186,6 +197,37 @@ export function HomeTiles({ tiles, today }) {
           <span className="home-tile-label">{tile.label}</span>
         </Link>
       ))}
+      {worth !== null && <HomeWorth chart={worth} today={today} href={tiles.money.href} />}
     </nav>
+  );
+}
+
+/**
+ * The net worth line under the tiles: what it covers and its change in one
+ * sentence -- the link's name -- above the chart, which is silent to a
+ * screen reader.
+ *
+ * @param {{
+ *   chart: ReturnType<typeof import('@/lib/domain/derive/finance.js').worthChart>,
+ *   today: string,
+ *   href: string,
+ * }} props
+ */
+function HomeWorth({ chart, today, href }) {
+  const { line } = chart;
+  if (line.first === null || line.first.asOf === null) return null;
+  return (
+    <Link className="home-tile home-worth" href={href} data-tile="worth">
+      <span className="home-tile-label">
+        {line.change === null ? (
+          'Net worth since ' + monthLabel(line.first.month)
+        ) : (
+          <>
+            Net worth <span className="num">{formatMoneyChange(line.change)}</span> since {shortDate(line.first.asOf, today)}
+          </>
+        )}
+      </span>
+      <FinanceWorthChart chart={chart} todayKey={today} compact />
+    </Link>
   );
 }

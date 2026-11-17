@@ -43,43 +43,45 @@ export default function FinanceTags({ tags, tagged, periodLabel, todayKey, place
           <p className="caption">No tagged movement counted in {periodLabel}.</p>
         ) : (
           <>
-            <table className="finance-table finance-flow-table finance-tag-table">
-              <thead>
-                <tr>
-                  <th>Tag</th>
-                  <th className="num">Movements</th>
-                  <th className="num">Spent, {periodLabel}</th>
-                  <th className="num">Spent, all time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tags.map((row) => {
-                  const selected = place.tag === row.tag;
-                  return (
-                    <tr key={row.tag} className={selected ? 'is-selected' : undefined}>
-                      <td>
-                        <Link
-                          href={financesHref({ ...place, tag: row.tag, category: null, span: null, transaction: null })}
-                          scroll={false}
-                          className="finance-account-link"
-                          aria-current={selected ? 'true' : undefined}
-                        >
-                          {row.tag}
-                        </Link>
-                        <span className="caption finance-tag-days">
-                          {row.first === row.last
-                            ? shortDate(row.first, todayKey)
-                            : shortDate(row.first, todayKey) + ' – ' + shortDate(row.last, todayKey)}
-                        </span>
-                      </td>
-                      <td className="num">{row.movements}</td>
-                      <td className="num">{formatMoney(row.spending, { cents: true })}</td>
-                      <td className="num">{formatMoney(row.allSpending, { cents: true })}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="finance-table-scroll">
+              <table className="finance-table finance-flow-table finance-tag-table">
+                <thead>
+                  <tr>
+                    <th>Tag</th>
+                    <th className="num">Movements</th>
+                    <th className="num">Spent, {periodLabel}</th>
+                    <th className="num">Spent, all time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tags.map((row) => {
+                    const selected = place.tag === row.tag;
+                    return (
+                      <tr key={row.tag} className={selected ? 'is-selected' : undefined}>
+                        <td>
+                          <Link
+                            href={financesHref({ ...place, tag: row.tag, category: null, span: null, transaction: null })}
+                            scroll={false}
+                            className="finance-account-link"
+                            aria-current={selected ? 'true' : undefined}
+                          >
+                            {row.tag}
+                          </Link>
+                          <span className="caption finance-tag-days">
+                            {row.first === row.last
+                              ? shortDate(row.first, todayKey)
+                              : shortDate(row.first, todayKey) + ' – ' + shortDate(row.last, todayKey)}
+                          </span>
+                        </td>
+                        <td className="num">{row.movements}</td>
+                        <td className="num">{formatMoney(row.spending, { cents: true })}</td>
+                        <td className="num">{formatMoney(row.allSpending, { cents: true })}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <p className="caption finance-tag-note">
               A movement with several tags counts under each, so these do not add up to the period’s spending. A refund
               reduces what a tag spent; transfers and movements not counted are left out.

@@ -17,7 +17,9 @@ import { CATEGORY_KINDS } from '@/personalos.config.js';
  * category out of the pickers, keeping its transactions and totals, and
  * Restore brings it back; Delete asks first and is refused while the
  * category or a subcategory is in use. Every write posts and then re-reads
- * the screen, win or lose.
+ * the screen, win or lose. Under Manage at the bottom of the screen (ADR
+ * 0048), folded until opened; rendered without a card of its own, since
+ * Manage's fold is the card.
  *
  * @param {{ categories: FinanceCategory[] }} props
  */
@@ -74,64 +76,59 @@ export default function FinanceCategories({ categories }) {
   const parents = categories.filter((category) => category.parentId === null);
 
   return (
-    <article id="card-finance-categories" className="card">
-      <div className="card-head">
-        <span className="eyebrow">Categories</span>
-      </div>
-      <div className="card-body">
-        {error !== null && (
-          <p className="caption is-error" role="alert">
-            {error}
-          </p>
-        )}
-        {CATEGORY_GROUPS.map(({ kind, label }) => (
-          <div key={kind} className="finance-category-group">
-            <p className="caption">{label}</p>
-            <ul className="finance-categories">
-              {parents
-                .filter((parent) => parent.kind === kind)
-                .flatMap((parent) => [parent, ...categories.filter((category) => category.parentId === parent.id)])
-                .map((category) => (
-                  <CategoryRow
-                    key={category.id + ':' + category.name}
-                    category={category}
-                    parents={parents.filter((parent) => parent.kind === kind && (!parent.archived || parent.id === category.parentId))}
-                    isSaving={isSaving}
-                    onPatch={(body) => patch(category.id, body)}
-                    onDelete={() => remove(category)}
-                  />
-                ))}
-            </ul>
-          </div>
-        ))}
-        <form className="finance-entry" onSubmit={add}>
-          <div className="field">
-            <label className="caption" htmlFor="c-name">New category</label>
-            <input id="c-name" className="input" value={name} onChange={(event) => setName(event.target.value)} />
-          </div>
-          <div className="field">
-            <label className="caption" htmlFor="c-under">Under</label>
-            <select id="c-under" className="input" value={under} onChange={(event) => setUnder(event.target.value)}>
-              {CATEGORY_GROUPS.map(({ kind, label }) => (
-                <option key={kind} value={kind}>
-                  Top level ({label.toLowerCase()})
+    <div className="finance-manage-body">
+      {error !== null && (
+        <p className="caption is-error" role="alert">
+          {error}
+        </p>
+      )}
+      {CATEGORY_GROUPS.map(({ kind, label }) => (
+        <div key={kind} className="finance-category-group">
+          <p className="caption">{label}</p>
+          <ul className="finance-categories">
+            {parents
+              .filter((parent) => parent.kind === kind)
+              .flatMap((parent) => [parent, ...categories.filter((category) => category.parentId === parent.id)])
+              .map((category) => (
+                <CategoryRow
+                  key={category.id + ':' + category.name}
+                  category={category}
+                  parents={parents.filter((parent) => parent.kind === kind && (!parent.archived || parent.id === category.parentId))}
+                  isSaving={isSaving}
+                  onPatch={(body) => patch(category.id, body)}
+                  onDelete={() => remove(category)}
+                />
+              ))}
+          </ul>
+        </div>
+      ))}
+      <form className="finance-entry" onSubmit={add}>
+        <div className="field">
+          <label className="caption" htmlFor="c-name">New category</label>
+          <input id="c-name" className="input" value={name} onChange={(event) => setName(event.target.value)} />
+        </div>
+        <div className="field">
+          <label className="caption" htmlFor="c-under">Under</label>
+          <select id="c-under" className="input" value={under} onChange={(event) => setUnder(event.target.value)}>
+            {CATEGORY_GROUPS.map(({ kind, label }) => (
+              <option key={kind} value={kind}>
+                Top level ({label.toLowerCase()})
+              </option>
+            ))}
+            {parents
+              .filter((parent) => !parent.archived)
+              .map((parent) => (
+                <option key={parent.id} value={parent.id}>
+                  {parent.name}
                 </option>
               ))}
-              {parents
-                .filter((parent) => !parent.archived)
-                .map((parent) => (
-                  <option key={parent.id} value={parent.id}>
-                    {parent.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-          <button type="submit" className="btn-ghost" disabled={isSaving || name.trim() === ''}>
-            Add
-          </button>
-        </form>
-      </div>
-    </article>
+          </select>
+        </div>
+        <button type="submit" className="btn-ghost" disabled={isSaving || name.trim() === ''}>
+          Add
+        </button>
+      </form>
+    </div>
   );
 }
 

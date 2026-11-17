@@ -143,7 +143,9 @@ say**: "Needs you" with nothing needing you is one calm line, never an empty
 card; "Worth noting" with nothing different is absent. Rows are plain, one
 per thing, the whole row the target, 44px or more; no badge walls, and the
 state colour only for an overdue task. The tiles are one number and one
-label each, the whole tile the link, no buttons inside. The check-in keeps
+label each, the whole tile the link, no buttons inside; under them, the
+whole row wide, the net worth line goes on the money reading (ADR 0048) --
+one sentence and the compact chart, one link. The check-in keeps
 the one filled button. A card that only displays belongs on its screen.
 
 ## Not taken from taste-skill, and why

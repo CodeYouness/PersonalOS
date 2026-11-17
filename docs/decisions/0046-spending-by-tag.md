@@ -1,6 +1,8 @@
 # 0046. Spending by tag is read by the month's rules, in a card of its own
 
-- **Status** accepted
+- **Status** accepted; amended by [0048](0048-finances-reads-at-a-glance.md):
+  a month with nothing selected is capped too (`limits.financeListMax`), with
+  `?span=all` to show them all
 - **Date** 2026-11-17
 
 ## Context

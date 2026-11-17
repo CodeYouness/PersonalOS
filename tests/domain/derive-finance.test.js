@@ -10,12 +10,14 @@ import {
   firstDayUnitsGoNegative,
   flowMonths,
   flowTrend,
+  foldedLines,
   lineHolds,
   listedTransactions,
   meetsSavingsTarget,
   monthFlows,
   monthsWith,
   netWorthOn,
+  quietAccounts,
   savingsRate,
   sparkBars,
   spendingAverages,
@@ -29,12 +31,19 @@ import {
   trendMonths,
   UNCATEGORISED_INCOME,
   UNCATEGORISED_SPENDING,
+  uncategorisedCounts,
+  WORTH_TICKS_NARROW,
+  WORTH_TICKS_WIDE,
+  worthChart,
   worthLine,
+  worthMonths,
+  worthTicks,
   worthTrend,
   yearFlows,
   yearMonths,
 } from '@/lib/domain/derive/finance.js';
 import { percent } from '@/lib/domain/format.js';
+import { limits } from '@/personalos.config.js';
 
 /** @returns {any} */
 const account = (/** @type {any} */ o) => ({
@@ -1421,31 +1430,263 @@ describe('what the Transactions card lists', () => {
   ];
   const ids = (/** @type {{ rows: any[] }} */ list) => list.rows.map((row) => row.id);
   const base = { categories, category: null, tag: null, span: null, max: 2 };
+  const year = ['2026-01', '2026-02', '2026-03', '2026-04'];
 
-  it('lists a month whole, whatever its length', () => {
-    expect(ids(listedTransactions(transactions, { ...base, months: ['2026-03'], period: 'month', max: 1 }))).toEqual(['tx_4', 'tx_3']);
+  it('lists only the newest of a month with nothing selected, and says how many more', () => {
+    const list = listedTransactions(transactions, { ...base, months: ['2026-03'], max: 1 });
+
+    expect(ids(list)).toEqual(['tx_4']);
+    expect(list.more).toBe(1);
+    expect(listedTransactions(transactions, { ...base, months: ['2026-03'] })).toEqual({ rows: [transactions[1], transactions[2]], more: 0 });
   });
 
   it('lists only the newest of a year with nothing selected, and says how many more', () => {
-    const list = listedTransactions(transactions, { ...base, months: ['2026-01', '2026-02', '2026-03', '2026-04'], period: 'year' });
+    const list = listedTransactions(transactions, { ...base, months: year });
 
     expect(ids(list)).toEqual(['tx_5', 'tx_4']);
     expect(list.more).toBe(2);
   });
 
-  it('lists a selected line or tag of a year whole', () => {
-    const months = ['2026-01', '2026-02', '2026-03', '2026-04'];
+  it('lists the whole period when asked, whatever its length', () => {
+    expect(listedTransactions(transactions, { ...base, months: year, span: 'all', max: 1 })).toEqual({
+      rows: transactions.slice(0, 4),
+      more: 0,
+    });
+  });
 
-    expect(listedTransactions(transactions, { ...base, months, period: 'year', category: 'cat_food', max: 1 })).toEqual({
+  it('lists a selected line or tag whole', () => {
+    expect(listedTransactions(transactions, { ...base, months: year, category: 'cat_food', max: 1 })).toEqual({
       rows: [transactions[0], transactions[2]],
       more: 0,
     });
-    expect(ids(listedTransactions(transactions, { ...base, months, period: 'year', tag: 'trip', max: 1 }))).toEqual(['tx_4', 'tx_3']);
+    expect(ids(listedTransactions(transactions, { ...base, months: year, tag: 'trip', max: 1 }))).toEqual(['tx_4', 'tx_3']);
   });
 
   it('lists a tag\'s counted movements of all time when asked, never a transfer', () => {
-    expect(ids(listedTransactions(transactions, { ...base, months: ['2026-03'], period: 'month', tag: 'trip', span: 'all' }))).toEqual([
+    expect(ids(listedTransactions(transactions, { ...base, months: ['2026-03'], tag: 'trip', span: 'all' }))).toEqual([
       'tx_4', 'tx_3', 'tx_1',
     ]);
+  });
+});
+
+describe('the net worth chart covers all tracked time', () => {
+  const accounts = [account({ id: 'account_current', kind: 'cash' })];
+  const observations = [
+    observation({ id: 'observation_1', accountId: 'account_current', amount: 100000, date: '2025-11-20' }),
+    observation({ id: 'observation_2', accountId: 'account_current', amount: 160000, date: '2026-03-05' }),
+  ];
+  const inputs = { accounts, observations, trades: [], prices: [], transactions: [] };
+
+  it('draws every month of the history, oldest first, from the first value to today', () => {
+    const { history } = financeOverview(inputs, '2026-04-12');
+    const chart = worthChart(history, '2026-04-12');
+
+    expect(worthMonths(history)).toEqual(['2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04']);
+    expect(chart.series.map((row) => [row.month, row.netWorth])).toEqual([
+      ['2025-11', 100000], ['2025-12', 100000], ['2026-01', 100000], ['2026-02', 100000], ['2026-03', 160000], ['2026-04', 160000],
+    ]);
+    expect(chart.series[5].asOf).toBe('2026-04-12');
+    // The line over the whole span: from the first known month to today.
+    expect(chart.line.change).toBe(60000);
+    expect(chart.line.first?.month).toBe('2025-11');
+  });
+
+  it('starts at "tracked since" once it is set, and grows by itself as months pass', () => {
+    const tracked = { ...inputs, trackedSince: '2026-01-01' };
+
+    expect(worthMonths(financeOverview(tracked, '2026-04-12').history)).toEqual(['2026-01', '2026-02', '2026-03', '2026-04']);
+    expect(worthMonths(financeOverview(tracked, '2026-06-02').history)).toEqual([
+      '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06',
+    ]);
+  });
+
+  it('leaves a month-end with no account valued a gap, never a zero', () => {
+    const old = account({ id: 'account_old', kind: 'cash', archivedOn: '2026-02-10' });
+    const fresh = account({ id: 'account_new', kind: 'cash' });
+    const { history } = financeOverview(
+      {
+        accounts: [old, fresh],
+        observations: [
+          observation({ id: 'observation_a', accountId: 'account_old', amount: 100000, date: '2026-01-05' }),
+          observation({ id: 'observation_b', accountId: 'account_new', amount: 300000, date: '2026-04-02' }),
+        ],
+        trades: [], prices: [], transactions: [],
+      },
+      '2026-04-20'
+    );
+
+    expect(worthChart(history, '2026-04-20').line.points).toEqual([0, null, null, 1]);
+  });
+
+  it('is empty with no history', () => {
+    expect(worthChart([], '2026-04-12')).toEqual({
+      series: [],
+      line: { points: [], low: null, high: null, first: null, newest: null, change: null },
+      ticks: [],
+    });
+  });
+});
+
+describe('the net worth chart\'s month labels thin out', () => {
+  /** @param {string} from YYYY-MM @param {number} count */
+  const run = (from, count) => {
+    const months = [from];
+    while (months.length < count) {
+      const [y, m] = months[months.length - 1].split('-').map(Number);
+      months.push(m === 12 ? y + 1 + '-01' : y + '-' + String(m + 1).padStart(2, '0'));
+    }
+    return months;
+  };
+  /** @param {ReturnType<typeof worthTicks>} ticks */
+  const wide = (ticks) => ticks.map((tick) => tick.month + (tick.year ? '*' : ''));
+  /** @param {ReturnType<typeof worthTicks>} ticks */
+  const narrow = (ticks) => ticks.filter((tick) => tick.narrow).map((tick) => tick.month + (tick.narrowYear ? '*' : ''));
+
+  it('labels every month up to twelve when wide, the year under January and under the first', () => {
+    const ticks = worthTicks(run('2025-12', 12));
+
+    expect(wide(ticks)).toEqual([
+      '2025-12*', '2026-01*', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11',
+    ]);
+    expect(ticks.map((tick) => tick.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  });
+
+  it('when narrow, labels the quarters -- January, April, July, October -- at most four', () => {
+    expect(narrow(worthTicks(run('2025-12', 12)))).toEqual(['2026-01*', '2026-04', '2026-07', '2026-10']);
+    expect(narrow(worthTicks(run('2026-01', 4)))).toEqual(['2026-01*', '2026-02', '2026-03', '2026-04']);
+  });
+
+  it('past twelve months, labels the quarters when wide and every half year when narrow', () => {
+    const ticks = worthTicks(run('2025-02', 22));
+
+    expect(wide(ticks)).toEqual(['2025-04*', '2025-07', '2025-10', '2026-01*', '2026-04', '2026-07', '2026-10']);
+    expect(narrow(ticks)).toEqual(['2025-07*', '2026-01*', '2026-07']);
+  });
+
+  it('labels only each January, or every other one, over years', () => {
+    const ticks = worthTicks(run('2017-01', 118));
+
+    expect(wide(ticks)).toEqual(['2017-01*', '2018-01*', '2019-01*', '2020-01*', '2021-01*', '2022-01*', '2023-01*', '2024-01*', '2025-01*', '2026-01*']);
+    expect(narrow(ticks)).toEqual(['2020-01*', '2024-01*']);
+  });
+
+  it('never labels more than its limits, whatever the span', () => {
+    for (let count = 1; count <= 200; count += 1) {
+      const ticks = worthTicks(run('2010-05', count));
+      expect(ticks.length).toBeGreaterThan(0);
+      expect(ticks.length).toBeLessThanOrEqual(WORTH_TICKS_WIDE);
+      expect(ticks.filter((tick) => tick.narrow).length).toBeGreaterThan(0);
+      expect(ticks.filter((tick) => tick.narrow).length).toBeLessThanOrEqual(WORTH_TICKS_NARROW);
+    }
+    expect(worthTicks([])).toEqual([]);
+  });
+});
+
+describe('the accounts table folds the quiet ones', () => {
+  const inputs = {
+    accounts: [
+      account({ id: 'account_current', kind: 'cash' }),
+      account({ id: 'account_old_card', kind: 'cash' }),
+      account({ id: 'account_empty', kind: 'cash' }),
+      account({ id: 'account_pension', kind: 'investment' }),
+      account({ id: 'account_paid_loan', kind: 'liability' }),
+      account({ id: 'account_spent_wallet', kind: 'cash' }),
+    ],
+    observations: [
+      observation({ id: 'observation_1', accountId: 'account_current', amount: 100000, date: '2026-01-05' }),
+      observation({ id: 'observation_2', accountId: 'account_old_card', amount: 0, date: '2025-06-01' }),
+      observation({ id: 'observation_3', accountId: 'account_paid_loan', amount: 0, date: '2026-04-01' }),
+      observation({ id: 'observation_4', accountId: 'account_spent_wallet', amount: 2000, date: '2025-12-01' }),
+    ],
+    trades: [],
+    prices: [],
+    transactions: [
+      // Spent to zero within the last 90 days: not quiet.
+      transaction({ id: 'tx_1', accountId: 'account_spent_wallet', amount: -2000, date: '2026-03-01' }),
+      // Long ago: does not wake the old card.
+      transaction({ id: 'tx_2', accountId: 'account_current', counterAccountId: 'account_old_card', amount: 0, date: '2025-07-01' }),
+    ],
+  };
+  const today = '2026-04-20';
+  const { accounts: rows } = financeOverview(inputs, today);
+  const ids = (/** @type {{ account: { id: string } }[]} */ list) => list.map((row) => row.account.id);
+
+  it('folds an account worth zero or unknown with nothing recorded on it in the last 90 days', () => {
+    const { shown, quiet } = quietAccounts(rows, inputs, { todayKey: today, selectedId: null });
+
+    expect(ids(shown)).toEqual(['account_current', 'account_spent_wallet', 'account_paid_loan']);
+    expect(ids(quiet)).toEqual(['account_old_card', 'account_empty', 'account_pension']);
+  });
+
+  it('wakes an account with a balance, a trade or a movement on it within the window, a transfer\'s other end included', () => {
+    const woken = {
+      ...inputs,
+      transactions: [
+        ...inputs.transactions,
+        transaction({ id: 'tx_3', accountId: 'account_current', counterAccountId: 'account_old_card', amount: -100, date: '2026-01-21' }),
+      ],
+      trades: [trade({ id: 'trade_1', accountId: 'account_pension', date: '2026-04-20' })],
+    };
+
+    expect(ids(quietAccounts(rows, woken, { todayKey: today, selectedId: null }).quiet)).toEqual(['account_empty']);
+  });
+
+  it('counts the window in days, its first day in, the day before out', () => {
+    // 90 days before 20 April is 20 January.
+    const at = (/** @type {string} */ date) =>
+      ids(quietAccounts(rows, { ...inputs, observations: [...inputs.observations, observation({ id: 'observation_x', accountId: 'account_empty', date })] }, { todayKey: today, selectedId: null }).quiet);
+
+    expect(at('2026-01-20')).not.toContain('account_empty');
+    expect(at('2026-01-19')).toContain('account_empty');
+    expect(limits.financeQuietAccountDays).toBe(90);
+  });
+
+  it('always shows the selected account', () => {
+    expect(ids(quietAccounts(rows, inputs, { todayKey: today, selectedId: 'account_empty' }).shown)).toContain('account_empty');
+  });
+});
+
+describe('a period\'s table folds the lines with nothing in it', () => {
+  /** @returns {any} */
+  const line = (/** @type {string} */ id, /** @type {number} */ total, /** @type {any[]} */ children = []) => ({
+    id, name: id, total, own: total, share: 0, previous: 0, change: total, changeRatio: null, children,
+  });
+
+  it('keeps the lines with money in the period and folds the rest, in order, Uncategorised last', () => {
+    const lines = [line('cat_home', 100000), line('cat_gym', 0), line('cat_food', -500), line('cat_gifts', 0)];
+
+    expect(foldedLines(lines, line('uncategorised-spending', 0), true)).toEqual({
+      lines: [lines[0], lines[2]],
+      showUncategorised: false,
+      quiet: [lines[1], lines[3], line('uncategorised-spending', 0)],
+    });
+  });
+
+  it('keeps Uncategorised with money in its place, and folds nothing when nothing is zero', () => {
+    const lines = [line('cat_home', 100000)];
+
+    expect(foldedLines(lines, line('uncategorised-spending', 300), true)).toEqual({ lines, showUncategorised: true, quiet: [] });
+    expect(foldedLines(lines, line('uncategorised-spending', 0), false)).toEqual({ lines, showUncategorised: false, quiet: [] });
+  });
+});
+
+describe('the movements without a category', () => {
+  /** @type {any[]} */
+  const categories = [{ id: 'cat_food', name: 'Food', kind: 'expense', parentId: null, fixedCost: false, archived: false }];
+  const transactions = [
+    transaction({ id: 'tx_1', date: '2026-03-02', amount: -500 }),
+    transaction({ id: 'tx_2', date: '2026-03-03', amount: -700 }),
+    transaction({ id: 'tx_3', date: '2026-03-04', amount: 900 }),
+    transaction({ id: 'tx_4', date: '2026-03-05', amount: -800, categoryId: 'cat_food' }),
+    // Neither a transfer nor a movement not counted needs a category.
+    transaction({ id: 'tx_5', date: '2026-03-06', amount: -100, counterAccountId: 'account_y' }),
+    transaction({ id: 'tx_6', date: '2026-03-07', amount: -100, notCounted: true }),
+    transaction({ id: 'tx_7', date: '2026-02-07', amount: -100 }),
+  ];
+
+  it('counts the period\'s counted movements on no category, by direction', () => {
+    expect(uncategorisedCounts(transactions, categories, ['2026-03'])).toEqual({ spending: 2, income: 1 });
+    expect(uncategorisedCounts(transactions, categories, ['2026-02', '2026-03'])).toEqual({ spending: 3, income: 1 });
+    expect(uncategorisedCounts(transactions, categories, ['2026-04'])).toEqual({ spending: 0, income: 0 });
   });
 });

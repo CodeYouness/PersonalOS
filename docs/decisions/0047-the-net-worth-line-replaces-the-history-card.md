@@ -1,7 +1,9 @@
 # 0047. The net worth line replaces the History card
 
 Status: accepted (2026-11-17). Amends 0044 and 0046 where they mention the
-History card.
+History card. Amended by 0048: the line now covers every month since
+tracking began, in the Net worth card, so no month of the history is out of
+its reach.
 
 ## Context
 
