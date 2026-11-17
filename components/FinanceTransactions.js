@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
-import { financesHref, transferEnds } from '@/components/finance.js';
-import { formatMoney, formatMoneyChange, shortDate } from '@/components/format.js';
+import { countedOverNote, financesHref, MovementAmount, transferEnds } from '@/components/finance.js';
+import { shortDate } from '@/components/format.js';
 
 /** @typedef {import('@/lib/domain/types.js').Transaction} Transaction */
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
@@ -27,7 +27,9 @@ import { formatMoney, formatMoneyChange, shortDate } from '@/components/format.j
  * for money out, in the ink -- and the sign is always printed, so colour is
  * never alone. A movement not counted keeps its sign and is quieter. A
  * transfer between your own accounts is neither: it shows the amount moved,
- * quieter, and names both ends, "from → to". Dates never wrap.
+ * quieter, and names both ends, "from → to". Dates never wrap. A movement
+ * counted over several months (ADR 0052) stays on the day it was paid, with
+ * a quiet note of its months, "counted over Sep–Nov".
  *
  * A row is one line (ADR 0049): a long description, category or account
  * name is cut with an ellipsis, the whole of it in its `title` and in the
@@ -119,6 +121,7 @@ export default function FinanceTransactions({ transactions, accounts, categories
                   const category = categoryName(transaction.categoryId);
                   const description = transaction.description === '' ? '(no description)' : transaction.description;
                   const filedUnder = transfer ? 'Transfer' : category ?? 'Uncategorised';
+                  const countedOver = countedOverNote(transaction);
                   const where = transfer
                     ? accountName(transferEnds(transaction).from) + ' → ' + accountName(transferEnds(transaction).to)
                     : accountName(transaction.accountId);
@@ -137,6 +140,7 @@ export default function FinanceTransactions({ transactions, accounts, categories
                             {description}
                           </Link>
                           {transaction.notCounted && <span className="caption">· not counted</span>}
+                          {countedOver !== null && <span className="caption">· {countedOver}</span>}
                         </span>
                       </td>
                       <td className={transfer || category === null ? 'caption' : undefined}>
@@ -149,7 +153,7 @@ export default function FinanceTransactions({ transactions, accounts, categories
                           {where}
                         </span>
                       </td>
-                      <Amount transaction={transaction} />
+                      <MovementAmount amount={transaction.amount} transfer={transfer} notCounted={transaction.notCounted} />
                     </tr>
                   );
                 })}
@@ -177,21 +181,4 @@ export default function FinanceTransactions({ transactions, accounts, categories
       </div>
     </article>
   );
-}
-
-/**
- * A movement's amount, money in or out (ADR 0048): "+ 12.40" in the up tone
- * for money in, "− 12.40" in the ink for money out, the sign always printed.
- * Not counted: the same sign, quieter. A transfer: the amount moved, quieter,
- * since the money stayed yours.
- *
- * @param {{ transaction: Transaction }} props
- */
-function Amount({ transaction }) {
-  if (transaction.counterAccountId !== null) {
-    return <td className="num finance-amount is-quiet">{formatMoney(Math.abs(transaction.amount), { cents: true })}</td>;
-  }
-  const shown = formatMoneyChange(transaction.amount, { cents: true });
-  if (transaction.notCounted) return <td className="num finance-amount is-quiet">{shown}</td>;
-  return <td className={'num finance-amount' + (transaction.amount > 0 ? ' up' : '')}>{shown}</td>;
 }

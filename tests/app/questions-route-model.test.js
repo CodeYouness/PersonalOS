@@ -229,6 +229,17 @@ describe('POST /api/questions with a model: what the model is sent', () => {
     expect(item(context, 'snapshot_seed_1').type).toBe('snapshot');
   });
 
+  it('says the months a movement is counted over, and nothing for one counted in its own month (ADR 0052)', async () => {
+    await store.updateTransaction('transaction_seed_1', { countedOver: { from: '2025-11', to: '2026-01' } });
+
+    const context = await contextSent();
+
+    expect(item(context, 'transaction_seed_1').content).toContain(
+      'counted over: November 2025 to January 2026 -- income and spending split its amount equally over those months'
+    );
+    expect(item(context, 'transaction_seed_4').content).not.toContain('counted over');
+  });
+
   it("states each habit's current days, and a counter's target per scheduled day (ADR 0029)", async () => {
     const context = await contextSent();
 

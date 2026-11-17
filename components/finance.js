@@ -1,10 +1,12 @@
+import { formatMoney, formatMoneyChange, monthSpan } from '@/components/format.js';
 import { financesAddress } from '@/lib/domain/addresses.js';
 import { UNCATEGORISED_INCOME, UNCATEGORISED_SPENDING } from '@/lib/domain/derive/finance.js';
 import { CATEGORY_KINDS } from '@/personalos.config.js';
 
 /**
  * Helpers the Finances screen's components share (CODING_STANDARDS.md):
- * its addresses, and how a movement's direction maps to a signed amount.
+ * its addresses, how a movement's direction maps to a signed amount, and how
+ * a movement's amount is shown in a list.
  */
 
 /**
@@ -96,6 +98,38 @@ export function transferEnds(transaction) {
   return transaction.amount < 0
     ? { from: transaction.accountId, to: counter }
     : { from: counter, to: transaction.accountId };
+}
+
+/**
+ * A movement's amount as a list's last cell, money in or out (ADR 0048): "+
+ * 12.40" in the up tone for money in, "− 12.40" in the ink for money out, the
+ * sign always printed. Not counted: the same sign, quieter. A transfer: the
+ * amount moved, quieter, since the money stayed yours. The Transactions card
+ * and the movements Income & spending opens in place both print it here, so
+ * they never sign a movement differently.
+ *
+ * @param {{ amount: number, transfer?: boolean, notCounted?: boolean }} props
+ *   amount in minor units, signed from the account's side
+ */
+export function MovementAmount({ amount, transfer = false, notCounted = false }) {
+  if (transfer) return <td className="num finance-amount is-quiet">{formatMoney(Math.abs(amount), { cents: true })}</td>;
+  const shown = formatMoneyChange(amount, { cents: true });
+  if (notCounted) return <td className="num finance-amount is-quiet">{shown}</td>;
+  return <td className={'num finance-amount' + (amount > 0 ? ' up' : '')}>{shown}</td>;
+}
+
+/**
+ * The note a movement counted over months carries in a list by date (ADR
+ * 0052): "counted over Sep–Nov". Null when it counts in the month of its
+ * date, and on a transfer or a movement not counted, which are in no flow.
+ *
+ * @param {Pick<import('@/lib/domain/types.js').Transaction, 'counterAccountId' | 'notCounted' | 'countedOver'>} transaction
+ * @returns {string | null}
+ */
+export function countedOverNote(transaction) {
+  const range = transaction.countedOver ?? null;
+  if (range === null || transaction.counterAccountId !== null || transaction.notCounted) return null;
+  return 'counted over ' + monthSpan(range.from, range.to);
 }
 
 /** How the account panel names a kind, as the mockup does: "invested", "debt". */

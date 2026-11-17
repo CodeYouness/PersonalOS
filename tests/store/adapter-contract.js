@@ -12,7 +12,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ADAPTER_METHODS } from '@/lib/adapters/contract.js';
-import { shiftDayKey, today, weekDayKeys, weekdayOf } from '@/lib/domain/dates.js';
+import { shiftDayKey, shiftMonth, today, weekDayKeys, weekdayOf } from '@/lib/domain/dates.js';
 import { limits } from '@/personalos.config.js';
 import { isActiveOn } from '@/lib/domain/derive/habits.js';
 
@@ -2053,6 +2053,71 @@ export function runAdapterContract(label, load) {
           await expect(
             store.createTransaction({ date: '2026-04-02', amount: -500, accountId: current.id, ...fields })
           ).rejects.toThrow(reason);
+        });
+
+        describe('the months a movement is counted over (ADR 0052)', () => {
+          it('records none by default, so it counts in the month of its date', async () => {
+            const { current } = await twoAccounts();
+
+            expect((await store.createTransaction({ date: '2026-04-02', amount: 5000, accountId: current.id })).countedOver).toBeNull();
+          });
+
+          it('sets a range of months, keeps the date, and clears it back to none', async () => {
+            const { current } = await twoAccounts();
+            const pay = await store.createTransaction({ date: '2026-04-02', amount: 300000, accountId: current.id });
+
+            const spread = await store.updateTransaction(pay.id, { countedOver: { from: '2026-02', to: '2026-04' } });
+            expect(spread.countedOver).toEqual({ from: '2026-02', to: '2026-04' });
+            expect(spread.date).toBe('2026-04-02');
+            expect((await store.getTransaction(pay.id))?.countedOver).toEqual({ from: '2026-02', to: '2026-04' });
+
+            expect((await store.updateTransaction(pay.id, { countedOver: null })).countedOver).toBeNull();
+          });
+
+          it('takes one month, and the longest range the limit allows, across a year', async () => {
+            const { current } = await twoAccounts();
+            const pay = await store.createTransaction({
+              date: '2026-04-02', amount: 300000, accountId: current.id, countedOver: { from: '2026-03', to: '2026-03' },
+            });
+            expect(pay.countedOver).toEqual({ from: '2026-03', to: '2026-03' });
+
+            const longest = limits.financeCountedOverMaxMonths;
+            const to = shiftMonth('2026-01', longest - 1);
+            expect((await store.updateTransaction(pay.id, { countedOver: { from: '2026-01', to } })).countedOver).toEqual({ from: '2026-01', to });
+          });
+
+          it.each([
+            ['a month that is not a month', { from: '2026-13', to: '2026-12' }, /countedOver/],
+            ['a day instead of a month', { from: '2026-01-01', to: '2026-02' }, /countedOver/],
+            ['from after to', { from: '2026-05', to: '2026-04' }, /after/],
+            ['a span longer than the limit', { from: '2024-01', to: '2026-01' }, /months/],
+            ['a field it does not know', { from: '2026-01', to: '2026-02', every: 'month' }, /countedOver/],
+            ['something that is not a range', '2026-01', /countedOver/],
+          ])('refuses %s, on the way in and in a correction', async (_label, countedOver, reason) => {
+            const { current } = await twoAccounts();
+
+            await expect(
+              store.createTransaction({ date: '2026-04-02', amount: -500, accountId: current.id, countedOver })
+            ).rejects.toThrow(reason);
+            const kept = await store.createTransaction({ date: '2026-04-02', amount: -500, accountId: current.id });
+            await expect(store.updateTransaction(kept.id, { countedOver })).rejects.toThrow(reason);
+            expect((await store.getTransaction(kept.id))?.countedOver).toBeNull();
+          });
+
+          it('is yours: a re-import keeps it', async () => {
+            const { current } = await twoAccounts();
+            const origin = { source: 'sheet', externalId: 'ROW-52', syncedAt: '2026-04-02T00:00:00.000Z' };
+            const imported = await store.createTransaction({ date: '2026-04-02', amount: 300000, accountId: current.id, origin });
+            await store.updateTransaction(imported.id, { countedOver: { from: '2026-02', to: '2026-04' } });
+
+            await store.upsertTransactionByOrigin({
+              date: '2026-04-03', amount: 310000, accountId: current.id, origin, countedOver: null,
+            });
+
+            const stored = await store.getTransaction(imported.id);
+            expect(stored?.countedOver).toEqual({ from: '2026-02', to: '2026-04' });
+            expect(stored?.amount).toBe(310000);
+          });
         });
 
         it('refuses a transfer from an account to itself', async () => {

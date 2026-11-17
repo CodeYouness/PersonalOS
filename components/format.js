@@ -22,6 +22,7 @@ import {
   streakLabel,
   WEEKDAY_SHORT,
 } from '@/lib/domain/format.js';
+import { yearOf } from '@/lib/domain/dates.js';
 
 // One implementation per format (CODING_STANDARDS.md): these live in lib/ so
 // the question context writes the same numbers a screen does (#174).
@@ -133,6 +134,21 @@ export function weekdayName(dayKey) {
  */
 export function monthShort(month) {
   return dayKeyToUtcDate(month + '-01').toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
+}
+
+/**
+ * A run of months, short: "Sep–Nov", "Sep" for one, and with their years
+ * when it crosses one, "Nov 2025–Jan 2026" -- the months a movement is
+ * counted over (ADR 0052).
+ *
+ * @param {string} from YYYY-MM
+ * @param {string} to YYYY-MM
+ * @returns {string}
+ */
+export function monthSpan(from, to) {
+  if (from === to) return monthShort(from);
+  if (yearOf(from) === yearOf(to)) return monthShort(from) + '–' + monthShort(to);
+  return monthShort(from) + ' ' + yearOf(from) + '–' + monthShort(to) + ' ' + yearOf(to);
 }
 
 /**

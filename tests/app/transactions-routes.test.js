@@ -174,6 +174,31 @@ describe('PATCH /api/transactions/[id]', () => {
     expect(await store.getTransaction('transaction_seed_5')).toEqual(before);
   });
 
+  it('sets the months a movement counts over, and clears them (ADR 0052)', async () => {
+    const response = await correct('transaction_seed_1', { countedOver: { from: '2025-11', to: '2026-01' } });
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).transaction.countedOver).toEqual({ from: '2025-11', to: '2026-01' });
+    expect(await store.getTransaction('transaction_seed_1')).toMatchObject({ date: '2026-01-02', countedOver: { from: '2025-11', to: '2026-01' } });
+
+    await correct('transaction_seed_1', { countedOver: null });
+    expect((await store.getTransaction('transaction_seed_1'))?.countedOver).toBeNull();
+  });
+
+  it.each([
+    ['a month that is not one', { from: '2026-1', to: '2026-02' }, /countedOver/],
+    ['from after to', { from: '2026-03', to: '2026-02' }, /after/],
+    ['a span past the limit', { from: '2024-01', to: '2026-01' }, /at most 24 months/],
+  ])('refuses %s, leaving the movement as it was', async (_label, countedOver, reason) => {
+    const before = await store.getTransaction('transaction_seed_1');
+
+    const response = await correct('transaction_seed_1', { countedOver });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toMatch(reason);
+    expect(await store.getTransaction('transaction_seed_1')).toEqual(before);
+  });
+
   it('refuses a field it does not edit, and an empty patch', async () => {
     expect((await correct('transaction_seed_4', { origin: null })).status).toBe(400);
     expect((await correct('transaction_seed_4', {})).status).toBe(400);

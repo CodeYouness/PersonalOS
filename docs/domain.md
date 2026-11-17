@@ -1348,7 +1348,8 @@ spending -- belongs to the transactions piece.
 **Is** money moving.
 
 **Has** `date`, `amount`, `currency`, `description`, `accountId`,
-`counterAccountId`, `categoryId`, `notCounted`, `tags`, `note`, `origin`.
+`counterAccountId`, `categoryId`, `notCounted`, `countedOver`, `tags`,
+`note`, `origin`.
 
 **Tags** are the user's own labels -- a trip, a project, "work expenses
 2026" -- free text, stored trimmed, lowercased and each once, as a task's.
@@ -1367,7 +1368,7 @@ sign.
 
 | Owned by the source | Owned by you |
 | --- | --- |
-| date, amount, currency, description, accountId, origin | categoryId, counterAccountId, notCounted, tags, note, links |
+| date, amount, currency, description, accountId, origin | categoryId, counterAccountId, notCounted, countedOver, tags, note, links |
 
 `upsertTransactionByOrigin()` rewrites the left column and never touches the
 right one. That is what lets you recategorise a transaction inside PersonalOS,
@@ -1376,6 +1377,19 @@ the work.
 
 Neither account may move after the day it was archived; the day itself is
 allowed, so an account can be emptied the day it closes.
+
+**Counted over** (`countedOver`, ADR 0052) is the months a movement is *for*,
+when that is not the month of its date: a salary for September to November
+paid at once in November, a year's insurance paid in January. `{ from, to }`,
+two months, both included, `from` not after `to`, at most
+`limits.financeCountedOverMaxMonths` (24); null -- the default -- is the month
+of its date. Yours: set in the movement's panel ("Counts for"), kept by every
+re-import. **The date never moves**: balances, net worth and the list by date
+follow the day the money moved. **Only the flows read it**: income and
+spending divide the amount equally over those months in whole cents, the
+cents left over one each to the earliest months, so the parts add up
+exactly (`splitEvenly`, `countedParts`). On a transfer or a movement not
+counted it changes nothing: they are in no flow.
 
 ### Statement
 
@@ -1574,10 +1588,24 @@ Uncategorised money is a line of its own. Transfers and not-counted
 transactions are left out everywhere. All of it is derived (`monthFlows`,
 `yearFlows`, `savingsRate`), never stored.
 
+**A month counts a movement in the months it is for** (ADR 0052): the month
+of its date, or, when it is counted over several months, its equal part in
+each of them. `countedFlow` gives a movement's parts and every reading by
+months adds them up through `totalsOver` -- the month, the year, the twelve
+months, the trend, the savings rates and the target, fixed and variable,
+the lines, the circle, By tag's period figures, the question context's
+figures. **A reading by days is by date** (`totalsBetween`): the week review,
+Home's last week's spending and the import scripts' checks count a movement
+whole on the day it moved, so a week and a month disagree about a spread
+movement, on purpose.
+
 **The circle** (ADR 0050) is how the card shows a period by default: what
 came in is the whole, split clockwise from the top into three parts
-(`flowCircle`), the breakdown beside it. `?view=table` shows the breakdown
-alone as a table instead; the circle is the default and never written
+(`flowCircle`), with the four totals -- income, spent, invested, kept --
+under it, each part marked in its tone in the ring and income unmarked, and
+the rest of the summary beside it. The circle view shows **no table**: the
+income and spending rows are the table view's. `?view=table` shows the
+breakdown as a table instead; the circle is the default and never written
 (`financesView`).
 
 - **Invested** is money put into investments in the period, in cash
@@ -1616,14 +1644,21 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   has counted movements on no category -- the ones the Uncategorised lines
   hold -- one line at the top of the card says how many and links to review
   them, by direction (ADR 0048).
-- **The breakdown** (ADR 0050): income first, then spending, then a
-  summary -- income, spent, invested, kept, the savings rates against the
-  target, fixed and variable -- as the final account. Each table's columns
-  are the line, its Share and its amount, last, headed "Spent" or
-  "Received"; the table view adds the change from the period before. **A
-  line's name opens its subcategories** when it has some, with what was
-  spent in each and a link to the line's movements; otherwise it lists its
-  movements. **A line with nothing in the period is folded**
+- **The breakdown** (ADR 0050), the table view: income first, then
+  spending, then a summary -- income, spent, invested, kept, the savings
+  rates against the target, fixed and variable -- as the final account.
+  Each table's columns are the line, its Share, the change from the period
+  before and its amount, last, headed "Spent" or "Received". **A line's name
+  opens its subcategories** when it has some, with what was spent in each
+  and a link to the line's movements; **a subcategory's name, and a line's
+  without any, opens its movements of the period in place**
+  (`lineMovements`, the rule `lineHolds` counts by): the day, the
+  description, the amount signed as the Transactions card signs it, newest
+  first, the newest `limits.financeListMax` and "and N more" linking to the
+  line's listing. A movement counted over several months shows the month it
+  counts in, its part and "2 of 3 · paid 15 Nov". In the circle view, the
+  summary beside the circle is the notes, the rates, the shortfall, fixed
+  and variable. **A line with nothing in the period is folded**
   (`foldedLines`, ADR 0048): the lines at a total of zero, in either table,
   go into one row at its end, "N categories with nothing this month", which
   opens to show them -- by itself when the selected line is one of them.
@@ -1644,10 +1679,13 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   `yearFlows` is not this: it is the twelve months ending with a month, the
   "Saved over 12 months" rate.
 - **The Transactions card** lists, with nothing selected, the period's
-  newest `limits.financeListMax` (50) movements -- a month's as well as a
-  year's (ADRs 0046, 0048) -- says how many more there are, and offers them
-  all (`?span=all`, which with a tag means all of the tag's) or a category
-  or a tag to narrow it. A selected line or tag is listed whole. A
+  newest `limits.financeListMax` (50) movements by date -- a month's as well
+  as a year's (ADRs 0046, 0048) -- says how many more there are, and offers
+  them all (`?span=all`, which with a tag means all of the tag's) or a
+  category or a tag to narrow it. A selected line or tag is listed whole:
+  what its total counts in the period, so a movement counted over several
+  months is listed in each of them (ADR 0052). A movement counted over months
+  stays on the day it was paid, with a quiet "· counted over Sept–Nov". A
   movement's amount is signed from its account's side to the cent: "+" in
   the up tone for money in, "−" in the ink for money out; a movement not
   counted keeps its sign and is quieter; a transfer shows the amount moved,
@@ -1675,7 +1713,8 @@ largest spending first: its movements, what it spent in the period and over
 all time, and its first and last day -- a trip rarely fits one month. A
 tag's money is read by the month's rules (`countedFlow`, the one reading of
 a transaction every flow adds up): transfers and not-counted movements left
-out, a refund reducing spending. **A movement with several tags counts under
+out, a refund reducing spending, a movement counted over several months by
+its part in the period -- whole over all time, its days the days it moved. **A movement with several tags counts under
 each**, so tag totals do not add up to the period's spending. Not there at
 all when no movement has a tag. Selecting a tag (`?tag=<tag>`) lists the
 movements it counts (`tagHolds`) in the Transactions card, of the period or,
