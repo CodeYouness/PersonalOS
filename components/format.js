@@ -258,14 +258,17 @@ function decimals(scaled, places) {
 }
 
 /**
- * A change in money: "+ 2,140", "− 1,905", "0" -- signed, whole euros.
+ * A change in money: "+ 2,140", "− 1,905", "0" -- signed, whole euros; or to
+ * the cent when asked, "+ 12.40", as a movement's amount is shown in or out
+ * of an account (ADR 0048).
  *
  * @param {number} minor
+ * @param {{ cents?: boolean }} [options]
  * @returns {string}
  */
-export function formatMoneyChange(minor) {
-  const shown = formatMoney(Math.abs(minor));
-  if (shown === '0') return '0';
+export function formatMoneyChange(minor, options) {
+  const shown = formatMoney(Math.abs(minor), options);
+  if (/^0(\.00)?$/.test(shown)) return shown;
   return (minor < 0 ? MINUS : '+') + THIN_SPACE + shown;
 }
 

@@ -1,9 +1,10 @@
 /**
- * What the Income & spending card renders: the trend above the figures --
- * net worth as a line by default, income and spending as bars on the switch
- * -- the composition bar, each spending line against its average in a
- * month, and the year reading with its comparison to the year before (or
- * none). Every row here is invented.
+ * What the Income & spending card renders: the income and spending bars --
+ * money in outlined, money out solid -- with no chart switch and no net worth
+ * line (ADR 0048), the line counting movements without a category, the
+ * composition bar, each spending line against its average in a month, the
+ * lines with nothing in the period folded, and the year reading with its
+ * comparison to the year before (or none). Every row here is invented.
  */
 
 import { createElement } from 'react';
@@ -15,14 +16,13 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push() {} }) }));
 const { default: FinanceFlows } = await import('@/components/FinanceFlows.js');
 const {
   calendarYearFlows,
-  financeOverview,
   flowMonths,
   flowTrend,
   monthFlows,
   savingsRate,
   spendingAverages,
   trendMonths,
-  worthTrend,
+  uncategorisedCounts,
   yearFlows,
 } = await import('@/lib/domain/derive/finance.js');
 
@@ -55,134 +55,88 @@ const transactions = [
   t('2026-04-03', -50000, 'cat_food'),
 ];
 
-/** A savings account with a balance from February: January's net worth is unknown. */
-const savings = {
-  id: 'account_savings', name: 'Savings', kind: 'cash', currency: 'EUR', origin: null, archivedOn: null, valuation: 'balance',
-  createdAt: '', updatedAt: '', source: 'user',
-};
-/** @returns {any} */
-const balance = (/** @type {string} */ date, /** @type {number} */ amount) => ({
-  id: 'observation_' + date, accountId: 'account_savings', kind: 'balance', amount, currency: 'EUR', date,
-  observedAt: '', origin: null, createdAt: '', updatedAt: '', source: 'user',
-});
-const balances = [balance('2026-02-10', 500000), balance('2026-04-05', 650000)];
-
 /**
  * @param {'month' | 'year'} period
  * @param {string} month
- * @param {{ chart?: 'worth' | 'flows', observations?: any[], target?: number | null, rows?: any[] }} [options]
+ * @param {{ target?: number | null, rows?: any[], place?: any }} [options]
  */
-function render(period, month, { chart = 'worth', observations = balances, target = null, rows = transactions } = {}) {
+function render(period, month, { target = null, rows = transactions, place = {} } = {}) {
   const months = flowMonths(rows, TODAY, '2026-01-01');
   const year = period === 'year' ? calendarYearFlows(rows, categories, month, months) : null;
   const flows = year ?? monthFlows(rows, categories, month);
-  const chartMonths = year?.months ?? trendMonths(months, month);
-  const { history } = financeOverview(
-    { accounts: [/** @type {any} */ (savings)], observations, trades: [], prices: [], transactions: [], trackedSince: '2026-01-01' },
-    TODAY
-  );
+  const periodMonths = year?.months ?? [month];
   return renderToStaticMarkup(
     createElement(FinanceFlows, {
       flows,
       period,
-      chart,
       yearRate: period === 'year' ? null : savingsRate(yearFlows(rows, categories, month)),
       target,
       categories,
-      trend: flowTrend(rows, categories, chartMonths),
-      worth: worthTrend(history, chartMonths, TODAY),
+      trend: flowTrend(rows, categories, year === null ? trendMonths(months, month) : periodMonths),
       averages: period === 'year' ? null : spendingAverages(rows, categories, month, months),
+      uncategorised: uncategorisedCounts(rows, categories, periodMonths),
       months,
       month,
-      todayKey: TODAY,
-      place: { month, period, chart },
+      place: { month, period, ...place },
     })
   );
 }
 
 describe('FinanceFlows', () => {
-  describe('the chart switch', () => {
-    it('draws net worth by default, and offers the bars, keeping where you are', () => {
+  describe('the trend', () => {
+    it('draws income and spending as bars, with no chart switch and no net worth line (ADR 0048)', () => {
       const html = render('month', '2026-04');
 
-      expect(html).toContain('class="seg is-on" aria-current="true" href="/finances?month=2026-04">Net worth<');
-      expect(html).toContain('class="seg" href="/finances?month=2026-04&amp;chart=flows">Income &amp; spending<');
-      expect(html).toContain('aria-label="Net worth by month"');
-      expect(html).not.toContain('aria-label="Income and spending by month"');
+      expect(html).toContain('aria-label="Income and spending by month"');
+      expect(html).not.toContain('aria-label="Chart"');
+      expect(html).not.toContain('Net worth');
+      expect(html).not.toContain('finance-worth');
+      expect(html).not.toContain('chart=');
     });
 
-    it('keeps the bars chosen when another month or the year is read', () => {
-      const html = render('month', '2026-04', { chart: 'flows' });
-
-      expect(html).toContain('class="seg is-on" aria-current="true" href="/finances?month=2026-04&amp;chart=flows">Income &amp; spending<');
-      expect(html).toContain('href="/finances?month=2026-01&amp;chart=flows"');
-      expect(html).toContain('href="/finances?month=2026-04&amp;period=year&amp;chart=flows"');
-    });
-  });
-
-  describe('the net worth line', () => {
-    it('names each month\'s net worth, an unknown month as unknown and left an empty slot', () => {
-      const html = render('month', '2026-04');
-
-      expect(html).toMatch(/is-empty"[^>]*aria-label="January 2026: net worth unknown"/);
-      expect(html).toContain('aria-label="March 2026: net worth €\u20095,000 on 31 Mar"');
-      // The month still running is read as of today.
-      expect(html).toMatch(/aria-current="true" aria-label="April 2026: net worth €\u20096,500 on 20 Apr"/);
-    });
-
-    it('draws the line from the first known month, marks the selected one, and labels its scale', () => {
-      const html = render('month', '2026-04');
-
-      expect(html).toContain('d="M1.5 100 L2.5 100 L3.5 0"');
-      expect(html).toContain('finance-worth-point is-selected');
-      expect(html).toMatch(/class="is-top num">€\u20096.5k</);
-      expect(html).toMatch(/class="is-bottom num">€\u20095k</);
-    });
-
-    it('writes the newest value and the change over the span', () => {
-      const html = render('month', '2026-04');
-
-      expect(html).toContain('Net worth <span class="num">€\u20096,500</span> on 20 Apr');
-      expect(html).toContain('<span class="num">+\u20091,500</span> since 28 Feb');
-    });
-
-    it('breaks the line at a month in between that is unknown', () => {
-      const html = render('month', '2026-03', { observations: [balance('2026-02-10', 500000)] });
-
-      // Months on offer: January to April; only February onwards has a value.
-      expect(html).toContain('d="M1.5 50 L2.5 50 L3.5 50"');
-    });
-
-    it('says there is nothing to draw before the first balance, with no scale', () => {
-      const html = render('month', '2026-04', { observations: [] });
-
-      expect(html).toContain('No net worth to draw yet');
-      expect(html).not.toContain('class="is-top');
-      expect(html).not.toMatch(/<path /);
-    });
-
-    it('draws the year\'s months in the year reading, none of them selected', () => {
-      const html = render('year', '2026-03');
-
-      expect(html).toContain('aria-label="February 2026: net worth €\u20095,000 on 28 Feb"');
-      expect(html).not.toContain('is-selected');
-    });
-  });
-
-  describe('the income and spending bars', () => {
     it('draws a trend whose months read their month, the selected one marked and an empty one left empty', () => {
-      const html = render('month', '2026-04', { chart: 'flows' });
+      const html = render('month', '2026-04');
 
       expect(html).toMatch(/aria-current="true"[^>]*aria-label="April 2026: income/);
       expect(html).toMatch(/is-empty"[^>]*aria-label="February 2026: nothing recorded"/);
-      expect(html).not.toContain('finance-worth-line');
+      expect(html).toContain('href="/finances?month=2026-01"');
     });
 
     it('labels the scale from zero to the highest bar', () => {
-      const html = render('month', '2026-04', { chart: 'flows' });
+      const html = render('month', '2026-04');
 
       expect(html).toMatch(/class="is-top num">€\u20093k</);
       expect(html).toMatch(/class="is-bottom num">€\u20090</);
+    });
+
+    it('tells money in from money out by the bars\' own look, and says so in the legend', () => {
+      const html = render('month', '2026-04');
+
+      expect(html).toContain('<i class="is-income" style="height:100%"></i><i class="is-spending" style="height:50%"></i>');
+      expect(html).toContain('<i class="finance-swatch is-income"></i>Income, money in');
+      expect(html).toContain('<i class="finance-swatch is-spending"></i>Spending, money out');
+    });
+  });
+
+  describe('the movements without a category', () => {
+    /** @returns {any} */
+    const loose = (/** @type {string} */ date, /** @type {number} */ amount) => ({ ...t(date, amount, null), id: 'tx_loose' + date + amount });
+
+    it('says how many there are and links to the Uncategorised spending line', () => {
+      const html = render('month', '2026-04', { rows: [...transactions, loose('2026-04-05', -1200), loose('2026-04-06', -800)] });
+
+      expect(html).toContain('<span class="num">2</span> movements without a category — <a class="finance-account-link" href="/finances?month=2026-04&amp;category=uncategorised-spending">review</a>');
+    });
+
+    it('links to each direction when money came in and went out without one', () => {
+      const html = render('month', '2026-04', { rows: [...transactions, loose('2026-04-05', -1200), loose('2026-04-06', 800)] });
+
+      expect(html).toContain('category=uncategorised-spending">1 money out</a>');
+      expect(html).toContain('category=uncategorised-income">1 money in</a>');
+    });
+
+    it('is absent when every movement has a category', () => {
+      expect(render('month', '2026-04')).not.toContain('without a category');
     });
   });
 
@@ -211,18 +165,18 @@ describe('FinanceFlows', () => {
   });
 
   it('reads a year: its own savings rate, no average, a trend of its months that open a month', () => {
-    const html = render('year', '2026-03', { chart: 'flows' });
+    const html = render('year', '2026-03');
 
     expect(html).toContain('Saved in 2026');
     expect(html).not.toContain('Saved over 12 months');
     expect(html).not.toContain('>Average<');
     expect(html).toContain('aria-label="Year"');
-    expect(html).toContain('href="/finances?month=2026-02&amp;chart=flows"');
+    expect(html).toContain('href="/finances?month=2026-02"');
     expect(html).not.toContain('aria-current="true" aria-label="March 2026');
   });
 
   it('leaves the change blank when the year before has nothing to compare with', () => {
-    const html = render('year', '2026-03', { chart: 'flows' });
+    const html = render('year', '2026-03');
 
     expect(html).toContain('>vs 2025<');
     expect(html).not.toContain('n.d.');
@@ -230,18 +184,37 @@ describe('FinanceFlows', () => {
   });
 
   describe('a category with nothing this month or last', () => {
-    it('is still listed when its average is above zero, at zero and against its average', () => {
+    it('is folded with its average into one row at the end of the spending table, opening when it is selected', () => {
+      // Gym: 60.00 in January, nothing since: an average of 20.00 over January to March.
+      const html = render('month', '2026-04');
+      expect(html).toContain('aria-expanded="false"><span class="finance-quiet-mark" aria-hidden="true">▸</span>1 category with nothing this month</button>');
+      expect(html).not.toContain('>Gym<');
+
+      const open = render('month', '2026-04', { place: { category: 'cat_gym' } });
+      expect(open).toContain('aria-expanded="true"');
+      expect(open).toMatch(/>Gym<\/a><\/td><td class="num">0.00<\/td><td class="num caption">20.00<\/td>/);
+      expect(open).toMatch(/>Gym<[\s\S]*?<td class="num caption">0%<\/td>/);
+    });
+
+    it('leaves the composition and the lines with money as they were', () => {
       const html = render('month', '2026-04');
 
-      // Gym: 60.00 in January, nothing since: an average of 20.00 over January to March.
-      expect(html).toMatch(/>Gym<\/a><\/td><td class="num">0.00<\/td><td class="num caption">20.00<\/td>/);
-      expect(html).toMatch(/>Gym<[\s\S]*?<td class="num caption">0%<\/td>/);
+      expect(html).toContain('role="img" aria-label="Spending by category: Home 67%, Food 33%"');
+      expect(html.indexOf('>Home<')).toBeLessThan(html.indexOf('with nothing this month'));
     });
 
     it('is not listed in a year, which has no average', () => {
       expect(render('year', '2026-04')).toContain('>Gym<');
       expect(render('month', '2026-03')).not.toContain('>Gym<');
+      expect(render('month', '2026-03')).not.toContain('with nothing');
     });
+  });
+
+  it('heads the spending table with what was spent and the income table with what was received', () => {
+    const html = render('month', '2026-04');
+
+    expect(html).toContain('<th>Spending</th><th class="num">Spent</th>');
+    expect(html).toContain('<th>Income</th><th class="num">Received</th>');
   });
 
   describe('the caption under the spending table', () => {

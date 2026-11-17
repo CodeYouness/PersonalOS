@@ -10,6 +10,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { HomeTiles, NeedsYou, noteSentence, WorthNoting } from '@/components/HomeSections.js';
+import { financeOverview, worthChart } from '@/lib/domain/derive/finance.js';
 
 const TODAY = '2026-11-18';
 
@@ -145,5 +146,48 @@ describe('the tiles', () => {
 
   it('shows a dash, not 0%, while no habit was due yet this week', () => {
     expect(tiles({ habits: { kept: 0, scheduled: 0, rate: null, active: 2, href: '/habits' } })).toContain('—');
+  });
+});
+
+describe('the net worth line under the tiles (ADR 0048)', () => {
+  /** @returns {any} */
+  const account = { id: 'account_a', name: 'Current', kind: 'cash', currency: 'EUR', origin: null, archivedOn: null, valuation: 'balance' };
+  /** @returns {any} */
+  const balance = (/** @type {string} */ date, /** @type {number} */ amount) => ({
+    id: 'observation_' + date, accountId: 'account_a', kind: 'balance', amount, currency: 'EUR', date,
+    observedAt: '', origin: null, createdAt: '', updatedAt: '', source: 'user',
+  });
+  /** @param {any[]} observations */
+  const chart = (observations) =>
+    worthChart(financeOverview({ accounts: [/** @type {any} */ (account)], observations, trades: [], prices: [], transactions: [] }, TODAY).history, TODAY);
+  /** @param {any} worth */
+  const tiles = (worth) =>
+    renderToStaticMarkup(
+      createElement(HomeTiles, {
+        today: TODAY,
+        worth,
+        tiles: {
+          habits: { kept: 0, scheduled: 0, rate: null, active: 0, href: '/habits' },
+          money: { netWorth: 650_000, change30: null, href: '/finances' },
+          goals: { open: 0, href: '/goals' },
+          journal: { thisWeek: 0, last: null, href: '/journal?date=' + TODAY },
+        },
+      })
+    );
+
+  it('draws the same line as Finances, compact, after the four tiles, the whole of it a link to Finances', () => {
+    const html = tiles(chart([balance('2026-01-10', 500_000), balance('2026-11-02', 650_000)]));
+
+    expect(html).toMatch(/data-tile="journal"[\s\S]*<a class="home-tile home-worth" data-tile="worth" href="\/finances">/);
+    expect(html).toContain('Net worth <span class="num">+\u20091,500</span> since 31 Jan');
+    expect(html).toContain('class="finance-worth is-compact" aria-hidden="true"');
+    // January to November: eleven months, all tracked time.
+    expect(html).toContain('viewBox="0 0 11 100"');
+    expect(html).not.toContain('<button');
+  });
+
+  it('is absent while there is no net worth to draw', () => {
+    expect(tiles(chart([]))).not.toContain('home-worth');
+    expect(tiles(null)).not.toContain('home-worth');
   });
 });

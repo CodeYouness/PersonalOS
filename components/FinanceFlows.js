@@ -15,12 +15,12 @@ import {
   monthLabel,
   monthShort,
   percent,
-  shortDate,
 } from '@/components/format.js';
 import { shiftMonth, yearOf } from '@/lib/domain/dates.js';
 import {
   AVERAGE_MIN_MONTHS,
   averageMark,
+  foldedLines,
   meetsSavingsTarget,
   savingsRate,
   spendingLinesWithAverage,
@@ -28,26 +28,19 @@ import {
   targetShortfall,
   trendBars,
   trendHigh,
-  worthLine,
+  UNCATEGORISED_INCOME,
+  UNCATEGORISED_SPENDING,
 } from '@/lib/domain/derive/finance.js';
 
 /** @typedef {import('@/lib/domain/derive/finance.js').CategoryFlow} CategoryFlow */
 /** @typedef {import('@/lib/domain/derive/finance.js').PeriodFlows} PeriodFlows */
 /** @typedef {import('@/lib/domain/derive/finance.js').TrendMonth} TrendMonth */
-/** @typedef {import('@/lib/domain/derive/finance.js').WorthMonth} WorthMonth */
-/** @typedef {import('@/lib/domain/addresses.js').FinancesChart} FinancesChart */
 
 /**
  * The parts of a whole in a chart (docs/design/ui-rules.md): the composition
  * bar's parts cycle through them, in the table's order.
  */
 const SERIES = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)'];
-
-/** The charts the trend can draw, the default first (ADR 0044). */
-const CHARTS = /** @type {const} */ ([
-  ['worth', 'Net worth'],
-  ['flows', 'Income & spending'],
-]);
 
 /**
  * The Income & spending section of the Finances screen (#137), from
@@ -61,13 +54,20 @@ const CHARTS = /** @type {const} */ ([
  * It reads a month (`?month=YYYY-MM`, monthFlows) or, with `?period=year`,
  * that month's calendar year to date (calendarYearFlows). Above the figures
  * the trend draws, over the twelve months around the selected one or the
- * year's, net worth at each month's end as a line (worthTrend, the default)
- * or, with `?chart=flows`, income and spending as bars -- each month a link
- * that reads it. The spending table's composition bar shows each line's part
- * of the whole; in a month each top-level spending line is set against its
- * average month (spendingAverages), blank until there are enough months to
- * average -- a line with an average is listed even in a month with nothing
- * in it (spendingLinesWithAverage, ADR 0046).
+ * year's, income and spending as bars -- each month a link that reads it.
+ * Money in is an outlined bar and money out a solid one, so the two tell
+ * apart without the legend (ADR 0048). Net worth over time is not drawn
+ * here: the Net worth card draws it over all tracked time (ADR 0048).
+ *
+ * When the period has movements on no category, one line at the top counts
+ * them and links to the Uncategorised lines (uncategorisedCounts). The
+ * spending table's composition bar shows each line's part of the whole; in
+ * a month each top-level spending line is set against its average month
+ * (spendingAverages), blank until there are enough months to average -- a
+ * line with an average is listed even in a month with nothing in it
+ * (spendingLinesWithAverage, ADR 0046). The lines with nothing in the period
+ * fold into one row at the end of their table, which opens to show them
+ * (foldedLines, ADR 0048).
  *
  * With a target savings rate (ADR 0045), each rate shown -- the month's, the
  * 12 months', the year's -- says whether it meets the target, in words and
@@ -80,27 +80,33 @@ const CHARTS = /** @type {const} */ ([
  * @param {{
  *   flows: PeriodFlows,
  *   period: 'month' | 'year',
- *   chart: FinancesChart,
  *   yearRate: number | null,
  *   target: number | null,
  *   categories: import('@/lib/domain/types.js').FinanceCategory[],
  *   trend: TrendMonth[],
- *   worth: WorthMonth[],
  *   averages: { months: number, byLine: Map<string, number> } | null,
+ *   uncategorised: { spending: number, income: number },
  *   months: string[],
  *   month: string,
- *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceFlows({ flows, period, chart, yearRate, target, categories, trend, worth, averages, months, month, todayKey, place }) {
+export default function FinanceFlows({ flows, period, yearRate, target, categories, trend, averages, uncategorised, months, month, place }) {
   const router = useRouter();
   const year = yearOf(month);
   const rate = savingsRate(flows);
   const spending = spendingLinesWithAverage(flows, averages, categories);
   const spendingRows = spending.lines.length > 0 || spending.showUncategorised;
+  const spendingTable = foldedLines(spending.lines, flows.uncategorisedSpending, spending.showUncategorised);
+  const incomeTable = foldedLines(
+    flows.incomeCategories,
+    flows.uncategorisedIncome,
+    flows.uncategorisedIncome.total !== 0 || flows.uncategorisedIncome.previous !== 0
+  );
   const shortfall = period === 'year' ? targetShortfall(flows, target) : null;
   const label = period === 'year' ? year : monthLabel(month);
+  const quietLabel = period === 'year' ? 'this year' : 'this month';
+  const changeHead = period === 'year' ? 'vs ' + yearOf(shiftMonth(month, -12)) : 'vs last month';
   const years = [...new Set(months.map(yearOf))];
   /** @param {string} target */
   const go = (target) => router.push(target, { scroll: false });
@@ -162,7 +168,8 @@ export default function FinanceFlows({ flows, period, chart, yearRate, target, c
         </div>
       </div>
       <div className="card-body">
-        <Trend trend={trend} worth={worth} chart={chart} period={period} month={month} todayKey={todayKey} place={place} />
+        <UncategorisedLine counts={uncategorised} place={place} />
+        <Trend trend={trend} period={period} month={month} place={place} />
 
         <div className={'finance-flow-totals' + (period === 'year' ? ' is-four' : '')}>
           <Figure label="Income" value={formatEuro(flows.income, { cents: true })} />
@@ -192,13 +199,14 @@ export default function FinanceFlows({ flows, period, chart, yearRate, target, c
         <Composition flows={flows} />
         <FlowTable
           title="Spending"
-          lines={spending.lines}
+          totalHead="Spent"
+          table={spendingTable}
+          quietLabel={quietLabel}
           uncategorised={flows.uncategorisedSpending}
-          showUncategorised={spending.showUncategorised}
           parts={spendingParts(flows)}
           averages={averages}
           compared={flows.compared}
-          changeHead={period === 'year' ? 'vs ' + yearOf(shiftMonth(month, -12)) : 'vs last month'}
+          changeHead={changeHead}
           place={place}
         />
         {period === 'month' && spendingRows && (
@@ -211,13 +219,14 @@ export default function FinanceFlows({ flows, period, chart, yearRate, target, c
         )}
         <FlowTable
           title="Income"
-          lines={flows.incomeCategories}
+          totalHead="Received"
+          table={incomeTable}
+          quietLabel={quietLabel}
           uncategorised={flows.uncategorisedIncome}
-          showUncategorised={flows.uncategorisedIncome.total !== 0 || flows.uncategorisedIncome.previous !== 0}
           parts={[]}
           averages={null}
           compared={flows.compared}
-          changeHead={period === 'year' ? 'vs ' + yearOf(shiftMonth(month, -12)) : 'vs last month'}
+          changeHead={changeHead}
           place={place}
         />
         {[...flows.spendingCategories, ...flows.incomeCategories, flows.uncategorisedSpending, flows.uncategorisedIncome].every(
@@ -229,17 +238,48 @@ export default function FinanceFlows({ flows, period, chart, yearRate, target, c
 }
 
 /**
- * The trend, one of two charts over the same months, a switch above them
- * (ADR 0044). Both share one row of month links -- same hit areas, same
- * labels, the same scale column on the right -- so switching moves nothing.
+ * One line at the top when the period has counted movements on no category
+ * (ADR 0048): how many, and a link to review them -- the Uncategorised line
+ * of spending, of income, or one link each when both have some. Absent when
+ * every movement has a category.
  *
- * - **Net worth** (the default): a line through each month's end, on a scale
- *   from its bottom to its top value (worthLine), both printed beside it; a
- *   month whose net worth is unknown is a gap and an outlined slot, never a
- *   zero. The newest value and the change over the span are written under it.
- * - **Income & spending**: per month, income and spending as two bars against
- *   the highest drawn, and what was left as a tick on the income bar. A month
- *   with nothing counted is an outlined slot, never a bar of zero.
+ * @param {{ counts: { spending: number, income: number }, place: import('@/components/finance.js').FinancesPlace }} props
+ */
+function UncategorisedLine({ counts, place }) {
+  const total = counts.spending + counts.income;
+  if (total === 0) return null;
+  /** @param {string} line */
+  const review = (line) => financesHref({ ...place, category: line, tag: null, span: null, transaction: null });
+  return (
+    <p className="finance-review-line">
+      <span className="num">{total}</span> {total === 1 ? 'movement' : 'movements'} without a category —{' '}
+      {counts.spending > 0 && counts.income > 0 ? (
+        <>
+          review{' '}
+          <Link href={review(UNCATEGORISED_SPENDING)} scroll={false} className="finance-account-link">
+            {counts.spending} money out
+          </Link>
+          ,{' '}
+          <Link href={review(UNCATEGORISED_INCOME)} scroll={false} className="finance-account-link">
+            {counts.income} money in
+          </Link>
+        </>
+      ) : (
+        <Link href={review(counts.spending > 0 ? UNCATEGORISED_SPENDING : UNCATEGORISED_INCOME)} scroll={false} className="finance-account-link">
+          review
+        </Link>
+      )}
+    </p>
+  );
+}
+
+/**
+ * The trend (ADR 0044): per month, income and spending as two bars against
+ * the highest drawn, and what was left as a tick on the income bar, on a
+ * scale from zero to the top, printed beside it. Money in is an outlined bar,
+ * money out a solid one, always in that order (ADR 0048), so they tell apart
+ * without the legend. A month with nothing counted is an outlined slot,
+ * never a bar of zero.
  *
  * Each month is a link that reads it; its name says its figures, so the
  * chart has a text equivalent. When narrow it scrolls inside the card and
@@ -249,67 +289,41 @@ export default function FinanceFlows({ flows, period, chart, yearRate, target, c
  *
  * @param {{
  *   trend: TrendMonth[],
- *   worth: WorthMonth[],
- *   chart: FinancesChart,
  *   period: 'month' | 'year',
  *   month: string,
- *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-function Trend({ trend, worth, chart, period, month, todayKey, place }) {
+function Trend({ trend, period, month, place }) {
   if (trend.length === 0) return null;
-  const isWorth = chart === 'worth';
   const bars = trendBars(trend);
-  const line = worthLine(worth);
-  /** @type {[number, number] | null} the scale's top and bottom */
-  const scale = isWorth ? (line.high === null || line.low === null ? null : [line.high, line.low]) : [trendHigh(trend), 0];
   return (
-    <figure className={'finance-trend' + (isWorth ? ' is-worth' : '')}>
-      <div className="segmented finance-chart-switch" role="group" aria-label="Chart">
-        {CHARTS.map(([choice, name]) => (
-          <Link
-            key={choice}
-            href={financesHref({ ...place, chart: choice })}
-            scroll={false}
-            className={'seg' + (chart === choice ? ' is-on' : '')}
-            aria-current={chart === choice ? 'true' : undefined}
-          >
-            {name}
-          </Link>
-        ))}
-      </div>
+    <figure className="finance-trend">
       <div className="finance-trend-frame">
         <div className="finance-trend-scroll">
-          <div className="finance-trend-plot" role="group" aria-label={isWorth ? 'Net worth by month' : 'Income and spending by month'}>
+          <div className="finance-trend-plot" role="group" aria-label="Income and spending by month">
             {trend.map((row, index) => {
               const bar = bars[index];
-              const point = line.points[index] ?? null;
               const selected = period === 'month' && row.month === month;
               const newYear = index === 0 || yearOf(row.month) !== yearOf(trend[index - 1].month);
-              const empty = isWorth ? point === null : bar === null;
               return (
                 <Link
                   key={row.month}
                   ref={selected ? revealInTrend : undefined}
                   href={financesHref({ ...place, month: row.month, period: 'month', transaction: null })}
                   scroll={false}
-                  className={'finance-trend-month' + (selected ? ' is-selected' : '') + (empty ? ' is-empty' : '')}
+                  className={'finance-trend-month' + (selected ? ' is-selected' : '') + (bar === null ? ' is-empty' : '')}
                   aria-current={selected ? 'true' : undefined}
-                  aria-label={isWorth ? worthLabel(worth[index] ?? { month: row.month, netWorth: null, asOf: null }, todayKey) : trendLabel(row)}
+                  aria-label={trendLabel(row)}
                 >
                   <span className="finance-trend-bars" aria-hidden="true">
-                    {isWorth
-                      ? point !== null && (
-                          <b className={'finance-worth-point' + (selected ? ' is-selected' : '')} style={{ bottom: point * 100 + '%' }} />
-                        )
-                      : bar !== null && (
-                          <>
-                            <i className="is-income" style={{ height: bar.income * 100 + '%' }} />
-                            <i className="is-spending" style={{ height: bar.spending * 100 + '%' }} />
-                            {bar.left !== null && <b className="finance-trend-left" style={{ bottom: bar.left * 100 + '%' }} />}
-                          </>
-                        )}
+                    {bar !== null && (
+                      <>
+                        <i className="is-income" style={{ height: bar.income * 100 + '%' }} />
+                        <i className="is-spending" style={{ height: bar.spending * 100 + '%' }} />
+                        {bar.left !== null && <b className="finance-trend-left" style={{ bottom: bar.left * 100 + '%' }} />}
+                      </>
+                    )}
                   </span>
                   <span className="finance-trend-label" aria-hidden="true">
                     {monthShort(row.month)}
@@ -318,79 +332,28 @@ function Trend({ trend, worth, chart, period, month, todayKey, place }) {
                 </Link>
               );
             })}
-            {isWorth && <WorthPath points={line.points} />}
           </div>
         </div>
         <div className="finance-trend-axis" aria-hidden="true">
-          {scale !== null && (
-            <>
-              <span className="is-top num">{formatEuroShort(scale[0])}</span>
-              <span className="is-bottom num">{formatEuroShort(scale[1])}</span>
-            </>
-          )}
+          <span className="is-top num">{formatEuroShort(trendHigh(trend))}</span>
+          <span className="is-bottom num">{formatEuroShort(0)}</span>
         </div>
       </div>
-      {isWorth ? (
-        <figcaption className="legend">
-          {line.newest === null || line.newest.netWorth === null || line.newest.asOf === null ? (
-            <span>No net worth to draw yet. It starts with the first balance or trade.</span>
-          ) : (
-            <>
-              <span>
-                Net worth <span className="num">{formatEuro(line.newest.netWorth)}</span> on {shortDate(line.newest.asOf, todayKey)}
-              </span>
-              {line.change !== null && line.first !== null && line.first.asOf !== null && (
-                <span>
-                  <span className="num">{formatMoneyChange(line.change)}</span> since {shortDate(line.first.asOf, todayKey)}
-                </span>
-              )}
-            </>
-          )}
-        </figcaption>
-      ) : (
-        <figcaption className="legend">
-          <span>
-            <i className="dot" style={{ color: 'var(--series-2)' }} />
-            Income
-          </span>
-          <span>
-            <i className="dot" style={{ color: 'var(--series-1)' }} />
-            Spending
-          </span>
-          <span>
-            <i className="finance-trend-tick" />
-            Left
-          </span>
-        </figcaption>
-      )}
+      <figcaption className="legend">
+        <span>
+          <i className="finance-swatch is-income" />
+          Income, money in
+        </span>
+        <span>
+          <i className="finance-swatch is-spending" />
+          Spending, money out
+        </span>
+        <span>
+          <i className="finance-trend-tick" />
+          Left
+        </span>
+      </figcaption>
     </figure>
-  );
-}
-
-/**
- * The net worth line over the month links: one column per month, each point
- * at its column's middle, broken where a month is unknown, with a hairline at
- * the scale's top and bottom. Stretched to the plot (`preserveAspectRatio`),
- * its strokes kept at their own width; the points themselves are dots in the
- * month links, so a month alone between two gaps still shows.
- *
- * @param {{ points: (number | null)[] }} props
- */
-function WorthPath({ points }) {
-  const columns = points.length;
-  /** @type {string[]} */
-  const steps = [];
-  points.forEach((point, index) => {
-    if (point === null) return;
-    const joined = index > 0 && points[index - 1] !== null;
-    steps.push((joined ? 'L' : 'M') + (index + 0.5) + ' ' + (100 - point * 100));
-  });
-  return (
-    <svg className="finance-worth-line" viewBox={'0 0 ' + columns + ' 100'} preserveAspectRatio="none" aria-hidden="true" focusable="false">
-      <line className="is-grid" x1="0" x2={columns} y1="0" y2="0" />
-      <line className="is-grid" x1="0" x2={columns} y1="100" y2="100" />
-      {steps.length > 0 && <path d={steps.join(' ')} />}
-    </svg>
   );
 }
 
@@ -424,19 +387,6 @@ function trendLabel(row) {
     ', spending ' + formatEuro(row.spending) +
     ', left ' + formatEuro(row.left)
   );
-}
-
-/**
- * What a month of the line says to a screen reader: its net worth and the day
- * it is read on, or that it is unknown.
- *
- * @param {WorthMonth} row
- * @param {string} todayKey
- * @returns {string}
- */
-function worthLabel(row, todayKey) {
-  if (row.netWorth === null || row.asOf === null) return monthLabel(row.month) + ': net worth unknown';
-  return monthLabel(row.month) + ': net worth ' + formatEuro(row.netWorth) + ' on ' + shortDate(row.asOf, todayKey);
 }
 
 /**
@@ -487,13 +437,17 @@ function Figure({ label, value, target = null, meets = null }) {
 /**
  * One kind's table. A parent with subcategories opens into them; one whose
  * subcategory is selected opens by itself. With averages, each top-level
- * line has its average month and a paired mark beside its total.
+ * line has its average month and a paired mark beside its total. The lines
+ * with nothing in the period sit folded in one row at the end, "N categories
+ * with nothing this month", which opens to show them -- by itself when the
+ * selected line is one of them.
  *
  * @param {{
  *   title: string,
- *   lines: CategoryFlow[],
+ *   totalHead: string,
+ *   table: ReturnType<typeof foldedLines>,
+ *   quietLabel: string,
  *   uncategorised: CategoryFlow,
- *   showUncategorised: boolean,
  *   parts: { id: string }[],
  *   averages: { months: number, byLine: Map<string, number> } | null,
  *   compared: boolean,
@@ -501,11 +455,15 @@ function Figure({ label, value, target = null, meets = null }) {
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-function FlowTable({ title, lines, uncategorised, showUncategorised, parts, averages, compared, changeHead, place }) {
+function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, averages, compared, changeHead, place }) {
+  const { lines, quiet, showUncategorised } = table;
+  /** @param {CategoryFlow} line */
+  const holdsSelected = (line) => line.id === place.category || line.children.some((child) => child.id === place.category);
   const [open, setOpen] = useState(
-    () => new Set(lines.filter((line) => line.children.some((child) => child.id === place.category)).map((line) => line.id))
+    () => new Set([...lines, ...quiet].filter((line) => line.children.some((child) => child.id === place.category)).map((line) => line.id))
   );
-  if (lines.length === 0 && !showUncategorised) return null;
+  const [showQuiet, setShowQuiet] = useState(() => quiet.some(holdsSelected));
+  if (lines.length === 0 && quiet.length === 0 && !showUncategorised) return null;
 
   /** @param {string} id */
   const toggle = (id) =>
@@ -521,41 +479,59 @@ function FlowTable({ title, lines, uncategorised, showUncategorised, parts, aver
     return parts.length < 2 || at === -1 ? null : SERIES[at % SERIES.length];
   };
   const shared = { place, averages, compared };
+  /** @param {CategoryFlow} line */
+  const rows = (line) => [
+    <FlowRow
+      key={line.id}
+      line={line}
+      tone={tone(line.id)}
+      open={open.has(line.id)}
+      onToggle={line.children.length > 0 ? () => toggle(line.id) : null}
+      {...shared}
+    />,
+    ...(open.has(line.id) ? line.children.map((child) => <FlowRow key={child.id} line={child} child {...shared} />) : []),
+  ];
+  const columns = averages === null ? 5 : 7;
 
   return (
-    <table className={'finance-table finance-flow-table' + (averages === null ? '' : ' has-average')}>
-      <thead>
-        <tr>
-          <th>{title}</th>
-          <th className="num">Total</th>
-          {averages !== null && (
-            <>
-              <th className="num">Average</th>
-              <th className="finance-average-mark-head">
-                <span className="visually-hidden">Against the average</span>
-              </th>
-            </>
+    <div className="finance-table-scroll">
+      <table className={'finance-table finance-flow-table' + (averages === null ? '' : ' has-average')}>
+        <thead>
+          <tr>
+            <th>{title}</th>
+            <th className="num">{totalHead}</th>
+            {averages !== null && (
+              <>
+                <th className="num">Average</th>
+                <th className="finance-average-mark-head">
+                  <span className="visually-hidden">Against the average</span>
+                </th>
+              </>
+            )}
+            <th className="num">Share</th>
+            <th className="num">{changeHead}</th>
+            <th className="num">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.flatMap(rows)}
+          {showUncategorised && <FlowRow line={uncategorised} tone={tone(uncategorised.id)} {...shared} />}
+          {quiet.length > 0 && (
+            <tr className="finance-quiet-row">
+              <td colSpan={columns}>
+                <button type="button" className="finance-quiet-toggle" aria-expanded={showQuiet} onClick={() => setShowQuiet((shown) => !shown)}>
+                  <span className="finance-quiet-mark" aria-hidden="true">
+                    {showQuiet ? '▾' : '▸'}
+                  </span>
+                  {quiet.length === 1 ? '1 category' : quiet.length + ' categories'} with nothing {quietLabel}
+                </button>
+              </td>
+            </tr>
           )}
-          <th className="num">Share</th>
-          <th className="num">{changeHead}</th>
-          <th className="num">%</th>
-        </tr>
-      </thead>
-      <tbody>
-        {lines.flatMap((line) => [
-          <FlowRow
-            key={line.id}
-            line={line}
-            tone={tone(line.id)}
-            open={open.has(line.id)}
-            onToggle={line.children.length > 0 ? () => toggle(line.id) : null}
-            {...shared}
-          />,
-          ...(open.has(line.id) ? line.children.map((child) => <FlowRow key={child.id} line={child} child {...shared} />) : []),
-        ])}
-        {showUncategorised && <FlowRow line={uncategorised} tone={tone(uncategorised.id)} {...shared} />}
-      </tbody>
-    </table>
+          {showQuiet && quiet.flatMap(rows)}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

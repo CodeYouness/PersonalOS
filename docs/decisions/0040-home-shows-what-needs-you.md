@@ -34,7 +34,11 @@ the check-in, unchanged:
   describes, never explains or judges (ADR 0037). Absent when nothing
   differs.
 - **Four tiles**: habits kept this week, net worth, open goals, the
-  journal. One number each, the whole tile a link.
+  journal. One number each, the whole tile a link. **Amended by
+  [0048](0048-finances-reads-at-a-glance.md):** under them, the whole row
+  wide, the money reading goes on with the net worth line over all tracked
+  time -- one sentence and the Finances chart, compact, one link -- absent
+  while there is no net worth to draw.
 
 **Cards that only display move to their screens.** Today, Session, Habits,
 Calendar, Pulse and Goals left Home; nothing else mounted them, so they and

@@ -204,14 +204,16 @@ export default function FinanceAccountDetail({ account, balances, trades, prices
 }
 
 /**
- * Shown when no account is selected: how to add one. A name and a kind, and
- * for an investment whether it is valued by balance or by units (#116) --
- * the only kind for which the choice means something. The new account opens
- * at once, ready for its first balance or trade.
+ * How to add an account, under Manage at the bottom of the screen (ADR
+ * 0048): a name and a kind, and for an investment whether it is valued by
+ * balance or by units (#116) -- the only kind for which the choice means
+ * something. The new account's panel opens at once beside the Net worth card,
+ * ready for its first balance or trade, and the page goes up to it.
+ * Rendered without a card of its own: Manage's fold is the card.
  *
  * @param {{ place: import('@/components/finance.js').FinancesPlace }} props
  */
-export function FinanceAccountEmpty({ place }) {
+export function FinanceAddAccount({ place }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [kind, setKind] = useState(/** @type {FinanceAccount['kind']} */ ('cash'));
@@ -231,7 +233,8 @@ export function FinanceAccountEmpty({ place }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(kind === 'investment' ? { name, kind, valuation } : { name, kind }),
       });
-      router.push(financesHref({ ...place, account: account.id }), { scroll: false });
+      // Its panel is at the top, beside the Net worth card: go up to it.
+      router.push(financesHref({ ...place, account: account.id }));
     } catch (caught) {
       setError(messageOf(caught));
     }
@@ -240,61 +243,56 @@ export function FinanceAccountEmpty({ place }) {
   }
 
   return (
-    <aside id="card-finance-account" className="card">
-      <div className="card-head">
-        <span className="eyebrow">Account</span>
-      </div>
-      <div className="card-body">
-        <p className="caption finance-hint">Select an account to keep it current, or add one.</p>
-        {error !== null && (
-          <p className="caption is-error" role="alert">
-            {error}
-          </p>
-        )}
-        <form onSubmit={addAccount}>
-          <div className="field">
-            <label className="caption" htmlFor="f-name">Name</label>
-            <input id="f-name" className="input" value={name} onChange={(event) => setName(event.target.value)} />
+    <div className="finance-manage-body">
+      <p className="caption finance-hint">To keep an account current, select it in the Net worth table. To add one:</p>
+      {error !== null && (
+        <p className="caption is-error" role="alert">
+          {error}
+        </p>
+      )}
+      <form onSubmit={addAccount}>
+        <div className="field">
+          <label className="caption" htmlFor="f-name">Name</label>
+          <input id="f-name" className="input" value={name} onChange={(event) => setName(event.target.value)} />
+        </div>
+        <div className="field">
+          <span className="caption">Kind</span>
+          <div className="segmented" role="group" aria-label="Kind">
+            {ACCOUNT_KINDS.map((choice) => (
+              <button
+                key={choice}
+                type="button"
+                className={'seg' + (kind === choice ? ' is-on' : '')}
+                aria-pressed={kind === choice}
+                onClick={() => setKind(/** @type {FinanceAccount['kind']} */ (choice))}
+              >
+                {KIND_CHOICES[/** @type {FinanceAccount['kind']} */ (choice)]}
+              </button>
+            ))}
           </div>
+        </div>
+        {kind === 'investment' && (
           <div className="field">
-            <span className="caption">Kind</span>
-            <div className="segmented" role="group" aria-label="Kind">
-              {ACCOUNT_KINDS.map((choice) => (
+            <span className="caption">Valued by</span>
+            <div className="segmented" role="group" aria-label="Valued by">
+              {ACCOUNT_VALUATIONS.map((choice) => (
                 <button
                   key={choice}
                   type="button"
-                  className={'seg' + (kind === choice ? ' is-on' : '')}
-                  aria-pressed={kind === choice}
-                  onClick={() => setKind(/** @type {FinanceAccount['kind']} */ (choice))}
+                  className={'seg' + (valuation === choice ? ' is-on' : '')}
+                  aria-pressed={valuation === choice}
+                  onClick={() => setValuation(/** @type {FinanceAccount['valuation']} */ (choice))}
                 >
-                  {KIND_CHOICES[/** @type {FinanceAccount['kind']} */ (choice)]}
+                  {choice === 'balance' ? 'Balance' : 'Units and price'}
                 </button>
               ))}
             </div>
           </div>
-          {kind === 'investment' && (
-            <div className="field">
-              <span className="caption">Valued by</span>
-              <div className="segmented" role="group" aria-label="Valued by">
-                {ACCOUNT_VALUATIONS.map((choice) => (
-                  <button
-                    key={choice}
-                    type="button"
-                    className={'seg' + (valuation === choice ? ' is-on' : '')}
-                    aria-pressed={valuation === choice}
-                    onClick={() => setValuation(/** @type {FinanceAccount['valuation']} */ (choice))}
-                  >
-                    {choice === 'balance' ? 'Balance' : 'Units and price'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <button type="submit" className="btn-primary" disabled={isSaving || name.trim() === ''}>
-            Add account
-          </button>
-        </form>
-      </div>
-    </aside>
+        )}
+        <button type="submit" className="btn-ghost" disabled={isSaving || name.trim() === ''}>
+          Add account
+        </button>
+      </form>
+    </div>
   );
 }

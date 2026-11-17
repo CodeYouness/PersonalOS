@@ -20,7 +20,9 @@ import { limits } from '@/personalos.config.js';
  * chosen. The target savings rate (ADR 0045), a whole percent from 1 to 99:
  * each savings rate on Income & spending says whether it meets it; saved
  * when you leave the field (also on Enter), Clear target removes it. A
- * refused write shows why and re-reads.
+ * refused write shows why and re-reads. Under Manage at the bottom of the
+ * screen (ADR 0048), folded until opened; rendered without a card of its
+ * own, since Manage's fold is the card.
  *
  * @param {{
  *   trackedSince: string | null,
@@ -60,101 +62,96 @@ export default function FinanceSettings({ trackedSince, defaultAccountId, saving
   }
 
   return (
-    <article id="card-finance-settings" className="card">
-      <div className="card-head">
-        <span className="eyebrow">Settings</span>
-      </div>
-      <div className="card-body">
-        {error !== null && (
-          <p className="caption is-error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="finance-entry">
-          <div className="field">
-            <label className="caption" htmlFor="s-tracked-since">Tracked since</label>
-            <input
-              id="s-tracked-since"
-              type="date"
-              className="input"
-              value={day}
-              max={todayKey}
-              disabled={isSaving}
-              onChange={(event) => setDay(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') event.currentTarget.blur();
-              }}
-              onBlur={() => {
-                if (day !== '' && day !== trackedSince) save({ financeTrackedSince: day });
-              }}
-            />
-          </div>
-          <button type="button" className="btn-ghost" disabled={isSaving || trackedSince === null} onClick={() => save({ financeTrackedSince: null })}>
-            Clear
-          </button>
-        </div>
-        <p className="caption finance-hint">
-          {trackedSince === null
-            ? 'The history starts at your first balance or trade.'
-            : 'The history starts with ' + monthLabel(monthOf(trackedSince)) + '; earlier trades still count toward what you hold.'}
+    <div className="finance-manage-body">
+      {error !== null && (
+        <p className="caption is-error" role="alert">
+          {error}
         </p>
+      )}
+      <div className="finance-entry">
         <div className="field">
-          <label className="caption" htmlFor="s-default-account">Default account</label>
-          <select
-            id="s-default-account"
+          <label className="caption" htmlFor="s-tracked-since">Tracked since</label>
+          <input
+            id="s-tracked-since"
+            type="date"
             className="input"
-            value={defaultAccountId ?? ''}
+            value={day}
+            max={todayKey}
             disabled={isSaving}
-            onChange={(event) => save({ defaultAccountId: event.target.value === '' ? null : event.target.value })}
-          >
-            <option value="">None</option>
-            {accounts
-              .filter(isMovableAccount)
-              .map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-          </select>
+            onChange={(event) => setDay(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+            }}
+            onBlur={() => {
+              if (day !== '' && day !== trackedSince) save({ financeTrackedSince: day });
+            }}
+          />
         </div>
-        <p className="caption finance-hint">
-          {defaultAccountId === null
-            ? 'A spending sentence that names no account stays a capture until you choose one.'
-            : 'A spending sentence that names no account is filed here.'}
-        </p>
-        <div className="finance-entry">
-          <div className="field">
-            <label className="caption" htmlFor="s-savings-target">Target savings rate (%)</label>
-            <input
-              id="s-savings-target"
-              type="number"
-              inputMode="numeric"
-              className="input"
-              min={limits.savingsTargetMin}
-              max={limits.savingsTargetMax}
-              step={1}
-              value={target}
-              disabled={isSaving}
-              onChange={(event) => setTarget(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') event.currentTarget.blur();
-              }}
-              onBlur={() => {
-                // The store decides what a target may be; a refusal says why.
-                if (target !== '' && Number(target) !== savingsTarget) save({ financeSavingsTarget: Number(target) });
-              }}
-            />
-          </div>
-          <button type="button" className="btn-ghost" disabled={isSaving || savingsTarget === null} onClick={() => save({ financeSavingsTarget: null })}>
-            Clear target
-          </button>
-        </div>
-        <p className="caption finance-hint">
-          {savingsTarget === null
-            ? 'No target: each savings rate is shown alone.'
-            : 'Each savings rate says whether it meets ' + savingsTarget + '%.'}
-        </p>
+        <button type="button" className="btn-ghost" disabled={isSaving || trackedSince === null} onClick={() => save({ financeTrackedSince: null })}>
+          Clear
+        </button>
       </div>
-    </article>
+      <p className="caption finance-hint">
+        {trackedSince === null
+          ? 'The history starts at your first balance or trade.'
+          : 'The history starts with ' + monthLabel(monthOf(trackedSince)) + '; earlier trades still count toward what you hold.'}
+      </p>
+      <div className="field">
+        <label className="caption" htmlFor="s-default-account">Default account</label>
+        <select
+          id="s-default-account"
+          className="input"
+          value={defaultAccountId ?? ''}
+          disabled={isSaving}
+          onChange={(event) => save({ defaultAccountId: event.target.value === '' ? null : event.target.value })}
+        >
+          <option value="">None</option>
+          {accounts
+            .filter(isMovableAccount)
+            .map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+        </select>
+      </div>
+      <p className="caption finance-hint">
+        {defaultAccountId === null
+          ? 'A spending sentence that names no account stays a capture until you choose one.'
+          : 'A spending sentence that names no account is filed here.'}
+      </p>
+      <div className="finance-entry">
+        <div className="field">
+          <label className="caption" htmlFor="s-savings-target">Target savings rate (%)</label>
+          <input
+            id="s-savings-target"
+            type="number"
+            inputMode="numeric"
+            className="input"
+            min={limits.savingsTargetMin}
+            max={limits.savingsTargetMax}
+            step={1}
+            value={target}
+            disabled={isSaving}
+            onChange={(event) => setTarget(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+            }}
+            onBlur={() => {
+              // The store decides what a target may be; a refusal says why.
+              if (target !== '' && Number(target) !== savingsTarget) save({ financeSavingsTarget: Number(target) });
+            }}
+          />
+        </div>
+        <button type="button" className="btn-ghost" disabled={isSaving || savingsTarget === null} onClick={() => save({ financeSavingsTarget: null })}>
+          Clear target
+        </button>
+      </div>
+      <p className="caption finance-hint">
+        {savingsTarget === null
+          ? 'No target: each savings rate is shown alone.'
+          : 'Each savings rate says whether it meets ' + savingsTarget + '%.'}
+      </p>
+    </div>
   );
 }

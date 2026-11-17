@@ -1,6 +1,9 @@
 # 0044. Spending over time is read by the month's rules, and a year is compared like for like
 
-- **Status** accepted; amended by [0046](0046-spending-by-tag.md)
+- **Status** accepted; amended by [0046](0046-spending-by-tag.md) and
+  [0048](0048-finances-reads-at-a-glance.md), which removes the chart switch:
+  the net worth line moved to the Net worth card and covers all tracked time,
+  and Income & spending draws only its bars
 - **Date** 2026-11-17
 
 ## Context
