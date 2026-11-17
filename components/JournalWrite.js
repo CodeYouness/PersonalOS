@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useSyncExternalStore, useTransition } from 'react';
 
 import { readDraft, writeDraft } from '@/components/journal.js';
+import ProseBox from '@/components/ProseBox.js';
 import { messageOf, request } from '@/components/request.js';
 
 /**
@@ -58,8 +59,7 @@ export default function JournalWrite({ dayKey, placeholder }) {
 
   return (
     <form className="journal-write" onSubmit={save}>
-      <textarea
-        className="input"
+      <ProseBox
         aria-label="Write about this day"
         placeholder={placeholder}
         value={draft}
