@@ -1365,6 +1365,50 @@ statement, so a month is never counted twice.
   missing from the chain and the sum, and a difference printed without it
   would be wrong. At most ten blocking lines are printed, then how many more.
 
+### Ledger
+
+**Is** the movements you kept by hand before PersonalOS -- a spreadsheet of
+rows with your own `categoria > sottocategoria`, a note, a project tag and
+whether the row counted in spending or income -- read from its CSV export by
+`npm run data:import-ledger` (ADR 0042). It is **the meaning, not the
+money**: where an account has statements, the ledger only describes them;
+where it has none, it is the source.
+
+- **On an account with statements** each ledger row is **matched** to the one
+  statement movement it describes -- the same account, the same signed
+  amount, dated within a window (3 days by default), one to one, same-day
+  matches first -- and gives it its category, note, tag and not-counted flag,
+  **each only where still empty**: what you set in the app is never
+  overwritten. A row that matches nothing is listed, never imported: on that
+  account the statement is the transactions, and an imported row would count
+  the money twice. Its opening balance rows are ignored; the statement knows
+  better.
+- **On an account without statements** -- cash in hand, a bank with no export
+  -- the ledger is the source: each row is a transaction with origin
+  `{ source: 'sheet', externalId: <ledger id> }`, its description the
+  ledger's note (or the subcategory), and its `saldo_iniziale` rows are one
+  opening balance, dated the day before its first movement (ADR 0024). A
+  transfer between it and an account with statements is carried by the
+  statement row's counter account; when that row is not found, the ledger
+  writes this account's **leg** (not counted, no counter account), and a later
+  run that finds the row removes the leg. Its balance and its spending and
+  income after the import must be the ledger's, or the write is refused: the
+  ledger is its source.
+- **Categories** come from the ledger's tree, two levels, found by name under
+  the same parent or created (see Category). A top-level category is income
+  when the rows the ledger counted under it are money in and never money
+  out. Money in the ledger counted as income but filed in a spending category
+  is a **refund** here: spending and income are each that much lower, and the
+  report says by how much.
+- **A payment to a broker** keeps its category and is not counted: it is
+  neither spending nor a holding's trade, which the broker sync owns (ADR
+  0031).
+- **The totals check** prints spending and income per account as the ledger
+  counted them against what PersonalOS computes for the same days after the
+  import, and the difference -- never adjusted to agree. On an account with
+  statements, the statement movements the ledger never described count
+  there, uncategorised, until they are categorised.
+
 ### Transfer
 
 **Is** a transaction with a `counterAccountId`: money moved between two
@@ -1374,6 +1418,14 @@ counting it doubles your monthly total -- so every aggregation excludes it,
 and it carries no category. A transfer from an account to itself is refused.
 Choosing a counter account for a movement turns it into a transfer and clears
 its category.
+
+**When each end has a statement row** -- money moved from one bank to another,
+both exporting -- the two rows are two movements, each moving its own
+balance, and both are **not counted**; neither takes a counter account, or the
+other balance would move twice. When only one end has a row -- cash taken out
+to an account the ledger feeds, or a card topped up whose statement lists only
+spending -- that row is the transfer, and its counter account receives the
+money. The table of cases is in ADR 0042.
 
 ### Default account
 
@@ -1488,7 +1540,9 @@ subscription. Fixed vs variable spending reads each transaction's **own**
 category's flag, with no inheritance, so a parent with both fixed and
 variable children is never misread. It is the user's decision, kept distinct
 from the planned **Recurring charge** detection, which would infer
-recurrence from the transactions themselves.
+recurrence from the transactions themselves. The ledger import sets it on a
+subcategory it creates that the ledger marks `ricorrente`, and never changes
+it on one that exists.
 
 ---
 
@@ -1535,8 +1589,8 @@ rows are left alone and listed as a warning.
 
 **ExternalOrigin** is on every synced record: `source`, `externalId`,
 `syncedAt`, `sourceUpdatedAt`. `source` is a closed vocabulary, `ORIGIN_SOURCES` in
-`personalos.config.js` -- `scalable`, `degiro`, `sheet` (the spreadsheet
-import), `statement` (a bank or card statement, see Statement),
+`personalos.config.js` -- `scalable`, `degiro`, `sheet` (the hand-kept
+ledger, see Ledger), `statement` (a bank or card statement, see Statement),
 `google-calendar`, and `demo` (the seed's sample rows, which are not
 a source: see FinanceAccount) -- validated at the store boundary, so an
 unknown source is refused. New synced records are stamped by `syncedOrigin()`. An origin may carry a

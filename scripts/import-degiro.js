@@ -20,7 +20,7 @@
  * (ADR 0011).
  *
  * The run order: remove the demo rows, `npm run sync:scalable`, this dry run,
- * read the report, this with --write, then the sheet import.
+ * read the report, this with --write, then the ledger import.
  */
 
 import '../lib/config/env.js';

@@ -35,8 +35,8 @@ const TIMEZONE = 'Europe/Rome';
 const WHEN = { today: TODAY, timezone: TIMEZONE };
 
 /**
- * Descriptions the way the sheet import writes them: the row's note, or its
- * subcategory when the note is empty (scripts/sheet-import/plan.js).
+ * Descriptions the way the ledger import writes them: the row's note, or its
+ * subcategory when the note is empty (scripts/ledger-import/plan.js).
  */
 const DESCRIPTIONS = [
   'Supermercato',
@@ -282,7 +282,7 @@ export function seedContext(seed) {
 
 /** The two made-up mixes, by name. */
 export const MIXES = /** @type {const} */ ({
-  'transactions only, as the sheet import writes them (worst today)': withTransactions(DESCRIPTIONS),
+  'transactions only, as the ledger import writes them (worst today)': withTransactions(DESCRIPTIONS),
   'transactions only, as bank statement lines': withTransactions(STATEMENT_LINES),
   'free text (journal, memories)': withFreeText,
 });
