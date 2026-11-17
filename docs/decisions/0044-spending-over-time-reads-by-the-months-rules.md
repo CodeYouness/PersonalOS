@@ -1,6 +1,6 @@
 # 0044. Spending over time is read by the month's rules, and a year is compared like for like
 
-- **Status** accepted
+- **Status** accepted; amended by [0046](0046-spending-by-tag.md)
 - **Date** 2026-11-17
 
 ## Context
@@ -100,7 +100,9 @@ card and the question context both show.
 - The question context still answers per month and per twelve months; it
   has no year-to-date figure and no average. Adding them means calling
   `calendarYearFlows` and `spendingAverages` with the screen's arguments.
+  **Amended by 0046:** the year to date is a figure now; the average is not.
 - A year's transaction list, with no line selected, is the whole year's.
+  **Amended by 0046:** the newest 50, and how many more.
 - The window and the threshold are constants, `AVERAGE_MONTHS` and
   `AVERAGE_MIN_MONTHS` in `lib/domain/derive/finance.js`; the trend's length
   is `TREND_MONTHS`; the line's least span is `WORTH_MIN_SPAN`.
@@ -109,4 +111,5 @@ card and the question context both show.
   with each month's change. Whether the card still earns its place is open.
 - The line inherits the history's reading of an account with no value yet:
   it is left out, so the month an account gets its first balance is a step
-  in the line that is not growth.
+  in the line that is not growth. **Amended by 0046:** a month-end with no
+  account valued at all is a gap in the line, not a zero.

@@ -14,6 +14,12 @@ import { formatMoney, shortDate } from '@/components/format.js';
  * way back to all of them. `periodLabel` names the period when the list is
  * empty: "March 2026", "2026". Each row opens its panel by id (`?transaction=<id>`).
  *
+ * With a tag selected in the By tag card (ADR 0046), only its counted
+ * movements, and a switch between the period's and all of them
+ * (`?span=all`), whatever the period -- a trip rarely fits one month. In a
+ * year with nothing selected, the page hands only the newest movements and
+ * `more`, how many it left out; the card says so and how to narrow it.
+ *
  * A transfer reads "from → to" and has no category; a not-counted movement
  * says so. A movement's amount is signed from its account's side, the way
  * it is stored -- negative when money left; a transfer shows the amount
@@ -24,33 +30,63 @@ import { formatMoney, shortDate } from '@/components/format.js';
  *   accounts: FinanceAccount[],
  *   categories: FinanceCategory[],
  *   lineName: string | null,
+ *   tag: string | null,
+ *   more: number,
  *   periodLabel: string,
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceTransactions({ transactions, accounts, categories, lineName, periodLabel, todayKey, place }) {
+export default function FinanceTransactions({ transactions, accounts, categories, lineName, tag, more, periodLabel, todayKey, place }) {
   /** @param {string} id */
   const accountName = (id) => accounts.find((account) => account.id === id)?.name ?? 'an account that no longer exists';
   /** @param {string | null} id */
   const categoryName = (id) => categories.find((category) => category.id === id)?.name ?? null;
+  const selection = tag !== null ? 'tagged ' + tag : lineName;
+  const allTime = tag !== null && place.span === 'all';
 
   return (
     <article id="card-finance-transactions" className="card">
       <div className="card-head">
         <span className="eyebrow">
-          Transactions{lineName === null ? '' : ' · ' + lineName}
+          Transactions{selection === null ? '' : ' · ' + selection}
         </span>
-        {lineName !== null && (
-          <Link className="btn-ghost" scroll={false} href={financesHref({ ...place, category: null, transaction: null })}>
-            Show all
-          </Link>
+        {selection !== null && (
+          <div className="finance-flow-controls">
+            {tag !== null && (
+              <div className="segmented finance-span-switch" role="group" aria-label="Span">
+                {/** @type {const} */ ([
+                  [null, periodLabel],
+                  ['all', 'All time'],
+                ]).map(([span, name]) => (
+                  <Link
+                    key={name}
+                    href={financesHref({ ...place, span, transaction: null })}
+                    scroll={false}
+                    className={'seg' + (allTime === (span === 'all') ? ' is-on' : '')}
+                    aria-current={allTime === (span === 'all') ? 'true' : undefined}
+                  >
+                    {name}
+                  </Link>
+                ))}
+              </div>
+            )}
+            <Link
+              className="btn-ghost"
+              scroll={false}
+              href={financesHref({ ...place, category: null, tag: null, span: null, transaction: null })}
+            >
+              Show all
+            </Link>
+          </div>
         )}
       </div>
       <div className="card-body">
         {transactions.length === 0 ? (
           <p className="caption">
-            Nothing recorded {lineName === null ? '' : 'in ' + lineName + ' '}in {periodLabel}.
+            {tag !== null
+              ? 'Nothing tagged ' + tag + (allTime ? '' : ' in ' + periodLabel) + '.'
+              : 'Nothing recorded ' + (lineName === null ? '' : 'in ' + lineName + ' ') + 'in ' + periodLabel + '.'}
           </p>
         ) : (
           <table className="finance-table">
@@ -96,6 +132,12 @@ export default function FinanceTransactions({ transactions, accounts, categories
               })}
             </tbody>
           </table>
+        )}
+        {more > 0 && (
+          <p className="caption finance-list-more">
+            The newest {transactions.length} of {transactions.length + more} in {periodLabel}. Pick a month, a category or a tag to
+            narrow it.
+          </p>
         )}
       </div>
     </article>

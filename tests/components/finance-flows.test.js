@@ -13,8 +13,18 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push() {} }) }));
 
 const { default: FinanceFlows } = await import('@/components/FinanceFlows.js');
-const { calendarYearFlows, financeOverview, flowMonths, flowTrend, monthFlows, spendingAverages, trendMonths, worthTrend } =
-  await import('@/lib/domain/derive/finance.js');
+const {
+  calendarYearFlows,
+  financeOverview,
+  flowMonths,
+  flowTrend,
+  monthFlows,
+  savingsRate,
+  spendingAverages,
+  trendMonths,
+  worthTrend,
+  yearFlows,
+} = await import('@/lib/domain/derive/finance.js');
 
 const TODAY = '2026-04-20';
 
@@ -23,6 +33,7 @@ const category = (/** @type {any} */ o) => ({ name: o.id, kind: null, parentId: 
 const categories = [
   category({ id: 'cat_home', name: 'Home', kind: 'expense' }),
   category({ id: 'cat_food', name: 'Food', kind: 'expense' }),
+  category({ id: 'cat_gym', name: 'Gym', kind: 'expense' }),
   category({ id: 'cat_pay', name: 'Pay', kind: 'income' }),
 ];
 /** @returns {any} */
@@ -35,6 +46,7 @@ const transactions = [
   t('2026-01-01', 300000, 'cat_pay'),
   t('2026-01-02', -100000, 'cat_home'),
   t('2026-01-03', -20000, 'cat_food'),
+  t('2026-01-04', -6000, 'cat_gym'),
   t('2026-03-01', 300000, 'cat_pay'),
   t('2026-03-02', -100000, 'cat_home'),
   t('2026-03-03', -10000, 'cat_food'),
@@ -58,12 +70,12 @@ const balances = [balance('2026-02-10', 500000), balance('2026-04-05', 650000)];
 /**
  * @param {'month' | 'year'} period
  * @param {string} month
- * @param {{ chart?: 'worth' | 'flows', observations?: any[] }} [options]
+ * @param {{ chart?: 'worth' | 'flows', observations?: any[], target?: number | null, rows?: any[] }} [options]
  */
-function render(period, month, { chart = 'worth', observations = balances } = {}) {
-  const months = flowMonths(transactions, TODAY, '2026-01-01');
-  const year = period === 'year' ? calendarYearFlows(transactions, categories, month, months) : null;
-  const flows = year ?? monthFlows(transactions, categories, month);
+function render(period, month, { chart = 'worth', observations = balances, target = null, rows = transactions } = {}) {
+  const months = flowMonths(rows, TODAY, '2026-01-01');
+  const year = period === 'year' ? calendarYearFlows(rows, categories, month, months) : null;
+  const flows = year ?? monthFlows(rows, categories, month);
   const chartMonths = year?.months ?? trendMonths(months, month);
   const { history } = financeOverview(
     { accounts: [/** @type {any} */ (savings)], observations, trades: [], prices: [], transactions: [], trackedSince: '2026-01-01' },
@@ -74,10 +86,12 @@ function render(period, month, { chart = 'worth', observations = balances } = {}
       flows,
       period,
       chart,
-      yearRate: null,
-      trend: flowTrend(transactions, categories, chartMonths),
+      yearRate: period === 'year' ? null : savingsRate(yearFlows(rows, categories, month)),
+      target,
+      categories,
+      trend: flowTrend(rows, categories, chartMonths),
       worth: worthTrend(history, chartMonths, TODAY),
-      averages: period === 'year' ? null : spendingAverages(transactions, categories, month, months),
+      averages: period === 'year' ? null : spendingAverages(rows, categories, month, months),
       months,
       month,
       todayKey: TODAY,
@@ -213,5 +227,68 @@ describe('FinanceFlows', () => {
     expect(html).toContain('>vs 2025<');
     expect(html).not.toContain('n.d.');
     expect(html).not.toMatch(/>\+\u2009/);
+  });
+
+  describe('a category with nothing this month or last', () => {
+    it('is still listed when its average is above zero, at zero and against its average', () => {
+      const html = render('month', '2026-04');
+
+      // Gym: 60.00 in January, nothing since: an average of 20.00 over January to March.
+      expect(html).toMatch(/>Gym<\/a><\/td><td class="num">0.00<\/td><td class="num caption">20.00<\/td>/);
+      expect(html).toMatch(/>Gym<[\s\S]*?<td class="num caption">0%<\/td>/);
+    });
+
+    it('is not listed in a year, which has no average', () => {
+      expect(render('year', '2026-04')).toContain('>Gym<');
+      expect(render('month', '2026-03')).not.toContain('>Gym<');
+    });
+  });
+
+  describe('the caption under the spending table', () => {
+    it('explains the average only when the table has rows', () => {
+      expect(render('month', '2026-04')).toContain('Average: the 3 months on offer');
+
+      const empty = render('month', '2026-04', { rows: [] });
+      expect(empty).toContain('Nothing came in or went out in April 2026.');
+      expect(empty).not.toContain('Average:');
+      expect(empty).not.toContain('No average yet');
+    });
+
+    it('says there is no average yet only under a table with rows', () => {
+      expect(render('month', '2026-03')).toContain('No average yet');
+      expect(render('month', '2026-02', { rows: [] })).not.toContain('No average yet');
+    });
+  });
+
+  describe('the target savings rate', () => {
+    it('sets each rate against the target, in words and a mark', () => {
+      // April: 3,000 in, 1,500 out -- 50%; the 12 months: 9,000 in, 3,860 out -- 57%.
+      const html = render('month', '2026-04', { target: 40 });
+
+      expect(html.match(/finance-target-mark is-met" aria-hidden="true"><\/i>Meets the 40% target/g)?.length).toBe(2);
+      const split = render('month', '2026-04', { target: 55 });
+      expect(split).toContain('finance-target-mark" aria-hidden="true"></i>Under the 55% target');
+      expect(split).toContain('finance-target-mark is-met" aria-hidden="true"></i>Meets the 55% target');
+    });
+
+    it('reads a rate printed as the target as met', () => {
+      expect(render('month', '2026-04', { target: 50 })).toMatch(/>50%<\/span><span class="caption finance-target"><i class="finance-target-mark is-met"/);
+    });
+
+    it('says nothing about a target with no rate, or with no target', () => {
+      // February had no income: its rate is blank, and so is its comparison.
+      expect(render('month', '2026-02', { target: 20 })).toContain('Saved this month</span><span class="num">—</span></div>');
+      expect(render('month', '2026-04', { rows: [], target: 20 })).not.toContain('finance-target');
+      expect(render('month', '2026-04')).not.toContain('finance-target');
+    });
+
+    it('in a year, says what would have to be left to meet it, only when it is not met', () => {
+      // 2026: 9,000 in, 3,860 out, 5,140 left -- 57%. 60% of 9,000 is 5,400.
+      const html = render('year', '2026-04', { target: 60 });
+      expect(html).toContain('To meet the 60% target on what came in during 2026, <span class="num">€\u20095,400.00</span> would have to be left: <span class="num">€\u2009260.00</span> more.');
+
+      expect(render('year', '2026-04', { target: 40 })).not.toContain('would have to be left');
+      expect(render('month', '2026-04', { target: 60 })).not.toContain('would have to be left');
+    });
   });
 });

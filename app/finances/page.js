@@ -3,29 +3,32 @@ import FinanceBreakdown from '@/components/FinanceBreakdown.js';
 import FinanceCategories from '@/components/FinanceCategories.js';
 import FinanceFlows from '@/components/FinanceFlows.js';
 import FinanceSettings from '@/components/FinanceSettings.js';
+import FinanceTags from '@/components/FinanceTags.js';
 import { lineName } from '@/components/finance.js';
 import FinanceHistory from '@/components/FinanceHistory.js';
 import { monthLabel } from '@/components/format.js';
 import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
-import { financesChart } from '@/lib/domain/addresses.js';
+import { financesChart, financesSpan } from '@/lib/domain/addresses.js';
 import { isMonthKey, monthOf, today, yearOf } from '@/lib/domain/dates.js';
 import {
   calendarYearFlows,
   financeOverview,
   flowMonths,
   flowTrend,
-  lineHolds,
+  listedTransactions,
   monthFlows,
   monthsWith,
   savingsRate,
   spendingAverages,
+  tagFlows,
   trendMonths,
   worthTrend,
   yearFlows,
 } from '@/lib/domain/derive/finance.js';
 import { brokerStaleness } from '@/lib/domain/derive/sync-staleness.js';
 import { getAccount, getFinanceInputs, getProfile, getSyncStates, getTransaction } from '@/lib/store.js';
+import { limits } from '@/personalos.config.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +64,17 @@ export const dynamic = 'force-dynamic';
  * anything else, or nothing, draws net worth as a line (ADR 0044). Both
  * cover the same months: the trend's twelve in a month, the year's in a year.
  *
- * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], chart?: string | string[], transaction?: string | string[], category?: string | string[] }> }} props
+ * `?tag=<tag>` selects a tag of the By tag card (ADR 0046) -- one that a
+ * movement carries, else nothing -- and lists the period's movements it
+ * counts, or, with `?span=all`, all of them. One selection at a time: with
+ * a line selected too (an address typed by hand), the line wins. A year with
+ * nothing selected lists only its newest `limits.financeYearListMax`
+ * movements, and says how many more.
+ *
+ * Each savings rate is set against the target savings rate, when one is set
+ * in the Settings card (ADR 0045).
+ *
+ * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], chart?: string | string[], transaction?: string | string[], category?: string | string[], tag?: string | string[], span?: string | string[] }> }} props
  */
 export default async function FinancesScreen({ searchParams }) {
   const {
@@ -71,6 +84,8 @@ export default async function FinancesScreen({ searchParams }) {
     chart: chartParam,
     transaction: transactionParam,
     category: categoryParam,
+    tag: tagParam,
+    span: spanParam,
   } = await searchParams;
   const todayKey = today();
   const [finance, syncStates, selected, profile, selectedTransaction] = await Promise.all([
@@ -100,9 +115,19 @@ export default async function FinancesScreen({ searchParams }) {
   const periodMonths = year?.months ?? [month];
   const chart = financesChart(chartParam);
   const chartMonths = year === null ? trendMonths(months, month) : periodMonths;
-  const periodTransactions = transactions.filter(
-    (transaction) => periodMonths.includes(monthOf(transaction.date)) && (category === null || lineHolds(transaction, category, categories))
-  );
+  const tag =
+    category === null && typeof tagParam === 'string' && transactions.some((transaction) => transaction.tags.includes(tagParam)) ? tagParam : null;
+  const span = tag === null ? null : financesSpan(spanParam);
+  const listed = listedTransactions(transactions, {
+    categories,
+    months: periodMonths,
+    period,
+    category,
+    tag,
+    span,
+    max: limits.financeYearListMax,
+  });
+  const periodLabel = period === 'year' ? yearOf(month) : monthLabel(month);
 
   /** @type {<T extends { accountId: string, date: string }>(rows: T[]) => T[]} */
   const ofSelected = (rows) =>
@@ -110,7 +135,7 @@ export default async function FinancesScreen({ searchParams }) {
       ? []
       : rows.filter((row) => row.accountId === selected.id).sort((a, b) => b.date.localeCompare(a.date));
   /** @type {import('@/components/finance.js').FinancesPlace} */
-  const place = { account: selected?.id ?? null, month, period, chart, category, transaction: selectedTransaction?.id ?? null };
+  const place = { account: selected?.id ?? null, month, period, chart, category, tag, span, transaction: selectedTransaction?.id ?? null };
 
   return (
     <section id="screen-finances" className="screen is-active">
@@ -145,6 +170,8 @@ export default async function FinancesScreen({ searchParams }) {
             period={period}
             chart={chart}
             yearRate={period === 'year' ? null : savingsRate(yearFlows(transactions, categories, month))}
+            target={profile.financeSavingsTarget}
+            categories={categories}
             trend={flowTrend(transactions, categories, chartMonths)}
             worth={worthTrend(overview.history, chartMonths, todayKey)}
             averages={period === 'year' ? null : spendingAverages(transactions, categories, month, months)}
@@ -153,12 +180,21 @@ export default async function FinancesScreen({ searchParams }) {
             todayKey={todayKey}
             place={place}
           />
+          <FinanceTags
+            tags={tagFlows(transactions, categories, periodMonths)}
+            tagged={transactions.some((transaction) => transaction.tags.length > 0)}
+            periodLabel={periodLabel}
+            todayKey={todayKey}
+            place={place}
+          />
           <FinanceTransactions
-            transactions={periodTransactions}
+            transactions={listed.rows}
             accounts={accounts}
             categories={categories}
             lineName={category === null ? null : lineName(category, categories)}
-            periodLabel={period === 'year' ? yearOf(month) : monthLabel(month)}
+            tag={tag}
+            more={listed.more}
+            periodLabel={periodLabel}
             todayKey={todayKey}
             place={place}
           />
@@ -177,9 +213,10 @@ export default async function FinancesScreen({ searchParams }) {
           )}
           <FinanceCategories categories={categories} />
           <FinanceSettings
-            key={profile.financeTrackedSince ?? ''}
+            key={(profile.financeTrackedSince ?? '') + '|' + (profile.financeSavingsTarget ?? '')}
             trackedSince={profile.financeTrackedSince}
             defaultAccountId={profile.defaultAccountId}
+            savingsTarget={profile.financeSavingsTarget}
             accounts={accounts}
             todayKey={todayKey}
           />

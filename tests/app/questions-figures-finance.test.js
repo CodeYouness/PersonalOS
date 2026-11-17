@@ -16,7 +16,17 @@ import path from 'node:path';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CHANGE_WINDOW_DAYS, financeOverview, flowMonths, monthFlows, savingsRate, yearFlows } from '@/lib/domain/derive/finance.js';
+import { isCitationId } from '@/lib/answer.js';
+import {
+  calendarYearFlows,
+  CHANGE_WINDOW_DAYS,
+  financeOverview,
+  flowMonths,
+  monthFlows,
+  savingsRate,
+  tagFlows,
+  yearFlows,
+} from '@/lib/domain/derive/finance.js';
 import { percent as formatPercent } from '@/lib/domain/format.js';
 import { formatMoney } from '@/lib/ai/context/render.js';
 
@@ -34,6 +44,8 @@ let store;
 let read;
 /** @type {typeof import('@/lib/ai/context/figures-finance.js')} */
 let figures;
+/** @type {typeof import('@/lib/ai/context/build.js')} */
+let build_;
 
 beforeAll(async () => {
   sandbox = await mkdtemp(path.join(tmpdir(), 'personalos-figures-finance-'));
@@ -42,6 +54,7 @@ beforeAll(async () => {
   store = await import('@/lib/store.js');
   read = await import('@/lib/ai/context/read.js');
   figures = await import('@/lib/ai/context/figures-finance.js');
+  build_ = await import('@/lib/ai/context/build.js');
 });
 
 afterAll(async () => {
@@ -379,5 +392,114 @@ describe('finance figures: category lines', () => {
     expect(spending?.label).toBe('Uncategorised spending, January 2026');
     expect(spending?.content).toContain('33.00 EUR');
     expect(item(after.items, 'figure:category:2026-01:uncategorised-income')?.content).toContain('15.00 EUR');
+  });
+});
+
+describe('finance figures: the calendar year to date', () => {
+  it('says the year reading\'s income, spending, what is left and the savings rate, as the card does', async () => {
+    const { archive, items } = await build();
+    const categories = archive.profile.financeCategories;
+    const offered = flowMonths(archive.transactions, TODAY, archive.profile.financeTrackedSince);
+    const year = calendarYearFlows(archive.transactions, categories, '2026-09', offered);
+
+    expect(item(items, 'figure:income:2026-ytd')?.content).toContain(eur(year.income));
+    expect(item(items, 'figure:spending:2026-ytd')?.content).toContain(eur(year.spending));
+    expect(item(items, 'figure:left:2026-ytd')?.content).toContain(eur(year.left));
+    expect(item(items, 'figure:savings-rate:2026-ytd')?.content).toContain(formatPercent(/** @type {number} */ (savingsRate(year))));
+    // The seed's year so far is its January.
+    expect(item(items, 'figure:income:2026-ytd')?.content).toContain('3300.00 EUR');
+    expect(item(items, 'figure:spending:2026-ytd')?.content).toContain('1012.50 EUR');
+    expect(item(items, 'figure:left:2026-ytd')?.content).toContain('2287.50 EUR');
+    expect(item(items, 'figure:savings-rate:2026-ytd')?.content).toContain('69%');
+    expect(item(items, 'figure:income:2026-ytd')?.label).toBe('Income, 2026 to date');
+    expect(item(items, 'figure:income:2026-ytd')?.content).toContain('January 2026 to September 2026');
+    expect(item(items, 'figure:income:2026-ytd')?.opens).toBe('/finances?month=2026-09&period=year');
+  });
+
+  it('starts the year at "tracked since", as the card\'s year does', async () => {
+    await store.updateProfile({ financeTrackedSince: '2026-07-01' });
+    const { items } = await build();
+
+    expect(item(items, 'figure:income:2026-ytd')?.content).toContain('July 2026 to September 2026');
+    expect(item(items, 'figure:income:2026-ytd')?.content).toContain('0.00 EUR');
+    expect(item(items, 'figure:savings-rate:2026-ytd')).toBeUndefined();
+  });
+});
+
+describe('finance figures: the target savings rate', () => {
+  it('sets each rate against the target when one is set, and says nothing of one otherwise', async () => {
+    const before = await build();
+    expect(before.items.some((one) => one.content.includes('target'))).toBe(false);
+
+    await store.updateProfile({ financeSavingsTarget: 70 });
+    const { items } = await build();
+
+    // January: 69%, under 70.
+    expect(item(items, 'figure:savings-rate:2026-01')?.content).toContain('Against the target savings rate of 70%: under it.');
+    expect(item(items, 'figure:savings-rate:2026-ytd')?.content).toContain('Against the target savings rate of 70%: under it.');
+    // 70% of 3,300.00 is 2,310.00; 2,287.50 was left.
+    expect(item(items, 'figure:savings-rate:2026-ytd')?.content).toContain('To meet it, 2310.00 EUR would have to be left of what came in: 22.50 EUR more.');
+  });
+
+  it('reads a rate printed as the target as meeting it', async () => {
+    await store.updateProfile({ financeSavingsTarget: 69 });
+    const { items } = await build();
+
+    expect(item(items, 'figure:savings-rate:2026-01')?.content).toContain('Against the target savings rate of 69%: meets it.');
+    expect(item(items, 'figure:savings-rate:2026-ytd')?.content).not.toContain('would have to be left');
+  });
+
+  it('is in the profile when set', async () => {
+    await store.updateProfile({ financeSavingsTarget: 25 });
+    const archive = await read.readArchive();
+    const profile = build_.buildItems(archive, { today: TODAY, timezone: 'Europe/Rome' }).find((one) => one.id === 'profile');
+
+    expect(profile?.content).toContain('finance savings target: 25%');
+  });
+});
+
+describe('finance figures: tags', () => {
+  /** @param {string} date @param {number} amount @param {string[]} tags */
+  const tagged = (date, amount, tags) =>
+    store.createTransaction({ date, amount, currency: 'EUR', accountId: CURRENT, categoryId: 'cat_groceries', tags });
+
+  it('has no tag figure when nothing is tagged', async () => {
+    const { items } = await build();
+
+    expect(items.filter((one) => one.id.startsWith('figure:tag:'))).toEqual([]);
+  });
+
+  it('gives each tag of the current month and of the year to date its totals, as the By tag card does', async () => {
+    await tagged('2026-08-30', -40000, ['lisbon trip']);
+    await tagged('2026-09-02', -12000, ['lisbon trip', 'work expenses 2026']);
+    await tagged('2026-09-03', 2000, ['lisbon trip']);
+    const { archive, items } = await build();
+    const categories = archive.profile.financeCategories;
+
+    const month = tagFlows(archive.transactions, categories, ['2026-09']).find((row) => row.tag === 'lisbon trip');
+    const one = items.find((each) => each.id.startsWith('figure:tag:2026-09:') && each.label.includes('lisbon trip'));
+    expect(month).toMatchObject({ movements: 2, spending: 10000, allSpending: 50000 });
+    expect(one?.content).toContain('Spending tagged "lisbon trip" in September 2026: 100.00 EUR, over 2 movements');
+    expect(one?.content).toMatch(/several tags counts under each/);
+    expect(one?.content).not.toContain('All time');
+    expect(one?.opens).toBe('/finances?month=2026-09&tag=lisbon+trip');
+
+    // All time is said once, on the year's figure: today's month is in it.
+    const year = items.find((each) => each.id.startsWith('figure:tag:2026-ytd:') && each.label.includes('lisbon trip'));
+    expect(year?.content).toContain('Spending tagged "lisbon trip" in 2026 to date: 500.00 EUR, over 3 movements');
+    expect(year?.content).toContain('All time: 500.00 EUR spent, over 3 movements, from 30 Aug 2026 to 3 Sep 2026.');
+    expect(year?.opens).toBe('/finances?month=2026-09&period=year&tag=lisbon+trip');
+    expect(items.filter((each) => each.id.startsWith('figure:tag:2026-09:')).length).toBe(2);
+  });
+
+  it('names a tag in its id by a key that keeps two different tags apart', async () => {
+    await tagged('2026-09-02', -1000, ['a b']);
+    await tagged('2026-09-02', -2000, ['a_20b']);
+    await tagged('2026-09-02', -3000, ['a-b']);
+    const { items } = await build();
+
+    const ids = items.filter((one) => one.id.startsWith('figure:tag:2026-09:')).map((one) => one.id);
+    expect(new Set(ids).size).toBe(3);
+    for (const id of ids) expect(isCitationId(id)).toBe(true);
   });
 });

@@ -61,7 +61,20 @@ describe('PATCH /api/finance-settings', () => {
     expect((await store.getProfile()).defaultAccountId).toBeNull();
   });
 
+  it('sets the target savings rate and clears it (ADR 0045)', async () => {
+    const response = await change({ financeSavingsTarget: 20 });
+    expect(response.status).toBe(200);
+    expect((await response.json()).settings.financeSavingsTarget).toBe(20);
+    expect((await store.getProfile()).financeSavingsTarget).toBe(20);
+
+    expect((await change({ financeSavingsTarget: null })).status).toBe(200);
+    expect((await store.getProfile()).financeSavingsTarget).toBeNull();
+  });
+
   it.each([
+    ['a target of zero', { financeSavingsTarget: 0 }, /financeSavingsTarget/],
+    ['a target above 99', { financeSavingsTarget: 100 }, /financeSavingsTarget/],
+    ['a target that is not whole', { financeSavingsTarget: 12.5 }, /financeSavingsTarget/],
     ['a default account valued by units', { defaultAccountId: 'account_seed_etf' }, /balance/],
     ['a day that is not a day', { financeTrackedSince: '2025-02-30' }, /financeTrackedSince/],
     ['a day after today', { financeTrackedSince: '2999-01-01' }, /after today/],

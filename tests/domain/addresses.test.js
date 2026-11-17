@@ -4,6 +4,7 @@ import {
   crmAddress,
   financesAddress,
   financesChart,
+  financesSpan,
   goalsAddress,
   journalAddress,
   habitsAddress,
@@ -68,6 +69,25 @@ describe('addresses: one implementation of where a record opens', () => {
     expect(financesChart(undefined)).toBe('worth');
     expect(financesChart('bars')).toBe('worth');
     expect(financesChart(['flows', 'flows'])).toBe('worth');
+  });
+
+  it('addresses a tag of the period, encoding whatever the user typed, and reads it back unchanged', () => {
+    expect(financesAddress({ month: '2026-03', tag: 'lisbon' })).toBe('/finances?month=2026-03&tag=lisbon');
+    expect(financesAddress({ month: '2026-03', period: 'year', tag: 'lisbon', span: 'all', transaction: 'tx_1' })).toBe(
+      '/finances?month=2026-03&period=year&tag=lisbon&span=all&transaction=tx_1'
+    );
+    for (const tag of ['work expenses 2026', 'a&b=c', 'été / 50%', 'x+y#z']) {
+      const written = financesAddress({ month: '2026-03', tag });
+      expect(written).not.toMatch(/[ #]/);
+      expect(new URL(written, 'http://localhost').searchParams.get('tag')).toBe(tag);
+    }
+  });
+
+  it('reads the span back from the address: all of a tag, or else the period', () => {
+    expect(financesSpan('all')).toBe('all');
+    expect(financesSpan(undefined)).toBeNull();
+    expect(financesSpan('ever')).toBeNull();
+    expect(financesSpan(['all', 'all'])).toBeNull();
   });
 
   it('addresses a Finances transaction by the month of its day', () => {

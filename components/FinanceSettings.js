@@ -7,6 +7,7 @@ import { monthLabel } from '@/components/format.js';
 import { monthOf } from '@/lib/domain/dates.js';
 import { messageOf, request } from '@/components/request.js';
 import { isMovableAccount } from '@/lib/domain/derive/finance.js';
+import { limits } from '@/personalos.config.js';
 
 /**
  * The Finances screen's settings. "Tracked since" (#138), the day your
@@ -16,23 +17,28 @@ import { isMovableAccount } from '@/lib/domain/derive/finance.js';
  * Clear goes back to starting at the first value. The default account
  * (#141): where a spending sentence that names no account is filed (ADR
  * 0026), chosen among your open accounts valued by balance; saved when
- * chosen. A refused write shows why and re-reads.
+ * chosen. The target savings rate (ADR 0045), a whole percent from 1 to 99:
+ * each savings rate on Income & spending says whether it meets it; saved
+ * when you leave the field (also on Enter), Clear target removes it. A
+ * refused write shows why and re-reads.
  *
  * @param {{
  *   trackedSince: string | null,
  *   defaultAccountId: string | null,
+ *   savingsTarget: number | null,
  *   accounts: import('@/lib/domain/types.js').FinanceAccount[],
  *   todayKey: string,
  * }} props
  */
-export default function FinanceSettings({ trackedSince, defaultAccountId, accounts, todayKey }) {
+export default function FinanceSettings({ trackedSince, defaultAccountId, savingsTarget, accounts, todayKey }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [day, setDay] = useState(trackedSince ?? '');
+  const [target, setTarget] = useState(savingsTarget === null ? '' : String(savingsTarget));
   const [error, setError] = useState(/** @type {string | null} */ (null));
   const [isSaving, setIsSaving] = useState(false);
 
-  /** @param {{ financeTrackedSince?: string | null, defaultAccountId?: string | null }} body */
+  /** @param {{ financeTrackedSince?: string | null, defaultAccountId?: string | null, financeSavingsTarget?: number | null }} body */
   async function save(body) {
     setIsSaving(true);
     setError(null);
@@ -43,9 +49,11 @@ export default function FinanceSettings({ trackedSince, defaultAccountId, accoun
         body: JSON.stringify(body),
       });
       if ('financeTrackedSince' in body) setDay(body.financeTrackedSince ?? '');
+      if ('financeSavingsTarget' in body) setTarget(String(body.financeSavingsTarget ?? ''));
     } catch (caught) {
       setError(messageOf(caught));
       setDay(trackedSince ?? '');
+      setTarget(savingsTarget === null ? '' : String(savingsTarget));
     }
     setIsSaving(false);
     startTransition(() => router.refresh());
@@ -113,6 +121,38 @@ export default function FinanceSettings({ trackedSince, defaultAccountId, accoun
           {defaultAccountId === null
             ? 'A spending sentence that names no account stays a capture until you choose one.'
             : 'A spending sentence that names no account is filed here.'}
+        </p>
+        <div className="finance-entry">
+          <div className="field">
+            <label className="caption" htmlFor="s-savings-target">Target savings rate (%)</label>
+            <input
+              id="s-savings-target"
+              type="number"
+              inputMode="numeric"
+              className="input"
+              min={limits.savingsTargetMin}
+              max={limits.savingsTargetMax}
+              step={1}
+              value={target}
+              disabled={isSaving}
+              onChange={(event) => setTarget(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+              }}
+              onBlur={() => {
+                // The store decides what a target may be; a refusal says why.
+                if (target !== '' && Number(target) !== savingsTarget) save({ financeSavingsTarget: Number(target) });
+              }}
+            />
+          </div>
+          <button type="button" className="btn-ghost" disabled={isSaving || savingsTarget === null} onClick={() => save({ financeSavingsTarget: null })}>
+            Clear target
+          </button>
+        </div>
+        <p className="caption finance-hint">
+          {savingsTarget === null
+            ? 'No target: each savings rate is shown alone.'
+            : 'Each savings rate says whether it meets ' + savingsTarget + '%.'}
         </p>
       </div>
     </article>

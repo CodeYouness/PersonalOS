@@ -336,7 +336,9 @@ of its own.
 | `figure:net-worth:now`, `:change-30d`, `:change-1y` | net worth as of today and its two changes | Finances |
 | `figure:net-worth:<YYYY-MM>` | month-end net worth (the running month is today's), with the change on the month before | Finances |
 | `figure:income:`, `spending:`, `left:`, `fixed:`, `variable:<YYYY-MM>` | the month's flows | Finances, that month |
-| `figure:savings-rate:<YYYY-MM>`, `savings-rate-12m:<YYYY-MM>` | the month's rate, and the 12 months ending with it | Finances, that month |
+| `figure:savings-rate:<YYYY-MM>`, `savings-rate-12m:<YYYY-MM>` | the month's rate, and the 12 months ending with it; with a target savings rate set, whether each meets it | Finances, that month |
+| `figure:income:`, `spending:`, `left:`, `savings-rate:<YYYY>-ytd` | today's calendar year to date, as the year reading shows it (`calendarYearFlows`): from January or "tracked since" to today's month; the rate with whether it meets the target and, when not, what would have had to be left | Finances, the year |
+| `figure:tag:<YYYY-MM>:<tag key>`, `figure:tag:<YYYY>-ytd:<tag key>` | one tag of today's month or of the year to date (`tagFlows`): spending, income and movements; the year's also its totals over all time and its first and last day. The key spells the tag in the characters an id allows, anything else as `_<hex code point>_` | Finances, that period, the tag selected |
 | `figure:category:<YYYY-MM>:<line id>` | one line of the category table: total, share, change on the month before | Finances, that month |
 | `figure:habit-streak:now` | the current streak | Habits |
 | `figure:habit-completion:30d` | completion, perfect days and days recorded over 30 days | Habits |
@@ -350,8 +352,10 @@ of its own.
 
 Finance figures follow "tracked since" exactly as the screens do: only the
 months on offer, the history and the 1-year change as the Finances screen
-shows them. Spending per person, per tag and gain or loss per holding are not
-figures: no screen shows them.
+shows them. Spending per person, a line's average month and gain or loss per
+holding are not figures: no screen shows the first and the last, and the
+average is not one yet. Spending per tag is, for today's month and the year
+to date only (ADR 0046).
 
 A citation opens what it cites. The context decides where, from the record --
 never the model: a task on the CRM screen, a goal on Goals, a journal entry on
@@ -1276,6 +1280,11 @@ spending -- belongs to the transactions piece.
 **Has** `date`, `amount`, `currency`, `description`, `accountId`,
 `counterAccountId`, `categoryId`, `notCounted`, `tags`, `note`, `origin`.
 
+**Tags** are the user's own labels -- a trip, a project, "work expenses
+2026" -- free text, stored trimmed, lowercased and each once, as a task's.
+A movement has one category and any number of tags; Finances reads spending
+by tag (see The month's flows, By tag).
+
 **The amount is signed from `accountId`'s side** (ADR 0023): negative when
 money left the account, positive when it came in. Zero is refused. **The
 category's kind decides** whether money is income or spending (#137): in a
@@ -1526,7 +1535,13 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   the month was tracked, so nothing was spent. Rounded to a cent. Not shown
   with fewer than **three** such months: one or two months are a
   coincidence, not a habit. A paired mark sets the month's total over the
-  average (`averageMark`).
+  average (`averageMark`). **Every line with an average above zero is
+  listed**, at zero in a month with nothing in it -- no share, no change --
+  so a month without the gym reads as under its usual month
+  (`spendingLinesWithAverage`, ADR 0046); `monthFlows`, which the question
+  context reads, lists only lines with money this month or the last. The
+  caption explaining the average is printed only under a spending table
+  with rows.
 - **The year reading** (`?period=year`, `calendarYearFlows`): the selected
   month's **calendar year to date** -- its months on offer, from January or
   "tracked since" to December or today's month -- with the month's figures,
@@ -1534,13 +1549,40 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   column compares with the **same months a year before** (January to
   November against January to November, never a whole year), and only when
   every one of them was on offer and something was counted in them;
-  otherwise it is blank. A selected line lists the year's transactions.
-  `yearFlows` is not this: it is the twelve months ending with a month, the
-  "Saved over 12 months" rate.
+  otherwise it is blank. A selected line lists the year's transactions;
+  with nothing selected, the Transactions card lists the year's newest 50
+  (`limits.financeYearListMax`) and says how many more there are and that a
+  month, a category or a tag narrows it (ADR 0046). `yearFlows` is not this:
+  it is the twelve months ending with a month, the "Saved over 12 months"
+  rate.
 - **The composition** (`spendingParts`): one bar of the period's spending by
   top-level category and Uncategorised, each line's part of what the lines
   with money spent add up to -- a net refund has no part. The spending
   table is its legend: a line with a part carries its tone.
+
+**The target savings rate** (`profile.financeSavingsTarget`, ADR 0045) is a
+whole percent from 1 to 99, or none, set on the Settings card. Each savings
+rate the card shows -- the month's, the twelve months', the year's -- says
+under it whether it **meets** the target, in words and a quiet dot (filled
+when met, an outline when not). A rate meets it when the whole percent it is
+printed as is at or above the target (`meetsSavingsTarget`): shown as 20%, it
+meets 20. With no income the rate is blank, and so is the comparison. In the
+year reading, a missed target also says what would have had to be left of
+the year's income so far -- the target's share, rounded up to the cent --
+and how much more than was left (`targetShortfall`).
+
+**By tag** (`tagFlows`, ADR 0046), a card of its own beside Income &
+spending, reads the same period. Each tag with a counted movement in it,
+largest spending first: its movements, what it spent in the period and over
+all time, and its first and last day -- a trip rarely fits one month. A
+tag's money is read by the month's rules (`countedFlow`, the one reading of
+a transaction every flow adds up): transfers and not-counted movements left
+out, a refund reducing spending. **A movement with several tags counts under
+each**, so tag totals do not add up to the period's spending. Not there at
+all when no movement has a tag. Selecting a tag (`?tag=<tag>`) lists the
+movements it counts (`tagHolds`) in the Transactions card, of the period or,
+with `?span=all`, of all time. One selection at a time: a tag clears a
+selected line, and a line a tag.
 
 ### Not counted
 
@@ -1567,7 +1609,9 @@ ADR 0008's exception applies to it again.
 Month-end net worth for every month from the first balance or trade to today,
 and its change from the month before -- derived, never stored (ADR 0022). The
 History card lists it; the net worth line of Income & spending's trend draws
-the months of it the trend covers (ADR 0044). An
+the months of it the trend covers (ADR 0044). A month-end at which no account
+had a value -- the only valued account archived before it -- is 0 in the
+history and the card, and a gap in the line (ADR 0046). An
 archived account counts, with its movements, on every day before it was
 archived; between two balances a cash account follows its movements (ADR
 0024), and otherwise a value stays flat between two balances or prices; a

@@ -405,6 +405,20 @@ export const limits = Object.freeze({
   timeStepMinutes: 30,
   /** The most one area can take in a day: the whole day. */
   timeAreaMaxMinutes: 24 * 60,
+  /**
+   * The target savings rate (ADR 0045) is a whole percent from this to that,
+   * both included, or none. Not 0 -- a target of saving nothing is no target
+   * -- and not 100: spending nothing at all is not a plan.
+   */
+  savingsTargetMin: 1,
+  savingsTargetMax: 99,
+  /**
+   * Finances' Transactions card, reading a year with nothing selected (ADR
+   * 0046), lists this many of the newest movements and says how many more
+   * there are: a whole year is hundreds of rows nobody reads. A month, a
+   * category or a tag narrows it, and is listed whole.
+   */
+  financeYearListMax: 50,
   /** How far back the Health card aggregates. */
   healthWindowDays: 30,
   /** How far ahead recurring calendar events are expanded. */
