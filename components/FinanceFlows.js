@@ -21,8 +21,11 @@ import { shiftMonth, yearOf } from '@/lib/domain/dates.js';
 import {
   AVERAGE_MIN_MONTHS,
   averageMark,
+  meetsSavingsTarget,
   savingsRate,
+  spendingLinesWithAverage,
   spendingParts,
+  targetShortfall,
   trendBars,
   trendHigh,
   worthLine,
@@ -63,7 +66,14 @@ const CHARTS = /** @type {const} */ ([
  * that reads it. The spending table's composition bar shows each line's part
  * of the whole; in a month each top-level spending line is set against its
  * average month (spendingAverages), blank until there are enough months to
- * average.
+ * average -- a line with an average is listed even in a month with nothing
+ * in it (spendingLinesWithAverage, ADR 0046).
+ *
+ * With a target savings rate (ADR 0045), each rate shown -- the month's, the
+ * 12 months', the year's -- says whether it meets the target, in words and
+ * a mark (meetsSavingsTarget); a blank rate has no comparison. In a year
+ * that misses it, a line says what would have had to be left of what came
+ * in (targetShortfall).
  *
  * Read-only, and loading it calls neither the model nor an integration.
  *
@@ -72,6 +82,8 @@ const CHARTS = /** @type {const} */ ([
  *   period: 'month' | 'year',
  *   chart: FinancesChart,
  *   yearRate: number | null,
+ *   target: number | null,
+ *   categories: import('@/lib/domain/types.js').FinanceCategory[],
  *   trend: TrendMonth[],
  *   worth: WorthMonth[],
  *   averages: { months: number, byLine: Map<string, number> } | null,
@@ -81,9 +93,13 @@ const CHARTS = /** @type {const} */ ([
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceFlows({ flows, period, chart, yearRate, trend, worth, averages, months, month, todayKey, place }) {
+export default function FinanceFlows({ flows, period, chart, yearRate, target, categories, trend, worth, averages, months, month, todayKey, place }) {
   const router = useRouter();
   const year = yearOf(month);
+  const rate = savingsRate(flows);
+  const spending = spendingLinesWithAverage(flows, averages, categories);
+  const spendingRows = spending.lines.length > 0 || spending.showUncategorised;
+  const shortfall = period === 'year' ? targetShortfall(flows, target) : null;
   const label = period === 'year' ? year : monthLabel(month);
   const years = [...new Set(months.map(yearOf))];
   /** @param {string} target */
@@ -152,9 +168,22 @@ export default function FinanceFlows({ flows, period, chart, yearRate, trend, wo
           <Figure label="Income" value={formatEuro(flows.income, { cents: true })} />
           <Figure label="Spending" value={formatEuro(flows.spending, { cents: true })} />
           <Figure label="Left" value={formatEuro(flows.left, { cents: true })} />
-          <Figure label={period === 'year' ? 'Saved in ' + year : 'Saved this month'} value={formatRate(savingsRate(flows))} />
-          {period === 'month' && <Figure label="Saved over 12 months" value={formatRate(yearRate)} />}
+          <Figure
+            label={period === 'year' ? 'Saved in ' + year : 'Saved this month'}
+            value={formatRate(rate)}
+            target={target}
+            meets={meetsSavingsTarget(rate, target)}
+          />
+          {period === 'month' && (
+            <Figure label="Saved over 12 months" value={formatRate(yearRate)} target={target} meets={meetsSavingsTarget(yearRate, target)} />
+          )}
         </div>
+        {shortfall !== null && (
+          <p className="caption finance-target-note">
+            To meet the {target}% target on what came in during {year}, <span className="num">{formatEuro(shortfall.needed, { cents: true })}</span> would
+            have to be left: <span className="num">{formatEuro(shortfall.more, { cents: true })}</span> more.
+          </p>
+        )}
         <p className="caption finance-fixed">
           Fixed <span className="num">{formatEuro(flows.fixed, { cents: true })}</span> · Variable{' '}
           <span className="num">{formatEuro(flows.variable, { cents: true })}</span>
@@ -163,15 +192,16 @@ export default function FinanceFlows({ flows, period, chart, yearRate, trend, wo
         <Composition flows={flows} />
         <FlowTable
           title="Spending"
-          lines={flows.spendingCategories}
+          lines={spending.lines}
           uncategorised={flows.uncategorisedSpending}
+          showUncategorised={spending.showUncategorised}
           parts={spendingParts(flows)}
           averages={averages}
           compared={flows.compared}
           changeHead={period === 'year' ? 'vs ' + yearOf(shiftMonth(month, -12)) : 'vs last month'}
           place={place}
         />
-        {period === 'month' && (
+        {period === 'month' && spendingRows && (
           <p className="caption finance-average-note">
             {averages === null
               ? 'No average yet: it needs ' + AVERAGE_MIN_MONTHS + ' months on offer before this one.'
@@ -183,6 +213,7 @@ export default function FinanceFlows({ flows, period, chart, yearRate, trend, wo
           title="Income"
           lines={flows.incomeCategories}
           uncategorised={flows.uncategorisedIncome}
+          showUncategorised={flows.uncategorisedIncome.total !== 0 || flows.uncategorisedIncome.previous !== 0}
           parts={[]}
           averages={null}
           compared={flows.compared}
@@ -431,12 +462,24 @@ function Composition({ flows }) {
   );
 }
 
-/** @param {{ label: string, value: string }} props */
-function Figure({ label, value }) {
+/**
+ * One figure of the totals. A savings rate with a target says, under it,
+ * whether it meets the target -- in words, with a quiet mark (filled when
+ * met, an outline when not), never colour alone (ADR 0045).
+ *
+ * @param {{ label: string, value: string, target?: number | null, meets?: boolean | null }} props
+ */
+function Figure({ label, value, target = null, meets = null }) {
   return (
     <div className="finance-figure">
       <span className="caption">{label}</span>
       <span className="num">{value}</span>
+      {target !== null && meets !== null && (
+        <span className="caption finance-target">
+          <i className={'finance-target-mark' + (meets ? ' is-met' : '')} aria-hidden="true" />
+          {(meets ? 'Meets' : 'Under') + ' the ' + target + '% target'}
+        </span>
+      )}
     </div>
   );
 }
@@ -450,6 +493,7 @@ function Figure({ label, value }) {
  *   title: string,
  *   lines: CategoryFlow[],
  *   uncategorised: CategoryFlow,
+ *   showUncategorised: boolean,
  *   parts: { id: string }[],
  *   averages: { months: number, byLine: Map<string, number> } | null,
  *   compared: boolean,
@@ -457,11 +501,10 @@ function Figure({ label, value }) {
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-function FlowTable({ title, lines, uncategorised, parts, averages, compared, changeHead, place }) {
+function FlowTable({ title, lines, uncategorised, showUncategorised, parts, averages, compared, changeHead, place }) {
   const [open, setOpen] = useState(
     () => new Set(lines.filter((line) => line.children.some((child) => child.id === place.category)).map((line) => line.id))
   );
-  const showUncategorised = uncategorised.total !== 0 || uncategorised.previous !== 0;
   if (lines.length === 0 && !showUncategorised) return null;
 
   /** @param {string} id */
@@ -548,7 +591,7 @@ function FlowRow({ line, place, averages, compared, tone = null, child = false, 
         )}
         {tone !== null && <i className="dot finance-part-dot" style={{ color: tone }} aria-hidden="true" />}
         <Link
-          href={financesHref({ ...place, category: line.id, transaction: null })}
+          href={financesHref({ ...place, category: line.id, tag: null, span: null, transaction: null })}
           scroll={false}
           className="finance-account-link"
           aria-current={selected ? 'true' : undefined}

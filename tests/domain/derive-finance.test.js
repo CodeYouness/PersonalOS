@@ -11,13 +11,19 @@ import {
   flowMonths,
   flowTrend,
   lineHolds,
+  listedTransactions,
+  meetsSavingsTarget,
   monthFlows,
   monthsWith,
   netWorthOn,
   savingsRate,
   sparkBars,
   spendingAverages,
+  spendingLinesWithAverage,
   spendingParts,
+  tagFlows,
+  tagHolds,
+  targetShortfall,
   trendBars,
   trendHigh,
   trendMonths,
@@ -28,6 +34,7 @@ import {
   yearFlows,
   yearMonths,
 } from '@/lib/domain/derive/finance.js';
+import { percent } from '@/lib/domain/format.js';
 
 /** @returns {any} */
 const account = (/** @type {any} */ o) => ({
@@ -344,11 +351,11 @@ describe('the history is derived month by month', () => {
     const { history } = financeOverview(inputs, '2026-04-12');
 
     expect(history).toEqual([
-      { month: '2026-04', netWorth: 130000, change: 0 },
+      { month: '2026-04', netWorth: 130000, change: 0, measuredAccounts: 1 },
       // The loan was archived on 10 March: it counts before, not at month end.
-      { month: '2026-03', netWorth: 130000, change: 70000 },
-      { month: '2026-02', netWorth: 60000, change: -40000 },
-      { month: '2026-01', netWorth: 100000, change: null },
+      { month: '2026-03', netWorth: 130000, change: 70000, measuredAccounts: 1 },
+      { month: '2026-02', netWorth: 60000, change: -40000, measuredAccounts: 2 },
+      { month: '2026-01', netWorth: 100000, change: null, measuredAccounts: 1 },
     ]);
   });
 
@@ -1218,5 +1225,227 @@ describe('spending over time: the trend, the average, the year', () => {
     it('is empty when nothing was spent', () => {
       expect(spendingParts(monthFlows([], categories, '2026-03'))).toEqual([]);
     });
+  });
+});
+
+describe('spending by tag', () => {
+  /** @returns {any} */
+  const category = (/** @type {any} */ o) => ({ name: o.id, kind: null, parentId: null, fixedCost: false, archived: false, ...o });
+  const categories = [
+    category({ id: 'cat_travel', kind: 'expense' }),
+    category({ id: 'cat_hotel', parentId: 'cat_travel' }),
+    category({ id: 'cat_salary', kind: 'income' }),
+  ];
+  /** @param {string} date @param {number} amount @param {string | null} categoryId @param {string[]} tags @param {any} [o] */
+  const t = (date, amount, categoryId, tags, o = {}) => transaction({ id: 'tx_' + date + amount, date, amount, categoryId, tags, ...o });
+  const transactions = [
+    t('2026-02-27', -40000, 'cat_hotel', ['lisbon trip']),
+    t('2026-03-02', -12000, 'cat_travel', ['lisbon trip', 'work 2026']),
+    t('2026-03-03', 2000, 'cat_travel', ['lisbon trip']), // a refund
+    t('2026-03-04', -50000, null, ['lisbon trip'], { counterAccountId: 'account_y' }), // a transfer
+    t('2026-03-05', -9000, 'cat_travel', ['lisbon trip'], { notCounted: true }),
+    t('2026-03-10', 30000, 'cat_salary', ['work 2026']),
+    t('2026-03-11', -3000, null, ['coffee']),
+    t('2026-04-01', -5000, 'cat_travel', ['lisbon trip']),
+    t('2026-03-12', -7000, 'cat_travel', []),
+  ];
+
+  it('counts each tag by the month\'s rules: a refund reduces spending, a transfer and a not-counted movement are left out', () => {
+    const lisbon = tagFlows(transactions, categories, ['2026-03']).find((row) => row.tag === 'lisbon trip');
+
+    expect(lisbon).toMatchObject({ movements: 2, spending: 10000, income: 0 });
+  });
+
+  it('counts a movement with several tags under each', () => {
+    const rows = tagFlows(transactions, categories, ['2026-03']);
+
+    expect(rows.find((row) => row.tag === 'work 2026')).toMatchObject({ movements: 2, spending: 12000, income: 30000 });
+    expect(rows.find((row) => row.tag === 'lisbon trip')?.spending).toBe(10000);
+  });
+
+  it('lists only the tags with something counted in the period, largest spending first', () => {
+    expect(tagFlows(transactions, categories, ['2026-03']).map((row) => [row.tag, row.spending])).toEqual([
+      ['work 2026', 12000],
+      ['lisbon trip', 10000],
+      ['coffee', 3000],
+    ]);
+    expect(tagFlows(transactions, categories, ['2026-04']).map((row) => row.tag)).toEqual(['lisbon trip']);
+    expect(tagFlows(transactions, categories, ['2026-05'])).toEqual([]);
+  });
+
+  it('gives each tag its total over all time and its first and last day, a trip rarely fitting one month', () => {
+    const lisbon = tagFlows(transactions, categories, ['2026-03']).find((row) => row.tag === 'lisbon trip');
+
+    expect(lisbon).toMatchObject({ allMovements: 4, allSpending: 55000, allIncome: 0, first: '2026-02-27', last: '2026-04-01' });
+  });
+
+  it('reads a year as its months', () => {
+    const year = tagFlows(transactions, categories, ['2026-01', '2026-02', '2026-03', '2026-04']);
+
+    expect(year.find((row) => row.tag === 'lisbon trip')).toMatchObject({ movements: 4, spending: 55000 });
+  });
+
+  it('holds what its total counts, so a tag\'s list is as long as its count', () => {
+    const march = transactions.filter((one) => one.date.startsWith('2026-03') && tagHolds(one, 'lisbon trip'));
+
+    expect(march.map((one) => one.amount)).toEqual([-12000, 2000]);
+    expect(tagHolds(t('2026-03-01', -100, null, ['other']), 'lisbon trip')).toBe(false);
+  });
+});
+
+describe('every spending line with an average is listed in a month', () => {
+  /** @returns {any} */
+  const category = (/** @type {any} */ o) => ({ name: o.id, kind: null, parentId: null, fixedCost: false, archived: false, ...o });
+  const categories = [
+    category({ id: 'cat_home', kind: 'expense' }),
+    category({ id: 'cat_gym', kind: 'expense' }),
+    category({ id: 'cat_gifts', kind: 'expense' }),
+    category({ id: 'cat_salary', kind: 'income' }),
+  ];
+  const offered = flowMonths([], '2026-05-15', '2026-01-01');
+  const transactions = [
+    transaction({ date: '2026-01-05', amount: -9000, categoryId: 'cat_gym' }),
+    transaction({ date: '2026-01-06', amount: -3000 }),
+    transaction({ date: '2026-03-05', amount: -100000, categoryId: 'cat_home' }),
+    transaction({ date: '2026-05-05', amount: -100000, categoryId: 'cat_home' }),
+  ];
+
+  it('adds a line of zero for a category with nothing this month or last whose average is above zero, in the categories\' order', () => {
+    const flows = monthFlows(transactions, categories, '2026-05');
+    const averages = spendingAverages(transactions, categories, '2026-05', offered);
+    const { lines, showUncategorised } = spendingLinesWithAverage(flows, averages, categories);
+
+    expect(lines.map((line) => [line.id, line.total, line.share, line.previous])).toEqual([
+      ['cat_home', 100000, 1, 0],
+      ['cat_gym', 0, 0, 0],
+    ]);
+    // Uncategorised had money in January: its average is above zero too.
+    expect(showUncategorised).toBe(true);
+  });
+
+  it('leaves out a category whose average is zero', () => {
+    const flows = monthFlows(transactions, categories, '2026-05');
+    const averages = spendingAverages(transactions, categories, '2026-05', offered);
+
+    expect(spendingLinesWithAverage(flows, averages, categories).lines.some((line) => line.id === 'cat_gifts')).toBe(false);
+  });
+
+  it('is the month\'s own lines when there is no average', () => {
+    const flows = monthFlows(transactions, categories, '2026-03');
+
+    expect(spendingLinesWithAverage(flows, null, categories)).toEqual({ lines: flows.spendingCategories, showUncategorised: false });
+  });
+
+  it('leaves what monthFlows returns -- what the question context reads -- as it was', () => {
+    const flows = monthFlows(transactions, categories, '2026-05');
+
+    expect(flows.spendingCategories.map((line) => line.id)).toEqual(['cat_home']);
+  });
+});
+
+describe('the savings target', () => {
+  it('is met when the rate, as it is printed, is at or above the target', () => {
+    expect(meetsSavingsTarget(0.25, 20)).toBe(true);
+    expect(meetsSavingsTarget(0.2, 20)).toBe(true);
+    expect(meetsSavingsTarget(0.15, 20)).toBe(false);
+    expect(meetsSavingsTarget(-0.1, 20)).toBe(false);
+  });
+
+  it('agrees with the rounding the rate is printed with, at the boundary', () => {
+    // 19.5% prints as 20%: it reads as met. 19.49% prints as 19%: it does not.
+    expect(percent(savingsRate({ income: 100000, spending: 80500 }) ?? NaN)).toBe('20%');
+    expect(meetsSavingsTarget(savingsRate({ income: 100000, spending: 80500 }), 20)).toBe(true);
+    expect(meetsSavingsTarget(savingsRate({ income: 100000, spending: 80510 }), 20)).toBe(false);
+    for (let spending = 78000; spending <= 82000; spending += 1) {
+      const rate = /** @type {number} */ (savingsRate({ income: 100000, spending }));
+      expect(meetsSavingsTarget(rate, 20)).toBe(Number(percent(rate).replace('%', '').replace('−', '-')) >= 20);
+    }
+  });
+
+  it('is blank with no rate or no target', () => {
+    expect(meetsSavingsTarget(null, 20)).toBeNull();
+    expect(meetsSavingsTarget(0.3, null)).toBeNull();
+  });
+
+  it('says what would have to be left to meet it, only when it is not met', () => {
+    expect(targetShortfall({ income: 200000, spending: 170000, left: 30000 }, 20)).toEqual({ needed: 40000, more: 10000 });
+    // A cent is the least that can be left: the target's share rounds up.
+    expect(targetShortfall({ income: 333, spending: 333, left: 0 }, 20)).toEqual({ needed: 67, more: 67 });
+    expect(targetShortfall({ income: 100000, spending: 80500, left: 19500 }, 20)).toBeNull();
+    expect(targetShortfall({ income: 0, spending: 5000, left: -5000 }, 20)).toBeNull();
+    expect(targetShortfall({ income: 200000, spending: 170000, left: 30000 }, null)).toBeNull();
+  });
+});
+
+describe('a month-end where no account has a value', () => {
+  const accounts = [
+    account({ id: 'account_old', kind: 'cash', archivedOn: '2026-02-10' }),
+    account({ id: 'account_new', kind: 'cash' }),
+  ];
+  const observations = [
+    observation({ id: 'observation_1', accountId: 'account_old', amount: 100000, date: '2026-01-05' }),
+    observation({ id: 'observation_2', accountId: 'account_new', amount: 300000, date: '2026-04-02' }),
+  ];
+  const inputs = { accounts, observations, trades: [], prices: [], transactions: [] };
+  const months = ['2026-01', '2026-02', '2026-03', '2026-04'];
+
+  it('is a gap in the net worth line, not a zero', () => {
+    const { history } = financeOverview(inputs, '2026-04-20');
+
+    expect(worthTrend(history, months, '2026-04-20').map((row) => row.netWorth)).toEqual([100000, null, null, 300000]);
+  });
+
+  it('leaves the history\'s own figures as they were', () => {
+    const { history } = financeOverview(inputs, '2026-04-20');
+
+    expect(history.map((row) => [row.month, row.netWorth, row.change])).toEqual([
+      ['2026-04', 300000, 300000],
+      ['2026-03', 0, 0],
+      ['2026-02', 0, -100000],
+      ['2026-01', 100000, null],
+    ]);
+  });
+});
+
+describe('what the Transactions card lists', () => {
+  /** @returns {any} */
+  const category = (/** @type {any} */ o) => ({ name: o.id, kind: null, parentId: null, fixedCost: false, archived: false, ...o });
+  const categories = [category({ id: 'cat_food', kind: 'expense' })];
+  // Newest first, as the store hands them.
+  const transactions = [
+    transaction({ id: 'tx_5', date: '2026-04-02', amount: -500, categoryId: 'cat_food' }),
+    transaction({ id: 'tx_4', date: '2026-03-20', amount: -400, tags: ['trip'] }),
+    transaction({ id: 'tx_3', date: '2026-03-10', amount: -300, categoryId: 'cat_food', tags: ['trip'] }),
+    transaction({ id: 'tx_2', date: '2026-02-01', amount: -200, tags: ['trip'], counterAccountId: 'account_y' }),
+    transaction({ id: 'tx_1', date: '2025-12-01', amount: -100, tags: ['trip'] }),
+  ];
+  const ids = (/** @type {{ rows: any[] }} */ list) => list.rows.map((row) => row.id);
+  const base = { categories, category: null, tag: null, span: null, max: 2 };
+
+  it('lists a month whole, whatever its length', () => {
+    expect(ids(listedTransactions(transactions, { ...base, months: ['2026-03'], period: 'month', max: 1 }))).toEqual(['tx_4', 'tx_3']);
+  });
+
+  it('lists only the newest of a year with nothing selected, and says how many more', () => {
+    const list = listedTransactions(transactions, { ...base, months: ['2026-01', '2026-02', '2026-03', '2026-04'], period: 'year' });
+
+    expect(ids(list)).toEqual(['tx_5', 'tx_4']);
+    expect(list.more).toBe(2);
+  });
+
+  it('lists a selected line or tag of a year whole', () => {
+    const months = ['2026-01', '2026-02', '2026-03', '2026-04'];
+
+    expect(listedTransactions(transactions, { ...base, months, period: 'year', category: 'cat_food', max: 1 })).toEqual({
+      rows: [transactions[0], transactions[2]],
+      more: 0,
+    });
+    expect(ids(listedTransactions(transactions, { ...base, months, period: 'year', tag: 'trip', max: 1 }))).toEqual(['tx_4', 'tx_3']);
+  });
+
+  it('lists a tag\'s counted movements of all time when asked, never a transfer', () => {
+    expect(ids(listedTransactions(transactions, { ...base, months: ['2026-03'], period: 'month', tag: 'trip', span: 'all' }))).toEqual([
+      'tx_4', 'tx_3', 'tx_1',
+    ]);
   });
 });

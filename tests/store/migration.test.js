@@ -1110,3 +1110,39 @@ describe('migration v22 to v23', () => {
     expect(before.dailyLogs['2026-03-01'].time).toEqual({ work: 240, study: 90, projects: 60 });
   });
 });
+
+describe('migration v23 to v24', () => {
+  /** A v23 document: no target savings rate yet. */
+  const v23Document = () => {
+    const migrated = migrate(v12Document());
+    const { financeSavingsTarget, ...profile } = migrated.profile;
+    return { ...migrated, schemaVersion: 23, profile };
+  };
+
+  it('gives the profile a target savings rate that is not set', () => {
+    const migrated = migrate(v23Document());
+
+    expect(migrated.profile.financeSavingsTarget).toBeNull();
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('changes nothing else', () => {
+    const before = v23Document();
+    const { profile, schemaVersion, ...rest } = migrate(before);
+    const { profile: profileBefore, schemaVersion: versionBefore, ...restBefore } = before;
+
+    expect(rest).toEqual(restBefore);
+    const { financeSavingsTarget, ...profileRest } = profile;
+    expect(profileRest).toEqual(profileBefore);
+  });
+
+  it('keeps a target already there', () => {
+    const before = v23Document();
+    expect(migrate({ ...before, profile: { ...before.profile, financeSavingsTarget: 25 } }).profile.financeSavingsTarget).toBe(25);
+  });
+
+  it('is idempotent', () => {
+    const once = migrate(v23Document());
+    expect(migrate(once)).toEqual(once);
+  });
+});

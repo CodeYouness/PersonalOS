@@ -1213,6 +1213,21 @@ a.cite { text-decoration: none; }
 .finance-average-mark .is-average { background: var(--series-3); }
 .finance-average-note { margin: var(--s-xs) 0 0; }
 .finance-average-note + .finance-flow-table { margin-top: var(--s-md); }
+/* A savings rate against its target (ADR 0045): words, and a quiet dot --
+   filled ink when met, an ink outline when not -- never colour alone. */
+.finance-target { display: inline-flex; align-items: center; gap: 6px; text-align: right; }
+.finance-target-mark {
+  flex: none; width: 8px; height: 8px; border-radius: var(--r-full);
+  border: 1px solid var(--ink); background: transparent;
+}
+.finance-target-mark.is-met { background: var(--ink); }
+.finance-target-note { margin: 0 0 var(--s-sm); }
+/* By tag (ADR 0046): a tag's first and last day under its name. */
+.finance-tag-days { display: block; }
+.finance-tag-note { margin: var(--s-xs) 0 0; }
+/* Transactions: a tag's Period / All time switch beside Show all. */
+#card-finance-transactions .card-head { flex-wrap: wrap; }
+.finance-list-more { margin: var(--s-xs) 0 0; }
 .finance-category-group + .finance-category-group { margin-top: var(--s-md); }
 .finance-categories { list-style: none; margin: var(--s-xs) 0 var(--s-md); padding: 0; }
 .finance-category { display: flex; align-items: center; gap: var(--s-xs); padding: 2px 0; }

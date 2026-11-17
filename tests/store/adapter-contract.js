@@ -2266,6 +2266,35 @@ export function runAdapterContract(label, load) {
         });
       });
 
+      describe('the target savings rate (ADR 0045)', () => {
+        it('sets a whole percent and clears it', async () => {
+          await store.updateProfile({ financeSavingsTarget: 20 });
+          expect((await store.getProfile()).financeSavingsTarget).toBe(20);
+
+          await store.updateProfile({ financeSavingsTarget: 1 });
+          await store.updateProfile({ financeSavingsTarget: 99 });
+          expect((await store.getProfile()).financeSavingsTarget).toBe(99);
+
+          await store.updateProfile({ financeSavingsTarget: null });
+          expect((await store.getProfile()).financeSavingsTarget).toBeNull();
+        });
+
+        it.each([
+          ['zero', 0],
+          ['a hundred', 100],
+          ['a negative percent', -5],
+          ['a fraction', 20.5],
+          ['a ratio instead of a percent', 0.2],
+          ['a string', '20'],
+          ['not a number', Number.NaN],
+        ])('refuses %s, changing nothing', async (_label, value) => {
+          await store.updateProfile({ financeSavingsTarget: 30 });
+
+          await expect(store.updateProfile({ financeSavingsTarget: /** @type {any} */ (value) })).rejects.toThrow(/financeSavingsTarget/);
+          expect((await store.getProfile()).financeSavingsTarget).toBe(30);
+        });
+      });
+
       describe('finance categories (#136)', () => {
         /** @param {string} id */
         const category = async (id) => (await store.getProfile()).financeCategories.find((c) => c.id === id);

@@ -4,14 +4,15 @@ import { updateProfile } from '@/lib/store.js';
 
 export const dynamic = 'force-dynamic';
 
-/** The finance settings the Finances screen edits (#138, #141). */
-const EDITABLE = ['financeTrackedSince', 'defaultAccountId'];
+/** The finance settings the Finances screen edits (#138, #141, ADR 0045). */
+const EDITABLE = ['financeTrackedSince', 'defaultAccountId', 'financeSavingsTarget'];
 
 /**
  * Change the finance settings: "tracked since", the day the history starts
- * at (ADR 0025), and the default account a finance sentence naming none is
- * filed on (ADR 0026) -- either null to clear it. The store validates each
- * value: the default account must be open and valued by balance.
+ * at (ADR 0025), the default account a finance sentence naming none is
+ * filed on (ADR 0026), and the target savings rate (ADR 0045) -- each null
+ * to clear it. The store validates each value: the default account must be
+ * open and valued by balance, the target a whole percent from 1 to 99.
  *
  * @param {Request} request
  */
@@ -35,7 +36,11 @@ export async function PATCH(request) {
     // not this route's to hand back.
     return NextResponse.json({
       ok: true,
-      settings: { financeTrackedSince: profile.financeTrackedSince, defaultAccountId: profile.defaultAccountId },
+      settings: {
+        financeTrackedSince: profile.financeTrackedSince,
+        defaultAccountId: profile.defaultAccountId,
+        financeSavingsTarget: profile.financeSavingsTarget,
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
