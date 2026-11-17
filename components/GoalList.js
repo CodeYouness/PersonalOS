@@ -16,8 +16,7 @@ export function goalsHref(goalId = null) {
 }
 
 /**
- * The open goals in their groups, as the home card and the Goals screen both
- * draw them, from lib/domain/derive/goals.js's goalBoard. Every row is a
+ * The open goals in their groups, as the Goals screen draws them, from lib/domain/derive/goals.js's goalBoard. Every row is a
  * link to that goal on the screen, selected by id in the address.
  *
  * @param {{

@@ -353,8 +353,41 @@ export const limits = Object.freeze({
   reviewAnswerMaxLength: 2000,
   /** The longest lever -- one sentence for next week, not a plan. */
   reviewLeverMaxLength: 300,
-  /** Three is a decision, ten is a list. Shown by the Session card. */
-  sessionTaskCount: 3,
+  /**
+   * Home's "Needs you" (ADR 0040): how many of the tasks overdue or due today
+   * it lists, most urgent first, before "and N more" sends you to the CRM.
+   */
+  homeTaskCount: 5,
+  /** Home's "Worth noting" says at most this many sentences (ADR 0040). */
+  homeNotesMax: 3,
+  /**
+   * "Worth noting": the habits kept so far this week differ from the four
+   * weeks before by at least this many percentage points...
+   */
+  homeKeptRatePoints: 15,
+  /**
+   * ...and only once both rest on at least this many scheduled habit-days:
+   * on a Monday morning one miss is not a trend.
+   */
+  homeKeptRateMinDays: 5,
+  /**
+   * "Worth noting": last week's spending is at least this share off the
+   * weekly mean of the weeks before it (0.3 = 30% more or less)...
+   */
+  homeSpendingRatio: 0.3,
+  /** ...with at least this many of those weeks having any spending. */
+  homeSpendingMinWeeks: 2,
+  /**
+   * "Worth noting": a habit not kept on this many of its scheduled days
+   * running, before today. Paused days and days with nothing recorded are
+   * passed over, not counted: forgetting to record is not failing.
+   */
+  homeMissedRunDays: 3,
+  /**
+   * "Worth noting": net worth moved by at least this share of what it was 30
+   * days before (0.05 = 5%).
+   */
+  homeNetWorthRatio: 0.05,
   /**
    * The one scale a day's mood and its energy are each read on, both ends
    * included (ADR 0035, 0037). One scale for both, so the two read alike.

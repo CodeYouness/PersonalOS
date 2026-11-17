@@ -198,6 +198,17 @@ you are: the question shown, those set aside, whether the sheet of every
 answer is open. Picking a day changes the address, so the server reads it;
 the panel fetches nothing on load.
 
+The rest of Home (ADR 0040) is the page itself, `app/page.js`: it reads the
+store once, derives with `lib/domain/derive/home.js` -- `needsYou`,
+`worthNoting`, `homeTiles`, which compose the task, habit, review, week and
+finance derivations rather than repeat them -- and hands the results to
+presentational sections (`components/HomeSections.js`). Nothing is kept in
+the browser, so the check-in's `router.refresh()` redraws them from what it
+filed. The one client island is the row that opens the capture log, which
+asks the shell for it with a window event (`components/captureLog.js`)
+instead of owning the drawer's state. `tests/app/home-page-imports.test.js`
+holds rule 3: nothing Home imports reaches a model or an integration.
+
 ## Extension points
 
 - **Storage.** Add `lib/adapters/<name>/`, implement the contract, run the
@@ -213,7 +224,8 @@ the panel fetches nothing on load.
   enforces. It forces the tool where the model accepts that, and offers it
   where the model does not (Sonnet 5.5, ADR 0030).
 - **Cards.** Each owns a screen section and its own API route, and never
-  reaches into another card's data. How it looks follows
+  reaches into another card's data. A card that only displays lives on its
+  screen, not on Home (ADR 0040); Home gains a row or a note, not a card. How it looks follows
   `docs/design/ui-rules.md` (ADR 0038), styled in `app/globals.css` with its
   tokens.
 

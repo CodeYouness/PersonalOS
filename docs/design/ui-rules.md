@@ -134,6 +134,18 @@ scrollbar-color: var(--hairline-tertiary) transparent`, with the
 scroll: the grid's columns are `minmax(0, 1fr)`, a wide table scrolls inside
 its card, and the nav scrolls sideways with its bar hidden.
 
+## Home
+
+Action first (ADR 0040). Home is one readable column at the check-in's
+measure, and top to bottom it answers: is there something to do, is there
+something worth noting. **A section exists only when it has something to
+say**: "Needs you" with nothing needing you is one calm line, never an empty
+card; "Worth noting" with nothing different is absent. Rows are plain, one
+per thing, the whole row the target, 44px or more; no badge walls, and the
+state colour only for an overdue task. The tiles are one number and one
+label each, the whole tile the link, no buttons inside. The check-in keeps
+the one filled button. A card that only displays belongs on its screen.
+
 ## Not taken from taste-skill, and why
 
 The rules above come from the `design-taste-frontend` skill's system,

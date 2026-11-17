@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { CAPTURE_LOG_OPEN_EVENT } from '@/components/captureLog.js';
 import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
 
 /**
@@ -22,9 +23,9 @@ import CaptureLogDrawer from '@/components/CaptureLogDrawer.js';
  * `usePathname` that decides which nav item is the current one.
  *
  * Two elements from the mockup's topbar are still left out rather than shown
- * with fake data: the date caption (the Today card is about to show the real
- * one, and duplicating it here would be two places computing "today"), and
- * the (unset) command-palette shortcut.
+ * with fake data: the date caption (the check-in's headline names the day,
+ * and a second one here would be two places computing "today"), and the
+ * (unset) command-palette shortcut.
  */
 
 /**
@@ -116,6 +117,14 @@ export default function Topbar() {
       setIsCorrecting(false);
     }
   }
+
+  // Anything on a page may ask for the log (Home's unclassified captures,
+  // ADR 0040) without reaching into the shell's state.
+  useEffect(() => {
+    const open = () => setLogOpen(true);
+    window.addEventListener(CAPTURE_LOG_OPEN_EVENT, open);
+    return () => window.removeEventListener(CAPTURE_LOG_OPEN_EVENT, open);
+  }, []);
 
   /** @param {string} id */
   const handleDelete = (id) => correct('/api/captures/' + id, { method: 'DELETE' });

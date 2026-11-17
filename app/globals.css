@@ -252,14 +252,15 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--primary); widt
   .btn-primary:hover:not(:disabled),
   .btn-ghost:hover:not(:disabled),
   .btn-danger:hover:not(:disabled) { transform: translateY(-1px); transition-duration: var(--m-in); }
-  .ticket:hover { transform: translateY(-2px); }
+  .ticket:hover,
+  .home-tile:hover { transform: translateY(-2px); }
 }
 .btn-primary:active:not(:disabled),
 .btn-ghost:active:not(:disabled),
 .btn-danger:active:not(:disabled) { transform: translateY(1px) scale(.985); transition-duration: var(--m-press); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
-  .btn-primary, .btn-ghost, .btn-danger, .ticket { transform: none !important; transition-property: background-color, border-color, color !important; }
+  .btn-primary, .btn-ghost, .btn-danger, .ticket, .home-tile { transform: none !important; transition-property: background-color, border-color, color !important; }
   #capture-log { transition: none; }
 }
 
@@ -335,9 +336,13 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--primary); widt
   padding: var(--s-lg) var(--s-lg) var(--capture-h);
   min-height: calc(100vh - var(--topbar-h));
 }
-/* The check-in and the Today card take the height they need; Session and
-   Habits, then Calendar and Pulse, share what is left; Goals last. */
-#screen-home .screen-grid { grid-template-rows: auto auto minmax(280px, 1fr) minmax(240px, 1fr) auto; }
+/* Home is one readable column (ADR 0040): the check-in's 720px measure,
+   plus its card's padding and border, so every section lines up with it.
+   Rows take the height they need, from the top. */
+#screen-home .screen-grid {
+  max-width: calc(720px + 2 * var(--s-lg) + 2px + 2 * var(--s-lg));
+  align-content: start;
+}
 /* The summary strip takes the height it needs; the manage and history cards
    share what is left. */
 #screen-habits .screen-grid { grid-template-rows: auto minmax(0, 1fr); }
@@ -389,95 +394,6 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--primary); widt
 .badge-route-unclassified { background: var(--warning-soft); color: var(--warning); }
 .badge-est   { background: var(--info-soft);    color: var(--info); }
 .dot { width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; flex: none; }
-
-/* ==========================================================================
-   HOME — card-today (full width, first: what today is about)
-   ========================================================================== */
-#card-today { flex-direction: row; align-items: stretch; gap: var(--s-xl); padding: var(--s-xl); }
-.today-focus { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
-.today-focus .focus-text {
-  font-size: 34px; line-height: 1.15; letter-spacing: var(--track-display);
-  font-weight: var(--w-display); margin-top: var(--s-xs);
-  border-left: 2px solid var(--primary);
-  padding-left: var(--s-md);
-}
-.today-side {
-  flex: none; width: 260px; padding-left: var(--s-xl);
-  border-left: 1px solid var(--hairline);
-  display: flex; flex-direction: column; justify-content: center; gap: var(--s-xs);
-}
-.today-who { display: flex; align-items: center; gap: var(--s-sm); }
-.today-who .avatar-lg {
-  width: 38px; height: 38px; border-radius: var(--r-full);
-  background: var(--surface-3); border: 1px solid var(--hairline-strong);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: var(--w-label); color: var(--ink);
-}
-
-/* ==========================================================================
-   HOME — card-session
-   ========================================================================== */
-.task-row {
-  display: flex; align-items: center; gap: var(--s-sm);
-  padding: var(--s-sm) 0;
-  border-bottom: 1px solid var(--hairline);
-}
-.task-row:last-child { border-bottom: none; }
-.task-rank { width: 20px; color: var(--ink-subtle); font-family: var(--font-mono); font-size: 13px; }
-.task-main { min-width: 0; flex: 1; }
-.task-title { display: block; }
-.task-person { color: var(--ink-subtle); font-size: 13px; }
-
-/* ==========================================================================
-   HOME — card-habits
-   ========================================================================== */
-.ring-wrap { display: flex; align-items: center; gap: var(--s-lg); margin-bottom: var(--s-md); flex: none; }
-.ring { position: relative; width: 76px; height: 76px; flex: none; }
-.ring svg { transform: rotate(-90deg); }
-.ring-track { color: var(--surface-3); }
-.ring-progress { color: var(--success); }
-.ring-value {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 17px; font-weight: var(--w-label); letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-}
-.streak-num { font-size: 26px; letter-spacing: var(--track-display); font-weight: var(--w-display); }
-.habit { display: flex; align-items: center; gap: var(--s-sm); min-height: var(--control-h); }
-.habit-box {
-  width: 18px; height: 18px; flex: none;
-  border: 1px solid var(--hairline-tertiary); border-radius: var(--r-xs);
-  display: flex; align-items: center; justify-content: center;
-  background: none; color: inherit;
-}
-.habit-box.is-done { background: var(--success-soft); border-color: var(--success); color: var(--success); }
-/* The name is the tap target: the row's full height. */
-.habit-label {
-  flex: 1; min-width: 0; min-height: var(--control-h); text-align: left;
-  background: none; border: none; color: inherit; font: inherit; font-size: 16px; cursor: pointer;
-}
-.habit.is-done .habit-label { color: var(--ink-muted); }
-/* A habit counted from a time area (ADR 0039): shown, never tapped. */
-.habit-label.is-counted { display: flex; align-items: center; cursor: default; }
-/* A day off (#186): after the scheduled habits, faded, and still tickable.
-   Its tick is outlined, never green -- recorded, and not part of the ring. */
-.habit.is-off { opacity: 0.6; }
-.habit.is-off .habit-box.is-done { background: none; border-color: var(--ink-subtle); color: var(--ink-subtle); }
-.habit-off { font-size: 13px; color: var(--ink-subtle); flex: none; }
-/* Nothing scheduled today: the ring says so instead of 0%. */
-.ring-value.is-off { font-size: 13px; letter-spacing: 0; color: var(--ink-subtle); }
-.habit-count { font-family: var(--font-mono); font-size: 13px; color: var(--ink-subtle); }
-/* The habit's week so far (ADR 0037), quieter than today's count beside it. */
-.habit-week { flex: none; min-width: 38px; text-align: right; font-size: 13px; color: var(--ink-subtle); }
-.meter { width: 54px; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; flex: none; }
-.meter > span { display: block; height: 100%; background: var(--ink-subtle); }
-.habit-minus {
-  width: var(--control-h); height: var(--control-h); flex: none; border-radius: var(--r-xs);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--ink-subtle); background: none;
-  transition: background-color var(--m-out) var(--ease), color var(--m-out) var(--ease);
-}
-.habit-minus:hover { background: var(--surface-3); color: var(--ink); }
 
 /* ==========================================================================
    HOME — card-checkin (ADR 0037). The check-in: first on Home, and the main
@@ -658,6 +574,53 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--primary); widt
 }
 .time-step-btn:hover:not(:disabled) { border-color: var(--hairline-tertiary); background: var(--surface-3); }
 .time-step-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ==========================================================================
+   HOME — what needs you, what is worth noting, four tiles (ADR 0040). Under
+   the check-in, in its column. A section is there only when it has something
+   to say. Rows are plain links on one panel, 44px or more, the whole row the
+   target; the state colour is only for an overdue task. Tiles: one number
+   and one label, the whole tile the link -- two by two on a phone, one row
+   from 761px.
+   ========================================================================== */
+.home-section { display: flex; flex-direction: column; gap: var(--s-sm); min-width: 0; padding-top: var(--s-xs); }
+.home-calm { font-size: 16px; color: var(--ink-muted); }
+.home-rows { background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-md); }
+.home-rows li + li { border-top: 1px solid var(--hairline); }
+.home-row {
+  display: flex; align-items: baseline; gap: var(--s-sm);
+  width: 100%; min-height: var(--control-h); padding: 11px var(--s-md);
+  font-size: 16px; text-align: left; color: var(--ink); text-decoration: none;
+  transition: background-color var(--m-out) var(--ease);
+}
+.home-rows li:first-child .home-row { border-radius: var(--r-md) var(--r-md) 0 0; }
+.home-rows li:last-child .home-row { border-radius: 0 0 var(--r-md) var(--r-md); }
+.home-rows li:only-child .home-row { border-radius: var(--r-md); }
+a.home-row:hover, button.home-row:hover { background: var(--surface-2); transition-duration: var(--m-in); }
+.home-row-lead { flex: none; width: 92px; font-size: 13px; font-weight: var(--w-label); color: var(--ink-subtle); }
+.home-row-lead.num { font-family: var(--font-mono); text-align: left; }
+.home-row-lead.is-overdue { color: var(--danger); }
+.home-row-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.home-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-xs); min-width: 0; }
+.home-tile {
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  min-width: 0; min-height: 76px; padding: var(--s-sm) var(--s-md);
+  background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-md);
+  color: var(--ink); text-decoration: none;
+  transition: transform var(--m-out) var(--ease), border-color var(--m-out) var(--ease);
+}
+.home-tile:hover { border-color: var(--hairline-strong); transition-duration: var(--m-in); }
+.home-tile-value {
+  font-size: 20px; line-height: 1.25; font-weight: var(--w-display); letter-spacing: var(--track-heading);
+  text-align: left; overflow-wrap: anywhere;
+}
+.home-tile-label { font-size: 13px; font-weight: var(--w-label); color: var(--ink-subtle); }
+@media (min-width: 761px) {
+  .home-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .home-row-lead { width: 76px; }
+}
 
 /* ==========================================================================
    HABITS SCREEN — card-habits-summary
@@ -920,30 +883,6 @@ textarea.input { resize: vertical; min-height: 72px; line-height: 1.5; }
 .goal-done .goal-name:hover { color: var(--ink); }
 
 /* ==========================================================================
-   HOME — card-calendar
-   ========================================================================== */
-.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--s-xxs); margin-bottom: var(--s-md); flex: none; }
-.day {
-  padding: var(--s-xs) 0; border-radius: var(--r-xs); border: 1px solid transparent;
-  text-align: center; text-decoration: none; color: inherit; display: block;
-  transition: background-color var(--m-out) var(--ease), border-color var(--m-out) var(--ease);
-}
-.day:hover { background: var(--surface-2); transition-duration: var(--m-in); }
-.day.is-today { border-color: var(--hairline-strong); background: var(--surface-2); }
-.day.is-selected { background: var(--surface-3); border-color: var(--ink); }
-.day-name { font-size: 13px; font-weight: var(--w-label); color: var(--ink-subtle); }
-.day-num { font-size: 16px; font-variant-numeric: tabular-nums; }
-.day-dots { display: flex; gap: 2px; justify-content: center; height: 4px; margin-top: 3px; }
-.day-dots i { width: 4px; height: 4px; border-radius: var(--r-full); background: var(--ink-subtle); }
-.event { display: flex; gap: var(--s-sm); padding: 6px 0; align-items: baseline; }
-.event-time { font-family: var(--font-mono); font-size: 13px; color: var(--ink-subtle); width: 48px; flex: none; }
-.event-title { font-size: 16px; }
-.event-cal { font-size: 13px; color: var(--ink-subtle); }
-.now-line { display: flex; align-items: center; gap: var(--s-xs); margin: var(--s-xs) 0; }
-.now-line .rule { flex: 1; height: 1px; background: var(--warning); opacity: .6; }
-.now-line .label { font-family: var(--font-mono); font-size: 13px; color: var(--warning); }
-
-/* ==========================================================================
    CAPTURE BAR
    One dominant element sitting one step above the page, with a soft shadow
    because it floats over the cards. Ported minus the mic and its `listening`
@@ -1131,14 +1070,6 @@ a.cite { text-decoration: none; }
    FINANCE — card-finance-breakdown on the Finances screen, ported from the
    mockup's finance styles; no period selector and no Refresh (docs/spec.md).
    ========================================================================== */
-.net-worth { font-size: 30px; letter-spacing: var(--track-display); font-weight: var(--w-display); font-variant-numeric: tabular-nums; }
-.delta-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-sm); padding: 5px 0; font-size: 16px; }
-.delta-row .k { color: var(--ink-subtle); font-size: 13px; font-weight: var(--w-label); }
-.spark { display: flex; align-items: flex-end; gap: 3px; height: 56px; margin: var(--s-md) 0; flex: none; }
-.spark i { flex: 1; border-radius: 2px 2px 0 0; }
-.spark i.pos { background: color-mix(in srgb, var(--success) 45%, transparent); }
-.spark i.neg { background: color-mix(in srgb, var(--danger) 45%, transparent); }
-.pulse-empty { margin-top: var(--s-xs); }
 .finance-side { display: flex; flex-direction: column; gap: var(--s-md); min-width: 0; min-height: 0; }
 .finance-side > .card { flex: 1 1 auto; }
 .finance-total { text-align: left; margin-bottom: var(--s-xxs); }
@@ -1284,7 +1215,6 @@ a.cite { text-decoration: none; }
 @media (max-width: 1200px) {
   .span-3, .span-4, .span-5 { grid-column: span 6; }
   .span-7, .span-8 { grid-column: span 12; }
-  #screen-home .screen-grid,
   #screen-habits .screen-grid { grid-template-rows: none; }
   /* Cards grow to their content; a table wider than its card scrolls inside
      it rather than widening the page. */
@@ -1298,8 +1228,6 @@ a.cite { text-decoration: none; }
   .board { grid-template-columns: minmax(0, 1fr); }
   #topbar { padding: 0 var(--s-md); gap: var(--s-xs); }
   .nav { margin-left: 0; }
-  #card-today { flex-direction: column; gap: var(--s-lg); padding: var(--s-lg) var(--s-md); }
-  .today-side { width: auto; padding-left: 0; padding-top: var(--s-lg); border-left: none; border-top: 1px solid var(--hairline); }
   #capture-log { width: 100%; }
 }
 /* A phone: the brand keeps its mark and gives its name's room to the nav. */

@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
  * The Finances screen: "where is the money" (#111), and since #134 how it
  * moved. Reads the saved accounts, balances, trades, prices and transactions
  * once per request and renders them through the finance overview -- the
- * same derivation the Pulse card reads. Loading it never calls the model or
+ * same derivation Home's money tile and notes read. Loading it never calls the model or
  * an integration (rule 3).
  *
  * The address holds where you are, each by id or key so a capture landing
