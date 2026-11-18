@@ -428,6 +428,15 @@ export const limits = Object.freeze({
    */
   financeCountedOverMaxMonths: 24,
   /**
+   * Income & spending's day columns (ADR 0053, amended) mark a day's income
+   * only when it is at least this whole percent of the month's income,
+   * rounded up to a whole euro (`dayMarkFloor`): a deposit's daily interest
+   * of a few cents is not a payday, and marked it would put a mark on almost
+   * every day. The day's tooltip and its name still say what came in,
+   * whatever its size.
+   */
+  financeDayIncomeMarkPercent: 1,
+  /**
    * Finances' accounts table (ADR 0048) folds an account worth zero or
    * unknown under "N more accounts" when nothing -- a movement, a balance, a
    * trade -- was recorded on it in this many days up to today. A closed card

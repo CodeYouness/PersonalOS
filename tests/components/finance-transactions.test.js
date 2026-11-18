@@ -47,6 +47,8 @@ describe('FinanceTransactions', () => {
     const html = render({ tag: 'lisbon trip', place: { month: '2026-03', tag: 'lisbon trip' } });
 
     expect(html).toContain('Transactions · tagged lisbon trip');
+    // One segmented control, as Income & spending's (components/Segmented.js).
+    expect(html).toContain('<div class="segmented is-joined finance-span-switch" role="group" aria-label="Span">');
     expect(html).toContain('class="seg is-on" aria-current="true" href="/finances?month=2026-03&amp;tag=lisbon+trip">March 2026<');
     expect(html).toContain('class="seg" href="/finances?month=2026-03&amp;tag=lisbon+trip&amp;span=all">All time<');
     expect(html).toContain('href="/finances?month=2026-03">Show all<');

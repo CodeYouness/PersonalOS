@@ -18,12 +18,14 @@ import {
   percent,
   shortDate,
 } from '@/components/format.js';
+import Segmented from '@/components/Segmented.js';
 import Tip, { TipFigures } from '@/components/Tip.js';
 import { shiftMonth, yearOf } from '@/lib/domain/dates.js';
 import {
   circleArc,
   dayBars,
   dayHigh,
+  dayMarkFloor,
   flowCircle,
   foldedLines,
   meetsSavingsTarget,
@@ -76,14 +78,17 @@ const MONTH_TICK_STEP = 3;
  * monthFlows) or, with `?period=year`, that month's calendar year to date
  * (calendarYearFlows).
  *
- * Top to bottom (ADR 0053, amending 0050): the head -- Month / Year and the
- * month or year picker; the one line counting movements without a category
- * (uncategorisedCounts, ADR 0048); and the body, two columns, stacked on a
- * phone. No strip of bars across the top: what it drew is the columns.
+ * Top to bottom (ADR 0053, amending 0050): the head, with one toolbar that
+ * wraps on a narrow card -- the period, a Month / Year segmented control
+ * followed by its stepper (‹ the month or year, its select ›), and apart from
+ * it the view, a Circle / Columns segmented control (`?view=columns`; the
+ * circle is the default and never written), each word with its glyph; the
+ * one line counting movements without a category (uncategorisedCounts, ADR
+ * 0048); and the body, two columns, stacked on a phone. No strip of bars
+ * across the top: what it drew is the columns.
  *
- * **On the left**, a switch, Circle / Columns (`?view=columns`; the circle is
- * the default and never written), then the chart, then the period's four
- * totals and the rest of the summary under it:
+ * **On the left**, the chart the view picks, then the period's four totals
+ * and the rest of the summary under it:
  *
  * - The circle (flowCircle, ADR 0050): the period's income split, clockwise
  *   from the top, into what was spent, invested (periodInvested, from the
@@ -94,10 +99,10 @@ const MONTH_TICK_STEP = 3;
  *   it) -- money in outlined, money out solid, "left" a tick, on a scale from
  *   zero to the highest bar printed beside them; in a month one per day
  *   (dayColumns) -- money out solid on a scale from zero to the largest day's
- *   spending, money in an outlined mark on its day, not drawn to scale
- *   (dayBars, ADR 0053 amended). Each column is focusable and shows its exact
- *   figures on hover, focus and a tap (Tip). A day still to come, or a month
- *   the year does not offer, is empty. What a month counts on no day -- a
+ *   spending, money in an outlined mark on its day from 1% of the month's
+ *   income, not drawn to scale (dayBars, ADR 0053 amended). Each column is
+ *   focusable and shows its exact figures on hover, focus and a tap (Tip). A
+ *   day still to come, or a month the year does not offer, is empty. What a month counts on no day -- a
  *   movement spread over months (ADR 0052) -- is said under the days.
  * - The four totals -- income, spent, invested, kept -- each part marked in
  *   its tone in the ring (in the columns: income outlined, spent solid), then
@@ -106,9 +111,10 @@ const MONTH_TICK_STEP = 3;
  *   target (ADR 0045), a missed target's shortfall, fixed vs variable.
  *
  * **On the right, always**, the breakdown: income, then spending, with the
- * composition of spending (spendingParts) and the comparison columns -- the
- * change from last month, or in a year each line's average month
- * (lineAverages) and the change from the same months of last year. A line's
+ * composition of spending (spendingParts, each part with its tooltip) and
+ * the comparison columns -- the change from last month, or in a year each
+ * line's average month (lineAverages) and the change from the same months of
+ * last year. A line's
  * name with subcategories opens them, with what was spent in each and a link
  * to the line's movements (`?category=<line>`); a subcategory's name, and a
  * line's without any, opens its movements of the period in place
@@ -142,7 +148,6 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
   const year = yearOf(month);
   const circle = flowCircle(flows, invested);
   const label = period === 'year' ? year : monthLabel(month);
-  const years = [...new Set(months.map(yearOf))];
   /** @param {string} target */
   const go = (target) => router.push(target, { scroll: false });
   const tableColumns = {
@@ -153,7 +158,9 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
   const shared = { quietLabel, columns: tableColumns, compared: flows.compared, movements, todayKey, place };
   const empty = circle.state === 'empty';
   const drawn = view === 'columns' ? columns : null;
-  const marked = drawn !== null && drawn.kind === 'days' && dayBars(drawn.days).some((bar) => bar !== null && bar.marked);
+  // The least a day's income is marked from, when a day of the month's columns reaches it.
+  const floor =
+    drawn !== null && drawn.kind === 'days' && dayBars(drawn.days, flows.income).some((bar) => bar !== null && bar.marked) ? dayMarkFloor(flows.income) : null;
   const breakdown = (
     <div className="finance-breakdown">
       <FlowTable
@@ -185,55 +192,35 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
     <article id="card-finance-flows" className="card">
       <div className="card-head">
         <span className="eyebrow">Income &amp; spending</span>
-        <div className="finance-flow-controls">
-          <div className="segmented" role="group" aria-label="Period">
-            {/** @type {const} */ (['month', 'year']).map((choice) => (
-              <Link
-                key={choice}
-                href={financesHref({ ...place, period: choice })}
-                scroll={false}
-                className={'seg' + (period === choice ? ' is-on' : '')}
-                aria-current={period === choice ? 'true' : undefined}
-              >
-                {choice === 'month' ? 'Month' : 'Year'}
-              </Link>
-            ))}
+        <div className="finance-toolbar">
+          <div className="finance-toolbar-group">
+            <Segmented
+              label="Period"
+              options={/** @type {const} */ (['month', 'year']).map((choice) => ({
+                key: choice,
+                href: financesHref({ ...place, period: choice }),
+                on: period === choice,
+                children: choice === 'month' ? 'Month' : 'Year',
+              }))}
+            />
+            <PeriodStepper period={period} month={month} months={months} place={place} go={go} />
           </div>
-          {period === 'month' ? (
-            <select
-              aria-label="Month"
-              className="input finance-month-picker"
-              value={month}
-              onChange={(event) => go(financesHref({ ...place, month: event.target.value, transaction: null }))}
-            >
-              {months.map((choice) => (
-                <option key={choice} value={choice}>
-                  {monthLabel(choice)}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <select
-              aria-label="Year"
-              className="input finance-month-picker"
-              value={year}
-              onChange={(event) =>
-                go(
-                  financesHref({
-                    ...place,
-                    // The year's newest month on offer: months are newest first.
-                    month: months.find((choice) => yearOf(choice) === event.target.value) ?? month,
-                    transaction: null,
-                  })
-                )
-              }
-            >
-              {years.map((choice) => (
-                <option key={choice} value={choice}>
-                  {choice}
-                </option>
-              ))}
-            </select>
+          {!empty && (
+            <Segmented
+              label="View"
+              className="finance-view-switch"
+              options={/** @type {const} */ (['circle', 'columns']).map((choice) => ({
+                key: choice,
+                href: financesHref({ ...place, view: choice }),
+                on: view === choice,
+                children: (
+                  <>
+                    {choice === 'circle' ? <RingGlyph /> : <BarsGlyph />}
+                    {choice === 'circle' ? 'Circle' : 'Columns'}
+                  </>
+                ),
+              }))}
+            />
           )}
         </div>
       </div>
@@ -248,29 +235,16 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
         ) : (
           <div className="finance-flow-body">
             <div className="finance-flow-side">
-              <div className="segmented finance-view-switch" role="group" aria-label="Chart">
-                {/** @type {const} */ (['circle', 'columns']).map((choice) => (
-                  <Link
-                    key={choice}
-                    href={financesHref({ ...place, view: choice })}
-                    scroll={false}
-                    className={'seg' + (view === choice ? ' is-on' : '')}
-                    aria-current={view === choice ? 'true' : undefined}
-                  >
-                    {choice === 'circle' ? 'Circle' : 'Columns'}
-                  </Link>
-                ))}
-              </div>
               {drawn !== null ? (
                 drawn.kind === 'days' ? (
-                  <DayColumns days={drawn.days} apart={drawn.apart} month={month} todayKey={todayKey} />
+                  <DayColumns days={drawn.days} apart={drawn.apart} income={flows.income} month={month} todayKey={todayKey} />
                 ) : (
                   <MonthColumns months={drawn.months} year={year} place={place} />
                 )
               ) : (
                 <Circle circle={circle} label={label} active={active} setActive={setActive} />
               )}
-              <CircleTotals flows={flows} circle={circle} legend={drawn === null ? 'circle' : drawn.kind} marked={marked} setActive={setActive} />
+              <CircleTotals flows={flows} circle={circle} legend={drawn === null ? 'circle' : drawn.kind} floor={floor} setActive={setActive} />
               <Summary flows={flows} circle={circle} period={period} year={year} yearRate={yearRate} target={target} />
             </div>
             {breakdown}
@@ -290,6 +264,109 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
  */
 function listed(line) {
   return line.total !== 0 || line.previous !== 0;
+}
+
+/**
+ * The period's picker (docs/design/ui-rules.md, the stepper around a period):
+ * the previous and next period on offer as arrows around the period itself,
+ * which is the select -- so any month, or in a year any year, can still be
+ * chosen directly. One joined box, as the segmented controls are. `months` is
+ * newest first: the previous is the next one in it, the next the one before.
+ * Previous is disabled at the oldest period on offer, next at the newest; an
+ * arrow that leads somewhere is a link (`?month=`), and a year's goes to that
+ * year's newest month on offer, as its select does.
+ *
+ * @param {{
+ *   period: 'month' | 'year',
+ *   month: string,
+ *   months: string[],
+ *   place: import('@/components/finance.js').FinancesPlace,
+ *   go: (target: string) => void,
+ * }} props
+ */
+function PeriodStepper({ period, month, months, place, go }) {
+  const year = yearOf(month);
+  const unit = period === 'year' ? 'year' : 'month';
+  const steps = period === 'year' ? [...new Set(months.map(yearOf))] : months;
+  const at = steps.indexOf(period === 'year' ? year : month);
+  const older = at === -1 || at === steps.length - 1 ? null : steps[at + 1];
+  const newer = at <= 0 ? null : steps[at - 1];
+  /** @param {string} step a month, or in a year a year */
+  const href = (step) =>
+    financesHref({
+      ...place,
+      // A year reads its newest month on offer: months are newest first.
+      month: period === 'year' ? (months.find((choice) => yearOf(choice) === step) ?? month) : step,
+      transaction: null,
+    });
+  /** @param {string} step */
+  const name = (step) => (period === 'year' ? step : monthLabel(step));
+  /**
+   * @param {string | null} step
+   * @param {'Previous' | 'Next'} which
+   */
+  const arrow = (step, which) =>
+    step === null ? (
+      <button type="button" className="finance-step" disabled aria-label={which + ' ' + unit}>
+        <ChevronGlyph back={which === 'Previous'} />
+      </button>
+    ) : (
+      <Link href={href(step)} scroll={false} className="finance-step" aria-label={which + ' ' + unit + ', ' + name(step)}>
+        <ChevronGlyph back={which === 'Previous'} />
+      </Link>
+    );
+
+  return (
+    <div className="finance-stepper">
+      {arrow(older, 'Previous')}
+      <select
+        aria-label={period === 'year' ? 'Year' : 'Month'}
+        className="input finance-month-picker"
+        value={period === 'year' ? year : month}
+        onChange={(event) => go(href(event.target.value))}
+      >
+        {steps.map((choice) => (
+          <option key={choice} value={choice}>
+            {name(choice)}
+          </option>
+        ))}
+      </select>
+      {arrow(newer, 'Next')}
+    </div>
+  );
+}
+
+/**
+ * The toolbar's glyphs: tiny inline SVGs in the word's colour, hidden from a
+ * screen reader, which has the word. A chevron for the stepper; a ring and
+ * three bars for how the period is drawn.
+ *
+ * @param {{ back: boolean }} props
+ */
+function ChevronGlyph({ back }) {
+  return (
+    <svg className="seg-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d={back ? 'M10 3.5 5.5 8l4.5 4.5' : 'M6 3.5 10.5 8 6 12.5'} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function RingGlyph() {
+  return (
+    <svg className="seg-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth="2.5" />
+    </svg>
+  );
+}
+
+function BarsGlyph() {
+  return (
+    <svg className="seg-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <rect x="2" y="7" width="3" height="7" rx="0.5" fill="currentColor" />
+      <rect x="6.5" y="2" width="3" height="12" rx="0.5" fill="currentColor" />
+      <rect x="11" y="5" width="3" height="9" rx="0.5" fill="currentColor" />
+    </svg>
+  );
 }
 
 /**
@@ -333,7 +410,9 @@ function UncategorisedLine({ counts, place }) {
  * money out a solid bar the column's width, on a scale from zero to the
  * largest day's spending, printed beside it -- no top when nothing went out;
  * money in an outlined mark at the top of its day, not drawn to scale, since
- * a payday against days of tens would leave the spending a pixel high. Every
+ * a payday against days of tens would leave the spending a pixel high -- and
+ * only from 1% of the month's income (dayMarkFloor), so a few cents of
+ * interest are no mark; the day's tooltip and name say them anyway. Every
  * day of the month is a column, so the days stand at even steps across the
  * whole width; the 1st, 8th, 15th, 22nd and 29th are labelled. A day still to
  * come is an empty slot, not a column of zero. Each other day -- one with
@@ -347,12 +426,13 @@ function UncategorisedLine({ counts, place }) {
  * @param {{
  *   days: DayColumn[],
  *   apart: { income: number, spending: number, movements: number },
+ *   income: number,
  *   month: string,
  *   todayKey: string,
- * }} props
+ * }} props `income`: the month's, which the marks' floor is a share of
  */
-function DayColumns({ days, apart, month, todayKey }) {
-  const bars = dayBars(days);
+function DayColumns({ days, apart, income, month, todayKey }) {
+  const bars = dayBars(days, income);
   return (
     <figure className="finance-columns is-days">
       <div className="finance-columns-frame">
@@ -646,55 +726,59 @@ function partLabel(part) {
 /**
  * The four totals under the chart (ADR 0050, amended; ADR 0053): what came
  * in, then what was spent, invested and kept. Whole euros, as the ring's
- * parts are named. Under the circle each part is marked in exactly its tone
- * in the ring, and income, the whole ring, has no mark; under the columns
- * the totals are the columns' legend -- income outlined as money in is (a
- * round mark under a month's days, where it is a mark on its day), spent
- * solid as money out is -- and invested and kept, which no column draws,
- * have none. When a month's days mark income (`marked`), the legend says
- * once that it is not drawn to scale (ADR 0053, amended). Hovering a part's
+ * parts are named. Each is one row -- its mark, its name and its amount --
+ * two by two, in the summary's row style, so the totals and the summary
+ * under them read as one account (ADR 0053, amended). Under the circle each
+ * part is marked in exactly its tone in the ring, and income, the whole ring,
+ * has no mark; under the columns the totals are the columns' legend --
+ * income outlined as money in is (a round mark under a month's days, where
+ * it is a mark on its day, and none when no day carries one), spent solid as
+ * money out is -- and invested and kept, which no column draws, have none. A
+ * total without a mark keeps its place, so the names line up. When a month's
+ * days mark income (`floor`, the least a marked day took in), the legend says
+ * once from how much, and that it is not drawn to scale. Hovering a part's
  * total emphasises it in the circle.
  *
  * @param {{
  *   flows: PeriodFlows,
  *   circle: FlowCircle,
  *   legend: 'circle' | ChartColumns['kind'],
- *   marked: boolean,
+ *   floor: number | null,
  *   setActive: (key: PartKey | null) => void,
  * }} props
  */
-function CircleTotals({ flows, circle, legend, marked, setActive }) {
+function CircleTotals({ flows, circle, legend, floor, setActive }) {
   const columns = legend !== 'circle';
+  const income = !columns ? null : legend === 'months' ? 'is-income' : floor !== null ? 'is-income is-mark' : null;
   /** @param {CirclePart['key']} key */
   const swatch = (key) => (columns ? (key === 'spent' ? 'is-spending' : null) : 'is-' + key);
+  /** @param {string | null} tone */
+  const mark = (tone) => <i className={'finance-swatch' + (tone === null ? '' : ' ' + tone)} aria-hidden="true" />;
   const totals = (
     <dl className="finance-circle-totals">
       <div className="finance-circle-total">
         <dt>
-          {columns && <i className={'finance-swatch is-income' + (legend === 'days' ? ' is-mark' : '')} aria-hidden="true" />}
+          {mark(income)}
           Income
         </dt>
         <dd className="num">{formatEuro(flows.income)}</dd>
       </div>
-      {circle.parts.map((part) => {
-        const mark = swatch(part.key);
-        return (
-          <div key={part.key} className="finance-circle-total" onMouseEnter={() => setActive(part.key)} onMouseLeave={() => setActive(null)}>
-            <dt>
-              {mark !== null && <i className={'finance-swatch ' + mark} aria-hidden="true" />}
-              {part.name}
-            </dt>
-            <dd className="num">{formatEuro(part.amount)}</dd>
-          </div>
-        );
-      })}
+      {circle.parts.map((part) => (
+        <div key={part.key} className="finance-circle-total" onMouseEnter={() => setActive(part.key)} onMouseLeave={() => setActive(null)}>
+          <dt>
+            {mark(swatch(part.key))}
+            {part.name}
+          </dt>
+          <dd className="num">{formatEuro(part.amount)}</dd>
+        </div>
+      ))}
     </dl>
   );
-  if (!(legend === 'days' && marked)) return totals;
+  if (legend !== 'days' || floor === null) return totals;
   return (
     <div className="finance-circle-legend">
       {totals}
-      <p className="caption finance-columns-note">Income is marked on its day, not drawn to scale.</p>
+      <p className="caption finance-columns-note">{'Income of ' + formatEuro(floor) + ' or more is marked on its day, not drawn to scale.'}</p>
     </div>
   );
 }
@@ -793,8 +877,12 @@ function Rate({ label, rate, target, children = null }) {
 /**
  * One bar of the period's spending by top-level category, above the
  * spending table. Its legend is the spending table under it: each line with a part
- * carries the part's dot, and its share is already a column. The bar's own
- * name lists the parts.
+ * carries the part's dot, and its share is already a column. Each part is a
+ * mark that shows, on hover, keyboard focus and a tap (Tip, ADR 0053
+ * amended), the category, what it spent and its share of the period's
+ * spending, and is named by all three -- as the allocation bar's parts are.
+ * A part too thin to point at is still a tab stop, and its line in the table
+ * says the same.
  *
  * @param {{ flows: PeriodFlows }} props
  */
@@ -802,14 +890,28 @@ function Composition({ flows }) {
   const parts = spendingParts(flows);
   if (parts.length < 2) return null;
   return (
-    <div
-      className="alloc finance-composition"
-      role="img"
-      aria-label={'Spending by category: ' + parts.map((part) => part.name + ' ' + percent(part.share)).join(', ')}
-    >
-      {parts.map((part, index) => (
-        <i key={part.id} style={{ width: part.share * 100 + '%', background: SERIES[index % SERIES.length] }} />
-      ))}
+    <div className="alloc finance-composition" role="group" aria-label="Spending by category">
+      {parts.map((part, index) => {
+        const spent = formatEuro(part.amount, { cents: true });
+        const share = percent(part.share);
+        return (
+          <Tip
+            key={part.id}
+            as="i"
+            style={{ width: part.share * 100 + '%', background: SERIES[index % SERIES.length] }}
+            label={part.name + ': spent ' + spent + ', ' + share + ' of spending'}
+            tip={
+              <TipFigures
+                head={part.name}
+                rows={[
+                  { label: 'Spent', value: spent },
+                  { label: 'Share of spending', value: share },
+                ]}
+              />
+            }
+          />
+        );
+      })}
     </div>
   );
 }

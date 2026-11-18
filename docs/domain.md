@@ -1615,12 +1615,17 @@ Home's last week's spending and the import scripts' checks count a movement
 whole on the day it moved, so a week and a month disagree about a spread
 movement, on purpose.
 
-**The card's body** (ADR 0053, amending 0050) is two columns, stacked when
-the card is narrow: on the right, **always, the breakdown** (below); on the
-left a **Circle / Columns** switch, the chart it picks, and under it the four
-totals -- income, spent, invested, kept -- and the rest of the summary. The
-circle is the default and never written; `?view=columns` draws the columns,
-and the `?view=table` of ADR 0050 reads as the circle (`financesView`).
+**The card's head** (ADR 0053, amended) holds one toolbar: the **period** --
+a Month / Year segmented control (`?period=year`) and its stepper, the
+previous and next month (or year) on offer around the period's select -- and,
+apart from it, the **view**, a Circle / Columns segmented control, each word
+with its glyph. **The card's body** (ADR 0053, amending 0050) is two columns,
+stacked when the card is narrow: on the right, **always, the breakdown**
+(below); on the left the chart the view picks, and under it the four totals
+-- income, spent, invested, kept, one row each, two by two -- and the rest of
+the summary. The circle is the default and never written; `?view=columns`
+draws the columns, and the `?view=table` of ADR 0050 reads as the circle
+(`financesView`).
 
 **The circle** (ADR 0050): what came in is the whole, split clockwise from
 the top into three parts (`flowCircle`), each part marked in its tone in the
@@ -1656,9 +1661,14 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   money out a solid bar on a scale from zero to the largest day's spending
   (`dayHigh`, a rent day as tall as it is), money in an outlined dot above
   its day, a mark not drawn to scale (`dayBars`; ADR 0053, amended) -- a
-  payday would flatten days of tens to a pixel -- its amount in the day's
-  tooltip, and the card says so once under the totals; a day still to come
-  is empty, not zero.
+  payday would flatten days of tens to a pixel. **A day is marked** only
+  when its income is at least 1% of the month's income
+  (`limits.financeDayIncomeMarkPercent`), rounded up to a whole euro
+  (`dayMarkFloor`), so a deposit's daily interest of a few cents is no mark;
+  every day's income is in its tooltip whatever its size, and the card says
+  once under the totals from how much a day is marked ("Income of € 49 or
+  more is marked on its day, not drawn to scale.") -- nothing, when no day
+  reaches it. A day still to come is empty, not zero.
   **A movement counted over several months has no single day**: a movement
   is on its day only when it counts whole in the month of its date, and any
   other part in the month -- of a movement spread over months, paid in it or
@@ -1675,7 +1685,9 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   hold -- one line at the top of the card says how many and links to review
   them, by direction (ADR 0048).
 - **The breakdown** (ADR 0050), on the right whatever the chart: income
-  first, then spending, with the composition bar above spending. The summary
+  first, then spending, with the composition bar above spending
+  (`spendingParts`), each part showing its category, what it spent and its
+  share of the period's spending in a tooltip (ADR 0053, amended). The summary
   -- income, spent, invested, kept, then the notes, the savings rates against
   the target, the shortfall, fixed and variable -- is under the chart, on the
   left (ADR 0053). Each table's columns are the line, its Share, the change from the period

@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { countedOverNote, financesHref, MovementAmount, transferEnds } from '@/components/finance.js';
 import { shortDate } from '@/components/format.js';
+import Segmented from '@/components/Segmented.js';
 
 /** @typedef {import('@/lib/domain/types.js').Transaction} Transaction */
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
@@ -71,22 +72,19 @@ export default function FinanceTransactions({ transactions, accounts, categories
         {selection !== null && (
           <div className="finance-flow-controls">
             {tag !== null && (
-              <div className="segmented finance-span-switch" role="group" aria-label="Span">
-                {/** @type {const} */ ([
+              <Segmented
+                label="Span"
+                className="finance-span-switch"
+                options={/** @type {const} */ ([
                   [null, periodLabel],
                   ['all', 'All time'],
-                ]).map(([span, name]) => (
-                  <Link
-                    key={name}
-                    href={financesHref({ ...place, span, transaction: null })}
-                    scroll={false}
-                    className={'seg' + (allTime === (span === 'all') ? ' is-on' : '')}
-                    aria-current={allTime === (span === 'all') ? 'true' : undefined}
-                  >
-                    {name}
-                  </Link>
-                ))}
-              </div>
+                ]).map(([span, name]) => ({
+                  key: name,
+                  href: financesHref({ ...place, span, transaction: null }),
+                  on: allTime === (span === 'all'),
+                  children: name,
+                }))}
+              />
             )}
             <Link
               className="btn-ghost"

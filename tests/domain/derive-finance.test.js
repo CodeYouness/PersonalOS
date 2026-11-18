@@ -11,6 +11,7 @@ import {
   dayBars,
   dayColumns,
   dayHigh,
+  dayMarkFloor,
   dayUnitsReachedZero,
   financeOverview,
   firstDayUnitsGoNegative,
@@ -1038,28 +1039,72 @@ describe('spending over time: the trend, the average, the year', () => {
       const days = [day(1, 300000, 2000), day(2, 0, 4000), day(3, 0, 0), day(4, null, null)];
 
       expect(dayHigh(days)).toBe(4000);
-      expect(dayBars(days)).toEqual([{ spending: 0.5, marked: true }, { spending: 1, marked: false }, { spending: 0, marked: false }, null]);
+      expect(dayBars(days, 300000)).toEqual([{ spending: 0.5, marked: true }, { spending: 1, marked: false }, { spending: 0, marked: false }, null]);
     });
 
     it('marks income only when some came in: a net chargeback is no mark and no height', () => {
-      expect(dayBars([day(1, -5000, 1000)])).toEqual([{ spending: 1, marked: false }]);
-      expect(dayBars([day(1, 0, -1000)])).toEqual([{ spending: 0, marked: false }]);
+      expect(dayBars([day(1, -5000, 1000)], -5000)).toEqual([{ spending: 1, marked: false }]);
+      expect(dayBars([day(1, 0, -1000)], 0)).toEqual([{ spending: 0, marked: false }]);
     });
 
     it('draws a month with income and no spending as marks on a zero scale, never NaN', () => {
       const days = [day(1, 300000, 0), day(2, 0, 0), day(3, null, null)];
 
       expect(dayHigh(days)).toBe(0);
-      expect(dayBars(days)).toEqual([{ spending: 0, marked: true }, { spending: 0, marked: false }, null]);
+      expect(dayBars(days, 300000)).toEqual([{ spending: 0, marked: true }, { spending: 0, marked: false }, null]);
       expect(dayHigh([])).toBe(0);
-      expect(dayBars([])).toEqual([]);
+      expect(dayBars([], 0)).toEqual([]);
     });
 
     it('leaves a rent day as tall as it is: no cap, no log scale, two decimals', () => {
       const days = [day(1, 0, 120000), day(2, 0, 1500), day(3, 0, 600)];
 
       expect(dayHigh(days)).toBe(120000);
-      expect(dayBars(days).map((bar) => bar?.spending)).toEqual([1, 0.01, 0.01]);
+      expect(dayBars(days, 0).map((bar) => bar?.spending)).toEqual([1, 0.01, 0.01]);
+    });
+  });
+
+  describe('which days a month\'s columns mark for income (ADR 0053, amended)', () => {
+    /** @returns {any} */
+    const day = (/** @type {number} */ n, /** @type {number} */ income) => ({
+      day: '2026-03-' + String(n).padStart(2, '0'), income, spending: 0, movements: 1,
+    });
+
+    it('marks a day with at least 1% of the month\'s income: exactly at it, and not a cent under', () => {
+      // 5,000.00 in over the month: 1% is 50.00 exactly.
+      expect(dayMarkFloor(500000)).toBe(5000);
+      expect(dayBars([day(1, 5000), day(2, 4999), day(3, 490001)], 500000).map((bar) => bar?.marked)).toEqual([true, false, true]);
+    });
+
+    it('rounds the floor up to a whole euro, so the figure the card prints is the rule', () => {
+      // 4,886.00 in: 1% is 48.86, a mark from 49.00.
+      expect(dayMarkFloor(488600)).toBe(4900);
+      expect(dayBars([day(1, 4886), day(2, 4899), day(3, 4900)], 488600).map((bar) => bar?.marked)).toEqual([false, false, true]);
+      // A cent over 5,000.00 is a floor over 50.00: 51.00.
+      expect(dayMarkFloor(500001)).toBe(5100);
+      // Three euros a month: the floor is still a whole euro.
+      expect(dayMarkFloor(300)).toBe(100);
+    });
+
+    it('leaves the cents of a deposit\'s daily interest unmarked beside a payday', () => {
+      const days = [day(1, 300000), ...Array.from({ length: 29 }, (_, index) => day(index + 2, 12))];
+      const bars = dayBars(days, 300000 + 29 * 12);
+
+      expect(bars.filter((bar) => bar?.marked)).toHaveLength(1);
+      expect(bars[0]?.marked).toBe(true);
+    });
+
+    it('marks every day of an income-only month that reaches the floor, on a zero scale', () => {
+      const days = [day(1, 100000), day(2, 100000), day(3, 500)];
+
+      // 2,005.00 in: a mark from 21.00.
+      expect(dayBars(days, 200500)).toEqual([{ spending: 0, marked: true }, { spending: 0, marked: true }, { spending: 0, marked: false }]);
+    });
+
+    it('marks nothing in a month where nothing came in, or more was charged back than received', () => {
+      expect(dayMarkFloor(0)).toBeNull();
+      expect(dayMarkFloor(-2000)).toBeNull();
+      expect(dayBars([day(1, 1000), day(2, -1000)], 0).map((bar) => bar?.marked)).toEqual([false, false]);
     });
   });
 
@@ -1314,8 +1359,8 @@ describe('spending over time: the trend, the average, the year', () => {
 
       // Shopping is a net refund: it has no part, as a bar cannot be negative.
       expect(spendingParts(flows)).toEqual([
-        { id: 'cat_home', name: 'cat_home', share: 0.75 },
-        { id: UNCATEGORISED_SPENDING, name: 'Uncategorised', share: 0.25 },
+        { id: 'cat_home', name: 'cat_home', amount: 75000, share: 0.75 },
+        { id: UNCATEGORISED_SPENDING, name: 'Uncategorised', amount: 25000, share: 0.25 },
       ]);
     });
 

@@ -86,6 +86,38 @@ for avatars and dots.
 - A toggle or segmented choice, when chosen: `--surface-4` with an ink
   border. Never the accent fill.
 
+## Segmented controls and steppers
+
+A **button does something**; a **segmented control chooses** one of a few
+ways to read the same thing, and the choice is in the address. They must
+not look alike.
+
+- **A segmented control of links** is `components/Segmented.js`
+  (`.segmented.is-joined`): one bordered box (radius 4, a strong hairline,
+  `--surface-2`), the segments joined inside it with a hairline between
+  them, each 44px high and as wide as its word; the chosen one is
+  `--surface-4` with an ink ring and `aria-current="true"`. The group is
+  named by what it chooses ("Period", "View", "Span"). Never two detached
+  buttons for one choice. Income & spending's Month / Year and Circle /
+  Columns and the Transactions card's period / All time use it; the panels'
+  form choices (a movement's direction, an account's kind) are still
+  detached `.seg` buttons, and become this when next changed.
+- **A choice about how a thing is drawn** carries a small glyph before its
+  word -- an inline SVG in `currentColor`, 16px, hidden from a screen
+  reader, never an icon library -- so it reads as "how", not "which": a
+  ring for Circle, three bars for Columns.
+- **Two choices in one toolbar are two groups**, a wider gap apart (24px
+  between groups, 8px inside one), in the card head beside its name while
+  they fit and under it, from the left, when they do not; each group wraps
+  in turn, and nothing scrolls sideways.
+- **A period is stepped**: the previous and next period on offer as 44px
+  arrow squares (chevrons) around the period itself, which is the native
+  select, in one joined box like a segmented control -- "‹ November 2026 ›".
+  An arrow is a link named "Previous month, October 2026"; at the end of
+  what is on offer it is a disabled button ("Next month"), never a link to
+  nowhere. In a year the arrows step years. The select still chooses any
+  period directly, and shrinks before anything scrolls.
+
 ## Forms
 
 Fields are 44px, 16px text, `--surface-2` with a strong hairline; hover
@@ -113,8 +145,10 @@ a check-in note (40), a goal's drag grip (32 wide, the row's height; the
 row and the panel are the other ways; ADR 0054), the parts of Income & spending's circle (a ring
 about 28 to 33px thick, each part also reachable by keyboard; ADR 0050), and
 the marks that show their figures in a tooltip (ADR 0053): a day's column
-(one of thirty-one), a month's (one of twelve), a net worth point and a part
-of the allocation bar (8px high; its legend's item is the bigger target).
+(one of thirty-one), a month's (one of twelve), a net worth point, a part
+of the allocation bar (8px high; its legend's item is the bigger target) and
+a part of Income & spending's composition bar (8px high, perhaps a pixel
+wide; still a tab stop, and its line in the spending table says the same).
 
 ## Drag
 
