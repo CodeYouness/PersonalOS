@@ -2,7 +2,11 @@
 
 - **Status** accepted; the circle view and a line's movements amended the
   same day (below), and what a month counts by
-  [0052](0052-a-movement-counts-in-the-months-it-is-for.md)
+  [0052](0052-a-movement-counts-in-the-months-it-is-for.md); amended by
+  [0053](0053-columns-beside-the-breakdown-and-one-tooltip.md): the
+  breakdown is always on the right and the table view is gone, the left a
+  Circle / Columns switch (`?view=columns`) with the totals and the summary
+  under the chart, and the strip of bars across the top is gone
 - **Date** 2026-11-17
 - **Amends** [0044](0044-spending-over-time-reads-by-the-months-rules.md) (the average month, the composition bar),
   [0046](0046-spending-by-tag.md) (a line listed for its average),

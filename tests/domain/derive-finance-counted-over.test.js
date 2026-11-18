@@ -11,6 +11,7 @@ import {
   accountValueOn,
   calendarYearFlows,
   countedParts,
+  dayColumns,
   financeOverview,
   flowMonths,
   flowTrend,
@@ -137,6 +138,27 @@ describe('the flows read a spread movement in the months it is for (ADR 0052)', 
       { month: '2026-10', income: 100000, spending: 0, left: 100000 },
       { month: '2026-11', income: 100000, spending: 0, left: 100000 },
     ]);
+  });
+
+  it('puts a spread movement on no day of a month\'s columns, and says what is apart (ADR 0053)', () => {
+    const today = '2026-11-20';
+    const nov = dayColumns(rows, categories, '2026-11', today);
+    // Paid on 12 November, but only a third of it is November's: on no day.
+    expect(nov.days[11]).toEqual({ day: '2026-11-12', income: 0, spending: 0, movements: 0 });
+    expect(nov.apart).toEqual({ income: 100000, spending: 0, movements: 1 });
+
+    const sep = dayColumns(rows, categories, '2026-09', today);
+    expect(sep.days[0]).toEqual({ day: '2026-09-01', income: 0, spending: 60000, movements: 1 });
+    expect(sep.apart).toEqual({ income: 100000, spending: 0, movements: 1 });
+    // The days and what is apart add up to the month.
+    const flows = monthFlows(rows, categories, '2026-09');
+    expect(sep.days.reduce((sum, day) => sum + (day.income ?? 0), 0) + sep.apart.income).toBe(flows.income);
+    expect(sep.days.reduce((sum, day) => sum + (day.spending ?? 0), 0) + sep.apart.spending).toBe(flows.spending);
+  });
+
+  it('keeps a movement counted over its own month alone on its day', () => {
+    const own = { ...salary, countedOver: { from: '2026-11', to: '2026-11' } };
+    expect(dayColumns([own], categories, '2026-11', '2026-11-20').days[11]).toEqual({ day: '2026-11-12', income: 300000, spending: 0, movements: 1 });
   });
 
   it('reads the twelve months ending with a month by the same parts', () => {

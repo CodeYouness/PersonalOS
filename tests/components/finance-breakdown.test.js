@@ -3,7 +3,8 @@
  * tracked time under the headline, whatever month Income & spending reads,
  * with its change over the span, 30 days and a year; and the accounts table
  * by kind (ADR 0049), each section with the allocation's subtotal, the quiet
- * accounts folded. Every row here is invented.
+ * accounts folded. The line's points and the allocation's parts show their
+ * figures on hover, focus and a tap (ADR 0053). Every row here is invented.
  */
 
 import { createElement } from 'react';
@@ -11,7 +12,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import FinanceBreakdown from '@/components/FinanceBreakdown.js';
-import { financeOverview, quietAccounts, worthChart } from '@/lib/domain/derive/finance.js';
+import { allocationAccounts, financeOverview, quietAccounts, worthChart } from '@/lib/domain/derive/finance.js';
 
 const TODAY = '2026-04-20';
 
@@ -46,6 +47,7 @@ function render({ place = { month: '2026-01' }, observations = inputs.observatio
     createElement(FinanceBreakdown, {
       overview,
       chart: worthChart(overview.history, TODAY),
+      parts: allocationAccounts(overview),
       accounts: quietAccounts(overview.accounts, finance, { todayKey: TODAY, selectedId: place.account ?? null }),
       archived: [],
       todayKey: TODAY,
@@ -97,6 +99,20 @@ describe('FinanceBreakdown', () => {
       expect(empty).not.toContain('finance-worth-line');
     });
 
+    it('makes each month with a value a point that shows its net worth in full, an unknown month none (ADR 0053)', () => {
+      const html = render();
+
+      expect(html.match(/class="finance-worth-hit"/g)).toHaveLength(7);
+      expect(html).toContain('tabindex="0" role="img" aria-label="October 2025: net worth €\u20095,000.00 on 31 Oct 2025" class="finance-worth-hit"');
+      expect(html).toContain('aria-label="April 2026: net worth €\u20096,500.00 on 20 Apr"');
+      // Seven months: each carries its dot, the newest its own.
+      expect(html).toContain('<b class="finance-worth-point is-newest" style="left:50%;bottom:');
+
+      // A month before the only account was valued is a gap: no point to show.
+      const gap = render({ accounts: [account('account_current', 'Current')], observations: [balance('account_current', '2026-02-10', 100000)] });
+      expect(gap.match(/class="finance-worth-hit"/g)).toHaveLength(3);
+    });
+
     it('takes the whole row with no account selected, and leaves room for its panel otherwise', () => {
       expect(render()).toContain('class="card span-12"');
       expect(render({ place: { month: '2026-01', account: 'account_current' } })).toContain('class="card span-7"');
@@ -144,6 +160,21 @@ describe('FinanceBreakdown', () => {
       expect(html).toContain('Cash <span class="num">€\u20096,500</span>');
       expect(html).toContain('Invested <span class="num">€\u200912,000</span>');
       expect(html).toContain('Debt <span class="num">€\u20093,000</span>');
+    });
+
+    it('shows on each part of the allocation, and its legend, the accounts it is made of, largest first (ADR 0053)', () => {
+      const cash = 'Cash €\u20096,500: Current 6,500';
+      expect(html).toContain('<i tabindex="0" role="img" aria-label="' + cash + '" style="width:');
+      expect(html).toContain('tabindex="0" role="img" aria-label="' + cash + '" class="finance-alloc-key"><i class="dot"');
+      expect(html).toContain('aria-label="Invested €\u200912,000: Pension fund with a name long enough to be cut 12,000"');
+      expect(html).toContain('aria-label="Debt €\u20093,000: Car loan 3,000"');
+    });
+
+    it('leaves an account with no value out of its part, and says so', () => {
+      const unknown = render({ accounts: [...accounts, account('account_house', 'House', 'asset'), account('account_crypto', 'Coins', 'investment')], observations });
+
+      expect(unknown).toContain('aria-label="Invested €\u200912,000: Pension fund with a name long enough to be cut 12,000. 1 account with no value, not counted"');
+      expect(unknown).not.toContain('Coins 0');
     });
 
     it('says once when the newest value is from', () => {

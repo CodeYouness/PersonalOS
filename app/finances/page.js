@@ -12,10 +12,11 @@ import FinanceTransactions from '@/components/FinanceTransactions.js';
 import { financesSpan, financesView } from '@/lib/domain/addresses.js';
 import { isMonthKey, monthOf, today, yearOf } from '@/lib/domain/dates.js';
 import {
+  allocationAccounts,
   calendarYearFlows,
+  dayColumns,
   financeOverview,
   flowMonths,
-  flowTrend,
   lineAverages,
   lineMovements,
   listedTransactions,
@@ -26,9 +27,9 @@ import {
   quietAccounts,
   savingsRate,
   tagFlows,
-  trendMonths,
   uncategorisedCounts,
   worthChart,
+  yearColumns,
   yearFlows,
 } from '@/lib/domain/derive/finance.js';
 import { investmentReturns } from '@/lib/domain/derive/investments.js';
@@ -74,18 +75,17 @@ export const dynamic = 'force-dynamic';
  * instead of the month (calendarYearFlows); anything else, or nothing, reads
  * the month. A selected line then lists the year's transactions.
  *
- * `?view=table` shows the section as a table with its comparison columns,
- * where a subcategory -- or a line without any -- opens its movements of the
- * period in place (lineMovements, handed only to the table view); anything
- * else, or nothing, shows the circle of the period with its totals and the
- * rest of the summary, and no table (ADR 0050). What the circle calls
- * invested is read from the trades of the period (periodInvested), never
- * from a transaction. A movement counted over several months (ADR 0052) is
- * read in each of them by every flow, and listed by its date.
- *
- * The section's trend draws income and spending as bars over the trend's
- * twelve months in a month and the year's in a year. An old `?chart=` from
- * before ADR 0048 is read by nothing.
+ * The section always shows its breakdown on the right, with its comparison
+ * columns, where a subcategory -- or a line without any -- opens its
+ * movements of the period in place (lineMovements). On its left it draws the
+ * circle of the period, or with `?view=columns` its columns -- a month's
+ * days (dayColumns) or a year's months (yearColumns), computed only then --
+ * with the four totals and the rest of the summary under it (ADR 0053); an
+ * old `?view=table` reads as the circle. What the circle calls invested is
+ * read from the trades of the period (periodInvested), never from a
+ * transaction. A movement counted over several months (ADR 0052) is read in
+ * each of them by every flow, listed by its date, and on no day of a month's
+ * columns. An old `?chart=` from before ADR 0048 is read by nothing.
  *
  * `?tag=<tag>` selects a tag of the By tag card (ADR 0046) -- one that a
  * movement carries, else nothing -- and lists the period's movements it
@@ -142,7 +142,6 @@ export default async function FinancesScreen({ searchParams }) {
   const year = period === 'year' ? calendarYearFlows(transactions, categories, month, months) : null;
   const flows = year ?? monthFlows(transactions, categories, month);
   const periodMonths = year?.months ?? [month];
-  const trendShown = year === null ? trendMonths(months, month) : periodMonths;
   const tag =
     category === null && typeof tagParam === 'string' && transactions.some((transaction) => transaction.tags.includes(tagParam)) ? tagParam : null;
   const span = financesSpan(spanParam);
@@ -156,11 +155,17 @@ export default async function FinancesScreen({ searchParams }) {
   });
   const periodLabel = period === 'year' ? yearOf(month) : monthLabel(month);
   const view = financesView(viewParam);
-  // The movements a line opens in place, only where they are shown: the
-  // table view. The period's counted movements, the fields a row prints,
-  // each line's newest few (ADR 0052).
-  const movements =
-    view === 'table' ? lineMovements(transactions, categories, { months: periodMonths, lines: movementLines(flows), max: limits.financeListMax }) : null;
+  // The movements a line opens in place: the period's counted movements,
+  // the fields a row prints, each line's newest few (ADR 0052).
+  const movements = lineMovements(transactions, categories, { months: periodMonths, lines: movementLines(flows), max: limits.financeListMax });
+  // The columns, only where they are drawn (ADR 0053).
+  /** @type {import('@/components/FinanceFlows.js').ChartColumns | null} */
+  const columns =
+    view !== 'columns'
+      ? null
+      : period === 'year'
+        ? { kind: 'months', months: yearColumns(transactions, categories, yearOf(month), months) }
+        : { kind: 'days', ...dayColumns(transactions, categories, month, todayKey) };
 
   /** @type {<T extends { accountId: string, date: string }>(rows: T[]) => T[]} */
   const ofSelected = (rows) =>
@@ -176,6 +181,7 @@ export default async function FinancesScreen({ searchParams }) {
         <FinanceBreakdown
           overview={overview}
           chart={worthChart(overview.history, todayKey)}
+          parts={allocationAccounts(overview)}
           accounts={quietAccounts(overview.accounts, finance, { todayKey, selectedId: selected?.id ?? null })}
           archived={accounts.filter((account) => account.archivedOn !== null)}
           todayKey={todayKey}
@@ -206,7 +212,7 @@ export default async function FinancesScreen({ searchParams }) {
             view={view}
             yearRate={period === 'year' ? null : savingsRate(yearFlows(transactions, categories, month))}
             target={profile.financeSavingsTarget}
-            trend={flowTrend(transactions, categories, trendShown)}
+            columns={columns}
             invested={periodInvested(trades, periodMonths)}
             averages={year === null ? null : lineAverages(year)}
             uncategorised={uncategorisedCounts(transactions, categories, periodMonths)}

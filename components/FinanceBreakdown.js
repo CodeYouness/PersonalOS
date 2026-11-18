@@ -5,12 +5,14 @@ import FinanceInvestments, { GainMark, InvestedNote } from '@/components/Finance
 import FinanceSyncLine from '@/components/FinanceSyncLine.js';
 import FinanceWorthChart from '@/components/FinanceWorthChart.js';
 import { formatEuro, formatMoney, formatMoneyChange, shortDate } from '@/components/format.js';
+import Tip, { TipFigures } from '@/components/Tip.js';
 import { accountSections, accountStaleSince, allocation } from '@/lib/domain/derive/finance.js';
 import { limits } from '@/personalos.config.js';
 
 /** @typedef {import('@/lib/domain/derive/finance.js').AccountRow} AccountRow */
 /** @typedef {import('@/lib/domain/derive/finance.js').AccountSection} AccountSection */
 /** @typedef {import('@/lib/domain/derive/investments.js').InvestmentReturns} InvestmentReturns */
+/** @typedef {import('@/lib/domain/derive/finance.js').AllocationAccounts} AllocationAccounts */
 
 /**
  * The allocation bar's parts, in order. The assets are a neutral ramp of the
@@ -29,9 +31,12 @@ const ALLOCATION_PARTS = {
  * The Net worth card of the Finances screen (#113), from
  * lib/domain/derive/finance.js's financeOverview, top to bottom: net worth;
  * the net worth line over all tracked time (worthChart, ADR 0048) with the
- * change over that span and over 30 days and a year; the allocation bar;
- * and the accounts by kind (accountSections, ADR 0049) -- cash, invested,
- * other assets, debt -- each section with its name and subtotal, the same
+ * change over that span and over 30 days and a year -- each month's point
+ * showing its net worth on hover, focus and a tap (ADR 0053); the allocation
+ * bar, each part and its legend showing the accounts it is made of, largest
+ * first (allocationAccounts, ADR 0053); and the accounts by kind
+ * (accountSections, ADR 0049) -- cash, invested, other assets, debt -- each
+ * section with its name and subtotal, the same
  * amount and mark as its part of the bar, a debt as what is owed. A row is
  * an account's name and value, the value always last. The table says once
  * when its newest value is from ("Last updated 17 Nov"); a row says its own
@@ -57,6 +62,7 @@ const ALLOCATION_PARTS = {
  * @param {{
  *   overview: ReturnType<typeof import('@/lib/domain/derive/finance.js').financeOverview>,
  *   chart: ReturnType<typeof import('@/lib/domain/derive/finance.js').worthChart>,
+ *   parts?: AllocationAccounts[],
  *   accounts: { shown: AccountRow[], quiet: AccountRow[] },
  *   archived: import('@/lib/domain/types.js').FinanceAccount[],
  *   todayKey: string,
@@ -66,7 +72,7 @@ const ALLOCATION_PARTS = {
  *   wide?: boolean,
  * }} props `wide`: the whole row, when no account's panel sits beside it
  */
-export default function FinanceBreakdown({ overview, chart, accounts, archived, todayKey, place, staleness = null, investments = null, wide = false }) {
+export default function FinanceBreakdown({ overview, chart, parts: made = [], accounts, archived, todayKey, place, staleness = null, investments = null, wide = false }) {
   const selectedId = place.account ?? null;
   const parts = allocation(overview).filter((part) => part.amount !== 0);
   const { line } = chart;
@@ -117,18 +123,20 @@ export default function FinanceBreakdown({ overview, chart, accounts, archived, 
           <>
             <div className="alloc">
               {parts.map((part) => (
-                <i
+                <Tip
                   key={part.key}
+                  as="i"
                   style={{ width: part.share * 100 + '%', background: ALLOCATION_PARTS[part.key].color }}
+                  {...partTip(part, made.find((each) => each.part === part.key))}
                 />
               ))}
             </div>
             <div className="legend">
               {parts.map((part) => (
-                <span key={part.key}>
+                <Tip key={part.key} className="finance-alloc-key" {...partTip(part, made.find((each) => each.part === part.key))}>
                   <i className="dot" style={{ color: ALLOCATION_PARTS[part.key].color }} />
                   {ALLOCATION_PARTS[part.key].label} <span className="num">{formatEuro(part.amount)}</span>
-                </span>
+                </Tip>
               ))}
             </div>
           </>
@@ -188,6 +196,31 @@ export default function FinanceBreakdown({ overview, chart, accounts, archived, 
       </div>
     </article>
   );
+}
+
+/**
+ * What a part of the allocation bar, and its legend, say on hover, focus and
+ * a tap (ADR 0053): the part and its amount, then its accounts, largest
+ * first, each in whole euros as the table shows it; an account with no value
+ * is left out and counted, since unknown is not zero.
+ *
+ * @param {{ key: keyof typeof ALLOCATION_PARTS, amount: number }} part the bar's part
+ * @param {AllocationAccounts | undefined} made what it is made of
+ * @returns {{ label: string, tip: import('react').ReactNode }}
+ */
+function partTip(part, made) {
+  const head = ALLOCATION_PARTS[part.key].label + ' ' + formatEuro(part.amount);
+  const accounts = made?.accounts ?? [];
+  const unknown = made?.unknown ?? 0;
+  const note = unknown === 0 ? null : unknown === 1 ? '1 account with no value, not counted' : unknown + ' accounts with no value, not counted';
+  const label =
+    head +
+    (accounts.length === 0 ? '' : ': ' + accounts.map((row) => row.name + ' ' + formatMoney(row.value)).join(', ')) +
+    (note === null ? '' : '. ' + note);
+  return {
+    label,
+    tip: <TipFigures head={head} rows={accounts.map((row) => ({ label: row.name, value: formatMoney(row.value) }))} note={note} />,
+  };
 }
 
 /**

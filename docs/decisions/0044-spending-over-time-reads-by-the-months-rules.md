@@ -6,7 +6,10 @@
   and Income & spending draws only its bars; and by
   [0050](0050-income-and-spending-reads-as-a-circle.md): the average month
   is the year's only, each line's total over the year's months, and the
-  composition bar shows only in the table view
+  composition bar shows only in the table view; and by
+  [0053](0053-columns-beside-the-breakdown-and-one-tooltip.md): the trend's
+  months (`trendMonths`) are gone, the bars drawn as the Columns view of a
+  year
 - **Date** 2026-11-17
 
 ## Context

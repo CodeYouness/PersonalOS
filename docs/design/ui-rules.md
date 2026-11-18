@@ -101,8 +101,11 @@ links in a row, the weekday picker. Known smaller ones, on purpose: heat-map
 cells (one of thirty in a row), a tag's ×, the citation chips (32), the
 habit up/down pair (30, stacked), a table row's disclosure (28), a
 line's name that opens its subcategories or its movements (28), the Undo on a line filed from
-a check-in note (40), and the parts of Income & spending's circle (a ring
-about 28 to 33px thick, each part also reachable by keyboard; ADR 0050).
+a check-in note (40), the parts of Income & spending's circle (a ring
+about 28 to 33px thick, each part also reachable by keyboard; ADR 0050), and
+the marks that show their figures in a tooltip (ADR 0053): a day's column
+(one of thirty-one), a month's (one of twelve), a net worth point and a part
+of the allocation bar (8px high; its legend's item is the bigger target).
 
 ## Motion
 
@@ -116,6 +119,25 @@ Hover, press and focus only. No entrances, scroll effects or loops.
   ticket) lifts 2px and its border darkens a step. Rows change background.
 - Only transform, opacity and colours animate; never width, height or
   margin. `prefers-reduced-motion`: colours still change, nothing moves.
+
+## Tooltips
+
+A chart's mark tells its exact figures in **one tooltip**,
+`components/Tip.js` (ADR 0053) -- never a second mechanism, and never a
+`title` alone, which reaches neither a keyboard nor a finger.
+
+- The mark is the control: focusable (or a link), its name saying everything
+  the popover says; the popover is hidden from a screen reader.
+- It shows on hover with a mouse, on keyboard focus, and on a tap -- on a
+  link the first tap shows and the second follows it. Escape, a tap
+  elsewhere, a scroll or a resize hides it; one at a time.
+- It is a popover: `--surface-elevated`, a strong hairline, radius 6,
+  `--shadow-float`, 13px text in the ink, figures in tabular numbers
+  right-aligned. Drawn on the body, fixed, above the mark (below without
+  room) and 8px inside the viewport: no card clips it, and it never widens
+  the page. It takes no pointer and does not move.
+- `TipFigures` lays it out: a head (the day, the month, the part), a label
+  and amount per line, a note.
 
 ## Accessibility
 
@@ -148,7 +170,11 @@ word in the ink with a 2px bar under it.
 A row is one line. A long name or description is cut with an ellipsis, the
 whole of it in its `title` and in the panel the row opens; a note after it
 ("since 2 Jan") is never the part cut. The value is the last column,
-right-aligned. A table wider than its card scrolls inside its own box.
+right-aligned. Dates and amounts are as wide as their text, never wrapped or
+cut; the text columns share the rest. A table that can drop a column on a
+narrow card does, rather than scroll -- Transactions drops the account, then
+the category, measured on the card (ADR 0053); one that cannot scrolls
+inside its own box, never the card or the page.
 
 ## Home
 
