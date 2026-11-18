@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 
 import { goalsHref } from '@/components/GoalList.js';
+import { goalUrl, takeOutsideChanges } from '@/components/goals.js';
 import { messageOf, request } from '@/components/request.js';
 import { GOAL_HORIZONS, GOAL_KINDS } from '@/personalos.config.js';
 
@@ -52,7 +53,9 @@ export default function GoalDetail({ goal }) {
   const discardingEdit = useRef(false);
 
   // After a failed write the refresh brings back the goal as stored; only
-  // then are the fields reset to it.
+  // then are the fields reset to it. A field changed elsewhere -- the goal
+  // dragged to another group while it is open (ADR 0054) -- takes the
+  // stored value; a field being typed in is left alone.
   if (goal !== seenGoal) {
     setSeenGoal(goal);
     setIsDone(goal.done);
@@ -60,6 +63,12 @@ export default function GoalDetail({ goal }) {
       setDraft(editable(goal));
       setSaved(editable(goal));
       setNeedsResync(false);
+    } else {
+      const outside = takeOutsideChanges(saved, draft, editable(goal));
+      if (outside !== null) {
+        setSaved(outside.saved);
+        setDraft(outside.draft);
+      }
     }
   }
 
@@ -348,11 +357,6 @@ export function GoalDetailEmpty() {
       </div>
     </aside>
   );
-}
-
-/** @param {string} id */
-export function goalUrl(id) {
-  return '/api/goals/' + encodeURIComponent(id);
 }
 
 /** @param {string} text */

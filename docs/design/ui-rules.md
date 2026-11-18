@@ -109,11 +109,25 @@ links in a row, the weekday picker. Known smaller ones, on purpose: heat-map
 cells (one of thirty in a row), a tag's ×, the citation chips (32), the
 habit up/down pair (30, stacked), a table row's disclosure (28), a
 line's name that opens its subcategories or its movements (28), the Undo on a line filed from
-a check-in note (40), the parts of Income & spending's circle (a ring
+a check-in note (40), a goal's drag grip (32 wide, the row's height; the
+row and the panel are the other ways; ADR 0054), the parts of Income & spending's circle (a ring
 about 28 to 33px thick, each part also reachable by keyboard; ADR 0050), and
 the marks that show their figures in a tooltip (ADR 0053): a day's column
 (one of thirty-one), a month's (one of twelve), a net worth point and a part
 of the allocation bar (8px high; its legend's item is the bigger target).
+
+## Drag
+
+A drag is never the only way: whatever can be dragged has a control that
+does the same thing (a goal's group: the panel's Horizon; ADR 0054). Pointer
+events, never HTML5 drag-and-drop, which does nothing under a finger on iOS.
+A mouse picks a row up anywhere; a finger only by its grip (six dots, the
+only element with `touch-action: none`), so the rest of the row still
+scrolls. A press is a drag only past 8px, so a tap still opens. While held:
+the row dims, a copy follows the pointer with `--shadow-float`, every place
+it can go is shown -- an empty one as a dashed box -- and the one under the
+pointer takes `--surface-2` and an ink ring. Outside every target, back
+where it came from, or Esc: it goes back.
 
 ## Motion
 
@@ -126,7 +140,8 @@ Hover, press and focus only. No entrances, scroll effects or loops.
   rises 1px; a press sinks 1px and scales .985. A linked card (a CRM
   ticket) lifts 2px and its border darkens a step. Rows change background.
 - Only transform, opacity and colours animate; never width, height or
-  margin. `prefers-reduced-motion`: colours still change, nothing moves.
+  margin. `prefers-reduced-motion`: colours still change, nothing moves --
+  except a dragged copy, which is the pointer's, not an animation.
 
 ## Tooltips
 
