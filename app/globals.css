@@ -833,6 +833,11 @@ button.heat-cell:disabled { opacity: 0.45; }
 .field { margin-bottom: var(--s-md); }
 .field > .caption { display: block; margin-bottom: 6px; font-weight: var(--w-label); }
 textarea.input { resize: vertical; min-height: 72px; line-height: 1.5; }
+/* A box you write prose in (ProseBox) grows with the text from its own
+   minimum to 60% of the screen, then scrolls inside. svh is the screen with
+   the browser's bars showing, so on a phone the box never outgrows it; vh
+   is the fallback. No drag handle: the next key would undo a dragged size. */
+textarea.input.grows { resize: none; max-height: 60vh; max-height: 60svh; }
 .segmented { display: flex; gap: 4px; }
 .seg {
   flex: 1; min-height: var(--control-h); padding: 0 var(--s-xs); text-align: center;

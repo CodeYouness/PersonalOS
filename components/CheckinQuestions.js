@@ -3,6 +3,7 @@ import { canGoBack, canGoOn, closedQuestions, counterValue, savedCount, timeChan
 import { RatingButtons } from '@/components/DayRating.js';
 import { TimeSteppers } from '@/components/DayTime.js';
 import { formatMinutes } from '@/components/format.js';
+import ProseBox from '@/components/ProseBox.js';
 import { dayTimeTotal } from '@/lib/domain/derive/time.js';
 
 /**
@@ -291,9 +292,8 @@ export function NoteBox({ label, text, busy, error, filled, onType, onSave }) {
       <label className="checkin-label" htmlFor="checkin-open-text">
         {label}
       </label>
-      <textarea
+      <ProseBox
         id="checkin-open-text"
-        className="input"
         rows={2}
         placeholder="Optional. Kept word for word in the journal."
         value={text}

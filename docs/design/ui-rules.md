@@ -93,6 +93,14 @@ steps the border, focus turns it to the accent and the ring shows. A label
 you can see above every field (`.field > .caption`, 13px/500). A placeholder
 is never the label.
 
+**A box you write prose in grows with the text**, from its own minimum height
+up to 60% of the screen (`60svh`), then scrolls inside; it shrinks back as
+lines are deleted or the box is cleared, and has no drag handle. It is
+`components/ProseBox.js`, never a bare `<textarea>`: the Journal's box and
+its correction, the check-in's note, the review's questions and a ticket's
+note all use it. The height is set by script, not `field-sizing: content`,
+which older Safari on an iPhone does not have.
+
 ## Targets
 
 44px wherever possible. **40px** (`--control-h-dense`) only in a row that

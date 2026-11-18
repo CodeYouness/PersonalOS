@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
+import ProseBox from '@/components/ProseBox.js';
 import { messageOf, request } from '@/components/request.js';
 import { MEMORY_TYPES } from '@/personalos.config.js';
 
@@ -309,7 +310,7 @@ function JournalCorrection({ entry, todayKey, isBusy, onSave, onCancel }) {
         onSave({ text, date });
       }}
     >
-      <textarea className="input" aria-label="Correct the entry" value={text} onChange={(event) => setText(event.target.value)} />
+      <ProseBox aria-label="Correct the entry" value={text} onChange={(event) => setText(event.target.value)} />
       <div className="journal-correct-actions">
         <input
           className="input"

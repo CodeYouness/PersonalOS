@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
+import ProseBox from '@/components/ProseBox.js';
 import { messageOf, request } from '@/components/request.js';
 import { REVIEW_QUESTIONS } from '@/personalos.config.js';
 
@@ -181,9 +182,8 @@ export default function ReviewWrite({ period, from, review, previousLever }) {
         {REVIEW_QUESTIONS.map(({ key, label }) => (
           <div className="question" key={key}>
             <label htmlFor={'review-' + key}>{label}</label>
-            <textarea
+            <ProseBox
               id={'review-' + key}
-              className="input"
               value={draft[key]}
               onChange={(event) => setDraft((now) => ({ ...now, [key]: event.target.value }))}
               onBlur={() => commit(key)}

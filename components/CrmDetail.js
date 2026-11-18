@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 
 import CrmPersonField from '@/components/CrmPersonField.js';
+import ProseBox from '@/components/ProseBox.js';
 import { TEMPERATURES, URGENCY_BANDS } from '@/personalos.config.js';
 
 /** @typedef {import('@/lib/domain/types.js').Task} Task */
@@ -289,9 +290,8 @@ export default function CrmDetail({ task, person, people, provenance, closeHref 
 
         <div className="field">
           <label className="caption" htmlFor="d-note">Note</label>
-          <textarea
+          <ProseBox
             id="d-note"
-            className="input"
             value={draft.note}
             onChange={(event) => setDraft((current) => ({ ...current, note: event.target.value }))}
             onBlur={() => commitText('note')}
