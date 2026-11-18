@@ -847,6 +847,29 @@ textarea.input.grows { resize: none; max-height: 60vh; max-height: 60svh; }
 }
 .seg:hover:not(:disabled) { color: var(--ink); border-color: var(--hairline-tertiary); }
 .seg.is-on { background: var(--surface-4); color: var(--ink); border-color: var(--ink); }
+/* A segmented control of links (components/Segmented.js, ui-rules): one
+   bordered box of joined segments, a hairline between them, the chosen one
+   on --surface-4 with an ink ring. The frame is an inset shadow under the
+   segments, so each segment is the full 44px. As wide as its words. */
+.segmented.is-joined {
+  display: inline-flex; gap: 0; flex: none; max-width: 100%;
+  border-radius: var(--r-xs); background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+.segmented.is-joined .seg {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: var(--control-h); padding: 0 var(--s-sm);
+  border: 0; border-radius: 0; background: transparent;
+  text-decoration: none; white-space: nowrap;
+}
+.segmented.is-joined .seg:first-child { border-top-left-radius: var(--r-xs); border-bottom-left-radius: var(--r-xs); }
+.segmented.is-joined .seg:last-child { border-top-right-radius: var(--r-xs); border-bottom-right-radius: var(--r-xs); }
+.segmented.is-joined .seg + .seg { box-shadow: inset 1px 0 0 var(--hairline-strong); }
+.segmented.is-joined .seg:hover { background: var(--surface-3); color: var(--ink); }
+.segmented.is-joined .seg.is-on { background: var(--surface-4); color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+/* A glyph before a segment's word, or alone in a stepper's arrow: an inline
+   SVG in the word's colour. */
+.seg-glyph { display: block; flex: none; }
 .detail-tags { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 /* The × inside a tag: the tag is a 24px chip, so this is a 24px target. */
 .tag-remove {
@@ -1208,26 +1231,27 @@ a.cite { text-decoration: none; }
 .finance-movement > .finance-date { flex: none; min-width: 6ch; color: var(--ink-subtle); }
 .finance-movement > .caption { flex: none; white-space: nowrap; }
 /* Income & spending's body (ADR 0053, amending 0050): on the left the
-   Circle / Columns switch, the chart, its four totals and the rest of the
-   summary; on the right, always, the breakdown. The left takes two parts of
+   chart the head's view picks, its four totals and the rest of the summary;
+   on the right, always, the breakdown. The left takes two parts of
    five, so a month's thirty-one days have room; stacked on a phone. */
 .finance-flow-body { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(0, 3fr); gap: var(--s-lg); align-items: start; }
 .finance-flow-side { display: flex; flex-direction: column; gap: var(--s-md); min-width: 0; }
-.finance-view-switch { align-self: flex-start; }
-.finance-view-switch .seg {
-  flex: none; display: inline-flex; align-items: center; justify-content: center;
-  padding: 0 var(--s-sm); text-decoration: none;
-}
-/* The four totals: two by two where the column takes two of 110px, else a
-   short list. A label over its number, as a tile; each part's mark is its
-   tone in the ring, income -- the whole ring -- has none. */
+/* The four totals (ADR 0053, amended): two by two, each one row -- its mark,
+   its name, its amount right-aligned -- in the summary's row style and at its
+   width, so the totals and the summary under them read as one account. Each
+   part's mark is its tone in the ring; one without a mark keeps the mark's
+   place, so the names line up. A cell too narrow for its row puts the amount
+   under the name, still right-aligned, never cut. */
 .finance-circle-totals {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: var(--s-xs) var(--s-md);
-  width: 100%; max-width: 280px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-md);
+  width: 100%; max-width: 420px; margin: 0;
 }
-.finance-circle-total { min-width: 0; }
-.finance-circle-total dt { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: var(--w-label); color: var(--ink-subtle); }
-.finance-circle-total dd { margin: 0; font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); }
+.finance-circle-total {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; column-gap: var(--s-xs);
+  min-width: 0; padding: var(--s-xxs) 0; border-top: 1px solid var(--hairline);
+}
+.finance-circle-total dt { display: flex; align-items: center; gap: 6px; font-size: 16px; color: var(--ink); }
+.finance-circle-total dd { margin: 0 0 0 auto; font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); }
 /* A card too narrow for the breakdown beside the chart -- a phone, a tablet
    -- stacks them: measured on the card, which is what the two share. */
 #card-finance-flows .card-body { container-type: inline-size; }
@@ -1281,13 +1305,39 @@ a.cite { text-decoration: none; }
 .finance-swatch.is-spent { background: var(--series-1); }
 .finance-swatch.is-invested { background: var(--series-2); }
 .finance-swatch.is-kept { background: var(--series-3); }
-/* Income & spending's controls: the Month / Year switch beside the picker. */
+/* Income & spending's toolbar, in the card head: the period -- Month / Year
+   and its stepper -- then, a wider gap apart, the view. Beside the name while
+   it fits; under it, from the left, when it does not, each group wrapping in
+   turn, so a phone's card never scrolls sideways. */
 #card-finance-flows .card-head { flex-wrap: wrap; }
-.finance-flow-controls { display: flex; align-items: center; justify-content: flex-end; gap: var(--s-xs); flex-wrap: wrap; }
-.finance-flow-controls .segmented .seg {
-  flex: none; display: inline-flex; align-items: center; justify-content: center;
-  padding: 0 var(--s-sm); text-decoration: none;
+.finance-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-xs) var(--s-lg); min-width: 0; max-width: 100%; }
+.finance-toolbar-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-xs); min-width: 0; max-width: 100%; }
+/* The stepper around a period (ui-rules): ‹ the period's select › in one
+   joined box, as a segmented control is. The arrows are 44px squares; one at
+   the end of what is on offer is disabled. The select is the period's word,
+   framed by the arrows' hairlines, and shrinks before anything scrolls. */
+.finance-stepper {
+  display: inline-flex; align-items: stretch; min-width: 0; max-width: 100%;
+  border-radius: var(--r-xs); background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }
+.finance-step {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: var(--control-h); min-height: var(--control-h); padding: 0;
+  border: 0; border-radius: var(--r-xs) 0 0 var(--r-xs); background: transparent; color: var(--ink);
+  transition: background-color var(--m-out) var(--ease), color var(--m-out) var(--ease);
+}
+.finance-step:last-child { border-radius: 0 var(--r-xs) var(--r-xs) 0; }
+.finance-step:hover:not(:disabled) { background: var(--surface-3); }
+.finance-step:disabled { opacity: .5; }
+.finance-stepper .finance-month-picker {
+  flex: 0 1 auto; min-width: 0; border: 0; border-radius: 0; background-color: transparent;
+  box-shadow: inset 1px 0 0 var(--hairline-strong), inset -1px 0 0 var(--hairline-strong);
+  text-overflow: ellipsis;
+}
+.finance-stepper .finance-month-picker:hover:not(:disabled) { background-color: var(--surface-3); }
+/* The Transactions card's head: the span's segmented control and Show all. */
+.finance-flow-controls { display: flex; align-items: center; justify-content: flex-end; gap: var(--s-xs); flex-wrap: wrap; }
 /* The columns (ADR 0053): a month's days or a year's months, side by side
    at even steps across the whole width, and the scale beside them. A year:
    two bars a month against the highest drawn (data marks, radius 2), money
@@ -1351,9 +1401,10 @@ a.cite { text-decoration: none; }
 .finance-swatch.is-spending { background: var(--series-1); }
 /* Under a month's days income is a dot on its day, and its legend one too. */
 .finance-swatch.is-income.is-mark { width: 8px; height: 8px; margin: 0 1px; border-radius: 50%; }
-/* The days' legend says once that income is marked, not drawn to scale. */
+/* The days' legend says once from how much income is marked, and that it is
+   not drawn to scale, right under the totals it belongs to. */
 .finance-circle-legend { display: flex; flex-direction: column; gap: var(--s-xs); }
-.finance-columns-note { margin: 0; text-align: center; }
+.finance-columns-note { margin: 0; max-width: 420px; }
 /* The composition bar sits on the spending table it is the chart of. */
 .finance-composition { margin: 0 0 var(--s-xs); }
 .finance-table-scroll + .finance-composition { margin-top: var(--s-md); }

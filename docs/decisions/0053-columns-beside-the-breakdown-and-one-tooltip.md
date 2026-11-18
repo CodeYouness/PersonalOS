@@ -143,7 +143,7 @@ and scroll inside their own box there, as ui-rules allows a wide table to,
 never the card. A line's name in its toggle is now cut inside the button, so
 a long name no longer collapses to "…".
 
-## Amendment (2026-11-18): a month's days on the spending's scale, income a mark
+## Amendment (2026-11-18): a month's days on the spending's scale, income a mark, and the card's controls
 
 On real data a month's day columns said nothing: the salary arrives on one
 day, thousands, and a day's spending is tens, so on one scale every spending
@@ -160,10 +160,21 @@ the year's twelve columns stay as they were -- but not day by day.
   marked; a net chargeback is no mark). Its amount is in the day's tooltip
   and its name exactly as before. A day with only income is still a column,
   focusable, with its tooltip.
+- **A day is marked only from 1% of the month's income.** On real data a
+  deposit's daily interest, a few cents, put a mark on almost every day, and
+  the marks no longer said where the money came in. The floor
+  (`dayMarkFloor`) is `limits.financeDayIncomeMarkPercent` -- 1, a whole
+  percent -- of the month's income as its totals count it (what is on no day
+  included), **rounded up to a whole euro** in integer arithmetic on minor
+  units, so the figure the card prints is the rule exactly: € 4,886 in makes
+  € 48.86, a mark from € 49.00. A month with no income, or with more charged
+  back than received, has no floor and no mark. The day's tooltip and name
+  still give its income, whatever its size.
 - **The card says it once**, under the totals that are the legend: "Income
-  is marked on its day, not drawn to scale." -- only when a day carries a
-  mark. The Income total's swatch is a dot there, as the mark is; under a
-  year's columns it stays the outlined square of its bar.
+  of € 49 or more is marked on its day, not drawn to scale." -- only when a
+  day carries a mark. The Income total's swatch is a dot there, as the mark
+  is, and none when no day is marked; under a year's columns it stays the
+  outlined square of its bar.
 - **A month with income and no spending** draws marks only, on a scale of
   zero that divides by nothing, and the scale prints "€ 0" alone, no top.
 - **The day columns are taller** (180 px, from 140, with the marks' 14 px
@@ -171,6 +182,42 @@ the year's twelve columns stay as they were -- but not day by day.
   spanned the left column: the days still to come are empty slots, so a
   month half gone looked half drawn. Unchanged: the days and what is apart
   still add up to the month's totals, and the "apart" sentence is the same.
+
+Looking at the card again the same day, the owner found its controls
+confusing and plain -- Month / Year and the month's select in the head, then
+Circle / Columns as two more detached buttons above the chart: two rows of
+look-alike buttons meaning different things -- the four totals hard to read,
+each label far from its value, and the composition bar silent.
+
+- **One toolbar in the card head**, wrapping on a narrow card, never
+  scrolling sideways, with two kinds of control (docs/design/ui-rules.md,
+  Segmented controls and steppers). **The period**: a joined Month / Year
+  segmented control, followed by a stepper -- previous and next arrows
+  around the period's select ("‹ November 2026 ›"), the select still
+  choosing any month directly; previous is disabled at the oldest period on
+  offer and next at the newest, and in a year they step years, each read at
+  its newest month on offer as the select does. **The view**, apart from it:
+  a joined Circle / Columns control, a ring and three bars before the words,
+  absent when there is nothing to draw. The Circle / Columns buttons above
+  the chart are gone. Every address is as before: `?period=year`,
+  `?month=`, `?view=columns` never written for the circle, `?view=table`
+  read as the circle; a step, like the select, leaves a selected movement.
+  The joined control is `components/Segmented.js`; the Transactions card's
+  period / All time switch, the screen's one other link choice, uses it too.
+- **The four totals are rows**: each one tight unit -- its mark, its name and
+  its amount right-aligned -- two by two, in the summary's row style and at
+  its width, so they and the rates, fixed and variable under them read as
+  one account, in two rows where there were four lines. A total without a
+  mark keeps a mark's place, so the names line up; a cell too narrow for its
+  row puts the amount under the name. The marks mean what they meant: the
+  ring's parts, or under the columns their legend.
+- **The composition bar's parts show their figures** in the one tooltip,
+  as the allocation bar's do: each part focusable, named and showing its
+  category, what it spent and its share of the period's spending
+  (`spendingParts` now gives the amount), in a month and in a year. A part
+  too thin to point at is still a tab stop, and its line in the spending
+  table says the same. The bar is a group named "Spending by category", no
+  longer one image naming every share.
 
 ## Consequences
 

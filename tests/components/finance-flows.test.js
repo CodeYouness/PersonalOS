@@ -1,7 +1,8 @@
 /**
  * What the Income & spending card renders (ADR 0053, amending 0050): no strip
- * of bars across the top; the line counting movements without a category;
- * then, on the left, a Circle / Columns switch, the circle of the period or
+ * of bars across the top; in the head one toolbar -- Month / Year with its
+ * stepper, then Circle / Columns; the line counting movements without a
+ * category; then, on the left, the circle of the period or
  * its columns -- a month's days, a year's months, each with its figures --
  * with the four totals and the rest of the summary under it; and on the
  * right, always, the breakdown: income first, then spending, each line's
@@ -77,10 +78,10 @@ const trades = [trade('2026-04-10', 'buy', 50000)];
 /**
  * @param {'month' | 'year'} period
  * @param {string} month
- * @param {{ view?: 'circle' | 'columns', target?: number | null, rows?: any[], held?: any[], place?: any, max?: number }} [options]
+ * @param {{ view?: 'circle' | 'columns', target?: number | null, rows?: any[], held?: any[], place?: any, max?: number, since?: string }} [options]
  */
-function render(period, month, { view = 'circle', target = null, rows = transactions, held = trades, place = {}, max = 50 } = {}) {
-  const months = flowMonths(rows, TODAY, '2026-01-01');
+function render(period, month, { view = 'circle', target = null, rows = transactions, held = trades, place = {}, max = 50, since = '2026-01-01' } = {}) {
+  const months = flowMonths(rows, TODAY, since);
   const year = period === 'year' ? calendarYearFlows(rows, categories, month, months) : null;
   const flows = year ?? monthFlows(rows, categories, month);
   const periodMonths = year?.months ?? [month];
@@ -118,6 +119,10 @@ const summaryOf = (html) => {
 };
 /** The four totals under the circle, alone. @param {string} html */
 const totalsOf = (html) => html.slice(html.indexOf('<dl class="finance-circle-totals"'), html.indexOf('</dl>') + 5);
+/** The card's head, alone: its name and its toolbar. @param {string} html */
+const headOf = (html) => html.slice(html.indexOf('<div class="card-head">'), html.indexOf('<div class="card-body">'));
+/** A mark without a tone, keeping a mark's place. */
+const BLANK = '<i class="finance-swatch" aria-hidden="true"></i>';
 
 describe('FinanceFlows', () => {
   describe('the columns (ADR 0053)', () => {
@@ -159,17 +164,42 @@ describe('FinanceFlows', () => {
       expect(html).not.toContain('class="is-top num"');
     });
 
-    it('says once, with the totals, that income is marked and not drawn to scale', () => {
+    it('says once, with the totals, from how much income is marked, and that it is not drawn to scale', () => {
       const html = render('month', '2026-04', { view: 'columns' });
-      const note = 'Income is marked on its day, not drawn to scale.';
+      // 3,000.00 in: 1% of it is 30.00.
+      const note = 'Income of €\u200930 or more is marked on its day, not drawn to scale.';
 
       expect(html.split(note)).toHaveLength(2);
       expect(html.indexOf(note)).toBeGreaterThan(html.indexOf('class="finance-circle-totals"'));
       expect(html.indexOf(note)).toBeLessThan(html.indexOf('class="finance-summary'));
       // No mark drawn, nothing to say: a month without income on any day, and a year's columns.
-      expect(render('month', '2026-04', { view: 'columns', rows: [t('2026-04-02', -1000, 'cat_home')], held: [] })).not.toContain(note);
-      expect(render('year', '2026-04', { view: 'columns' })).not.toContain(note);
-      expect(render('month', '2026-04')).not.toContain(note);
+      for (const other of [
+        render('month', '2026-04', { view: 'columns', rows: [t('2026-04-02', -1000, 'cat_home')], held: [] }),
+        render('year', '2026-04', { view: 'columns' }),
+        render('month', '2026-04'),
+      ]) {
+        expect(other).not.toContain('is marked on its day');
+      }
+    });
+
+    it('marks no day under 1% of the month\'s income, its tooltip still saying what came in', () => {
+      // 3,000.00 paid on 2 April for February to April, on no day; 12 cents of interest on the 5th.
+      const spread = t('2026-03-15', 900000, 'cat_pay', { id: 'tx_salary', countedOver: { from: '2026-02', to: '2026-04' } });
+      const html = render('month', '2026-04', { view: 'columns', rows: [spread, t('2026-04-05', 12, 'cat_pay'), t('2026-04-06', -2000, 'cat_home')], held: [] });
+
+      expect(html).toContain('aria-label="5 Apr: income €\u20090.12, spending €\u20090.00" class="finance-column"><span class="finance-column-bars"');
+      expect(html).not.toContain('finance-column-mark');
+      // No day reaches the floor: no note, and the Income total marks nothing.
+      expect(html).not.toContain('is marked on its day');
+      expect(totalsOf(html)).toContain('<dt>' + BLANK + 'Income</dt>');
+    });
+
+    it('marks a day of interest that reaches the floor, as any other income', () => {
+      const html = render('month', '2026-04', { view: 'columns', rows: [t('2026-04-01', 10000, 'cat_pay'), t('2026-04-02', 100, 'cat_pay'), t('2026-04-03', 99, 'cat_pay')], held: [] });
+
+      // 101.99 in: a mark from 2.00 -- the 1st, not the 2nd's 1.00 nor the 3rd's 0.99.
+      expect(html.match(/finance-column-mark/g)).toHaveLength(1);
+      expect(html).toContain('Income of €\u20092 or more is marked on its day, not drawn to scale.');
     });
 
     it('leaves the days still to come empty, never a column of zero', () => {
@@ -244,7 +274,27 @@ describe('FinanceFlows', () => {
       expect(html.indexOf('class="finance-circle"')).toBeGreaterThan(side);
       expect(html.indexOf('class="finance-breakdown"')).toBeGreaterThan(html.indexOf('class="finance-circle"'));
       expect(html.indexOf('<th>Income</th>')).toBeGreaterThan(html.indexOf('class="finance-breakdown"'));
-      expect(html).toContain('role="img" aria-label="Spending by category: Home 67%, Food 33%"');
+      expect(html).toContain('<div class="alloc finance-composition" role="group" aria-label="Spending by category">');
+    });
+
+    it('makes each part of the composition bar a mark with its category, what it spent and its share', () => {
+      for (const html of [render('month', '2026-04'), render('month', '2026-04', { view: 'columns' })]) {
+        const bar = html.slice(html.indexOf('finance-composition'), html.indexOf('</div>', html.indexOf('finance-composition')));
+        // Focusable, named by everything its popover says: a tooltip, as the allocation bar's parts.
+        expect(bar).toContain('<i tabindex="0" role="img" aria-label="Home: spent €\u20091,000.00, 67% of spending" style="width:66.66666666666666%;background:var(--series-1)"></i>');
+        expect(bar).toContain('<i tabindex="0" role="img" aria-label="Food: spent €\u2009500.00, 33% of spending"');
+      }
+      // A year: its parts over the year to date. Home 3,000, Food 800, Gym 120 of 3,920.
+      const year = render('year', '2026-04');
+      expect(year).toContain('aria-label="Home: spent €\u20093,000.00, 77% of spending"');
+      expect(year).toContain('aria-label="Gym: spent €\u2009120.00, 3% of spending"');
+    });
+
+    it('keeps a part too thin to point at reachable by keyboard', () => {
+      // 1.00 of 1,001.00: a tenth of a percent of the bar, still a tab stop.
+      const html = render('month', '2026-04', { rows: [t('2026-04-01', 300000, 'cat_pay'), t('2026-04-02', -100000, 'cat_home'), t('2026-04-03', -100, 'cat_gym')], held: [] });
+
+      expect(html).toContain('<i tabindex="0" role="img" aria-label="Gym: spent €\u20091.00, 0% of spending"');
     });
 
     it('keeps the breakdown on the right with the columns too, in a month and in a year', () => {
@@ -281,8 +331,17 @@ describe('FinanceFlows', () => {
       expect(totals).toContain('<dt><i class="finance-swatch is-spent" aria-hidden="true"></i>Spent</dt>');
       expect(totals).toContain('<dt><i class="finance-swatch is-invested" aria-hidden="true"></i>Invested</dt>');
       expect(totals).toContain('<dt><i class="finance-swatch is-kept" aria-hidden="true"></i>Kept</dt>');
-      expect(totals).toContain('<dt>Income</dt>');
+      // Income has no mark, and keeps a mark's place, so the names line up.
+      expect(totals).toContain('<dt>' + BLANK + 'Income</dt>');
       expect(totals).not.toContain('is-income');
+    });
+
+    it('puts each total in one row with its mark, its name and its amount', () => {
+      const totals = totalsOf(render('month', '2026-04'));
+
+      expect(totals).toContain('<div class="finance-circle-total"><dt>' + BLANK + 'Income</dt><dd class="num">€\u20093,000</dd></div>');
+      expect(totals).toMatch(/<div class="finance-circle-total"><dt><i class="finance-swatch is-kept" aria-hidden="true"><\/i>Kept<\/dt><dd class="num">€\u20091,000<\/dd><\/div>/);
+      expect(totals.match(/class="finance-circle-total"/g)).toHaveLength(4);
     });
 
     it('makes the totals the columns\' legend: income outlined, spent solid, the rest unmarked', () => {
@@ -294,18 +353,77 @@ describe('FinanceFlows', () => {
       expect(months).toContain('<dt><i class="finance-swatch is-income" aria-hidden="true"></i>Income</dt>');
       for (const totals of [days, months]) {
         expect(totals).toContain('<dt><i class="finance-swatch is-spending" aria-hidden="true"></i>Spent</dt>');
-        expect(totals).toContain('<dt>Invested</dt>');
-        expect(totals).toContain('<dt>Kept</dt>');
+        expect(totals).toContain('<dt>' + BLANK + 'Invested</dt>');
+        expect(totals).toContain('<dt>' + BLANK + 'Kept</dt>');
       }
     });
 
-    it('offers the circle and the columns, keeping the place, and never writes the circle', () => {
-      const html = render('month', '2026-04', { place: { category: 'cat_home' } });
+  });
 
-      expect(html).toContain('role="group" aria-label="Chart"');
-      expect(html).toContain('aria-current="true" href="/finances?month=2026-04&amp;category=cat_home">Circle</a>');
-      expect(html).toContain('href="/finances?month=2026-04&amp;view=columns&amp;category=cat_home">Columns</a>');
-      expect(render('month', '2026-04', { view: 'columns' })).toContain('href="/finances?month=2026-04&amp;period=year&amp;view=columns"');
+  describe('the toolbar (ADR 0053, amended)', () => {
+    it('puts the period and the view in the card head, the period first, nothing above the chart', () => {
+      const html = render('month', '2026-04');
+      const head = headOf(html);
+
+      expect(head).toContain('<div class="finance-toolbar"><div class="finance-toolbar-group"><div class="segmented is-joined" role="group" aria-label="Period">');
+      expect(head.indexOf('class="finance-stepper"')).toBeGreaterThan(head.indexOf('aria-label="Period"'));
+      expect(head.indexOf('aria-label="View"')).toBeGreaterThan(head.indexOf('class="finance-stepper"'));
+      // The view is apart from the period's group.
+      expect(head).toContain('</div></div><div class="segmented is-joined finance-view-switch" role="group" aria-label="View">');
+      // The left column starts with the chart: no switch of its own any more.
+      expect(html).toContain('<div class="finance-flow-side"><figure class="finance-circle">');
+      expect(html).not.toContain('aria-label="Chart"');
+    });
+
+    it('offers Month and Year as one segmented control, keeping the place', () => {
+      const head = headOf(render('month', '2026-04', { view: 'columns' }));
+
+      expect(head).toContain('<a class="seg is-on" aria-current="true" href="/finances?month=2026-04&amp;view=columns">Month</a>');
+      expect(head).toContain('<a class="seg" href="/finances?month=2026-04&amp;period=year&amp;view=columns">Year</a>');
+    });
+
+    it('offers the circle and the columns, each with its glyph, keeping the place, and never writes the circle', () => {
+      const head = headOf(render('month', '2026-04', { place: { category: 'cat_home' } }));
+
+      expect(head).toMatch(/<a class="seg is-on" aria-current="true" href="\/finances\?month=2026-04&amp;category=cat_home"><svg class="seg-glyph"[^>]*aria-hidden="true"[^>]*><circle [^>]*><\/circle><\/svg>Circle<\/a>/);
+      expect(head).toMatch(/<a class="seg" href="\/finances\?month=2026-04&amp;view=columns&amp;category=cat_home"><svg class="seg-glyph"[^>]*>(<rect [^>]*><\/rect>){3}<\/svg>Columns<\/a>/);
+    });
+
+    it('offers no view when there is nothing to draw', () => {
+      const head = headOf(render('month', '2026-04', { rows: [], held: [] }));
+
+      expect(head).toContain('aria-label="Period"');
+      expect(head).not.toContain('aria-label="View"');
+    });
+
+    it('steps a month to the one before and the one after on offer, around its select', () => {
+      // On offer: June 2025 to April 2026, today's month.
+      const newest = headOf(render('month', '2026-04', { since: '2025-06-01' }));
+      expect(newest).toContain('<a class="finance-step" aria-label="Previous month, March 2026" href="/finances?month=2026-03">');
+      expect(newest).toContain('<button type="button" class="finance-step" disabled="" aria-label="Next month">');
+      expect(newest).toMatch(/href="\/finances\?month=2026-03"><svg[^]*<\/svg><\/a><select aria-label="Month" class="input finance-month-picker"><option value="2026-04" selected="">April 2026<\/option>/);
+      expect(newest).toContain('<option value="2025-06">June 2025</option></select><button');
+
+      const oldest = headOf(render('month', '2025-06', { since: '2025-06-01' }));
+      expect(oldest).toContain('<button type="button" class="finance-step" disabled="" aria-label="Previous month">');
+      expect(oldest).toContain('<a class="finance-step" aria-label="Next month, July 2025" href="/finances?month=2025-07">');
+      // A selected movement is left behind by a step, as by the select.
+      expect(headOf(render('month', '2026-02', { place: { transaction: 'tx_1', category: 'cat_home' } }))).toContain(
+        'aria-label="Previous month, January 2026" href="/finances?month=2026-01&amp;category=cat_home">'
+      );
+    });
+
+    it('steps a year to the years on offer, each read at its newest month on offer', () => {
+      const newest = headOf(render('year', '2026-04', { since: '2025-06-01' }));
+      expect(newest).toContain('<a class="finance-step" aria-label="Previous year, 2025" href="/finances?month=2025-12&amp;period=year">');
+      expect(newest).toContain('<button type="button" class="finance-step" disabled="" aria-label="Next year">');
+      expect(newest).toContain('<select aria-label="Year" class="input finance-month-picker"><option value="2026" selected="">2026</option><option value="2025">2025</option></select>');
+
+      const oldest = headOf(render('year', '2025-08', { since: '2025-06-01' }));
+      expect(oldest).toContain('<button type="button" class="finance-step" disabled="" aria-label="Previous year">');
+      expect(oldest).toContain('<a class="finance-step" aria-label="Next year, 2026" href="/finances?month=2026-04&amp;period=year">');
+      // One year on offer: both ends disabled.
+      expect(headOf(render('year', '2026-04')).match(/class="finance-step" disabled=""/g)).toHaveLength(2);
     });
   });
 
