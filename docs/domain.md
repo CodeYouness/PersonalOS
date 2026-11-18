@@ -1650,18 +1650,23 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
 
 - **The columns** (ADR 0053), the left chart's other choice -- the strip of
   bars that ran across the top of the card (ADR 0044) is gone. Money in is
-  an outlined bar and money out a solid one (ADR 0048), on a scale from zero
-  to the highest bar (`trendBars`, `trendHigh`); each column is focusable
-  and shows its exact figures on hover, focus and a tap (a **tooltip**,
-  `components/Tip.js`). In a **month**, one column per day (`dayColumns`),
-  a bar only where there is money; a day still to come is empty, not zero.
+  outlined and money out solid (ADR 0048); each column is focusable and
+  shows its exact figures on hover, focus and a tap (a **tooltip**,
+  `components/Tip.js`). In a **month**, one column per day (`dayColumns`):
+  money out a solid bar on a scale from zero to the largest day's spending
+  (`dayHigh`, a rent day as tall as it is), money in an outlined dot above
+  its day, a mark not drawn to scale (`dayBars`; ADR 0053, amended) -- a
+  payday would flatten days of tens to a pixel -- its amount in the day's
+  tooltip, and the card says so once under the totals; a day still to come
+  is empty, not zero.
   **A movement counted over several months has no single day**: a movement
   is on its day only when it counts whole in the month of its date, and any
   other part in the month -- of a movement spread over months, paid in it or
   not -- is on no day, said in one line under the columns, so the days and
   that line add up exactly to the month's totals. In a **year**, its twelve
-  months (`yearColumns`, each read by `flowTrend`), what was left a tick on
-  the income bar, each month on offer a link that reads it, one with nothing
+  months (`yearColumns`, each read by `flowTrend`), income an outlined bar
+  and spending a solid one on a scale from zero to the highest of either
+  (`trendBars`, `trendHigh`), what was left a tick on the income bar, each month on offer a link that reads it, one with nothing
   counted an empty slot, one the year does not offer empty and no link. An
   old `?chart=` is ignored (ADR 0048): net worth over time is the Net worth
   card's line, below.
