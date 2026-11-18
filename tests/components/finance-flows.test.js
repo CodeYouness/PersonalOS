@@ -139,9 +139,37 @@ describe('FinanceFlows', () => {
       expect(html).toContain('tabindex="0" role="img" aria-label="1 Apr: income €\u20093,000.00, spending €\u20090.00" class="finance-column"');
       expect(html).toContain('aria-label="2 Apr: income €\u20090.00, spending €\u20091,000.00"');
       expect(html).toContain('aria-label="5 Apr: nothing counted"');
-      // Money in outlined, money out solid; a day draws only the bars it has money for.
-      expect(html).toMatch(/aria-label="1 Apr[^"]*" class="finance-column"><span class="finance-column-bars" aria-hidden="true"><i class="is-income" style="height:100%"><\/i><\/span>/);
-      expect(html).toMatch(/aria-label="2 Apr[^"]*" class="finance-column"><span class="finance-column-bars" aria-hidden="true"><i class="is-spending" style="height:33%"><\/i><\/span>/);
+      // Money out a solid bar on the spending's scale; money in an outlined mark on its day, not drawn to scale.
+      expect(html).toMatch(
+        /aria-label="1 Apr[^"]*" class="finance-column"><span class="finance-column-mark" aria-hidden="true"><\/span><span class="finance-column-bars" aria-hidden="true"><\/span>/
+      );
+      expect(html).toMatch(/aria-label="2 Apr[^"]*" class="finance-column"><span class="finance-column-bars" aria-hidden="true"><i class="is-spending" style="height:100%"><\/i><\/span>/);
+      expect(html).toMatch(/aria-label="3 Apr[^"]*" class="finance-column"><span class="finance-column-bars" aria-hidden="true"><i class="is-spending" style="height:50%"><\/i><\/span>/);
+      expect(html).not.toContain('class="is-income"');
+    });
+
+    it('marks a month with income and no spending, on a scale of nothing, every day still reachable', () => {
+      const html = render('month', '2026-04', { view: 'columns', rows: [t('2026-04-01', 300000, 'cat_pay')], held: [] });
+
+      expect(html).toContain('aria-label="1 Apr: income €\u20093,000.00, spending €\u20090.00" class="finance-column"><span class="finance-column-mark" aria-hidden="true"></span>');
+      expect(html).not.toContain('class="is-spending"');
+      expect(html).not.toContain('NaN');
+      // Zero at the bottom, and no top to the scale: nothing went out.
+      expect(html).toMatch(/class="is-bottom num">€\u20090</);
+      expect(html).not.toContain('class="is-top num"');
+    });
+
+    it('says once, with the totals, that income is marked and not drawn to scale', () => {
+      const html = render('month', '2026-04', { view: 'columns' });
+      const note = 'Income is marked on its day, not drawn to scale.';
+
+      expect(html.split(note)).toHaveLength(2);
+      expect(html.indexOf(note)).toBeGreaterThan(html.indexOf('class="finance-circle-totals"'));
+      expect(html.indexOf(note)).toBeLessThan(html.indexOf('class="finance-summary'));
+      // No mark drawn, nothing to say: a month without income on any day, and a year's columns.
+      expect(render('month', '2026-04', { view: 'columns', rows: [t('2026-04-02', -1000, 'cat_home')], held: [] })).not.toContain(note);
+      expect(render('year', '2026-04', { view: 'columns' })).not.toContain(note);
+      expect(render('month', '2026-04')).not.toContain(note);
     });
 
     it('leaves the days still to come empty, never a column of zero', () => {
@@ -152,12 +180,12 @@ describe('FinanceFlows', () => {
       expect(html).not.toContain('21 Apr');
     });
 
-    it('labels a few days and prints the scale from zero to the highest bar', () => {
+    it('labels a few days and prints the scale from zero to the largest day\'s spending', () => {
       const html = render('month', '2026-04', { view: 'columns' });
       const ticks = html.slice(html.indexOf('finance-columns-ticks'), html.indexOf('finance-columns-axis'));
 
       expect([...ticks.matchAll(/%">(\d+)<\/span>/g)].map((match) => match[1])).toEqual(['1', '8', '15', '22', '29']);
-      expect(html).toMatch(/class="is-top num">€\u20093k</);
+      expect(html).toMatch(/class="is-top num">€\u20091k</); // the 2nd's 1,000 out, not the 1st's 3,000 in
       expect(html).toMatch(/class="is-bottom num">€\u20090</);
     });
 
@@ -258,12 +286,17 @@ describe('FinanceFlows', () => {
     });
 
     it('makes the totals the columns\' legend: income outlined, spent solid, the rest unmarked', () => {
-      const totals = totalsOf(render('month', '2026-04', { view: 'columns' }));
+      const days = totalsOf(render('month', '2026-04', { view: 'columns' }));
+      const months = totalsOf(render('year', '2026-04', { view: 'columns' }));
 
-      expect(totals).toContain('<dt><i class="finance-swatch is-income" aria-hidden="true"></i>Income</dt>');
-      expect(totals).toContain('<dt><i class="finance-swatch is-spending" aria-hidden="true"></i>Spent</dt>');
-      expect(totals).toContain('<dt>Invested</dt>');
-      expect(totals).toContain('<dt>Kept</dt>');
+      // A month's income is a mark on its day, a year's an outlined bar.
+      expect(days).toContain('<dt><i class="finance-swatch is-income is-mark" aria-hidden="true"></i>Income</dt>');
+      expect(months).toContain('<dt><i class="finance-swatch is-income" aria-hidden="true"></i>Income</dt>');
+      for (const totals of [days, months]) {
+        expect(totals).toContain('<dt><i class="finance-swatch is-spending" aria-hidden="true"></i>Spent</dt>');
+        expect(totals).toContain('<dt>Invested</dt>');
+        expect(totals).toContain('<dt>Kept</dt>');
+      }
     });
 
     it('offers the circle and the columns, keeping the place, and never writes the circle', () => {

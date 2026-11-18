@@ -22,6 +22,8 @@ import Tip, { TipFigures } from '@/components/Tip.js';
 import { shiftMonth, yearOf } from '@/lib/domain/dates.js';
 import {
   circleArc,
+  dayBars,
+  dayHigh,
   flowCircle,
   foldedLines,
   meetsSavingsTarget,
@@ -88,13 +90,15 @@ const MONTH_TICK_STEP = 3;
  *   trades) and kept; spending beyond the income an arc outside the ring in
  *   the danger tone, and said in words. Hovering or focusing a part shows it
  *   in the centre; hovering a total emphasises its part.
- * - The columns: in a month one per day (dayColumns), in a year one per month
- *   (yearColumns, each a link that reads it) -- money in outlined, money out
- *   solid, a month's "left" a tick, on a scale from zero to the highest bar
- *   printed beside them. Each column is focusable and shows its exact figures
- *   on hover, focus and a tap (Tip). A day still to come, or a month the year
- *   does not offer, is empty. What a month counts on no day -- a movement
- *   spread over months (ADR 0052) -- is said under the days.
+ * - The columns: in a year one per month (yearColumns, each a link that reads
+ *   it) -- money in outlined, money out solid, "left" a tick, on a scale from
+ *   zero to the highest bar printed beside them; in a month one per day
+ *   (dayColumns) -- money out solid on a scale from zero to the largest day's
+ *   spending, money in an outlined mark on its day, not drawn to scale
+ *   (dayBars, ADR 0053 amended). Each column is focusable and shows its exact
+ *   figures on hover, focus and a tap (Tip). A day still to come, or a month
+ *   the year does not offer, is empty. What a month counts on no day -- a
+ *   movement spread over months (ADR 0052) -- is said under the days.
  * - The four totals -- income, spent, invested, kept -- each part marked in
  *   its tone in the ring (in the columns: income outlined, spent solid), then
  *   the summary: what was spent beyond the income, invested from earlier
@@ -148,6 +152,8 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
   const quietLabel = period === 'year' ? 'this year' : 'this month';
   const shared = { quietLabel, columns: tableColumns, compared: flows.compared, movements, todayKey, place };
   const empty = circle.state === 'empty';
+  const drawn = view === 'columns' ? columns : null;
+  const marked = drawn !== null && drawn.kind === 'days' && dayBars(drawn.days).some((bar) => bar !== null && bar.marked);
   const breakdown = (
     <div className="finance-breakdown">
       <FlowTable
@@ -255,16 +261,16 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
                   </Link>
                 ))}
               </div>
-              {view === 'columns' && columns !== null ? (
-                columns.kind === 'days' ? (
-                  <DayColumns days={columns.days} apart={columns.apart} month={month} todayKey={todayKey} />
+              {drawn !== null ? (
+                drawn.kind === 'days' ? (
+                  <DayColumns days={drawn.days} apart={drawn.apart} month={month} todayKey={todayKey} />
                 ) : (
-                  <MonthColumns months={columns.months} year={year} place={place} />
+                  <MonthColumns months={drawn.months} year={year} place={place} />
                 )
               ) : (
                 <Circle circle={circle} label={label} active={active} setActive={setActive} />
               )}
-              <CircleTotals flows={flows} circle={circle} columns={view === 'columns'} setActive={setActive} />
+              <CircleTotals flows={flows} circle={circle} legend={drawn === null ? 'circle' : drawn.kind} marked={marked} setActive={setActive} />
               <Summary flows={flows} circle={circle} period={period} year={year} yearRate={yearRate} target={target} />
             </div>
             {breakdown}
@@ -323,13 +329,16 @@ function UncategorisedLine({ counts, place }) {
 }
 
 /**
- * A month's columns, one per day (ADR 0053, dayColumns): money in outlined,
- * money out solid, a bar drawn only where there is money -- most days have
- * only spending, and its bar takes the column -- on a scale from zero to the
- * highest bar, printed beside it. Every day of the month is a column, so the
- * days stand at even steps; the 1st, 8th, 15th, 22nd and 29th are labelled. A
- * day still to come is an empty slot, not a column of zero. Each other day is
- * focusable and shows its date and exact figures on hover, focus and a tap.
+ * A month's columns, one per day (ADR 0053 amended, dayColumns, dayBars):
+ * money out a solid bar the column's width, on a scale from zero to the
+ * largest day's spending, printed beside it -- no top when nothing went out;
+ * money in an outlined mark at the top of its day, not drawn to scale, since
+ * a payday against days of tens would leave the spending a pixel high. Every
+ * day of the month is a column, so the days stand at even steps across the
+ * whole width; the 1st, 8th, 15th, 22nd and 29th are labelled. A day still to
+ * come is an empty slot, not a column of zero. Each other day -- one with
+ * only income too -- is focusable and shows its date and exact figures, both
+ * amounts, on hover, focus and a tap.
  *
  * What the month counts on no day -- its part of a movement spread over
  * several months -- is said under the columns, so the days and that line add
@@ -343,7 +352,7 @@ function UncategorisedLine({ counts, place }) {
  * }} props
  */
 function DayColumns({ days, apart, month, todayKey }) {
-  const bars = trendBars(days);
+  const bars = dayBars(days);
   return (
     <figure className="finance-columns is-days">
       <div className="finance-columns-frame">
@@ -369,9 +378,9 @@ function DayColumns({ days, apart, month, todayKey }) {
                   label={figures === null ? date + ': nothing counted' : date + ': ' + figures.map((each) => each.label.toLowerCase() + ' ' + each.value).join(', ')}
                   tip={<TipFigures head={date} rows={figures ?? []} note={figures === null ? 'Nothing counted' : null} />}
                 >
+                  {bar.marked && <span className="finance-column-mark" aria-hidden="true" />}
                   <span className="finance-column-bars" aria-hidden="true">
-                    {row.income !== 0 && <i className="is-income" style={{ height: bar.income * 100 + '%' }} />}
-                    {row.spending !== 0 && <i className="is-spending" style={{ height: bar.spending * 100 + '%' }} />}
+                    {row.spending > 0 && <i className="is-spending" style={{ height: bar.spending * 100 + '%' }} />}
                   </span>
                 </Tip>
               );
@@ -387,7 +396,7 @@ function DayColumns({ days, apart, month, todayKey }) {
             )}
           </div>
         </div>
-        <Scale high={trendHigh(days)} />
+        <Scale high={dayHigh(days)} />
       </div>
       {apart.movements > 0 && (
         <figcaption className="caption finance-columns-apart">
@@ -477,15 +486,17 @@ function MonthColumns({ months, year, place }) {
 }
 
 /**
- * The columns' scale, beside them: zero at the bottom, the highest bar at the
- * top (trendHigh), short as an axis is.
+ * The columns' scale, beside them: zero at the bottom, the top of the scale
+ * (trendHigh for months, dayHigh for days) at the top, short as an axis is.
+ * A scale of nothing -- a month with income and no spending -- has no top: a
+ * second "€ 0" would say nothing.
  *
  * @param {{ high: number }} props
  */
 function Scale({ high }) {
   return (
     <div className="finance-columns-axis" aria-hidden="true">
-      <span className="is-top num">{formatEuroShort(high)}</span>
+      {high > 0 && <span className="is-top num">{formatEuroShort(high)}</span>}
       <span className="is-bottom num">{formatEuroShort(0)}</span>
     </div>
   );
@@ -637,20 +648,30 @@ function partLabel(part) {
  * in, then what was spent, invested and kept. Whole euros, as the ring's
  * parts are named. Under the circle each part is marked in exactly its tone
  * in the ring, and income, the whole ring, has no mark; under the columns
- * the totals are the columns' legend -- income outlined as money in is,
- * spent solid as money out is -- and invested and kept, which no column
- * draws, have none. Hovering a part's total emphasises it in the circle.
+ * the totals are the columns' legend -- income outlined as money in is (a
+ * round mark under a month's days, where it is a mark on its day), spent
+ * solid as money out is -- and invested and kept, which no column draws,
+ * have none. When a month's days mark income (`marked`), the legend says
+ * once that it is not drawn to scale (ADR 0053, amended). Hovering a part's
+ * total emphasises it in the circle.
  *
- * @param {{ flows: PeriodFlows, circle: FlowCircle, columns: boolean, setActive: (key: PartKey | null) => void }} props
+ * @param {{
+ *   flows: PeriodFlows,
+ *   circle: FlowCircle,
+ *   legend: 'circle' | ChartColumns['kind'],
+ *   marked: boolean,
+ *   setActive: (key: PartKey | null) => void,
+ * }} props
  */
-function CircleTotals({ flows, circle, columns, setActive }) {
+function CircleTotals({ flows, circle, legend, marked, setActive }) {
+  const columns = legend !== 'circle';
   /** @param {CirclePart['key']} key */
   const swatch = (key) => (columns ? (key === 'spent' ? 'is-spending' : null) : 'is-' + key);
-  return (
+  const totals = (
     <dl className="finance-circle-totals">
       <div className="finance-circle-total">
         <dt>
-          {columns && <i className="finance-swatch is-income" aria-hidden="true" />}
+          {columns && <i className={'finance-swatch is-income' + (legend === 'days' ? ' is-mark' : '')} aria-hidden="true" />}
           Income
         </dt>
         <dd className="num">{formatEuro(flows.income)}</dd>
@@ -668,6 +689,13 @@ function CircleTotals({ flows, circle, columns, setActive }) {
         );
       })}
     </dl>
+  );
+  if (!(legend === 'days' && marked)) return totals;
+  return (
+    <div className="finance-circle-legend">
+      {totals}
+      <p className="caption finance-columns-note">Income is marked on its day, not drawn to scale.</p>
+    </div>
   );
 }
 

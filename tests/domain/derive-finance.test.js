@@ -8,7 +8,9 @@ import {
   allocation,
   calendarYearFlows,
   circleArc,
+  dayBars,
   dayColumns,
+  dayHigh,
   dayUnitsReachedZero,
   financeOverview,
   firstDayUnitsGoNegative,
@@ -1026,6 +1028,41 @@ describe('spending over time: the trend, the average, the year', () => {
     });
   });
 
+  describe('a month\'s columns drawn (ADR 0053, amended)', () => {
+    /** @returns {any} */
+    const day = (/** @type {number} */ n, /** @type {number | null} */ income, /** @type {number | null} */ spending) => ({
+      day: '2026-03-' + String(n).padStart(2, '0'), income, spending, movements: income === null ? 0 : 1,
+    });
+
+    it('scales the spending to the largest day\'s spending: a payday does not flatten the month', () => {
+      const days = [day(1, 300000, 2000), day(2, 0, 4000), day(3, 0, 0), day(4, null, null)];
+
+      expect(dayHigh(days)).toBe(4000);
+      expect(dayBars(days)).toEqual([{ spending: 0.5, marked: true }, { spending: 1, marked: false }, { spending: 0, marked: false }, null]);
+    });
+
+    it('marks income only when some came in: a net chargeback is no mark and no height', () => {
+      expect(dayBars([day(1, -5000, 1000)])).toEqual([{ spending: 1, marked: false }]);
+      expect(dayBars([day(1, 0, -1000)])).toEqual([{ spending: 0, marked: false }]);
+    });
+
+    it('draws a month with income and no spending as marks on a zero scale, never NaN', () => {
+      const days = [day(1, 300000, 0), day(2, 0, 0), day(3, null, null)];
+
+      expect(dayHigh(days)).toBe(0);
+      expect(dayBars(days)).toEqual([{ spending: 0, marked: true }, { spending: 0, marked: false }, null]);
+      expect(dayHigh([])).toBe(0);
+      expect(dayBars([])).toEqual([]);
+    });
+
+    it('leaves a rent day as tall as it is: no cap, no log scale, two decimals', () => {
+      const days = [day(1, 0, 120000), day(2, 0, 1500), day(3, 0, 600)];
+
+      expect(dayHigh(days)).toBe(120000);
+      expect(dayBars(days).map((bar) => bar?.spending)).toEqual([1, 0.01, 0.01]);
+    });
+  });
+
   describe('the months of a year', () => {
     it('are the year\'s months on offer: from "tracked since", to today\'s month', () => {
       const offered = offer('2025-11', '2026-04');
@@ -1105,7 +1142,7 @@ describe('spending over time: the trend, the average, the year', () => {
       ]);
     });
 
-    it('draws a day without a mark of what was left, and a day still to come as nothing', () => {
+    it('draws a column with no "left" without its mark, and an empty one as nothing', () => {
       expect(
         trendBars([
           { income: 0, spending: 4000 },

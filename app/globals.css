@@ -1289,17 +1289,20 @@ a.cite { text-decoration: none; }
   padding: 0 var(--s-sm); text-decoration: none;
 }
 /* The columns (ADR 0053): a month's days or a year's months, side by side
-   at even steps, and the scale beside them. Two bars a column against the
-   highest drawn (data marks, radius 2): money in outlined, money out solid,
-   so they tell apart without a legend (ADR 0048); a day draws only the bars
-   it has money for, so a day of spending is one bar the column's width; a
-   month's "left" is an ink tick on its income bar. Each column is focusable
-   and shows its figures in a popover (.tip). It fits its column, never
-   scrolls. */
-.finance-columns { --columns-h: 140px; margin: 0; }
+   at even steps across the whole width, and the scale beside them. A year:
+   two bars a month against the highest drawn (data marks, radius 2), money
+   in outlined, money out solid, so they tell apart without a legend (ADR
+   0048), and its "left" an ink tick on the income bar. A month (ADR 0053,
+   amended): money out one solid bar the day's width, on the largest day's
+   spending, and money in an outlined dot in a strip above the bars
+   (--mark-h), a mark on its day, not drawn to scale; a little taller than a
+   year's, being thirty-one marks wide. Each column is focusable and shows
+   its figures in a popover (.tip). It fits its column, never scrolls. */
+.finance-columns { --columns-h: 140px; --mark-h: 0px; margin: 0; }
+.finance-columns.is-days { --columns-h: 180px; --mark-h: 14px; }
 .finance-columns-frame { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-xs); align-items: start; }
 .finance-columns-main { min-width: 0; }
-.finance-columns-plot { display: flex; align-items: stretch; height: calc(var(--columns-h) + 8px); }
+.finance-columns-plot { display: flex; align-items: stretch; height: calc(var(--columns-h) + var(--mark-h) + 8px); }
 .finance-column {
   flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end;
   padding: 4px 1px; border-radius: var(--r-xs); color: var(--ink-subtle); text-decoration: none;
@@ -1315,6 +1318,15 @@ a.cite { text-decoration: none; }
 .finance-column-bars i { display: block; flex: 1; min-width: 0; border-radius: 2px 2px 0 0; }
 .finance-column-bars .is-income { background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--ink); }
 .finance-column-bars .is-spending { background: var(--series-1); }
+/* A day's spending of a few euros beside a rent day still shows. */
+.finance-columns.is-days .finance-column-bars .is-spending { min-height: 2px; }
+/* A day's income: an outlined dot centred in the strip above its column --
+   a marker, not a bar; the amount is in the day's popover. */
+.finance-column-mark { display: flex; align-items: center; justify-content: center; height: var(--mark-h); flex: none; }
+.finance-column-mark::before {
+  content: ''; width: 8px; height: 8px; max-width: 100%; border-radius: 50%; flex: none;
+  background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--ink);
+}
 /* A day still to come, or a month the year does not offer: room, and nothing in it. */
 .finance-column.is-future .finance-column-bars { border-bottom-color: var(--hairline); }
 /* A month with nothing counted: an empty slot, as an unrecorded heat cell. */
@@ -1327,7 +1339,7 @@ a.cite { text-decoration: none; }
 .finance-columns-ticks { position: relative; height: 1.3em; margin-top: 2px; font-size: 13px; line-height: 1.3; color: var(--ink-subtle); }
 .finance-columns-ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
 .finance-columns-axis {
-  position: relative; width: 7ch; height: calc(var(--columns-h) - 1px); margin-top: 4px;
+  position: relative; width: 7ch; height: calc(var(--columns-h) - 1px); margin-top: calc(4px + var(--mark-h));
   font-size: 13px; line-height: 1.3; color: var(--ink-subtle); white-space: nowrap;
 }
 .finance-columns-axis span { position: absolute; left: 0; text-align: left; }
@@ -1337,6 +1349,11 @@ a.cite { text-decoration: none; }
 .finance-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex: none; }
 .finance-swatch.is-income { box-shadow: inset 0 0 0 1.5px var(--ink); }
 .finance-swatch.is-spending { background: var(--series-1); }
+/* Under a month's days income is a dot on its day, and its legend one too. */
+.finance-swatch.is-income.is-mark { width: 8px; height: 8px; margin: 0 1px; border-radius: 50%; }
+/* The days' legend says once that income is marked, not drawn to scale. */
+.finance-circle-legend { display: flex; flex-direction: column; gap: var(--s-xs); }
+.finance-columns-note { margin: 0; text-align: center; }
 /* The composition bar sits on the spending table it is the chart of. */
 .finance-composition { margin: 0 0 var(--s-xs); }
 .finance-table-scroll + .finance-composition { margin-top: var(--s-md); }

@@ -59,14 +59,15 @@ not the window: the card's width is what the two columns share.
 
 **The columns.** Money in outlined, money out solid, in the old bars' tones,
 on a scale from zero to the highest bar printed beside them
-(`trendBars`, `trendHigh`, now for any column). They fit the column, never
-scroll.
+(`trendBars`, `trendHigh`, now for any column -- **amended below**: a
+month's days have their own scale). They fit the column, never scroll.
 
 - **A month: one column per day** (`dayColumns(transactions, categories,
   month, todayKey)`), by the month's own rules -- `countedFlow`, so
   transfers and movements not counted are out and a refund reduces its day's
   spending. A day draws only the bars it has money for, so a day of spending
-  is one bar the column's width. Every day of the month is a column, the 1st,
+  is one bar the column's width (**amended below**: income is a mark, not a
+  bar). Every day of the month is a column, the 1st,
   8th, 15th, 22nd and 29th labelled. A day after today is an empty slot, not
   a column of zero, and is not focusable -- unless something is already on
   it, which is drawn.
@@ -141,6 +142,35 @@ month's table fits a phone; a year's five columns keep their names readable
 and scroll inside their own box there, as ui-rules allows a wide table to,
 never the card. A line's name in its toggle is now cut inside the button, so
 a long name no longer collapses to "…".
+
+## Amendment (2026-11-18): a month's days on the spending's scale, income a mark
+
+On real data a month's day columns said nothing: the salary arrives on one
+day, thousands, and a day's spending is tens, so on one scale every spending
+column was a pixel high. Income and spending are comparable over a month --
+the year's twelve columns stay as they were -- but not day by day.
+
+- **The days' scale is the largest day's spending** (`dayHigh`), and the
+  scale beside the columns prints it. A day of rent is on it as tall as it
+  is: that is honest, so no cap and no log scale. A spending of a few euros
+  beside it is still drawn, at least 2 px.
+- **Income is not drawn to scale.** A day with money in carries an outlined
+  dot -- the outlined tone money in has -- in a strip above its column, a
+  marker, not a bar (`dayBars`: each day's spending height and whether it is
+  marked; a net chargeback is no mark). Its amount is in the day's tooltip
+  and its name exactly as before. A day with only income is still a column,
+  focusable, with its tooltip.
+- **The card says it once**, under the totals that are the legend: "Income
+  is marked on its day, not drawn to scale." -- only when a day carries a
+  mark. The Income total's swatch is a dot there, as the mark is; under a
+  year's columns it stays the outlined square of its bar.
+- **A month with income and no spending** draws marks only, on a scale of
+  zero that divides by nothing, and the scale prints "€ 0" alone, no top.
+- **The day columns are taller** (180 px, from 140, with the marks' 14 px
+  strip above them) -- thirty-one marks wide, they were cramped. They already
+  spanned the left column: the days still to come are empty slots, so a
+  month half gone looked half drawn. Unchanged: the days and what is apart
+  still add up to the month's totals, and the "apart" sentence is the same.
 
 ## Consequences
 
