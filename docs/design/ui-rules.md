@@ -102,14 +102,19 @@ not look alike.
   Columns and the Transactions card's period / All time use it; the panels'
   form choices (a movement's direction, an account's kind) are still
   detached `.seg` buttons, and become this when next changed.
-- **A choice about how a thing is drawn** carries a small glyph before its
-  word -- an inline SVG in `currentColor`, 16px, hidden from a screen
-  reader, never an icon library -- so it reads as "how", not "which": a
-  ring for Circle, three bars for Columns.
-- **Two choices in one toolbar are two groups**, a wider gap apart (24px
-  between groups, 8px inside one), in the card head beside its name while
-  they fit and under it, from the left, when they do not; each group wraps
-  in turn, and nothing scrolls sideways.
+- **A choice about how a thing is drawn** carries a small glyph -- an
+  inline SVG in `currentColor`, 16px, hidden from a screen reader, never an
+  icon library -- so it reads as "how", not "which": a ring for Circle,
+  three bars for Columns. Before its word, or, where the glyph says it
+  alone, instead of it: a segment with a `name` is a 44px square holding
+  only the glyph, named by `aria-label` and `title` (ADR 0060). Income &
+  spending's Circle / Columns is glyphs alone.
+- **Where a card's choices sit** (ADR 0060, amending ADR 0053's one
+  toolbar): how the card is drawn sits right beside its name -- Income &
+  spending's Circle / Columns -- and what it reads (the period) on the
+  right of the head. On a narrow card the name and the glyphs keep the first
+  line and the period wraps under them, still on the right, its stepper
+  wrapping in turn; nothing scrolls sideways. Inside one group, 8px.
 - **A period is stepped**: the previous and next period on offer as 44px
   arrow squares (chevrons) around the period itself, which is the native
   select, in one joined box like a segmented control -- "‹ November 2026 ›".
@@ -156,7 +161,8 @@ the marks that show their figures in a tooltip (ADR 0053): a day's column
 (one of thirty-one), a month's (one of twelve), a net worth point, a part
 of the allocation bar (8px high; its legend's item is the bigger target) and
 a part of Income & spending's composition bar (8px high, perhaps a pixel
-wide; still a tab stop, and its line in the spending table says the same).
+wide; still a tab stop, and its line in the spending table says the same
+and opens the same way, ADR 0060).
 
 ## Drag
 
@@ -196,6 +202,13 @@ A chart's mark tells its exact figures in **one tooltip**,
 - It shows on hover with a mouse, on keyboard focus, and on a tap -- on a
   link the first tap shows and the second follows it. Escape, a tap
   elsewhere, a scroll or a resize hides it; one at a time.
+- A mark that does something (`onPress`, ADR 0060) is a button with
+  `aria-expanded`: a click, a tap, Enter or Space does it at once -- a part
+  of the composition bar opens its line in the table, as the line's name
+  does, and a second press closes it. The figures still show on hover and
+  focus, and a tap shows them as it opens; if the opened row has to be
+  scrolled into view the scroll hides them, and the row says the same
+  figures.
 - It is a popover: `--surface-elevated`, a strong hairline, radius 6,
   `--shadow-float`, 13px text in the ink, figures in tabular numbers
   right-aligned. Drawn on the body, fixed, above the mark (below without
@@ -203,6 +216,11 @@ A chart's mark tells its exact figures in **one tooltip**,
   the page. It takes no pointer and does not move.
 - `TipFigures` lays it out: a head (the day, the month, the part), a label
   and amount per line, a note.
+- A word in a sentence can be the mark, when what it names is made of
+  figures the sentence has no room for: "fixed costs" in Income &
+  spending's split of what was spent lists its categories and amounts (ADR
+  0060). Such a word has a dotted underline in the faint hairline, which
+  darkens on hover -- not a link's solid one, as it leads nowhere.
 
 ## Accessibility
 
@@ -256,7 +274,10 @@ stands for, signed and formatted as the money beside it ("−€ 250.00"), and
 what is said about it (a target met or not) stays true to the money. **A
 card with nothing to say is not there** -- By tag in a period without a
 tagged movement -- unless something selected in it has to stay where it can
-be cleared.
+be cleared. **Parts of a figure say what they are parts of**, in one line
+that names the whole: "Of the € 751.41 spent: fixed costs € 227.94 · the
+rest € 523.47" (ADR 0060), never two bare rows; a part at nothing, and so
+the line, is not printed.
 
 A list that leaves rows out or folds them says so in a **last quiet line**,
 a caption, with the count and the one word that undoes it as a link to the

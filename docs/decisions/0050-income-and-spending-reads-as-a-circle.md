@@ -9,7 +9,10 @@
   under the chart, and the strip of bars across the top is gone; amended
   by [0057](0057-the-breakdown-lists-what-the-period-holds.md): no change
   column, the lines that hold a movement in the period (every income line),
-  and a parent's own movements a row of their own, "No subcategory"
+  and a parent's own movements a row of their own, "No subcategory";
+  amended by [0060](0060-income-and-spending-reads-its-parts.md): Fixed and
+  Variable are one line, "Of the € 751.41 spent: fixed costs € 227.94 · the
+  rest € 523.47"
 - **Date** 2026-11-17
 - **Amends** [0044](0044-spending-over-time-reads-by-the-months-rules.md) (the average month, the composition bar),
   [0046](0046-spending-by-tag.md) (a line listed for its average),

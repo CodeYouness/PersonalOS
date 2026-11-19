@@ -44,4 +44,23 @@ describe('Segmented', () => {
       '<div class="segmented is-joined finance-view-switch" role="group" aria-label="View"><a class="seg" href="/finances"><svg aria-hidden="true"></svg>Circle</a></div>'
     );
   });
+
+  it('draws a segment with a name as its glyph alone, named for a screen reader and a mouse (ADR 0060)', () => {
+    const html = renderToStaticMarkup(
+      createElement(Segmented, {
+        label: 'View',
+        options: [
+          { key: 'circle', href: '/finances', on: true, name: 'Circle', children: createElement('svg', { 'aria-hidden': 'true' }) },
+          { key: 'columns', href: '/finances?view=columns', on: false, name: 'Columns', children: createElement('svg', { 'aria-hidden': 'true' }) },
+        ],
+      })
+    );
+
+    expect(html).toBe(
+      '<div class="segmented is-joined" role="group" aria-label="View">' +
+        '<a class="seg is-glyph is-on" aria-current="true" aria-label="Circle" title="Circle" href="/finances"><svg aria-hidden="true"></svg></a>' +
+        '<a class="seg is-glyph" aria-label="Columns" title="Columns" href="/finances?view=columns"><svg aria-hidden="true"></svg></a>' +
+        '</div>'
+    );
+  });
 });

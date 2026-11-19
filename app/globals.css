@@ -867,6 +867,9 @@ textarea.input.grows { resize: none; max-height: 60vh; max-height: 60svh; }
 .segmented.is-joined .seg + .seg { box-shadow: inset 1px 0 0 var(--hairline-strong); }
 .segmented.is-joined .seg:hover { background: var(--surface-3); color: var(--ink); }
 .segmented.is-joined .seg.is-on { background: var(--surface-4); color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+/* A segment that is its glyph alone (ADR 0060): a 44px square, named by its
+   aria-label and title. */
+.segmented.is-joined .seg.is-glyph { width: var(--control-h); padding: 0; }
 /* A glyph before a segment's word, or alone in a stepper's arrow: an inline
    SVG in the word's colour. */
 .seg-glyph { display: block; flex: none; }
@@ -1316,18 +1319,34 @@ a.cite { text-decoration: none; }
 .finance-summary-row dd.caption { grid-column: 1 / -1; justify-self: end; text-align: right; }
 .finance-summary-row.is-rate { border-top-color: var(--hairline-strong); }
 .finance-summary-row.is-rate + .finance-summary-row.is-rate { border-top-color: var(--hairline); }
-.finance-summary-row.is-quiet dt, .finance-summary-row.is-quiet dd.num { font-size: 13px; color: var(--ink-subtle); }
+/* What was spent, split into fixed costs and the rest (ADR 0060): one quiet
+   line under the list, a row's hairline above it, wrapping between its
+   figures -- never inside one -- on a phone. "fixed costs" shows its
+   categories (.tip): a dotted underline says there is more to it. */
+.finance-summary-split { margin: 0; padding: var(--s-xxs) 0; border-top: 1px solid var(--hairline); }
+.finance-summary-split .num { white-space: nowrap; }
+.finance-term {
+  cursor: default; border-radius: var(--r-xs);
+  text-decoration: underline dotted; text-decoration-thickness: 1px;
+  text-decoration-color: var(--hairline-tertiary); text-underline-offset: 3px;
+}
+.finance-term:hover { color: var(--ink); text-decoration-color: currentColor; }
 /* The circle's parts, each mark exactly its tone in the ring. */
 .finance-swatch.is-spent { background: var(--series-1); }
 .finance-swatch.is-invested { background: var(--series-2); }
 .finance-swatch.is-kept { background: var(--series-3); }
-/* Income & spending's toolbar, in the card head: the period -- Month / Year
-   and its stepper -- then, a wider gap apart, the view. Beside the name while
-   it fits; under it, from the left, when it does not, each group wrapping in
-   turn, so a phone's card never scrolls sideways. */
+/* Income & spending's head (ADR 0060): the name, then right beside it the
+   view -- Circle / Columns, glyphs alone -- and on the right the period's
+   toolbar, Month / Year and its stepper. On a narrow card the name and the
+   view keep the first line and the toolbar wraps under them, still on the
+   right, its stepper wrapping in turn, so a phone's card never scrolls
+   sideways. */
 #card-finance-flows .card-head { flex-wrap: wrap; }
-.finance-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-xs) var(--s-lg); min-width: 0; max-width: 100%; }
-.finance-toolbar-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-xs); min-width: 0; max-width: 100%; }
+#card-finance-flows .card-head .eyebrow { margin-right: 0; }
+.finance-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--s-xs);
+  min-width: 0; max-width: 100%; margin-left: auto;
+}
 /* The stepper around a period (ui-rules): ‹ the period's select › in one
    joined box, as a segmented control is. The arrows are 44px squares; one at
    the end of what is on offer is disabled. The select is the period's word,

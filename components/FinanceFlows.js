@@ -24,6 +24,7 @@ import {
   dayBars,
   dayHigh,
   dayMarkFloor,
+  fixedCostSplit,
   flowCircle,
   ownLineParent,
   savingsReading,
@@ -77,11 +78,12 @@ const MONTH_TICK_STEP = 3;
  * monthFlows) or, with `?period=year`, that month's calendar year to date
  * (calendarYearFlows).
  *
- * Top to bottom (ADR 0053, amending 0050): the head, with one toolbar that
- * wraps on a narrow card -- the period, a Month / Year segmented control
- * followed by its stepper (‹ the month or year, its select ›), and apart from
- * it the view, a Circle / Columns segmented control (`?view=columns`; the
- * circle is the default and never written), each word with its glyph; the
+ * Top to bottom (ADR 0053, amending 0050; ADR 0060): the head -- the name
+ * and right beside it the view, a Circle / Columns segmented control
+ * (`?view=columns`; the circle is the default and never written) of glyphs
+ * alone, each named; on the right a toolbar that wraps on a narrow card, the
+ * period, a Month / Year segmented control followed by its stepper (‹ the
+ * month or year, its select ›); the
  * one line counting movements without a category (uncategorisedCounts, ADR
  * 0048); and the body, two columns, stacked on a phone. No strip of bars
  * across the top: what it drew is the columns.
@@ -108,8 +110,9 @@ const MONTH_TICK_STEP = 3;
  *   the summary: what was spent beyond the income, invested from earlier
  *   savings or sold beyond what was bought, the savings rates against the
  *   target (ADR 0045) -- or, where a percent says nothing, what was saved
- *   (savingsReading, ADR 0059) -- a missed target's shortfall, fixed vs
- *   variable.
+ *   (savingsReading, ADR 0059) -- a missed target's shortfall, and one line
+ *   splitting what was spent into fixed costs, their categories in a
+ *   tooltip, and the rest (fixedCostSplit, ADR 0060).
  *
  * **On the right, always**, the breakdown: income, then spending, with the
  * composition of spending (spendingParts, each part with its tooltip) and,
@@ -160,6 +163,10 @@ export default function FinanceFlows({ flows, period, view, twelveMonths, target
   const yearAverages = period === 'year' ? averages : null;
   const quietLabel = period === 'year' ? 'this year' : 'this month';
   const shared = { quietLabel, averages: yearAverages, movements, accounts, todayKey, place };
+  // Which lines are open, one state per table: the spending table's rows and
+  // the composition bar's parts open the same lines (ADR 0060).
+  const incomeOpen = useOpenLines(flows.incomeCategories, place, movements);
+  const spendingOpen = useOpenLines(flows.spendingCategories, place, movements);
   const empty = circle.state === 'empty';
   const drawn = view === 'columns' ? columns : null;
   // The least a day's income is marked from, when a day of the month's columns reaches it.
@@ -173,15 +180,17 @@ export default function FinanceFlows({ flows, period, view, twelveMonths, target
         lines={flows.incomeCategories}
         uncategorised={flows.uncategorisedIncome}
         parts={[]}
+        state={incomeOpen}
         {...shared}
       />
-      <Composition flows={flows} />
+      <Composition flows={flows} state={spendingOpen} movements={movements} />
       <FlowTable
         title="Spending"
         totalHead="Spent"
         lines={flows.spendingCategories}
         uncategorised={flows.uncategorisedSpending}
         parts={spendingParts(flows)}
+        state={spendingOpen}
         {...shared}
       />
       {yearAverages !== null && !empty && (
@@ -196,36 +205,30 @@ export default function FinanceFlows({ flows, period, view, twelveMonths, target
     <article id="card-finance-flows" className="card">
       <div className="card-head">
         <span className="eyebrow">Income &amp; spending</span>
+        {!empty && (
+          <Segmented
+            label="View"
+            className="finance-view-switch"
+            options={/** @type {const} */ (['circle', 'columns']).map((choice) => ({
+              key: choice,
+              href: financesHref({ ...place, view: choice }),
+              on: view === choice,
+              name: choice === 'circle' ? 'Circle' : 'Columns',
+              children: choice === 'circle' ? <RingGlyph /> : <BarsGlyph />,
+            }))}
+          />
+        )}
         <div className="finance-toolbar">
-          <div className="finance-toolbar-group">
-            <Segmented
-              label="Period"
-              options={/** @type {const} */ (['month', 'year']).map((choice) => ({
-                key: choice,
-                href: financesHref({ ...place, period: choice }),
-                on: period === choice,
-                children: choice === 'month' ? 'Month' : 'Year',
-              }))}
-            />
-            <PeriodStepper period={period} month={month} months={months} place={place} go={go} />
-          </div>
-          {!empty && (
-            <Segmented
-              label="View"
-              className="finance-view-switch"
-              options={/** @type {const} */ (['circle', 'columns']).map((choice) => ({
-                key: choice,
-                href: financesHref({ ...place, view: choice }),
-                on: view === choice,
-                children: (
-                  <>
-                    {choice === 'circle' ? <RingGlyph /> : <BarsGlyph />}
-                    {choice === 'circle' ? 'Circle' : 'Columns'}
-                  </>
-                ),
-              }))}
-            />
-          )}
+          <Segmented
+            label="Period"
+            options={/** @type {const} */ (['month', 'year']).map((choice) => ({
+              key: choice,
+              href: financesHref({ ...place, period: choice }),
+              on: period === choice,
+              children: choice === 'month' ? 'Month' : 'Year',
+            }))}
+          />
+          <PeriodStepper period={period} month={month} months={months} place={place} go={go} />
         </div>
       </div>
       <div className="card-body">
@@ -249,7 +252,7 @@ export default function FinanceFlows({ flows, period, view, twelveMonths, target
                 <Circle circle={circle} label={label} active={active} setActive={setActive} />
               )}
               <CircleTotals flows={flows} circle={circle} legend={drawn === null ? 'circle' : drawn.kind} floor={floor} setActive={setActive} />
-              <Summary flows={flows} circle={circle} period={period} year={year} twelveMonths={twelveMonths} target={target} />
+              <Summary flows={flows} circle={circle} period={period} year={year} label={label} twelveMonths={twelveMonths} target={target} />
             </div>
             {breakdown}
           </div>
@@ -781,18 +784,20 @@ function CircleTotals({ flows, circle, legend, floor, setActive }) {
  * a note when spending passed the income, an investment came out of earlier
  * savings or more was sold than bought; the savings rates, each against the
  * target in words and a quiet mark, never colour alone (ADR 0045); what a
- * missed target needed in a year; and fixed vs variable.
+ * missed target needed in a year; and, under the list, what was spent split
+ * into fixed costs and the rest (ADR 0060).
  *
  * @param {{
  *   flows: PeriodFlows,
  *   circle: FlowCircle,
  *   period: 'month' | 'year',
  *   year: string,
+ *   label: string,
  *   twelveMonths: { income: number, spending: number } | null,
  *   target: number | null,
- * }} props
+ * }} props `label` the period, as the circle names it
  */
-function Summary({ flows, circle, period, year, twelveMonths, target }) {
+function Summary({ flows, circle, period, year, label, twelveMonths, target }) {
   const shortfall = period === 'year' ? targetShortfall(flows, target) : null;
   const [spent, invested] = circle.parts;
   /** @param {CirclePart} part */
@@ -829,16 +834,47 @@ function Summary({ flows, circle, period, year, twelveMonths, target }) {
           )}
         </Rate>
         {period === 'month' && twelveMonths !== null && <Rate label="Saved over 12 months" flows={twelveMonths} target={target} />}
-        <div className="finance-summary-row is-quiet">
-          <dt>Fixed</dt>
-          <dd className="num">{formatEuro(flows.fixed, { cents: true })}</dd>
-        </div>
-        <div className="finance-summary-row is-quiet">
-          <dt>Variable</dt>
-          <dd className="num">{formatEuro(flows.variable, { cents: true })}</dd>
-        </div>
       </dl>
+      <FixedCostLine flows={flows} label={label} />
     </div>
+  );
+}
+
+/**
+ * Where a category is marked as a fixed cost, as the screen names it: the
+ * Fixed box on its row in Manage's Categories fold (FinanceCategories).
+ */
+const FIXED_COST_NOTE = 'A category counts here when Fixed is ticked on it, under Manage › Categories.';
+
+/**
+ * What was spent, split into fixed costs and the rest (fixedCostSplit, ADR
+ * 0060): "Of the € 751.41 spent: fixed costs € 227.94 · the rest € 523.47",
+ * one quiet line under the summary's list that wraps on a phone. "fixed
+ * costs" shows, on hover, focus and a tap (Tip), the period's fixed-cost
+ * categories that spent, each with its amount -- adding up to the figure --
+ * and where a category is marked as one. Nothing when nothing was spent or
+ * none of it is a fixed cost: "fixed costs € 0.00" says nothing (ADR 0059).
+ *
+ * @param {{ flows: PeriodFlows, label: string }} props `label` the period, as the circle names it
+ */
+function FixedCostLine({ flows, label }) {
+  const split = fixedCostSplit(flows);
+  if (split === null) return null;
+  const head = 'Fixed costs, ' + label;
+  const rows = split.costs.map((cost) => ({ label: cost.name, value: formatEuro(cost.amount, { cents: true }) }));
+  return (
+    <p className="caption finance-summary-split">
+      Of the <span className="num">{formatEuro(split.spent, { cents: true })}</span> spent:{' '}
+      <Tip
+        className="finance-term"
+        label={head + ': ' + rows.map((row) => row.label + ' ' + row.value).join(', ') + '. ' + FIXED_COST_NOTE}
+        tip={<TipFigures head={head} rows={rows} note={FIXED_COST_NOTE} />}
+      >
+        fixed costs
+      </Tip>{' '}
+      <span className="num">{formatEuro(split.fixed, { cents: true })}</span> · the rest{' '}
+      <span className="num">{formatEuro(split.rest, { cents: true })}</span>
+    </p>
   );
 }
 
@@ -879,21 +915,41 @@ function Rate({ label, flows, target, children = null }) {
  * A part too thin to point at is still a tab stop, and its line in the table
  * says the same.
  *
- * @param {{ flows: PeriodFlows }} props
+ * Each part is also the line's name (ADR 0060): a click, a tap, Enter or
+ * Space opens its line in the spending table under it -- its subcategories,
+ * or its movements -- as the row's name does, in the same state (`state`),
+ * so a second press closes it; opened, the row is scrolled into view only
+ * when it is outside it. A tap shows the figures too, and the opened row
+ * says them anyway. A part whose line cannot open (no movements handed) is
+ * no button. Every part is one line of the table: the bar folds nothing.
+ *
+ * @param {{ flows: PeriodFlows, state: OpenLines, movements: Movements | null }} props
  */
-function Composition({ flows }) {
+function Composition({ flows, state, movements }) {
   const parts = spendingParts(flows);
   if (parts.length < 2) return null;
+  const lines = [...flows.spendingCategories, flows.uncategorisedSpending];
   return (
     <div className="alloc finance-composition" role="group" aria-label="Spending by category">
       {parts.map((part, index) => {
         const spent = formatEuro(part.amount, { cents: true });
         const share = percent(part.share);
+        const line = lines.find((each) => each.id === part.id);
+        const opener = line === undefined ? null : lineOpener(line, state, movements);
         return (
           <Tip
             key={part.id}
             as="i"
             style={{ width: part.share * 100 + '%', background: SERIES[index % SERIES.length] }}
+            {...(opener === null
+              ? {}
+              : {
+                  expanded: opener.open,
+                  onPress: () => {
+                    opener.toggle();
+                    if (!opener.open) revealLine(part.id);
+                  },
+                })}
             label={part.name + ': spent ' + spent + ', ' + share + ' of spending'}
             tip={
               <TipFigures
@@ -912,6 +968,81 @@ function Composition({ flows }) {
 }
 
 /**
+ * Which lines of a table are open: a line with subcategories into them
+ * (`open`), a line without any -- or a subcategory, or a parent's own row --
+ * into its movements (`opened`), each by id.
+ *
+ * @typedef {{
+ *   open: Set<string>,
+ *   opened: Set<string>,
+ *   toggleOpen: (id: string) => void,
+ *   toggleOpened: (id: string) => void,
+ * }} OpenLines
+ */
+
+/**
+ * A table's open lines, held above it so the composition bar opens the same
+ * lines its rows do (ADR 0060). At first, a line with subcategories is open
+ * when it -- or a subcategory, or its own row -- is the one selected
+ * (`?category=`), and the selected line's movements are open when they were
+ * handed.
+ *
+ * @param {CategoryFlow[]} lines
+ * @param {import('@/components/finance.js').FinancesPlace} place
+ * @param {Movements | null} movements
+ * @returns {OpenLines}
+ */
+function useOpenLines(lines, place, movements) {
+  const selected = place.category ?? null;
+  /** @param {CategoryFlow} line */
+  const holdsSelected = (line) =>
+    selected !== null && [line, ...line.children, ...(line.own === null ? [] : [line.own])].some((each) => each.id === selected);
+  const [open, setOpen] = useState(() => new Set(lines.filter((line) => line.children.length > 0 && holdsSelected(line)).map((line) => line.id)));
+  const [opened, setOpened] = useState(() => new Set(selected !== null && movements?.has(selected) ? [selected] : []));
+  /**
+   * @param {(update: (current: Set<string>) => Set<string>) => void} set
+   * @returns {(id: string) => void}
+   */
+  const toggler = (set) => (id) =>
+    set((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  return { open, opened, toggleOpen: toggler(setOpen), toggleOpened: toggler(setOpened) };
+}
+
+/**
+ * How a top-level line opens, as its row's name opens it: into its
+ * subcategories when it has any, else into its movements when they were
+ * handed; null when it opens nothing (its row is then a link).
+ *
+ * @param {CategoryFlow} line
+ * @param {OpenLines} state
+ * @param {Movements | null} movements
+ * @returns {{ open: boolean, toggle: () => void } | null}
+ */
+function lineOpener(line, state, movements) {
+  if (line.children.length > 0) return { open: state.open.has(line.id), toggle: () => state.toggleOpen(line.id) };
+  if (movements?.get(line.id) === undefined) return null;
+  return { open: state.opened.has(line.id), toggle: () => state.toggleOpened(line.id) };
+}
+
+/**
+ * Scrolls a top-level line's row into view once it has opened, only when it
+ * is not already in view (`block: 'nearest'` moves nothing then).
+ *
+ * @param {string} id
+ */
+function revealLine(id) {
+  requestAnimationFrame(() => {
+    const row = [...document.querySelectorAll('tr[data-line]')].find((each) => each instanceof HTMLElement && each.dataset.line === id);
+    row?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+}
+
+/**
  * One kind's table: name, Share -- "—" for a net refund, or when the whole
  * is not positive (lineShare, ADR 0059) -- in a year the line's average month
  * (`averages`), and the amount, always last (ADR 0050, 0057). Its lines are
@@ -921,7 +1052,8 @@ function Composition({ flows }) {
  * filed on the line itself; one whose subcategory, own row -- or itself -- is
  * selected opens by itself. A subcategory's name, the own row's and a line's
  * with none open their movements of the period in place (ADR 0052), as does
- * selecting one.
+ * selecting one. Which lines are open is `state`, held above the table
+ * (useOpenLines), so the composition bar opens the same ones (ADR 0060).
  *
  * @param {{
  *   title: string,
@@ -930,6 +1062,7 @@ function Composition({ flows }) {
  *   quietLabel: string,
  *   uncategorised: CategoryFlow,
  *   parts: { id: string }[],
+ *   state: OpenLines,
  *   averages: Map<string, number> | null,
  *   movements: Movements | null,
  *   accounts: Pick<import('@/lib/domain/types.js').FinanceAccount, 'id' | 'name'>[],
@@ -937,27 +1070,11 @@ function Composition({ flows }) {
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-function FlowTable({ title, totalHead, lines, quietLabel, uncategorised, parts, averages, movements, accounts, todayKey, place }) {
+function FlowTable({ title, totalHead, lines, quietLabel, uncategorised, parts, state, averages, movements, accounts, todayKey, place }) {
   const showUncategorised = uncategorised.movements > 0;
-  const selected = place.category ?? null;
-  /** @param {CategoryFlow} line */
-  const holdsSelected = (line) =>
-    selected !== null && [line, ...line.children, ...(line.own === null ? [] : [line.own])].some((each) => each.id === selected);
-  const [open, setOpen] = useState(() => new Set(lines.filter((line) => line.children.length > 0 && holdsSelected(line)).map((line) => line.id)));
-  const [opened, setOpened] = useState(() => new Set(place.category !== null && place.category !== undefined && movements?.has(place.category) ? [place.category] : []));
+  const { open, opened } = state;
   if (lines.length === 0 && !showUncategorised) return null;
 
-  /**
-   * @param {(update: (current: Set<string>) => Set<string>) => void} set
-   * @param {string} id
-   */
-  const toggle = (set, id) =>
-    set((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   /** @param {string} id */
   const tone = (id) => {
     const at = parts.findIndex((part) => part.id === id);
@@ -983,7 +1100,7 @@ function FlowTable({ title, totalHead, lines, quietLabel, uncategorised, parts, 
         tone={child ? null : tone(line.id)}
         child={child}
         open={shown}
-        onToggle={list === undefined ? null : () => toggle(setOpened, line.id)}
+        onToggle={list === undefined ? null : () => state.toggleOpened(line.id)}
         {...shared}
       />,
       ...(shown ? movementRows(line, list, child) : []),
@@ -1049,7 +1166,7 @@ function FlowTable({ title, totalHead, lines, quietLabel, uncategorised, parts, 
         line={line}
         tone={tone(line.id)}
         open={expanded}
-        onToggle={() => toggle(setOpen, line.id)}
+        onToggle={() => state.toggleOpen(line.id)}
         {...shared}
       />,
       ...(expanded
@@ -1187,7 +1304,9 @@ function InterestRow({ run, accounts, span, deep, todayKey, place }) {
  * A line of a table. Its name is the control: a button, a ▸ before it and
  * `aria-expanded`, that opens its subcategories or, for a line with none,
  * its movements; without anything to open (no movements were handed), a
- * link that lists its movements in the Transactions card.
+ * link that lists its movements in the Transactions card. A top-level line's
+ * row carries its id (`data-line`), so the composition bar can bring it into
+ * view (ADR 0060).
  *
  * @param {{
  *   line: CategoryFlow,
@@ -1203,7 +1322,7 @@ function FlowRow({ line, place, averages, tone = null, child = false, open = fal
   const selected = place.category === line.id;
   const average = averages?.get(line.id);
   return (
-    <tr className={(selected ? 'is-selected' : '') + (child ? ' is-child' : '') || undefined}>
+    <tr className={(selected ? 'is-selected' : '') + (child ? ' is-child' : '') || undefined} data-line={child ? undefined : line.id}>
       <td title={line.name}>
         {tone !== null && <i className="dot finance-part-dot" style={{ color: tone }} aria-hidden="true" />}
         {onToggle !== null ? (

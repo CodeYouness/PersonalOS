@@ -16,6 +16,11 @@ import { createPortal } from 'react-dom';
  * - **A tap**: on a mark that is a link (`href`), the first tap shows the
  *   figures and the second follows the link; on any other mark a tap shows
  *   them and a second hides them. A tap anywhere else hides them.
+ * - **A mark that does something** (`onPress`, ADR 0060) is a button: a
+ *   click, a tap, Enter or Space does it, and `expanded` says whether what it
+ *   opens is open. The figures still show on hover and keyboard focus, and a
+ *   tap that does it also shows them -- a second tap undoes it and hides
+ *   them -- so a finger reads them too.
  * - **It is never clipped and never widens the page.** It is drawn in a portal
  *   on the body with `position: fixed`, so a card's overflow cannot cut it,
  *   above the mark (below when there is no room), kept 8 px inside the
@@ -32,11 +37,14 @@ import { createPortal } from 'react-dom';
  *   className?: string,
  *   style?: import('react').CSSProperties,
  *   current?: boolean,
+ *   onPress?: () => void,
+ *   expanded?: boolean,
  *   children?: import('react').ReactNode,
  * }} props `as` for a mark that is not a link; `current` marks a link as the
- *   place you are
+ *   place you are; `onPress` makes a mark that is not a link a button, and
+ *   `expanded` its open state
  */
-export default function Tip({ label, tip, as = 'span', href, className, style, current = false, children = null }) {
+export default function Tip({ label, tip, as = 'span', href, className, style, current = false, onPress, expanded, children = null }) {
   const id = useId();
   const mark = useRef(/** @type {HTMLElement | null} */ (null));
   const popover = useRef(/** @type {HTMLDivElement | null} */ (null));
@@ -110,8 +118,16 @@ export default function Tip({ label, tip, as = 'span', href, className, style, c
     onBlur: hide,
     /** @param {import('react').MouseEvent} event */
     onClick: (event) => {
-      if (!touched.current) return;
+      const touch = touched.current;
       touched.current = false;
+      if (href === undefined && onPress !== undefined) {
+        onPress();
+        if (!touch) return;
+        if (open) hide();
+        else show();
+        return;
+      }
+      if (!touch) return;
       if (href !== undefined) {
         if (open) return;
         event.preventDefault();
@@ -157,16 +173,29 @@ export default function Tip({ label, tip, as = 'span', href, className, style, c
     );
   }
   const Mark = as;
+  const press =
+    onPress === undefined
+      ? {}
+      : {
+          /** @param {import('react').KeyboardEvent} event */
+          onKeyDown: (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            onPress();
+          },
+        };
   return (
     <>
       <Mark
         ref={/** @type {import('react').Ref<HTMLElement>} */ (mark)}
         tabIndex={0}
-        role="img"
+        role={onPress === undefined ? 'img' : 'button'}
         aria-label={label}
+        aria-expanded={onPress === undefined ? undefined : (expanded ?? false)}
         className={className}
         style={style}
         {...events}
+        {...press}
       >
         {children}
       </Mark>

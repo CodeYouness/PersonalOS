@@ -1,13 +1,16 @@
 /**
  * What the Income & spending card renders (ADR 0053, amending 0050): no strip
- * of bars across the top; in the head one toolbar -- Month / Year with its
- * stepper, then Circle / Columns; the line counting movements without a
- * category; then, on the left, the circle of the period or
- * its columns -- a month's days, a year's months, each with its figures --
- * with the four totals and the rest of the summary under it; and on the
+ * of bars across the top; in the head Circle / Columns as glyphs beside the
+ * name, Month / Year with its stepper on the right (ADR 0060); the line
+ * counting movements without a category; then, on the left, the circle of
+ * the period or its columns -- a month's days, a year's months, each with its
+ * figures -- with the four totals and the rest of the summary under it, the
+ * last line splitting what was spent into fixed costs and the rest (ADR
+ * 0060); and on the
  * right, always, the breakdown: income first, then spending, each line's
  * name opening its subcategories, and a subcategory's -- or a line's without
- * any -- opening its movements in place; a spending line only when it holds
+ * any -- opening its movements in place, as a part of the composition bar
+ * opens its line (ADR 0060); a spending line only when it holds
  * a movement, every income line; what is filed on a parent itself as a row of
  * its own; the year's average, and no comparison (ADR 0057). Every row here
  * is invented.
@@ -50,6 +53,10 @@ const categories = [
   category({ id: 'cat_gym', name: 'Gym', kind: 'expense' }),
   category({ id: 'cat_pay', name: 'Pay', kind: 'income' }),
 ];
+/** @param {string[]} ids the categories marked as a fixed cost */
+const fixedOn = (ids) => categories.map((row) => (ids.includes(row.id) ? { ...row, fixedCost: true } : row));
+const FIXED_HOME = fixedOn(['cat_home']);
+const FIXED_HOME_GYM = fixedOn(['cat_home', 'cat_gym']);
 /** @returns {any} */
 const t = (/** @type {string} */ date, /** @type {number} */ amount, /** @type {string | null} */ categoryId, /** @type {any} */ over = {}) => ({
   id: 'tx_' + date + amount, date, amount, currency: 'EUR', description: '', accountId: 'account_a',
@@ -81,32 +88,32 @@ const trades = [trade('2026-04-10', 'buy', 50000)];
 /**
  * @param {'month' | 'year'} period
  * @param {string} month
- * @param {{ view?: 'circle' | 'columns', target?: number | null, rows?: any[], held?: any[], place?: any, max?: number, since?: string, refunds?: any }} [options]
+ * @param {{ view?: 'circle' | 'columns', target?: number | null, rows?: any[], held?: any[], place?: any, max?: number, since?: string, refunds?: any, tree?: any[], handed?: boolean }} [options]
  */
-function render(period, month, { view = 'circle', target = null, rows = transactions, held = trades, place = {}, max = 50, since = '2026-01-01', refunds = NO_REFUNDS } = {}) {
+function render(period, month, { view = 'circle', target = null, rows = transactions, held = trades, place = {}, max = 50, since = '2026-01-01', refunds = NO_REFUNDS, tree = categories, handed = true } = {}) {
   const months = flowMonths(rows, TODAY, since);
-  const year = period === 'year' ? calendarYearFlows(rows, categories, month, months, refunds) : null;
-  const flows = year ?? monthFlows(rows, categories, month, refunds);
+  const year = period === 'year' ? calendarYearFlows(rows, tree, month, months, refunds) : null;
+  const flows = year ?? monthFlows(rows, tree, month, refunds);
   const periodMonths = year?.months ?? [month];
   // As the page does: the columns only in the columns view, which draws them.
   const columns =
     view !== 'columns'
       ? null
       : period === 'year'
-        ? { kind: 'months', months: yearColumns(rows, categories, yearOf(month), months) }
-        : { kind: 'days', ...dayColumns(rows, categories, month, TODAY) };
+        ? { kind: 'months', months: yearColumns(rows, tree, yearOf(month), months) }
+        : { kind: 'days', ...dayColumns(rows, tree, month, TODAY) };
   return renderToStaticMarkup(
     createElement(FinanceFlows, {
       flows,
       period,
       view,
-      twelveMonths: period === 'year' ? null : yearFlows(rows, categories, month),
+      twelveMonths: period === 'year' ? null : yearFlows(rows, tree, month),
       target,
       columns: /** @type {any} */ (columns),
       invested: periodInvested(held, periodMonths),
       averages: year === null ? null : lineAverages(year),
-      uncategorised: uncategorisedCounts(rows, categories, periodMonths),
-      movements: lineMovements(rows, categories, {
+      uncategorised: uncategorisedCounts(rows, tree, periodMonths),
+      movements: !handed ? null : lineMovements(rows, tree, {
         months: periodMonths,
         lines: movementLines(flows),
         max,
@@ -123,11 +130,13 @@ function render(period, month, { view = 'circle', target = null, rows = transact
   );
 }
 
-/** The summary, alone: its notes and its list. @param {string} html */
+/** The summary, alone: its notes, its list and the line under it. @param {string} html */
 const summaryOf = (html) => {
   const from = html.indexOf('<div class="finance-summary');
-  return from === -1 ? '' : html.slice(from, html.indexOf('</dl></div>', from) + 11);
+  return from === -1 ? '' : html.slice(from, html.indexOf('<div class="finance-breakdown"', from));
 };
+/** What a piece of markup reads as, its tags left out. @param {string} html */
+const textOf = (html) => html.replace(/<[^>]+>/g, '');
 /** The four totals under the circle, alone. @param {string} html */
 const totalsOf = (html) => html.slice(html.indexOf('<dl class="finance-circle-totals"'), html.indexOf('</dl>') + 5);
 /** The card's head, alone: its name and its toolbar. @param {string} html */
@@ -292,8 +301,8 @@ describe('FinanceFlows', () => {
       for (const html of [render('month', '2026-04'), render('month', '2026-04', { view: 'columns' })]) {
         const bar = html.slice(html.indexOf('finance-composition'), html.indexOf('</div>', html.indexOf('finance-composition')));
         // Focusable, named by everything its popover says: a tooltip, as the allocation bar's parts.
-        expect(bar).toContain('<i tabindex="0" role="img" aria-label="Home: spent €\u20091,000.00, 67% of spending" style="width:66.66666666666666%;background:var(--series-1)"></i>');
-        expect(bar).toContain('<i tabindex="0" role="img" aria-label="Food: spent €\u2009500.00, 33% of spending"');
+        expect(bar).toContain('<i tabindex="0" role="button" aria-label="Home: spent €\u20091,000.00, 67% of spending" aria-expanded="false" style="width:66.66666666666666%;background:var(--series-1)"></i>');
+        expect(bar).toContain('<i tabindex="0" role="button" aria-label="Food: spent €\u2009500.00, 33% of spending" aria-expanded="false"');
       }
       // A year: its parts over the year to date. Home 3,000, Food 800, Gym 120 of 3,920.
       const year = render('year', '2026-04');
@@ -305,7 +314,42 @@ describe('FinanceFlows', () => {
       // 1.00 of 1,001.00: a tenth of a percent of the bar, still a tab stop.
       const html = render('month', '2026-04', { rows: [t('2026-04-01', 300000, 'cat_pay'), t('2026-04-02', -100000, 'cat_home'), t('2026-04-03', -100, 'cat_gym')], held: [] });
 
-      expect(html).toContain('<i tabindex="0" role="img" aria-label="Gym: spent €\u20091.00, 0% of spending"');
+      expect(html).toContain('<i tabindex="0" role="button" aria-label="Gym: spent €\u20091.00, 0% of spending"');
+    });
+
+    describe('a part of the composition bar opens its line (ADR 0060)', () => {
+      /** The composition bar, alone. @param {string} html */
+      const barOf = (html) => html.slice(html.indexOf('finance-composition'), html.indexOf('</div>', html.indexOf('finance-composition')));
+
+      it('is a button that opens the line its row opens, closed at first as the row is', () => {
+        const html = render('month', '2026-04');
+        const bar = barOf(html);
+
+        expect(bar.match(/role="button"/g)).toHaveLength(2);
+        expect(bar).toContain('aria-label="Food: spent €\u2009500.00, 33% of spending" aria-expanded="false"');
+        // The rows it opens carry their line, so an opened one can be brought into view.
+        expect(html).toMatch(/<tr data-line="cat_food"><td title="Food"><i[^>]*><\/i><button type="button" class="finance-line-toggle" aria-expanded="false">/);
+        expect(html).toMatch(/<tr data-line="cat_home"><td title="Home"><i[^>]*><\/i><button type="button" class="finance-line-toggle" aria-expanded="false">/);
+      });
+
+      it('reads the same open state as the rows: a line opened by its row is open in the bar', () => {
+        // A subcategory selected opens its parent; a line without any, selected, opens its movements.
+        for (const [category, line] of [['cat_groceries', 'Food'], ['cat_home', 'Home']]) {
+          const html = render('month', '2026-04', { place: { category } });
+
+          expect(barOf(html)).toMatch(new RegExp('aria-label="' + line + ': spent[^"]*" aria-expanded="true"'));
+          expect(html).toMatch(new RegExp('<td title="' + line + '"><i[^>]*></i><button type="button" class="finance-line-toggle" aria-expanded="true">'));
+        }
+      });
+
+      it('is no button for a line that opens nothing, and never stands for another line', () => {
+        // No movements handed: Home's row is a link, so its part is a mark only; Food still opens its subcategories.
+        const bar = barOf(render('month', '2026-04', { handed: false }));
+
+        expect(bar).toContain('<i tabindex="0" role="img" aria-label="Home: spent');
+        expect(bar).toContain('<i tabindex="0" role="button" aria-label="Food: spent');
+        expect(bar).not.toContain('aria-expanded="true"');
+      });
     });
 
     it('keeps the breakdown on the right with the columns too, in a month and in a year', () => {
@@ -327,9 +371,9 @@ describe('FinanceFlows', () => {
       expect(order.every((at) => at > -1)).toBe(true);
       expect([...order].sort((a, b) => a - b)).toEqual(order);
       expect(totalsOf(html)).toContain('€\u20093,000');
-      // Under them: the rates, fixed and variable -- not the four totals again.
-      const summary = summaryOf(html);
-      const said = ['Saved this month', 'Saved over 12 months', 'Fixed', 'Variable'].map((word) => summary.indexOf(word));
+      // Under them: the rates, then what was spent split (ADR 0060) -- not the four totals again.
+      const summary = summaryOf(render('month', '2026-04', { tree: FIXED_HOME }));
+      const said = ['Saved this month', 'Saved over 12 months', 'Of the '].map((word) => summary.indexOf(word));
       expect(said.every((at) => at > -1)).toBe(true);
       expect([...said].sort((a, b) => a - b)).toEqual(said);
       expect(summary).not.toContain('>Income<');
@@ -372,15 +416,14 @@ describe('FinanceFlows', () => {
   });
 
   describe('the toolbar (ADR 0053, amended)', () => {
-    it('puts the period and the view in the card head, the period first, nothing above the chart', () => {
+    it('puts the view right beside the name and the period on the right, nothing above the chart (ADR 0060)', () => {
       const html = render('month', '2026-04');
       const head = headOf(html);
 
-      expect(head).toContain('<div class="finance-toolbar"><div class="finance-toolbar-group"><div class="segmented is-joined" role="group" aria-label="Period">');
+      expect(head).toContain('<span class="eyebrow">Income &amp; spending</span><div class="segmented is-joined finance-view-switch" role="group" aria-label="View">');
+      expect(head).toContain('</div><div class="finance-toolbar"><div class="segmented is-joined" role="group" aria-label="Period">');
+      expect(head.indexOf('aria-label="Period"')).toBeGreaterThan(head.indexOf('aria-label="View"'));
       expect(head.indexOf('class="finance-stepper"')).toBeGreaterThan(head.indexOf('aria-label="Period"'));
-      expect(head.indexOf('aria-label="View"')).toBeGreaterThan(head.indexOf('class="finance-stepper"'));
-      // The view is apart from the period's group.
-      expect(head).toContain('</div></div><div class="segmented is-joined finance-view-switch" role="group" aria-label="View">');
       // The left column starts with the chart: no switch of its own any more.
       expect(html).toContain('<div class="finance-flow-side"><figure class="finance-circle">');
       expect(html).not.toContain('aria-label="Chart"');
@@ -393,11 +436,20 @@ describe('FinanceFlows', () => {
       expect(head).toContain('<a class="seg" href="/finances?month=2026-04&amp;period=year&amp;view=columns">Year</a>');
     });
 
-    it('offers the circle and the columns, each with its glyph, keeping the place, and never writes the circle', () => {
+    it('offers the circle and the columns as glyphs alone, each named, keeping the place, and never writes the circle', () => {
       const head = headOf(render('month', '2026-04', { place: { category: 'cat_home' } }));
 
-      expect(head).toMatch(/<a class="seg is-on" aria-current="true" href="\/finances\?month=2026-04&amp;category=cat_home"><svg class="seg-glyph"[^>]*aria-hidden="true"[^>]*><circle [^>]*><\/circle><\/svg>Circle<\/a>/);
-      expect(head).toMatch(/<a class="seg" href="\/finances\?month=2026-04&amp;view=columns&amp;category=cat_home"><svg class="seg-glyph"[^>]*>(<rect [^>]*><\/rect>){3}<\/svg>Columns<\/a>/);
+      expect(head).toMatch(
+        /<a class="seg is-glyph is-on" aria-current="true" aria-label="Circle" title="Circle" href="\/finances\?month=2026-04&amp;category=cat_home"><svg class="seg-glyph"[^>]*aria-hidden="true"[^>]*><circle [^>]*><\/circle><\/svg><\/a>/
+      );
+      expect(head).toMatch(
+        /<a class="seg is-glyph" aria-label="Columns" title="Columns" href="\/finances\?month=2026-04&amp;view=columns&amp;category=cat_home"><svg class="seg-glyph"[^>]*>(<rect [^>]*><\/rect>){3}<\/svg><\/a>/
+      );
+      // No word beside the glyphs: the names are the label and the title.
+      expect(head).not.toContain('</svg>Circle');
+      expect(head).not.toContain('</svg>Columns');
+      const columns = headOf(render('month', '2026-04', { view: 'columns' }));
+      expect(columns).toContain('<a class="seg is-glyph is-on" aria-current="true" aria-label="Columns" title="Columns" href="/finances?month=2026-04&amp;view=columns">');
     });
 
     it('offers no view when there is nothing to draw', () => {
@@ -773,6 +825,44 @@ describe('FinanceFlows', () => {
 
       expect(render('year', '2026-04', { target: 40 })).not.toContain('would have to be left');
       expect(render('month', '2026-04', { target: 60 })).not.toContain('would have to be left');
+    });
+  });
+
+  describe('what was spent, split into fixed costs and the rest (ADR 0060)', () => {
+    it('says it in one line under the rates, with no Fixed and Variable rows', () => {
+      const summary = summaryOf(render('month', '2026-04', { tree: FIXED_HOME }));
+
+      // April: 1,500.00 out, Home's 1,000.00 a fixed cost.
+      expect(textOf(summary)).toContain('Of the €\u20091,500.00 spent: fixed costs €\u20091,000.00 · the rest €\u2009500.00');
+      expect(summary).toContain('<p class="caption finance-summary-split">');
+      expect(summary).not.toContain('<dt>Fixed</dt>');
+      expect(summary).not.toContain('Variable');
+    });
+
+    it('names the categories behind "fixed costs" -- only those that spent -- and where one is marked', () => {
+      // Gym is marked too, and spent nothing in April.
+      const summary = summaryOf(render('month', '2026-04', { tree: FIXED_HOME_GYM }));
+
+      expect(summary).toContain(
+        'tabindex="0" role="img" aria-label="Fixed costs, April 2026: Home €\u20091,000.00. A category counts here when Fixed is ticked on it, under Manage › Categories." class="finance-term">fixed costs</span>'
+      );
+      expect(summary).not.toContain('Gym');
+    });
+
+    it('reads a year the same way, each category over the year', () => {
+      // 2026: 3,920.00 out -- Home 3,000.00 and Gym 120.00 fixed.
+      const summary = summaryOf(render('year', '2026-04', { tree: FIXED_HOME_GYM }));
+
+      expect(textOf(summary)).toContain('Of the €\u20093,920.00 spent: fixed costs €\u20093,120.00 · the rest €\u2009800.00');
+      expect(summary).toContain('aria-label="Fixed costs, 2026: Home €\u20093,000.00, Gym €\u2009120.00. ');
+    });
+
+    it('says nothing when no spending is a fixed cost, or nothing was spent', () => {
+      expect(summaryOf(render('month', '2026-04'))).not.toContain('finance-summary-split');
+      // Gym is marked, and spent nothing in April.
+      const gymOnly = categories.map((row) => (row.id === 'cat_gym' ? { ...row, fixedCost: true } : row));
+      expect(summaryOf(render('month', '2026-04', { tree: gymOnly }))).not.toContain('fixed costs');
+      expect(summaryOf(render('month', '2026-04', { tree: FIXED_HOME, rows: [t('2026-04-01', 300000, 'cat_pay')], held: [] }))).not.toContain('finance-summary-split');
     });
   });
 

@@ -2,7 +2,12 @@
 
 - **Status** accepted; amended by
   [0057](0057-the-breakdown-lists-what-the-period-holds.md): the breakdown
-  has no change from the period before, and lists what the period holds
+  has no change from the period before, and lists what the period holds;
+  amended by [0060](0060-income-and-spending-reads-its-parts.md): the
+  summary's Fixed and Variable rows are one line, "fixed costs" a tooltip
+  listing its categories; Circle / Columns is glyphs alone beside the
+  card's name, the period on the right; a part of the composition bar opens
+  its line
 - **Date** 2026-11-17
 - **Amends** [0050](0050-income-and-spending-reads-as-a-circle.md) (the card's
   body, the view switch, the table view), [0044](0044-spending-over-time-reads-by-the-months-rules.md)
