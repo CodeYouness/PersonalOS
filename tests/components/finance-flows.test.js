@@ -35,6 +35,7 @@ const {
 } = await import('@/lib/domain/derive/finance.js');
 const { yearOf } = await import('@/lib/domain/dates.js');
 const { NO_REFUNDS, refundPairs } = await import('@/lib/domain/derive/refunds.js');
+const { INTEREST_MOVEMENT_TYPES } = await import('@/personalos.config.js');
 
 const TODAY = '2026-04-20';
 const UNIT = 100_000_000;
@@ -104,7 +105,15 @@ function render(period, month, { view = 'circle', target = null, rows = transact
       invested: periodInvested(held, periodMonths),
       averages: year === null ? null : lineAverages(year),
       uncategorised: uncategorisedCounts(rows, categories, periodMonths),
-      movements: lineMovements(rows, categories, { months: periodMonths, lines: movementLines(flows), max, refunds, refunded: place.refunded ?? null }),
+      movements: lineMovements(rows, categories, {
+        months: periodMonths,
+        lines: movementLines(flows),
+        max,
+        refunds,
+        refunded: place.refunded ?? null,
+        interest: place.interest ?? null,
+      }),
+      accounts: [{ id: 'account_deposit', name: 'Deposit' }],
       months,
       month,
       todayKey: TODAY,
@@ -592,6 +601,28 @@ describe('FinanceFlows', () => {
       expect(shown).toContain('>Melon returned</a><span class="caption">· refund of a purchase</span>');
       expect(shown).toContain('<td class="num finance-amount up">+\u200950.00</td>');
       expect(shown).toContain('1 refunded movement shown — ');
+    });
+
+    it("folds a deposit's month of interest into one row of its line, and offers it day by day (ADR 0056)", () => {
+      const origin = (/** @type {string} */ date) => ({
+        source: 'statement', externalId: 'account_deposit:' + date, syncedAt: '', sourceUpdatedAt: null, detail: { type: INTEREST_MOVEMENT_TYPES[0] },
+      });
+      const interest = ['2026-04-01', '2026-04-02', '2026-04-03', '2026-04-04'].map((date) =>
+        t(date, 16, 'cat_pay', { id: 'tx_interest_' + date, accountId: 'account_deposit', description: 'Interest earned on ' + date, origin: origin(date) })
+      );
+      const rows = [...transactions, ...interest];
+      const html = render('month', '2026-04', { rows, place: { category: 'cat_pay' } });
+
+      expect(html).toContain(
+        '<span class="num finance-date">4 Apr</span><a class="finance-account-link finance-cut-text" title="Show the 4 interest movements one by one" href="/finances?month=2026-04&amp;category=cat_pay&amp;interest=show">Interest · 4 days</a><span class="caption">· Deposit</span>'
+      );
+      expect(html).toContain('<td class="num finance-amount up">+\u20090.64</td>');
+      expect(html).not.toContain('Interest earned on');
+      expect(html).toContain('4 interest movements folded by month — <a class="finance-account-link" aria-label="Show the 4 interest movements one by one" href="/finances?month=2026-04&amp;category=cat_pay&amp;interest=show">show</a>');
+
+      const shown = render('month', '2026-04', { rows, place: { category: 'cat_pay', interest: 'show' } });
+      expect(shown).toContain('href="/finances?month=2026-04&amp;category=cat_pay&amp;interest=show&amp;transaction=tx_interest_2026-04-04">Interest earned on 2026-04-04</a>');
+      expect(shown).toContain('4 interest movements shown one by one — <a class="finance-account-link" aria-label="Fold the 4 interest movements by month" href="/finances?month=2026-04&amp;category=cat_pay">fold</a>');
     });
 
     it('says when an opened line holds no movement in the period', () => {

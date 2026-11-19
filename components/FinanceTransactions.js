@@ -1,12 +1,23 @@
 import Link from 'next/link';
 
-import { countedOverNote, financesHref, listedAmount, MovementAmount, refundNote, RefundedLine, transferEnds } from '@/components/finance.js';
+import {
+  countedOverNote,
+  financesHref,
+  InterestLine,
+  interestRunLabel,
+  listedAmount,
+  MovementAmount,
+  refundNote,
+  RefundedLine,
+  transferEnds,
+} from '@/components/finance.js';
 import { shortDate } from '@/components/format.js';
 import Segmented from '@/components/Segmented.js';
 
 /** @typedef {import('@/lib/domain/types.js').Transaction} Transaction */
 /** @typedef {import('@/lib/domain/types.js').FinanceAccount} FinanceAccount */
 /** @typedef {import('@/lib/domain/types.js').FinanceCategory} FinanceCategory */
+/** @typedef {import('@/lib/domain/derive/interest.js').InterestRun} InterestRun */
 
 /**
  * The period's transactions on the Finances screen (#134), newest first --
@@ -48,8 +59,18 @@ import Segmented from '@/components/Segmented.js';
  * shown, each end says what it is ("refund of Jacket", "refunded"). Each
  * end's `standing` comes from the page (listedTransactions).
  *
+ * A deposit's interest (ADR 0056) -- a few cents a day, and the tax withheld
+ * on it -- is one row per account and month: the page hands an InterestRun
+ * in its place, on its newest day, at the net of what it folds. Its name,
+ * "Interest · 31 days", lists the month's movements one by one
+ * (`?interest=show`), each opening its own panel as any row does; the
+ * category column names each category it holds, the account its account. It
+ * is selected while it holds the selected movement. A last quiet line, the
+ * refunded line's sibling, says how many movements were folded and offers
+ * them, then offers to fold them again.
+ *
  * @param {{
- *   transactions: Transaction[],
+ *   transactions: (Transaction | InterestRun)[],
  *   accounts: FinanceAccount[],
  *   categories: FinanceCategory[],
  *   lineName: string | null,
@@ -57,13 +78,14 @@ import Segmented from '@/components/Segmented.js';
  *   more: number,
  *   standings?: Map<string, import('@/lib/domain/derive/refunds.js').RefundStanding>,
  *   refunded?: number,
+ *   interest?: number,
  *   max: number,
  *   periodLabel: string,
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceTransactions({ transactions, accounts, categories, lineName, tag, more, standings = new Map(), refunded = 0, max, periodLabel, todayKey, place }) {
+export default function FinanceTransactions({ transactions, accounts, categories, lineName, tag, more, standings = new Map(), refunded = 0, interest = 0, max, periodLabel, todayKey, place }) {
   const shown = place.refunded === 'show';
   /** @param {string} id */
   const accountName = (id) => accounts.find((account) => account.id === id)?.name ?? 'an account that no longer exists';
@@ -128,6 +150,42 @@ export default function FinanceTransactions({ transactions, accounts, categories
               </thead>
               <tbody>
                 {transactions.map((transaction) => {
+                  if ('kind' in transaction) {
+                    const run = transaction;
+                    const label = interestRunLabel(run);
+                    const filedUnder = run.categoryIds.map((id) => (id === null ? null : categoryName(id)) ?? 'Uncategorised').join(', ');
+                    const where = accountName(run.accountId);
+                    const holdsSelected = place.transaction !== null && place.transaction !== undefined && run.ids.includes(place.transaction);
+                    return (
+                      <tr key={run.id} className={holdsSelected ? 'is-selected' : undefined}>
+                        <td className="num finance-date">{shortDate(run.date, todayKey)}</td>
+                        <td>
+                          <span className="finance-cut">
+                            <Link
+                              href={financesHref({ ...place, interest: 'show' })}
+                              scroll={false}
+                              className="finance-account-link finance-cut-text"
+                              title={label + ' — ' + filedUnder + ' · ' + where}
+                            >
+                              {label}
+                            </Link>
+                            {run.count !== run.days && <span className="caption">· {run.count} movements</span>}
+                          </span>
+                        </td>
+                        <td className={run.categoryIds.length > 1 || run.categoryIds[0] === null ? 'caption' : undefined}>
+                          <span className="finance-cut-text" title={filedUnder}>
+                            {filedUnder}
+                          </span>
+                        </td>
+                        <td className="caption">
+                          <span className="finance-cut-text" title={where}>
+                            {where}
+                          </span>
+                        </td>
+                        <MovementAmount amount={run.amount} />
+                      </tr>
+                    );
+                  }
                   const selected = transaction.id === place.transaction;
                   const transfer = transaction.counterAccountId !== null;
                   const category = categoryName(transaction.categoryId);
@@ -194,6 +252,7 @@ export default function FinanceTransactions({ transactions, accounts, categories
           </p>
         )}
         <RefundedLine count={refunded} place={place} />
+        <InterestLine count={interest} place={place} />
       </div>
     </article>
   );

@@ -195,6 +195,45 @@ describe('FinanceTransactions', () => {
     });
   });
 
+  describe("a deposit's interest, one row per account and month (ADR 0056)", () => {
+    /** @type {import('@/lib/domain/derive/interest.js').InterestRun} */
+    const run = {
+      kind: 'interest', id: 'interest:account_b:2026-03', accountId: 'account_b', month: '2026-03', date: '2026-03-31',
+      amount: 372, count: 62, days: 31, ids: ['tx_31', 'tx_31_fee'], categoryIds: ['cat_interest', 'cat_tax'],
+    };
+    const categories = [{ id: 'cat_interest', name: 'Interest' }, { id: 'cat_tax', name: 'Taxes' }];
+
+    it('shows the run as one net row, on its newest day, whose name lists it day by day', () => {
+      const html = render({ transactions: [run, t('tx_1', 'Pastéis')], categories, interest: 62 });
+
+      expect(html).toContain('<td class="num finance-date">31 Mar</td>');
+      expect(html).toContain(
+        '<a class="finance-account-link finance-cut-text" title="Interest · 31 days — Interest, Taxes · Savings" href="/finances?month=2026-03&amp;interest=show">Interest · 31 days</a><span class="caption">· 62 movements</span>'
+      );
+      expect(html).toContain('<span class="finance-cut-text" title="Interest, Taxes">Interest, Taxes</span>');
+      expect(html).toContain('<td class="num finance-amount up">+\u20093.72</td>');
+      expect(html).toContain('62 interest movements folded by month — ');
+      expect(html).toContain('aria-label="Show the 62 interest movements one by one" href="/finances?month=2026-03&amp;interest=show">show</a>');
+    });
+
+    it('marks the run selected when it holds the selected movement', () => {
+      const html = render({ transactions: [run], categories, interest: 62, place: { month: '2026-03', transaction: 'tx_31_fee' } });
+
+      expect(html).toContain('<tr class="is-selected"><td class="num finance-date">31 Mar</td>');
+    });
+
+    it('shown, offers to fold them again, keeping the other parameters', () => {
+      const html = render({ interest: 62, place: { month: '2026-03', refunded: 'show', interest: 'show' } });
+
+      expect(html).toContain('62 interest movements shown one by one — ');
+      expect(html).toContain('aria-label="Fold the 62 interest movements by month" href="/finances?month=2026-03&amp;refunded=show">fold</a>');
+    });
+
+    it('says nothing of interest when there is none to fold', () => {
+      expect(render({})).not.toContain('interest');
+    });
+  });
+
   it('offers no span without a tag', () => {
     expect(render({ lineName: 'Food', place: { month: '2026-03', category: 'cat_food' } })).not.toContain('All time');
   });

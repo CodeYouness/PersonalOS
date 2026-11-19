@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { financesHref, MovementAmount, refundNote, RefundedLine } from '@/components/finance.js';
+import { financesHref, InterestLine, interestRunLabel, MovementAmount, refundNote, RefundedLine } from '@/components/finance.js';
 import {
   dayOfMonth,
   formatEuro,
@@ -46,7 +46,9 @@ import {
 /** @typedef {import('@/lib/domain/derive/finance.js').FlowCircle} FlowCircle */
 /** @typedef {import('@/lib/domain/derive/finance.js').CirclePart} CirclePart */
 /** @typedef {import('@/lib/domain/derive/finance.js').LineMovement} LineMovement */
-/** @typedef {Map<string, { rows: LineMovement[], more: number, refunded?: number }>} Movements each line's movements of the period, by line id; `refunded` how many refunded movements it left out (ADR 0055) */
+/** @typedef {import('@/lib/domain/derive/interest.js').InterestRun} InterestRun */
+/** @typedef {{ rows: (LineMovement | InterestRun)[], more: number, refunded?: number, interest?: number }} LineList a line's movements of the period; `refunded` how many refunded movements it left out (ADR 0055), `interest` how many interest movements it folded (ADR 0056) */
+/** @typedef {Map<string, LineList>} Movements each line's movements of the period, by line id */
 /** @typedef {CirclePart['key'] | 'over'} PartKey what the circle can emphasise */
 /**
  * What the columns draw (ADR 0053): a month's days, with what is counted on
@@ -119,7 +121,9 @@ const MONTH_TICK_STEP = 3;
  * to the line's movements (`?category=<line>`); a subcategory's name, and a
  * line's without any, opens its movements of the period in place
  * (`movements`, lineMovements, ADR 0052), the newest first and "and N more"
- * linking to the line's listing. The lines with nothing in the period fold
+ * linking to the line's listing. A deposit's month of interest is one row
+ * of the line that counts it (ADR 0056), naming its account (`accounts`).
+ * The lines with nothing in the period fold
  * into one row at the end of their table (foldedLines, ADR 0048).
  *
  * Read-only, and loading it calls neither the model nor an integration.
@@ -135,13 +139,14 @@ const MONTH_TICK_STEP = 3;
  *   averages: Map<string, number> | null,
  *   uncategorised: { spending: number, income: number },
  *   movements: Movements | null,
+ *   accounts?: Pick<import('@/lib/domain/types.js').FinanceAccount, 'id' | 'name'>[],
  *   months: string[],
  *   month: string,
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props `columns` only in the columns view, which draws them
  */
-export default function FinanceFlows({ flows, period, view, yearRate, target, columns, invested, averages, uncategorised, movements, months, month, todayKey, place }) {
+export default function FinanceFlows({ flows, period, view, yearRate, target, columns, invested, averages, uncategorised, movements, accounts = [], months, month, todayKey, place }) {
   const router = useRouter();
   /** @type {[PartKey | null, (key: PartKey | null) => void]} */
   const [active, setActive] = useState(/** @type {PartKey | null} */ (null));
@@ -155,7 +160,7 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
     averages: period === 'year' ? averages : null,
   };
   const quietLabel = period === 'year' ? 'this year' : 'this month';
-  const shared = { quietLabel, columns: tableColumns, compared: flows.compared, movements, todayKey, place };
+  const shared = { quietLabel, columns: tableColumns, compared: flows.compared, movements, accounts, todayKey, place };
   const empty = circle.state === 'empty';
   const drawn = view === 'columns' ? columns : null;
   // The least a day's income is marked from, when a day of the month's columns reaches it.
@@ -943,11 +948,12 @@ function Composition({ flows }) {
  *   columns: Columns,
  *   compared: boolean,
  *   movements: Movements | null,
+ *   accounts: Pick<import('@/lib/domain/types.js').FinanceAccount, 'id' | 'name'>[],
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, columns, compared, movements, todayKey, place }) {
+function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, columns, compared, movements, accounts, todayKey, place }) {
   const { lines, quiet, showUncategorised } = table;
   /** @param {CategoryFlow} line */
   const holdsSelected = (line) => line.id === place.category || line.children.some((child) => child.id === place.category);
@@ -1002,7 +1008,7 @@ function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, 
   };
   /**
    * @param {CategoryFlow} line
-   * @param {{ rows: LineMovement[], more: number, refunded?: number }} list
+   * @param {LineList} list
    * @param {boolean} deep under a subcategory
    */
   const movementRows = (line, list, deep) => [
@@ -1014,9 +1020,13 @@ function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, 
             </td>
           </tr>,
         ]
-      : list.rows.map((row) => (
-          <MovementRow key={line.id + ':' + row.id} row={row} span={width - 1} deep={deep} todayKey={todayKey} place={place} />
-        ))),
+      : list.rows.map((row) =>
+          'kind' in row ? (
+            <InterestRow key={line.id + ':' + row.id} run={row} accounts={accounts} span={width - 1} deep={deep} todayKey={todayKey} place={place} />
+          ) : (
+            <MovementRow key={line.id + ':' + row.id} row={row} span={width - 1} deep={deep} todayKey={todayKey} place={place} />
+          )
+        )),
     // A paired refund and a purchase all of which came back, left out as
     // the Transactions card leaves them out (ADR 0055).
     ...((list.refunded ?? 0) > 0
@@ -1024,6 +1034,16 @@ function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, 
           <tr key={line.id + ':refunded'} className={'finance-movement-row' + (deep ? ' is-deep' : '')}>
             <td colSpan={width}>
               <RefundedLine count={list.refunded ?? 0} place={place} as="span" />
+            </td>
+          </tr>,
+        ]
+      : []),
+    // A deposit's interest, folded by account and month (ADR 0056).
+    ...((list.interest ?? 0) > 0
+      ? [
+          <tr key={line.id + ':interest'} className={'finance-movement-row' + (deep ? ' is-deep' : '')}>
+            <td colSpan={width}>
+              <InterestLine count={list.interest ?? 0} place={place} as="span" />
             </td>
           </tr>,
         ]
@@ -1147,6 +1167,47 @@ function MovementRow({ row, span, deep, todayKey, place }) {
         </span>
       </td>
       <MovementAmount amount={row.amount} />
+    </tr>
+  );
+}
+
+/**
+ * A deposit's month of interest folded into one row of the line that counts
+ * it (ADR 0056): its newest day, "Interest · 31 days" -- the link that lists
+ * the month's movements one by one (`?interest=show`) -- its account, and
+ * what the line counts of it, signed as any movement. Selected while it
+ * holds the selected movement.
+ *
+ * @param {{
+ *   run: InterestRun,
+ *   accounts: Pick<import('@/lib/domain/types.js').FinanceAccount, 'id' | 'name'>[],
+ *   span: number,
+ *   deep: boolean,
+ *   todayKey: string,
+ *   place: import('@/components/finance.js').FinancesPlace,
+ * }} props
+ */
+function InterestRow({ run, accounts, span, deep, todayKey, place }) {
+  const account = accounts.find((row) => row.id === run.accountId)?.name ?? null;
+  const what = run.count === 1 ? '1 interest movement' : run.count + ' interest movements';
+  const selected = place.transaction !== null && place.transaction !== undefined && run.ids.includes(place.transaction);
+  return (
+    <tr className={'finance-movement-row' + (deep ? ' is-deep' : '') + (selected ? ' is-selected' : '')}>
+      <td colSpan={span}>
+        <span className="finance-movement">
+          <span className="num finance-date">{shortDate(run.date, todayKey)}</span>
+          <Link
+            href={financesHref({ ...place, interest: 'show' })}
+            scroll={false}
+            className="finance-account-link finance-cut-text"
+            title={'Show the ' + what + ' one by one'}
+          >
+            {interestRunLabel(run)}
+          </Link>
+          {account !== null && <span className="caption">· {account}</span>}
+        </span>
+      </td>
+      <MovementAmount amount={run.amount} />
     </tr>
   );
 }

@@ -1643,6 +1643,46 @@ is yours (ADR 0023): the movements' ids are stable, so a re-import keeps it.
   lists its refunds, each unpaired on its own, and its net. Nothing pairs by
   itself: not an import, not `data:categorise`, not the model.
 
+### Interest
+
+**Is** what a deposit pays for the money in it: from a statement, a few
+cents a day, and -- Revolut's `Costo` being a movement of its own -- the tax
+withheld on it beside it, money out, `part: 'fee'` on its detail (Statement).
+Each is an ordinary movement: filed, counted and listed by the same rules as
+any other. Only the lists read it as interest (ADR 0056).
+
+- **What is interest** (`isInterestMovement`, `lib/domain/derive/interest.js`):
+  a movement from a statement (`origin.source` `statement`) whose bank's own
+  movement type, the `origin.detail.type` the importer keeps, is one of
+  `INTEREST_MOVEMENT_TYPES` in `personalos.config.js` -- the words a source
+  uses for interest, compared ignoring case: today `Interessi`, Revolut's
+  Italian `Tipo`. Closed: a bank with another word is added there and here.
+  It is read, never written -- nothing is stored from it and the store refuses
+  nothing by it -- so a word added applies to every movement already
+  imported. The tax withheld on interest carries the same type, so it is
+  interest's too; a currency exchange's fee is not. A movement typed by hand
+  has no origin and is never interest, and repeated purchases at one
+  merchant never carry the word.
+- **How it is listed** (`foldInterest`, in `listedTransactions` and
+  `lineMovements`): an account's interest movements of a month that count by
+  their own date -- not a transfer, not marked not counted, not counted over
+  months, not one end of a refund pair -- are **one row** when the list holds
+  at least `limits.financeInterestRunMin` (3) of them: on the newest day,
+  "Interest · 31 days" ("· 62 movements" after it when there are more
+  movements than days), its account, and the net of what it folds. Each list
+  folds what it holds: the Transactions card with nothing selected nets the
+  interest and its tax; a line's list -- selected in the card, or opened in
+  place -- holds only what the line counts, so the interest line's row is the
+  interest and the tax's line its own. The cap and "and N more" count the
+  rows as shown. The row's name, and a last quiet line "62 interest
+  movements folded by month — show", list them one by one
+  (`?interest=show`, kept with the other parameters), each opening its own
+  panel; shown, the line says "… shown one by one — fold". The row is
+  selected while it holds the selected movement.
+- **Display only.** No figure reads it: the month, the year, the columns,
+  the circle, the lines, By tag, the week, balances and net worth count each
+  movement as they always did.
+
 ### The month's flows
 
 The Income & spending section on the Finances screen (#137) reads a month:
@@ -1751,7 +1791,8 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   description, the amount signed as the Transactions card signs it, newest
   first, the newest `limits.financeListMax` and "and N more" linking to the
   line's listing. A movement counted over several months shows the month it
-  counts in, its part and "2 of 3 · paid 15 Nov". **A line with nothing in the period is folded**
+  counts in, its part and "2 of 3 · paid 15 Nov". An account's month of
+  interest is one row of the line that counts it (Interest, ADR 0056). **A line with nothing in the period is folded**
   (`foldedLines`, ADR 0048): the lines at a total of zero, in either table,
   go into one row at its end, "N categories with nothing this month", which
   opens to show them -- by itself when the selected line is one of them.
@@ -1786,7 +1827,9 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   rest shared, and a narrow card drops the account, then the category --
   the description's title names both. A refund paired with its purchase and
   a purchase all of which came back are left out unless `?refunded=show`,
-  and said in a last line (Refund, ADR 0055).
+  and said in a last line (Refund, ADR 0055). An account's month of interest
+  is one row unless `?interest=show`, and said in a last line too (Interest,
+  ADR 0056).
 - **The composition** (`spendingParts`), above the spending table: one bar of the
   period's spending by top-level category and Uncategorised, each line's
   part of what the lines with money spent add up to -- a net refund has no
@@ -2343,7 +2386,7 @@ something.
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
 | reviews (answers, lever, completedAt) | a review's week figures: habits, intake, spending, what was closed |
 | action records (name, params, day, origin, recordRef, before, status, error, the receipt line's text) | whether a receipt line can be undone now |
-| journal entries | the month's flows (income, spending, what is left, per category with share and change), the savings rate, fixed vs variable, what was invested (from the trades) and kept, a line's average month in a year -- transfers and not-counted transactions excluded, a paired refund in its purchase's category; whether a transaction is a transfer; what is left of a purchase after its refunds |
+| journal entries | the month's flows (income, spending, what is left, per category with share and change), the savings rate, fixed vs variable, what was invested (from the trades) and kept, a line's average month in a year -- transfers and not-counted transactions excluded, a paired refund in its purchase's category; whether a transaction is a transfer; what is left of a purchase after its refunds; whether a movement is interest and an account's month of it as one row |
 | memory entries | current net worth, an account's value between balances, a holding's units held and value, its cost basis, profit or loss, realised, change since the last price day and year to date, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |
