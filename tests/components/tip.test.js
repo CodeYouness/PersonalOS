@@ -28,6 +28,15 @@ describe('Tip', () => {
     expect(html).toBe('<a aria-label="April 2026: nothing recorded" aria-current="true" href="/finances?month=2026-04">Apr</a>');
   });
 
+  it('makes a mark that does something a button, saying whether what it opens is open (ADR 0060)', () => {
+    const press = () => {};
+    const closed = renderToStaticMarkup(createElement(Tip, { label: 'Food: spent € 50.00', tip: 'figures', as: 'i', onPress: press }));
+    const open = renderToStaticMarkup(createElement(Tip, { label: 'Food: spent € 50.00', tip: 'figures', as: 'i', onPress: press, expanded: true }));
+
+    expect(closed).toBe('<i tabindex="0" role="button" aria-label="Food: spent € 50.00" aria-expanded="false"></i>');
+    expect(open).toBe('<i tabindex="0" role="button" aria-label="Food: spent € 50.00" aria-expanded="true"></i>');
+  });
+
   it('draws no popover until it is opened', () => {
     expect(renderToStaticMarkup(createElement(Tip, { label: 'x', tip: 'the figures' }))).not.toContain('the figures');
   });

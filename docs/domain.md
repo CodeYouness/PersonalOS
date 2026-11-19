@@ -1726,11 +1726,12 @@ Home's last week's spending and the import scripts' checks count a movement
 whole on the day it moved, so a week and a month disagree about a spread
 movement, on purpose.
 
-**The card's head** (ADR 0053, amended) holds one toolbar: the **period** --
-a Month / Year segmented control (`?period=year`) and its stepper, the
-previous and next month (or year) on offer around the period's select -- and,
-apart from it, the **view**, a Circle / Columns segmented control, each word
-with its glyph. **The card's body** (ADR 0053, amending 0050) is two columns,
+**The card's head** (ADR 0053, amended; ADR 0060): right beside the card's
+name, the **view**, a Circle / Columns segmented control of glyphs alone,
+each named for a screen reader and in its title; on the right, the
+**period** -- a Month / Year segmented control (`?period=year`) and its
+stepper, the previous and next month (or year) on offer around the period's
+select. **The card's body** (ADR 0053, amending 0050) is two columns,
 stacked when the card is narrow: on the right, **always, the breakdown**
 (below); on the left the chart the view picks, and under it the four totals
 -- income, spent, invested, kept, one row each, two by two -- and the rest of
@@ -1798,10 +1799,13 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
 - **The breakdown** (ADR 0050), on the right whatever the chart: income
   first, then spending, with the composition bar above spending
   (`spendingParts`), each part showing its category, what it spent and its
-  share of the period's spending in a tooltip (ADR 0053, amended). The summary
+  share of the period's spending in a tooltip (ADR 0053, amended), and
+  opening its line in the spending table as the line's name does -- the
+  same open state, so a second press closes it (ADR 0060). The summary
   -- income, spent, invested, kept, then the notes, the savings rates against
-  the target, the shortfall, fixed and variable -- is under the chart, on the
-  left (ADR 0053). Each table's columns are the line, its Share ("—" where a
+  the target, the shortfall, and one line splitting what was spent, "Of the
+  € 751.41 spent: fixed costs € 227.94 · the rest € 523.47" (ADR 0060) -- is
+  under the chart, on the left (ADR 0053). Each table's columns are the line, its Share ("—" where a
   share says nothing, ADR 0059), in a year
   its average month, and its amount, last, headed "Spent" or "Received" --
   **no comparison with the period before** (ADR 0057). **Which lines are
@@ -2025,6 +2029,15 @@ from the planned **Recurring charge** detection, which would infer
 recurrence from the transactions themselves. The ledger import sets it on a
 subcategory it creates that the ledger marks `ricorrente`, and never changes
 it on one that exists.
+
+The screen calls the two parts **fixed costs** and **the rest** (ADR 0060):
+one line under Income & spending's summary, "Of the € 751.41 spent: fixed
+costs € 227.94 · the rest € 523.47", where "fixed costs" shows in a tooltip
+each marked category that spent in the period with its amount
+(`fixedCosts`, adding up to `fixed`) and that a category is marked by its
+Fixed box under Manage › Categories. The line is not there when nothing was
+spent or none of it is a fixed cost (`fixedCostSplit`). The question context
+keeps "fixed" and "variable" (`figure:fixed:`, `figure:variable:`).
 
 ---
 

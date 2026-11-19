@@ -8,9 +8,14 @@ import Link from 'next/link';
  * segment is a link to the place with that choice, marked `aria-current` when
  * it is the one chosen; the group is named by what it chooses.
  *
+ * A segment with a `name` is its glyph alone (ADR 0060): a 44px square whose
+ * children are only the glyph, named by `name` for a screen reader
+ * (`aria-label`) and for a mouse (`title`). Without one, the children are
+ * the segment's word, with its glyph before it when it has one.
+ *
  * @param {{
  *   label: string,
- *   options: { key: string, href: string, on: boolean, children: import('react').ReactNode }[],
+ *   options: { key: string, href: string, on: boolean, name?: string, children: import('react').ReactNode }[],
  *   className?: string,
  * }} props
  */
@@ -22,8 +27,10 @@ export default function Segmented({ label, options, className = '' }) {
           key={option.key}
           href={option.href}
           scroll={false}
-          className={'seg' + (option.on ? ' is-on' : '')}
+          className={'seg' + (option.name === undefined ? '' : ' is-glyph') + (option.on ? ' is-on' : '')}
           aria-current={option.on ? 'true' : undefined}
+          aria-label={option.name}
+          title={option.name}
         >
           {option.children}
         </Link>
