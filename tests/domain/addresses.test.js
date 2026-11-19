@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   crmAddress,
   financesAddress,
+  financesInterest,
   financesRefunded,
   financesSpan,
   financesView,
@@ -90,6 +91,17 @@ describe('addresses: one implementation of where a record opens', () => {
     expect(financesRefunded(undefined)).toBeNull();
     expect(financesRefunded('hide')).toBeNull();
     expect(financesRefunded(['show', 'show'])).toBeNull();
+  });
+
+  it('writes the interest shown movement by movement after the refunded, and reads it back (ADR 0056)', () => {
+    expect(financesAddress({ month: '2026-03', category: 'cat_1', refunded: 'show', interest: 'show', transaction: 'tx_1' })).toBe(
+      '/finances?month=2026-03&category=cat_1&refunded=show&interest=show&transaction=tx_1'
+    );
+    expect(financesAddress({ month: '2026-03', interest: null })).toBe('/finances?month=2026-03');
+    expect(financesInterest('show')).toBe('show');
+    expect(financesInterest(undefined)).toBeNull();
+    expect(financesInterest('fold')).toBeNull();
+    expect(financesInterest(['show', 'show'])).toBeNull();
   });
 
   it('writes the columns of Income & spending, never the circle, its default (ADR 0053)', () => {

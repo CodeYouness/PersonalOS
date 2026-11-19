@@ -1520,7 +1520,7 @@ describe('what the Transactions card lists', () => {
 
     expect(ids(list)).toEqual(['tx_4']);
     expect(list.more).toBe(1);
-    expect(listedTransactions(transactions, { ...base, months: ['2026-03'] })).toEqual({ rows: [transactions[1], transactions[2]], more: 0, refunded: 0, standings: new Map() });
+    expect(listedTransactions(transactions, { ...base, months: ['2026-03'] })).toEqual({ rows: [transactions[1], transactions[2]], more: 0, refunded: 0, interest: 0, standings: new Map() });
   });
 
   it('lists only the newest of a year with nothing selected, and says how many more', () => {
@@ -1535,6 +1535,7 @@ describe('what the Transactions card lists', () => {
       rows: transactions.slice(0, 4),
       more: 0,
       refunded: 0,
+      interest: 0,
       standings: new Map(),
     });
   });
@@ -1544,6 +1545,7 @@ describe('what the Transactions card lists', () => {
       rows: [transactions[0], transactions[2]],
       more: 0,
       refunded: 0,
+      interest: 0,
       standings: new Map(),
     });
     expect(ids(listedTransactions(transactions, { ...base, months: year, tag: 'trip', max: 1 }))).toEqual(['tx_4', 'tx_3']);

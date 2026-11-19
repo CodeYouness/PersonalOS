@@ -233,6 +233,14 @@ narrow card does, rather than scroll -- Transactions drops the account, then
 the category, measured on the card (ADR 0053); one that cannot scrolls
 inside its own box, never the card or the page.
 
+A list that leaves rows out or folds them says so in a **last quiet line**,
+a caption, with the count and the one word that undoes it as a link to the
+same place with every other parameter kept: "3 refunded movements hidden —
+show" (ADR 0055), "62 interest movements folded by month — show" (ADR 0056);
+undone, the same line offers the way back ("hide", "fold"). A folded row
+reads as any row -- date, name, amount -- and its name is the link that
+unfolds it; it never opens a panel of its own.
+
 ## Home
 
 Action first (ADR 0040). Home is one readable column at the check-in's

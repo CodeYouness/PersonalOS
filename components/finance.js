@@ -197,6 +197,48 @@ export function RefundedLine({ count, place, as = 'p' }) {
   );
 }
 
+/**
+ * What a list calls a deposit's month of interest folded into one row (ADR
+ * 0056): "Interest · 31 days". The row's name, and the link that lists the
+ * month's movements one by one.
+ *
+ * @param {Pick<import('@/lib/domain/derive/interest.js').InterestRun, 'days'>} run
+ * @returns {string}
+ */
+export function interestRunLabel(run) {
+  return 'Interest · ' + run.days + (run.days === 1 ? ' day' : ' days');
+}
+
+/**
+ * The quiet line under a list that folded a deposit's interest, or shows it
+ * one by one (ADR 0056), the sibling of the refunded line: "62 interest
+ * movements folded by month — show", or "… shown one by one — fold", the
+ * word the link to the same place with them shown or folded. Nothing when
+ * the list folds none.
+ *
+ * @param {{ count: number, place: FinancesPlace, as?: 'p' | 'span' }} props
+ *   `count` how many of the list's movements are in a month's run of interest
+ */
+export function InterestLine({ count, place, as = 'p' }) {
+  if (count === 0) return null;
+  const shown = place.interest === 'show';
+  const what = count === 1 ? '1 interest movement' : count + ' interest movements';
+  const Tag = as;
+  return (
+    <Tag className="caption finance-list-more finance-interest-line">
+      {what} {shown ? 'shown one by one' : 'folded by month'} —{' '}
+      <Link
+        href={financesHref({ ...place, interest: shown ? null : 'show' })}
+        scroll={false}
+        className="finance-account-link"
+        aria-label={shown ? 'Fold the ' + what + ' by month' : 'Show the ' + what + ' one by one'}
+      >
+        {shown ? 'fold' : 'show'}
+      </Link>
+    </Tag>
+  );
+}
+
 /** How the account panel names a kind, as the mockup does: "invested", "debt". */
 /** @type {Record<import('@/lib/domain/types.js').FinanceAccount['kind'], string>} */
 export const KIND_LABELS = { cash: 'cash', investment: 'invested', asset: 'asset', liability: 'debt' };

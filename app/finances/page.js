@@ -9,7 +9,7 @@ import { lineName } from '@/components/finance.js';
 import { monthLabel } from '@/components/format.js';
 import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
-import { financesRefunded, financesSpan, financesView } from '@/lib/domain/addresses.js';
+import { financesInterest, financesRefunded, financesSpan, financesView } from '@/lib/domain/addresses.js';
 import { isMonthKey, monthOf, today, yearOf } from '@/lib/domain/dates.js';
 import {
   allocationAccounts,
@@ -107,11 +107,16 @@ export const dynamic = 'force-dynamic';
  * purchases a refund could be paired with, or shows its pair (refundPanel).
  * Balances and net worth never read the pairs: both movements moved money.
  *
+ * A deposit's interest (ADR 0056) -- a few cents a day, and the tax withheld
+ * on it -- is one row per account and month in both lists (foldInterest),
+ * each line's at what the line counts, unless `?interest=show` lists them
+ * one by one. Display only: no figure reads it.
+ *
  * What the holdings earned (investmentReturns, ADR 0051) is read once: the
  * Net worth card's Invested section and Investments fold show all of them,
  * and a selected holding's panel shows its own.
  *
- * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], view?: string | string[], transaction?: string | string[], category?: string | string[], tag?: string | string[], span?: string | string[], refunded?: string | string[] }> }} props
+ * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], view?: string | string[], transaction?: string | string[], category?: string | string[], tag?: string | string[], span?: string | string[], refunded?: string | string[], interest?: string | string[] }> }} props
  */
 export default async function FinancesScreen({ searchParams }) {
   const {
@@ -124,6 +129,7 @@ export default async function FinancesScreen({ searchParams }) {
     tag: tagParam,
     span: spanParam,
     refunded: refundedParam,
+    interest: interestParam,
   } = await searchParams;
   const todayKey = today();
   const [finance, syncStates, selected, profile, selectedTransaction] = await Promise.all([
@@ -141,6 +147,7 @@ export default async function FinancesScreen({ searchParams }) {
   const categories = profile.financeCategories;
   const refunds = refundPairs(transactions, finance.refundLinks ?? []);
   const refunded = financesRefunded(refundedParam);
+  const interest = financesInterest(interestParam);
   // The month of the selected transaction is on offer even when the section
   // would not (before "tracked since", or after today): a citation links to
   // a transaction with its month, and the list beside it has to contain it.
@@ -167,6 +174,7 @@ export default async function FinancesScreen({ searchParams }) {
     max: limits.financeListMax,
     refunds,
     refunded,
+    interest,
   });
   const periodLabel = period === 'year' ? yearOf(month) : monthLabel(month);
   const view = financesView(viewParam);
@@ -178,6 +186,7 @@ export default async function FinancesScreen({ searchParams }) {
     max: limits.financeListMax,
     refunds,
     refunded,
+    interest,
   });
   // The columns, only where they are drawn (ADR 0053).
   /** @type {import('@/components/FinanceFlows.js').ChartColumns | null} */
@@ -194,7 +203,7 @@ export default async function FinancesScreen({ searchParams }) {
       ? []
       : rows.filter((row) => row.accountId === selected.id).sort((a, b) => b.date.localeCompare(a.date));
   /** @type {import('@/components/finance.js').FinancesPlace} */
-  const place = { account: selected?.id ?? null, month, period, view, category, tag, span, refunded, transaction: selectedTransaction?.id ?? null };
+  const place = { account: selected?.id ?? null, month, period, view, category, tag, span, refunded, interest, transaction: selectedTransaction?.id ?? null };
 
   return (
     <section id="screen-finances" className="screen is-active">
@@ -238,6 +247,7 @@ export default async function FinancesScreen({ searchParams }) {
             averages={year === null ? null : lineAverages(year)}
             uncategorised={uncategorisedCounts(transactions, categories, periodMonths, refunds)}
             movements={movements}
+            accounts={accounts.map((account) => ({ id: account.id, name: account.name }))}
             months={months}
             month={month}
             todayKey={todayKey}
@@ -261,6 +271,7 @@ export default async function FinancesScreen({ searchParams }) {
             more={listed.more}
             standings={listed.standings}
             refunded={listed.refunded}
+            interest={listed.interest}
             max={limits.financeListMax}
             periodLabel={periodLabel}
             todayKey={todayKey}

@@ -322,6 +322,21 @@ export const ORIGIN_SOURCES = Object.freeze({
 /** @type {readonly string[]} */
 export const ORIGIN_SOURCE_VALUES = Object.freeze(Object.values(ORIGIN_SOURCES));
 
+/**
+ * The words a statement uses for a deposit's interest in its movement type
+ * (ADR 0056): the bank's own type, which the statement importer keeps on the
+ * movement's origin (`origin.detail.type`, ADR 0041) -- Revolut's `Tipo` --
+ * and copies onto the fee charged on the row, the tax withheld on interest
+ * (`part: 'fee'`). A movement from a statement whose type is one of these,
+ * ignoring case, is interest; the lists fold an account's month of it into
+ * one row. Read, never written: nothing is stored and nothing is refused by
+ * it, so a word added here applies to every movement already imported.
+ * Closed: a bank whose word differs is added here and in docs/domain.md.
+ *
+ * @type {readonly string[]}
+ */
+export const INTEREST_MOVEMENT_TYPES = Object.freeze(['Interessi']);
+
 /** What a finance observation measured at a point in time. */
 export const OBSERVATION_KINDS = Object.freeze(['balance', 'position']);
 
@@ -442,6 +457,15 @@ export const limits = Object.freeze({
    */
   financeRefundWindowDays: 90,
   financeRefundCandidatesMax: 20,
+  /**
+   * A deposit pays interest every day, a few cents, and a statement writes
+   * the tax withheld on it as a fee of its own (ADR 0056): sixty rows a month
+   * that say nothing one by one. Finances' lists fold an account's interest
+   * movements of a month into one net row when a list holds at least this
+   * many of them; fewer stay as they are. Three: a day's interest and its
+   * fee are two rows, and two rows need no summary.
+   */
+  financeInterestRunMin: 3,
   /**
    * Income & spending's day columns (ADR 0053, amended) mark a day's income
    * only when it is at least this whole percent of the month's income,
