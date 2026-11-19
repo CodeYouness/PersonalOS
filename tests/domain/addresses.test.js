@@ -4,8 +4,11 @@ import {
   crmAddress,
   financesAddress,
   financesInterest,
+  financesParams,
+  financesQuery,
   financesRefunded,
   financesSpan,
+  financesUncounted,
   financesView,
   goalsAddress,
   journalAddress,
@@ -14,6 +17,7 @@ import {
 } from '@/lib/domain/addresses.js';
 import { financesHref, lineName } from '@/components/finance.js';
 import { journalHref } from '@/components/journal.js';
+import { limits } from '@/personalos.config.js';
 
 describe('addresses: one implementation of where a record opens', () => {
   it('addresses a CRM task, keeping the view', () => {
@@ -102,6 +106,45 @@ describe('addresses: one implementation of where a record opens', () => {
     expect(financesInterest(undefined)).toBeNull();
     expect(financesInterest('fold')).toBeNull();
     expect(financesInterest(['show', 'show'])).toBeNull();
+  });
+
+  it('writes the not-counted movements shown after the interest, and reads them back (ADR 0058)', () => {
+    expect(financesAddress({ month: '2026-03', refunded: 'show', interest: 'show', uncounted: 'show', transaction: 'tx_1' })).toBe(
+      '/finances?month=2026-03&refunded=show&interest=show&uncounted=show&transaction=tx_1'
+    );
+    expect(financesAddress({ month: '2026-03', uncounted: null })).toBe('/finances?month=2026-03');
+    expect(financesUncounted('show')).toBe('show');
+    expect(financesUncounted(undefined)).toBeNull();
+    expect(financesUncounted('hide')).toBeNull();
+    expect(financesUncounted(['show', 'show'])).toBeNull();
+  });
+
+  it('writes a search after the toggles and before the selected movement, so opening a result keeps it (ADR 0058)', () => {
+    expect(financesAddress({ month: '2026-03', uncounted: 'show', q: 'café 12,50', transaction: 'tx_1' })).toBe(
+      '/finances?month=2026-03&uncounted=show&q=caf%C3%A9+12%2C50&transaction=tx_1'
+    );
+    const written = financesAddress({ month: '2026-03', q: 'a&b=c #1' });
+    expect(new URL(written, 'http://localhost').searchParams.get('q')).toBe('a&b=c #1');
+  });
+
+  it('reads a search from the address: trimmed, spaces collapsed, capped, and none when empty (ADR 0058)', () => {
+    expect(financesQuery('  lunch   at  noon ')).toBe('lunch at noon');
+    expect(financesQuery('')).toBeNull();
+    expect(financesQuery('   ')).toBeNull();
+    expect(financesQuery(undefined)).toBeNull();
+    expect(financesQuery(['lunch', 'dinner'])).toBeNull();
+    const long = financesQuery('x'.repeat(500));
+    expect(long?.length).toBe(limits.financeSearchMaxLength);
+    expect(financesQuery('a' + ' '.repeat(limits.financeSearchMaxLength) + 'b')).toBe('a b');
+  });
+
+  it('lists a place as the parameters it writes, for a form to carry as hidden fields (ADR 0058)', () => {
+    expect(financesParams({ account: 'account_a', month: '2026-03', period: 'month', view: 'columns', uncounted: 'show', q: null })).toEqual([
+      ['account', 'account_a'],
+      ['month', '2026-03'],
+      ['view', 'columns'],
+      ['uncounted', 'show'],
+    ]);
   });
 
   it('writes the columns of Income & spending, never the circle, its default (ADR 0053)', () => {

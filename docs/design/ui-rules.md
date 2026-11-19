@@ -125,6 +125,14 @@ steps the border, focus turns it to the accent and the ring shows. A label
 you can see above every field (`.field > .caption`, 13px/500). A placeholder
 is never the label.
 
+**A search field** is the one field without a label above it (ADR 0058): it
+sits in its card's head, which names what it searches, beside the eyebrow
+and under it on a phone; its name for a screen reader is an `aria-label`,
+its placeholder says what it searches ("Search all movements"), and Enter
+submits it -- a plain GET form, the page rendered on the server. While a
+search is listed, the head says what it lists ("12 movements matching
+“lunch”") and links back to what was listed before.
+
 **A box you write prose in grows with the text**, from its own minimum height
 up to 60% of the screen (`60svh`), then scrolls inside; it shrinks back as
 lines are deleted or the box is cleared, and has no drag handle. It is
@@ -243,7 +251,13 @@ A list that leaves rows out or folds them says so in a **last quiet line**,
 a caption, with the count and the one word that undoes it as a link to the
 same place with every other parameter kept: "3 refunded movements hidden —
 show" (ADR 0055), "62 interest movements folded by month — show" (ADR 0056);
-undone, the same line offers the way back ("hide", "fold"). A folded row
+undone, the same line offers the way back ("hide", "fold"). **A list that
+leaves out several things says them in one line**, never one line each (ADR
+0058): what it leaves out joined by " · ", then " — " and each way back as
+a link, grouped by what it does -- "The newest 100 of 140 in March 2026 · 5
+refunded and 12 not-counted movements hidden — show: all 140, refunded, not
+counted" -- each link's `aria-label` saying the whole action. The
+Transactions card's is that line. A folded row
 reads as any row -- date, name, amount -- and its name is the link that
 unfolds it; it never opens a panel of its own.
 

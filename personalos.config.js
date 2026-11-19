@@ -435,11 +435,19 @@ export const limits = Object.freeze({
   /**
    * Finances' Transactions card, reading a month or a year with nothing
    * selected (ADRs 0046, 0048), lists this many of the newest movements and
-   * says how many more there are, with a link to show them all: a month is
-   * a hundred rows, a year hundreds, and nobody reads them all. A category or
-   * a tag narrows it, and is listed whole.
+   * says how many more there are, with a link to show them all: a year is
+   * hundreds of rows, and nobody reads them all. A hundred (ADR 0058), so a
+   * month a little over the old fifty is simply listed whole. A category or
+   * a tag narrows it, and is listed whole; a search (ADR 0058) is capped the
+   * same way. A line's movements opened in place read the same cap.
    */
-  financeListMax: 50,
+  financeListMax: 100,
+  /**
+   * The longest search the Transactions card reads (ADR 0058), in
+   * characters, after trimming: what is typed past it is dropped. A search is
+   * a few words, and the address carries it.
+   */
+  financeSearchMaxLength: 100,
   /**
    * A movement may be counted over the months it is for (ADR 0052) -- a
    * salary for three months paid at once, a year's insurance -- at most this

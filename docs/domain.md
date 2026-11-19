@@ -1630,7 +1630,10 @@ is yours (ADR 0023): the movements' ids are stable, so a re-import keeps it.
   its description. A last quiet line says how many were left out, "3
   refunded movements hidden — show", the link keeping every other parameter;
   shown, a refund says "refund of <purchase>", a purchase "refunded" (or
-  what came back) at its own amount, and "hide" replaces "show". The cap and
+  what came back) at its own amount, and "hide" replaces "show". In the
+  Transactions card that line is part of its one service line (ADR 0058,
+  "3 refunded movements hidden — show: refunded"), and the movement open in
+  the panel is listed as itself even while the others are hidden. The cap and
   "and N more" count what is listed.
 - **Pairing it** is the movement's panel's: on money in that can be a
   refund and is not paired, "Refund of…" lists the purchases it could give
@@ -1677,8 +1680,9 @@ any other. Only the lists read it as interest (ADR 0056).
   rows as shown. The row's name, and a last quiet line "62 interest
   movements folded by month — show", list them one by one
   (`?interest=show`, kept with the other parameters), each opening its own
-  panel; shown, the line says "… shown one by one — fold". The row is
-  selected while it holds the selected movement.
+  panel; shown, the line says "… shown one by one — fold". In the
+  Transactions card that line is part of its one service line (ADR 0058).
+  The row is selected while it holds the selected movement.
 - **Display only.** No figure reads it: the month, the year, the columns,
   the circle, the lines, By tag, the week, balances and net worth count each
   movement as they always did.
@@ -1820,10 +1824,10 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   `yearFlows` is not this: it is the twelve months ending with a month, the
   "Saved over 12 months" rate.
 - **The Transactions card** lists, with nothing selected, the period's
-  newest `limits.financeListMax` (50) movements by date -- a month's as well
-  as a year's (ADRs 0046, 0048) -- says how many more there are, and offers
-  them all (`?span=all`, which with a tag means all of the tag's) or a
-  category or a tag to narrow it. A selected line or tag is listed whole:
+  newest `limits.financeListMax` (100) movements by date -- a month's as well
+  as a year's (ADRs 0046, 0048, 0058) -- says how many more there are, and
+  offers them all (`?span=all`, which with a tag means all of the tag's). A
+  selected line or tag is listed whole:
   what its total counts in the period, so a movement counted over several
   months is listed in each of them (ADR 0052). A movement counted over months
   stays on the day it was paid, with a quiet "· counted over Sept–Nov". A
@@ -1834,10 +1838,30 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   sideways (ADR 0053): the date and the amount as wide as their text, the
   rest shared, and a narrow card drops the account, then the category --
   the description's title names both. A refund paired with its purchase and
-  a purchase all of which came back are left out unless `?refunded=show`,
-  and said in a last line (Refund, ADR 0055). An account's month of interest
-  is one row unless `?interest=show`, and said in a last line too (Interest,
-  ADR 0056).
+  a purchase all of which came back are left out unless `?refunded=show`
+  (Refund, ADR 0055). An account's month of interest is one row unless
+  `?interest=show` (Interest, ADR 0056). **A movement not counted** -- in no
+  total -- is left out with nothing selected unless `?uncounted=show` (ADR
+  0058); a line or a tag never holds one, and a transfer not marked stays.
+  **The movement open in the panel is never left out**, refunded or not
+  counted. **One service line** under the list says all of it and offers
+  each toggle inside it: "The newest 100 of 140 in March 2026 · 5 refunded
+  and 12 not-counted movements hidden · 60 interest movements folded by month
+  — show: all 140, refunded, not counted, interest"; what is shown is offered
+  back ("hide: refunded", "fold: interest", "show: newest 100"); nothing when
+  nothing applies.
+- **A search** (`?q=`, ADR 0058, `lib/domain/derive/search.js`): the
+  Transactions card's search field lists every movement of **all time** that
+  matches, newest first, capped as a period is. A movement matches when
+  every word of the search -- case and accents ignored -- is in its
+  description, note, tags, category's or parent category's name, account's or
+  a transfer's other account's name, or is an amount typed as a person types
+  it ("12.50", "12,50", "250") equal to the movement's, either direction.
+  Nothing is hidden or folded while searching; a refunded or not-counted
+  movement keeps its mark. The head says "12 movements matching “lunch”" and
+  links back to the period; a result opens its panel with the search kept. A
+  selected line or tag wins over a search. The search is trimmed and cut to
+  `limits.financeSearchMaxLength` (100) characters (`financesQuery`).
 - **The composition** (`spendingParts`), above the spending table: one bar of the
   period's spending by top-level category and Uncategorised, each line's
   part of what the lines with money spent add up to -- a net refund has no

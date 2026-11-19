@@ -1,6 +1,10 @@
 # 0055. A refund is paired with its purchase, and the pair leaves the list
 
-- **Status** accepted
+- **Status** accepted; amended by
+  [0058](0058-the-transactions-card-reads-a-month-and-searches.md): in the
+  Transactions card the quiet line is part of one service line ("5 refunded
+  movements hidden — show: refunded"), and the movement open in the panel is
+  never left out
 - **Date** 2026-11-19
 - **Amends** [0023](0023-transactions-are-signed.md) (what decides where a
   movement counts), [0006](0006-relations-live-in-links.md) (the link
