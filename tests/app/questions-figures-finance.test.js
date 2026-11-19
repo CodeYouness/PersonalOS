@@ -24,6 +24,7 @@ import {
   flowMonths,
   monthFlows,
   savingsRate,
+  savingsReading,
   tagFlows,
   yearFlows,
 } from '@/lib/domain/derive/finance.js';
@@ -248,15 +249,16 @@ describe('finance figures: a month', () => {
       expect(item(items, 'figure:fixed:' + month)?.content).toContain(eur(flows.fixed));
       expect(item(items, 'figure:variable:' + month)?.content).toContain(eur(flows.variable));
 
-      const monthRate = savingsRate(flows);
-      const monthItem = item(items, 'figure:savings-rate:' + month);
-      if (monthRate === null) expect(monthItem).toBeUndefined();
-      else expect(monthItem?.content).toContain(formatPercent(monthRate));
-
-      const yearRate = savingsRate(yearFlows(archive.transactions, categories, month));
-      const yearItem = item(items, 'figure:savings-rate-12m:' + month);
-      if (yearRate === null) expect(yearItem).toBeUndefined();
-      else expect(yearItem?.content).toContain(formatPercent(yearRate));
+      // As the card shows it (ADR 0059): the rate, what was saved, or nothing.
+      for (const [id, reading] of /** @type {const} */ ([
+        ['figure:savings-rate:' + month, savingsReading(flows, null)],
+        ['figure:savings-rate-12m:' + month, savingsReading(yearFlows(archive.transactions, categories, month), null)],
+      ])) {
+        const one = item(items, id);
+        if (reading.rate !== null) expect(one?.content).toContain(formatPercent(reading.rate));
+        else if (reading.saved !== null) expect(one?.content).toContain(eur(reading.saved));
+        else expect(one).toBeUndefined();
+      }
     }
   });
 
@@ -345,7 +347,8 @@ describe('finance figures: category lines', () => {
       const one = item(items, 'figure:category:2026-01:' + line.id);
       expect(one?.label).toBe(line.name + ', January 2026');
       expect(one?.content).toContain(eur(line.total));
-      expect(one?.content).toContain(formatPercent(line.share));
+      expect(line.share).not.toBeNull();
+      expect(one?.content).toContain(formatPercent(/** @type {number} */ (line.share)));
     }
     expect(item(items, 'figure:category:2026-01:cat_groceries')?.content).toContain('62.50 EUR');
     expect(item(items, 'figure:category:2026-01:cat_consulting')?.content).toMatch(/^Income from Consulting in January 2026: 2500.00 EUR/);
@@ -373,6 +376,46 @@ describe('finance figures: category lines', () => {
     expect(content).toContain('−');
     expect(content).toContain(formatPercent(/** @type {number} */ (rate)));
     expect(content).not.toMatch(/-\d+%/);
+  });
+
+  it('states what was saved, not a rate, when more than twice what came in went out (ADR 0059)', async () => {
+    // January earns 3300.00 EUR and spends 1012.50: spend 9000.00 more and −203% would say nothing.
+    await store.createTransaction({ date: '2026-01-20', amount: -900000, currency: 'EUR', accountId: CURRENT, categoryId: 'cat_groceries' });
+    await store.updateProfile({ financeSavingsTarget: 50 });
+    const { archive, items } = await build();
+    const flows = monthFlows(archive.transactions, archive.profile.financeCategories, '2026-01');
+    const reading = savingsReading(flows, 50);
+
+    expect(reading.rate).toBeNull();
+    const content = item(items, 'figure:savings-rate:2026-01')?.content ?? '';
+    expect(content).toContain('Saved in January 2026: ' + eur(flows.income - flows.spending));
+    expect(content).toContain('more than twice what came in went out');
+    expect(content).toContain('Against the target savings rate of 50%: under it.');
+    expect(content).not.toMatch(/−\d+%/);
+  });
+
+  it('states what was saved, not a rate, when nothing came in (ADR 0059)', async () => {
+    // February: the seed has nothing; 40.00 spent and nothing earned.
+    await store.createTransaction({ date: '2026-02-03', amount: -4000, currency: 'EUR', accountId: CURRENT, categoryId: 'cat_groceries' });
+    const { items } = await build();
+
+    const content = item(items, 'figure:savings-rate:2026-02')?.content ?? '';
+    expect(content).toContain('Saved in February 2026: ' + eur(-4000));
+    expect(content).toContain('nothing came in');
+  });
+
+  it('gives a net refund no share, as the card shows none (ADR 0059)', async () => {
+    // February: groceries spent 40.00; eating out refunded 15.00 on its own.
+    await store.createTransaction({ date: '2026-02-03', amount: -4000, currency: 'EUR', accountId: CURRENT, categoryId: 'cat_groceries' });
+    await store.createTransaction({ date: '2026-02-04', amount: 1500, currency: 'EUR', accountId: CURRENT, categoryId: 'cat_eating_out' });
+    const { archive, items } = await build();
+    const flows = monthFlows(archive.transactions, archive.profile.financeCategories, '2026-02');
+
+    const refunded = flows.spendingCategories.find((line) => line.total < 0);
+    expect(refunded?.share).toBeNull();
+    const content = item(items, 'figure:category:2026-02:' + refunded?.id)?.content ?? '';
+    expect(content).toContain(eur(/** @type {number} */ (refunded?.total)));
+    expect(content).not.toContain('Its share');
   });
 
   it('names a subcategory under its parent, and a parent says it includes them', async () => {

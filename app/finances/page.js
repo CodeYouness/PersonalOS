@@ -25,7 +25,6 @@ import {
   movementLines,
   periodInvested,
   quietAccounts,
-  savingsRate,
   tagFlows,
   uncategorisedCounts,
   worthChart,
@@ -100,7 +99,12 @@ export const dynamic = 'force-dynamic';
  * 0048, 0058).
  *
  * Each savings rate is set against the target savings rate, when one is set
- * in Settings, under Manage (ADR 0045).
+ * in Settings, under Manage (ADR 0045); where a percent says nothing -- no
+ * income, or below −100% -- the card shows what was saved instead
+ * (savingsReading, ADR 0059).
+ *
+ * The By tag card shows only when the period holds a tagged movement or a tag
+ * is selected (ADR 0059), and never when no movement has a tag.
  *
  * A refund paired with its purchase (ADR 0055) is read through the pairs
  * every flow is handed (refundPairs): it reduces the purchase's spending, in
@@ -274,7 +278,7 @@ export default async function FinancesScreen({ searchParams }) {
             flows={flows}
             period={period}
             view={view}
-            yearRate={period === 'year' ? null : savingsRate(yearFlows(transactions, categories, month, refunds))}
+            twelveMonths={period === 'year' ? null : yearFlows(transactions, categories, month, refunds)}
             target={profile.financeSavingsTarget}
             columns={columns}
             invested={periodInvested(trades, periodMonths)}

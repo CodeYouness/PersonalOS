@@ -255,7 +255,7 @@ vocabulary keys, since one of them holds the sentence of a deleted capture.
 
 **Computed figures** (#174) are appended after the records: `figures-finance.js`
 and `figures-life.js` call the derivations the screens call (`financeOverview`,
-`flowMonths`, `monthFlows`, `savingsRate`, `yearFlows`, `streak`,
+`flowMonths`, `monthFlows`, `savingsReading`, `yearFlows`, `streak`,
 `windowSummary`, `historyRows`, `healthAverages`, `weightTrend`, `dayTotals`,
 `goalBoard`) with the screens' arguments, so the number in an answer is the
 number on the screen, and add no arithmetic of their own. A figure is an

@@ -1,8 +1,9 @@
 /**
  * The By tag card (ADR 0046): each tag of the period with its movements,
  * what it spent in the period and over all time, largest first, each a link
- * that lists its movements -- and nothing at all when no movement has a
- * tag. Every row here is invented.
+ * that lists its movements -- and nothing at all when the period holds no
+ * tagged movement and no tag is selected (ADR 0059), or when no movement has
+ * a tag. Every row here is invented.
  */
 
 import { createElement } from 'react';
@@ -70,14 +71,20 @@ describe('FinanceTags', () => {
     expect(html).toMatch(/<tr class="is-selected"><td><a [^>]*aria-current="true"[^>]*>coffee</);
   });
 
-  it('says so when no tagged movement is counted in the period', () => {
-    const html = render({ months: ['2026-01'] });
+  it('is not there when no tagged movement is counted in the period (ADR 0059)', () => {
+    expect(render({ months: ['2026-01'] })).toBe('');
+  });
 
+  it('stays, saying the period holds none, while a tag is selected, so the selection can be cleared', () => {
+    const html = render({ months: ['2026-01'], place: { month: '2026-01', tag: 'coffee' } });
+
+    expect(html).toContain('id="card-finance-tags"');
     expect(html).toContain('No tagged movement counted in March 2026.');
     expect(html).not.toContain('<table');
   });
 
   it('is not there at all when no movement has a tag', () => {
     expect(render({ rows: [t('2026-03-02', -100, [])] })).toBe('');
+    expect(render({ rows: [t('2026-03-02', -100, [])], place: { month: '2026-03', tag: 'coffee' } })).toBe('');
   });
 });

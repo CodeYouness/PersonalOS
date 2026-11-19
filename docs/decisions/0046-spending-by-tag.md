@@ -6,7 +6,9 @@
   [0050](0050-income-and-spending-reads-as-a-circle.md): a month has no
   average any more, so no line is listed for one; and by
   [0058](0058-the-transactions-card-reads-a-month-and-searches.md): the movement open in
-  the panel is never left out of the list beside it
+  the panel is never left out of the list beside it; and by
+  [0059](0059-finances-shows-only-what-says-something.md): the card is not there
+  when the period holds no tagged movement, unless a tag is selected
 - **Date** 2026-11-17
 
 ## Context

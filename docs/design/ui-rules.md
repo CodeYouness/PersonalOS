@@ -247,6 +247,17 @@ lines), it says so by listing all of them, not by a fold. **The rows an
 opened line shows add up to it**: what is filed on the line itself is a row
 of its own ("No subcategory"), never left out (ADR 0057).
 
+**A figure that says nothing is not printed as one** (ADR 0059). "—" is the
+screen's mark for nothing to say, in a cell as for an unknown: a share of a
+net refund, or of a whole that is not positive, is "—", never "−50%" or
+"100%". A percentage that would read as a measure and measure nothing -- a
+savings rate with no income, or below −100% -- gives way to the money it
+stands for, signed and formatted as the money beside it ("−€ 250.00"), and
+what is said about it (a target met or not) stays true to the money. **A
+card with nothing to say is not there** -- By tag in a period without a
+tagged movement -- unless something selected in it has to stay where it can
+be cleared.
+
 A list that leaves rows out or folds them says so in a **last quiet line**,
 a caption, with the count and the one word that undoes it as a link to the
 same place with every other parameter kept: "3 refunded movements hidden —

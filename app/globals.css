@@ -1196,10 +1196,8 @@ a.cite { text-decoration: none; }
 .finance-month-label { font-size: 16px; color: var(--ink); min-width: 120px; text-align: center; }
 .finance-entry + .field, .field + .finance-entry { margin-top: var(--s-sm); }
 .finance-check { display: flex; align-items: center; gap: var(--s-xs); min-height: var(--control-h); margin: var(--s-xs) 0 var(--s-sm); cursor: pointer; }
-/* A movement's panel: which months it counts for (ADR 0052). */
-.finance-counts-for { display: flex; flex-direction: column; gap: var(--s-xs); margin: 0 0 var(--s-sm); }
-.finance-counts-for .segmented { flex-wrap: wrap; }
-.finance-counts-note { margin: 0; }
+/* A movement's panel: the months it is counted over, read-only (ADRs 0052, 0059). */
+.finance-counts-note { margin: 0 0 var(--s-sm); }
 /* A movement's panel: a refund and its purchase (ADR 0055). Each row is one
    line, the description cut first; the day and the amount as wide as their text. */
 .finance-refund { display: flex; flex-direction: column; gap: var(--s-xs); margin: 0 0 var(--s-sm); }
