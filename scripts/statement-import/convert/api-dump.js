@@ -1,6 +1,6 @@
 /**
  * A bank's or a card's own web API, as the browser saved it (a "dump"),
- * converted into the shape an existing format already reads (ADR 0060).
+ * converted into the shape an existing format already reads (ADR 0061).
  * Pure: the parsed dump, a month window and a timezone in; rows, left-out
  * movements and problems out. No file, no clock.
  *

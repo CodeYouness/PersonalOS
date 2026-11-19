@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Converts what the fetch-statements skill saved from a bank's or a card's
- * own web API (a "dump") into the file the next step reads (ADR 0060): a
+ * own web API (a "dump") into the file the next step reads (ADR 0061): a
  * bank's into a CSV for `npm run data:import-statement`, the Bybit card's
  * into the card JSON for `npm run data:convert-bybit`. The rules are in
  * `scripts/statement-import/convert/api-dump.js`.

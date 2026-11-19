@@ -32,6 +32,10 @@ personal goes in this file, a commit, a PR or a test.
 
 ## Steps
 
+When the user asks for months instead of handing files over, run
+`fetch-statements` first: it saves and converts them, and ends where step 2
+begins.
+
 1. **Keep the original.** Copy what the user gave into `data/finance/`
    unchanged.
 2. **Find where the data stops.** For the account, read the last movements

@@ -6,6 +6,11 @@ per skill with a `SKILL.md` inside.
 - `land-stack/` -- `/land-stack`: squash-merge a stack of one-ticket PRs
   into main without closing or breaking the children. Its repair step is
   `scripts/repair-stacked-child.sh`.
+- `update-finances/` -- bring Finances up to date from exports: convert,
+  import, categorise, report.
+- `fetch-statements/` -- fetch chosen months from the Bybit card,
+  Mediolanum and Crédit Agricole web apps and convert them for
+  `update-finances` (ADR 0061).
 
 Kept small on purpose. A procedure earns a file once it has been done by hand a
 couple of times and proved worth repeating -- specification, ticketing, code
