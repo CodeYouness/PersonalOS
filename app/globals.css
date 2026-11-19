@@ -1629,15 +1629,6 @@ a.cite { text-decoration: none; }
 .finance-fold > summary:hover { background: var(--surface-2); transition-duration: var(--m-in); }
 .finance-fold-name { font-size: 16px; color: var(--ink); }
 
-/* A category table's lines with nothing in the period, folded in one row. */
-.finance-quiet-toggle {
-  display: inline-flex; align-items: center; gap: 2px;
-  min-height: var(--control-h-dense); padding: 0; margin: -4px 0;
-  background: none; border: none; font: inherit; font-size: 16px; color: var(--ink-muted); cursor: pointer;
-}
-.finance-quiet-toggle:hover { color: var(--ink); }
-.finance-quiet-mark { display: inline-block; width: 28px; margin-left: -6px; text-align: center; color: var(--ink-subtle); }
-
 /* Movements without a category: one line at the top of Income & spending. */
 .finance-review-line {
   margin: 0 0 var(--s-md); padding: var(--s-xs) var(--s-sm);

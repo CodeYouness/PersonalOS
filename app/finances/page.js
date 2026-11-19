@@ -65,7 +65,8 @@ export const dynamic = 'force-dynamic';
  * (ADRs 0047, 0048), whatever month is read.
  *
  * `?category=<line>` selects a line of the Income & spending section (#137)
- * -- a category, or Uncategorised spending or income -- and lists that
+ * -- a category, a parent's own movements (ADR 0057), or Uncategorised
+ * spending or income -- and lists that
  * month's transactions it counts; one that no longer exists selects
  * nothing. The month is one the section offers -- from "tracked since" or
  * the first transaction to today's, and the month of the selected
@@ -76,9 +77,11 @@ export const dynamic = 'force-dynamic';
  * instead of the month (calendarYearFlows); anything else, or nothing, reads
  * the month. A selected line then lists the year's transactions.
  *
- * The section always shows its breakdown on the right, with its comparison
- * columns, where a subcategory -- or a line without any -- opens its
- * movements of the period in place (lineMovements). On its left it draws the
+ * The section always shows its breakdown on the right -- the lines the
+ * period holds, every income line, no comparison (ADR 0057) -- where a
+ * subcategory, a parent's own row ("No subcategory", `?category=own:<id>`)
+ * or a line without any opens its movements of the period in place
+ * (lineMovements). On its left it draws the
  * circle of the period, or with `?view=columns` its columns -- a month's
  * days (dayColumns) or a year's months (yearColumns), computed only then --
  * with the four totals and the rest of the summary under it (ADR 0053); an

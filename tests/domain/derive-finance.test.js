@@ -18,14 +18,17 @@ import {
   flowCircle,
   flowMonths,
   flowTrend,
-  foldedLines,
   lineAverages,
+  lineChanges,
   lineHolds,
+  lineMovements,
   listedTransactions,
   meetsSavingsTarget,
   monthFlows,
   monthsWith,
+  movementLines,
   netWorthOn,
+  ownLine,
   periodInvested,
   quietAccounts,
   savingsRate,
@@ -681,18 +684,19 @@ describe("a month's flows (#137)", () => {
     expect(flows.income).toBe(5000);
   });
 
-  it('gives the Uncategorised lines a change from the previous month too', () => {
-    const flows = monthFlows([t('2026-02-02', -1000, null), t('2026-03-02', -1500, null)], categories, '2026-03');
+  /** Each line of March against February, as the question context states it (lineChanges). @param {any[]} rows */
+  const changes = (rows) => lineChanges(monthFlows(rows, categories, '2026-03'), rows, categories, '2026-03');
 
-    expect(flows.uncategorisedSpending).toMatchObject({ previous: 1000, change: 500, changeRatio: 0.5 });
+  it('gives the Uncategorised lines a change from the previous month too', () => {
+    expect(changes([t('2026-02-02', -1000, null), t('2026-03-02', -1500, null)]).get(UNCATEGORISED_SPENDING)).toEqual({ previous: 1000, change: 500, changeRatio: 0.5 });
   });
 
   it('measures a change against the size of a negative previous month, not its sign', () => {
     // Last month was a net refund of 30; this month 100 was spent.
-    const flows = monthFlows([t('2026-02-10', 3000, 'cat_shopping'), t('2026-03-10', -10000, 'cat_shopping')], categories, '2026-03');
+    const shopping = changes([t('2026-02-10', 3000, 'cat_shopping'), t('2026-03-10', -10000, 'cat_shopping')]).get('cat_shopping');
 
-    expect(flows.spendingCategories.find((row) => row.id === 'cat_shopping')).toMatchObject({ previous: -3000, change: 13000 });
-    expect(flows.spendingCategories.find((row) => row.id === 'cat_shopping')?.changeRatio).toBeCloseTo(13000 / 3000);
+    expect(shopping).toMatchObject({ previous: -3000, change: 13000 });
+    expect(shopping?.changeRatio).toBeCloseTo(13000 / 3000);
   });
 
   it('keeps a parent whose subcategories cancel out, so they can still be opened', () => {
@@ -728,27 +732,99 @@ describe("a month's flows (#137)", () => {
     const home = flows.spendingCategories.find((row) => row.id === 'cat_home');
     expect(home).toMatchObject({ total: 100000, share: 0.5 });
     expect(home?.children.map((row) => [row.id, row.total])).toEqual([['cat_rent', 90000], ['cat_repairs', 6000]]);
-    expect(home?.own).toBe(4000);
+    expect(home?.own?.total).toBe(4000);
     expect(flows.spendingCategories.find((row) => row.id === 'cat_shopping')?.share).toBe(0.5);
   });
 
-  it('gives each category\'s change from the previous month, in euros and percent, "n.d." when it was zero', () => {
-    const flows = monthFlows(
-      [t('2026-02-10', -8000, 'cat_shopping'), t('2026-03-10', -10000, 'cat_shopping'), t('2026-03-01', -90000, 'cat_rent')],
-      categories,
-      '2026-03'
-    );
+  it('gives each line\'s change from the previous month, in euros and percent, "n.d." when it was zero', () => {
+    const lines = changes([
+      t('2026-02-10', -8000, 'cat_shopping'),
+      t('2026-02-11', -500, 'cat_repairs'),
+      t('2026-03-10', -10000, 'cat_shopping'),
+      t('2026-03-01', -90000, 'cat_rent'),
+    ]);
 
-    expect(flows.spendingCategories.find((row) => row.id === 'cat_shopping')).toMatchObject({ previous: 8000, change: 2000, changeRatio: 0.25 });
-    expect(flows.spendingCategories.find((row) => row.id === 'cat_home')).toMatchObject({ previous: 0, change: 90000, changeRatio: null });
+    expect(lines.get('cat_shopping')).toEqual({ previous: 8000, change: 2000, changeRatio: 0.25 });
+    expect(lines.get('cat_rent')).toEqual({ previous: 0, change: 90000, changeRatio: null });
+    // A parent's month before is all of it, a subcategory not listed this month included.
+    expect(lines.get('cat_home')).toEqual({ previous: 500, change: 89500, changeRatio: 179 });
+    expect(lines.has('cat_repairs')).toBe(false);
   });
 
-  it('lists a category that had money last month and none this month', () => {
-    const flows = monthFlows([t('2026-02-10', -8000, 'cat_shopping')], categories, '2026-03');
+  describe('the lines it lists, and what an opened line adds up to (ADR 0057)', () => {
+    const withIncome = [
+      ...categories,
+      category({ id: 'cat_bonus', parentId: 'cat_salary' }),
+      category({ id: 'cat_old_pay', kind: 'income', archived: true }),
+    ];
 
-    expect(flows.spendingCategories).toEqual([
-      expect.objectContaining({ id: 'cat_shopping', total: 0, previous: 8000, change: -8000, changeRatio: -1, share: 0 }),
-    ]);
+    it('lists no subcategory with nothing this month, even one that had money the month before', () => {
+      // The only movement of March is a refund filed on the parent itself.
+      const flows = monthFlows([t('2026-02-10', -8000, 'cat_rent'), t('2026-03-05', 25070, 'cat_home')], categories, '2026-03');
+
+      const home = flows.spendingCategories.find((row) => row.id === 'cat_home');
+      expect(home).toMatchObject({ total: -25070, movements: 1, children: [], own: null });
+    });
+
+    it('gives a parent\'s own movements a row of their own when it opens into subcategories, so its rows add up to it', () => {
+      const rows = [
+        transaction({ id: 'tx_rent', date: '2026-03-01', amount: -5000, categoryId: 'cat_rent' }),
+        transaction({ id: 'tx_home', date: '2026-03-02', amount: 2000, categoryId: 'cat_home' }),
+      ];
+      const flows = monthFlows(rows, categories, '2026-03');
+      const home = flows.spendingCategories.find((row) => row.id === 'cat_home');
+
+      expect(home?.total).toBe(3000);
+      expect(home?.children.map((row) => [row.id, row.total])).toEqual([['cat_rent', 5000]]);
+      expect(home?.own).toMatchObject({ id: ownLine('cat_home'), name: 'No subcategory', total: -2000, movements: 1, children: [], own: null });
+      expect((home?.children ?? []).reduce((sum, row) => sum + row.total, 0) + (home?.own?.total ?? 0)).toBe(home?.total);
+      // It opens in place, holding only what is filed on the parent itself.
+      expect(movementLines(flows)).toEqual(['cat_salary', 'cat_rent', ownLine('cat_home'), 'uncategorised-income', 'uncategorised-spending']);
+      const lists = lineMovements(rows, categories, { months: ['2026-03'], lines: [ownLine('cat_home')], max: 50 });
+      expect(lists.get(ownLine('cat_home'))?.rows.map((row) => row.id)).toEqual(['tx_home']);
+      expect(lineHolds(rows[0], ownLine('cat_home'), categories)).toBe(false);
+    });
+
+    it('lists only the spending lines that hold a counted movement in the period', () => {
+      const flows = monthFlows(
+        [t('2026-02-10', -8000, 'cat_shopping'), t('2026-03-04', -100, 'cat_home', { notCounted: true }), t('2026-03-05', -3000, 'cat_rent')],
+        categories,
+        '2026-03'
+      );
+
+      expect(flows.spendingCategories.map((row) => [row.id, row.children.map((child) => child.id)])).toEqual([['cat_home', ['cat_rent']]]);
+    });
+
+    it('keeps a line whose movements net to nothing: a purchase refunded in full did happen', () => {
+      const flows = monthFlows([t('2026-03-02', -4000, 'cat_shopping'), t('2026-03-09', 4000, 'cat_shopping')], categories, '2026-03');
+
+      expect(flows.spendingCategories).toEqual([expect.objectContaining({ id: 'cat_shopping', total: 0, movements: 2 })]);
+    });
+
+    it('lists every income category and subcategory, also at nothing, but not an archived one with nothing', () => {
+      const flows = monthFlows([t('2026-03-05', -3000, 'cat_rent')], withIncome, '2026-03');
+
+      expect(flows.incomeCategories.map((row) => [row.id, row.total, row.children.map((child) => [child.id, child.total])])).toEqual([
+        ['cat_salary', 0, [['cat_bonus', 0]]],
+      ]);
+      const paid = monthFlows([t('2026-03-01', 1000, 'cat_old_pay')], withIncome, '2026-03');
+      expect(paid.incomeCategories.map((row) => row.id)).toEqual(['cat_salary', 'cat_old_pay']);
+    });
+
+    it('lists a year\'s lines by the same rule, over its months', () => {
+      const year = calendarYearFlows([t('2025-12-10', -8000, 'cat_shopping'), t('2026-02-05', -3000, 'cat_rent')], withIncome, '2026-03', flowMonths([], '2026-03-15', '2025-12-01'));
+
+      expect(year.spendingCategories.map((row) => row.id)).toEqual(['cat_home']);
+      expect(year.incomeCategories.map((row) => row.id)).toEqual(['cat_salary']);
+    });
+
+    it('counts the Uncategorised lines\' movements, as a category\'s', () => {
+      const flows = monthFlows([t('2026-02-02', -1000, null), t('2026-03-02', -1500, null), t('2026-03-03', 1500, null)], categories, '2026-03');
+
+      expect(flows.uncategorisedSpending).toMatchObject({ total: 1500, movements: 1 });
+      expect(flows.uncategorisedIncome).toMatchObject({ total: 1500, movements: 1 });
+      expect(monthFlows([t('2026-02-02', -1000, null)], categories, '2026-03').uncategorisedSpending.movements).toBe(0);
+    });
   });
 
   it('splits spending into fixed and variable by each transaction\'s own category, with no inheritance', () => {
@@ -1321,31 +1397,11 @@ describe('spending over time: the trend, the average, the year', () => {
       expect(savingsRate(year)).toBeCloseTo(45000 / 200000);
     });
 
-    it('compares with the same months of the year before, when they were tracked and hold something', () => {
-      const year = calendarYearFlows(transactions, categories, '2026-03', offer('2025-01', '2026-03'));
-
-      expect(year.compared).toBe(true);
-      // January to March 2025, not the whole of 2025.
-      expect(year.spendingCategories.find((line) => line.id === 'cat_home')).toMatchObject({ previous: 60000, change: 60000, changeRatio: 1 });
-      expect(year.spendingCategories.find((line) => line.id === 'cat_shopping')).toMatchObject({ previous: 20000, change: 5000 });
-    });
-
-    it('compares with nothing when the year before was not tracked, or held nothing counted', () => {
-      expect(calendarYearFlows(transactions, categories, '2026-03', offer('2025-11', '2026-03')).compared).toBe(false);
-      const onlyTransfers = [t('2025-01-10', -5000, null, { counterAccountId: 'account_y' }), t('2026-01-10', -5000, 'cat_shopping')];
-      expect(calendarYearFlows(onlyTransfers, categories, '2026-03', offer('2025-01', '2026-03')).compared).toBe(false);
-    });
-
-    it('lists a line only for money this year when there is no comparison', () => {
+    it('lists a line only for money this year, whatever the year before held (ADR 0057)', () => {
       const year = calendarYearFlows(transactions, categories, '2025-12', offer('2025-11', '2026-03'));
 
       expect(year.months).toEqual(['2025-11', '2025-12']);
-      expect(year.compared).toBe(false);
-      expect(year.spendingCategories.map((line) => [line.id, line.total, line.previous])).toEqual([['cat_shopping', 999999, 0]]);
-    });
-
-    it('leaves the month\'s reading as it was: always compared with the month before', () => {
-      expect(monthFlows([], categories, '2026-03').compared).toBe(true);
+      expect(year.spendingCategories.map((line) => [line.id, line.total])).toEqual([['cat_shopping', 999999]]);
     });
   });
 
@@ -1732,30 +1788,6 @@ describe('the accounts table folds the quiet ones', () => {
 
   it('always shows the selected account', () => {
     expect(ids(quietAccounts(rows, inputs, { todayKey: today, selectedId: 'account_empty' }).shown)).toContain('account_empty');
-  });
-});
-
-describe('a period\'s table folds the lines with nothing in it', () => {
-  /** @returns {any} */
-  const line = (/** @type {string} */ id, /** @type {number} */ total, /** @type {any[]} */ children = []) => ({
-    id, name: id, total, own: total, share: 0, previous: 0, change: total, changeRatio: null, children,
-  });
-
-  it('keeps the lines with money in the period and folds the rest, in order, Uncategorised last', () => {
-    const lines = [line('cat_home', 100000), line('cat_gym', 0), line('cat_food', -500), line('cat_gifts', 0)];
-
-    expect(foldedLines(lines, line('uncategorised-spending', 0), true)).toEqual({
-      lines: [lines[0], lines[2]],
-      showUncategorised: false,
-      quiet: [lines[1], lines[3], line('uncategorised-spending', 0)],
-    });
-  });
-
-  it('keeps Uncategorised with money in its place, and folds nothing when nothing is zero', () => {
-    const lines = [line('cat_home', 100000)];
-
-    expect(foldedLines(lines, line('uncategorised-spending', 300), true)).toEqual({ lines, showUncategorised: true, quiet: [] });
-    expect(foldedLines(lines, line('uncategorised-spending', 0), false)).toEqual({ lines, showUncategorised: false, quiet: [] });
   });
 });
 

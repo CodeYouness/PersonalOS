@@ -7,9 +7,10 @@
  * with the four totals and the rest of the summary under it; and on the
  * right, always, the breakdown: income first, then spending, each line's
  * name opening its subcategories, and a subcategory's -- or a line's without
- * any -- opening its movements in place; the lines with nothing in the
- * period folded; the year's average and comparison. Every row here is
- * invented.
+ * any -- opening its movements in place; a spending line only when it holds
+ * a movement, every income line; what is filed on a parent itself as a row of
+ * its own; the year's average, and no comparison (ADR 0057). Every row here
+ * is invented.
  */
 
 import { createElement } from 'react';
@@ -34,6 +35,7 @@ const {
   yearFlows,
 } = await import('@/lib/domain/derive/finance.js');
 const { yearOf } = await import('@/lib/domain/dates.js');
+const { ownLine } = await import('@/lib/domain/derive/finance.js');
 const { NO_REFUNDS, refundPairs } = await import('@/lib/domain/derive/refunds.js');
 const { INTEREST_MOVEMENT_TYPES } = await import('@/personalos.config.js');
 
@@ -507,23 +509,23 @@ describe('FinanceFlows', () => {
       expect(summaryOf(sold)).toContain('Sold €\u2009300.00 more than bought');
     });
 
-    it('adds the change from last month in the month\'s table, and never an average or a % column', () => {
+    it('has no comparison column in the month\'s table, and never an average or a % column (ADR 0057)', () => {
       const html = render('month', '2026-04', {});
 
-      expect(html).toContain('<th>Spending</th><th class="num">Share</th><th class="num">vs last month</th><th class="num">Spent</th></tr>');
+      expect(html).toContain('<th>Spending</th><th class="num">Share</th><th class="num">Spent</th></tr>');
+      expect(html).not.toContain('vs last month');
       expect(html).not.toContain('Average');
       expect(html).not.toContain('<th class="num">%</th>');
     });
 
-    it('adds each line\'s average month and the change from last year in the year\'s table', () => {
+    it('adds each line\'s average month in the year\'s table, and no comparison with last year', () => {
       const html = render('year', '2026-04', {});
 
-      expect(html).toContain('<th>Spending</th><th class="num">Share</th><th class="num">Average</th><th class="num">vs 2025</th><th class="num">Spent</th></tr>');
+      expect(html).toContain('<th>Spending</th><th class="num">Share</th><th class="num">Average</th><th class="num">Spent</th></tr>');
       // Home: 3,000 over January to April.
-      expect(html).toMatch(/>Home<\/button><\/td><td class="num caption">77%<\/td><td class="num caption">750.00<\/td><td class="num"><\/td><td class="num">3,000.00<\/td>/);
+      expect(html).toMatch(/>Home<\/button><\/td><td class="num caption">77%<\/td><td class="num caption">750.00<\/td><td class="num">3,000.00<\/td>/);
       expect(html).toContain('Average: per month over the 4 months of 2026 on offer.');
-      // The year before was not tracked: no change is shown.
-      expect(html).not.toMatch(/>\+\u2009/);
+      expect(html).not.toContain('vs 2025');
     });
   });
 
@@ -544,8 +546,8 @@ describe('FinanceFlows', () => {
       const html = render('month', '2026-04', { place: { category: 'cat_food' } });
 
       expect(html).toContain('aria-expanded="true"><span class="finance-line-mark" aria-hidden="true">▾</span>Food</button>');
-      // Share, the change from last month, then what was spent.
-      expect(html).toMatch(new RegExp(closed('Groceries') + '</td><td class="num caption">33%</td><td class="num">[^<]*</td><td class="num">500.00</td>'));
+      // Share, then what was spent.
+      expect(html).toContain(closed('Groceries') + '</td><td class="num caption">33%</td><td class="num">500.00</td>');
       expect(html).toContain('href="/finances?month=2026-04&amp;category=cat_food">Movements in Food</a>');
     });
 
@@ -626,21 +628,71 @@ describe('FinanceFlows', () => {
     });
 
     it('says when an opened line holds no movement in the period', () => {
-      const html = render('month', '2026-04', { place: { category: 'cat_gym' } });
+      // Pay: nothing in February, and an income line is listed all the same.
+      const html = render('month', '2026-02', { place: { category: 'cat_pay' } });
 
       expect(html).toContain('No movements this month');
     });
   });
 
-  describe('a category with nothing this month', () => {
-    it('is folded into one row at the end of the spending table, opening when it is selected', () => {
-      // Gym: 60.00 in March, nothing in April.
-      const html = render('month', '2026-04', {});
-      expect(html).toContain('aria-expanded="false"><span class="finance-quiet-mark" aria-hidden="true">▸</span>1 category with nothing this month</button>');
-      expect(html).not.toContain('>Gym<');
+  describe('which rows the breakdown lists (ADR 0057)', () => {
+    const closed = (/** @type {string} */ name) =>
+      '<button type="button" class="finance-line-toggle" aria-expanded="false"><span class="finance-line-mark" aria-hidden="true">▸</span>' + name + '</button>';
+    /** The breakdown alone. @param {string} html */
+    const breakdownOf = (html) => html.slice(html.indexOf('<div class="finance-breakdown">'));
 
-      const open = render('month', '2026-04', { place: { category: 'cat_gym' } });
-      expect(open).toMatch(/>Gym<\/button><\/td><td class="num caption">0%<\/td><td class="num">[^<]*<\/td><td class="num">0.00<\/td>/);
+    it('lists no spending line with nothing in the period, even one with money the month before, and folds nothing', () => {
+      // Gym: 60.00 in March, nothing in April.
+      for (const view of /** @type {const} */ (['circle', 'columns'])) {
+        const html = render('month', '2026-04', { view, place: { category: 'cat_gym' } });
+        expect(html).not.toContain('>Gym<');
+        expect(html).not.toContain('with nothing');
+        expect(html).not.toContain('finance-quiet');
+      }
+    });
+
+    it('lists every income line, also at nothing', () => {
+      const html = breakdownOf(render('month', '2026-02', {}));
+
+      expect(html).toContain(closed('Pay') + '</td><td class="num caption">0%</td><td class="num">0.00</td>');
+      expect(html).not.toContain('<th>Spending</th>');
+    });
+
+    it('shows a parent\'s own movements as "No subcategory", so its rows add up to it, opening them in place', () => {
+      const own = t('2026-04-04', -2000, 'cat_food', { id: 'tx_own', description: 'Market' });
+      const rows = [...transactions, own];
+      for (const view of /** @type {const} */ (['circle', 'columns'])) {
+        const html = breakdownOf(render('month', '2026-04', { rows, view, place: { category: ownLine('cat_food') } }));
+
+        // Food 520.00: Groceries 500.00 and 20.00 filed on Food itself.
+        expect(html).toContain('▾</span>Food</button></td><td class="num caption">34%</td><td class="num">520.00</td>');
+        expect(html).toContain(closed('Groceries') + '</td><td class="num caption">33%</td><td class="num">500.00</td>');
+        expect(html).toContain(
+          '<tr class="is-selected is-child"><td title="No subcategory"><button type="button" class="finance-line-toggle" aria-expanded="true"><span class="finance-line-mark" aria-hidden="true">▾</span>No subcategory</button></td><td class="num caption">1%</td><td class="num">20.00</td></tr>'
+        );
+        // Only what is filed on Food itself, not the groceries.
+        expect(html).toContain('>Market</a>');
+        expect(html).not.toContain('tx_2026-04-03-50000');
+        expect(html).toContain('href="/finances?month=2026-04' + (view === 'columns' ? '&amp;view=columns' : '') + '&amp;category=own%3Acat_food">Movements with no subcategory</a>');
+      }
+    });
+
+    it('shows a parent whose only movement this month is on itself as that movement, with no subcategory at 0.00', () => {
+      // March: groceries the month before; in April only a refund filed on Food itself.
+      const rows = [t('2026-03-03', -10000, 'cat_groceries'), t('2026-04-05', 25070, 'cat_food', { id: 'tx_back', description: 'Refund' })];
+      const html = breakdownOf(render('month', '2026-04', { rows, held: [], place: { category: 'cat_food' } }));
+
+      expect(html).toContain('▾</span>Food</button></td><td class="num caption">100%</td><td class="num">−250.70</td>');
+      expect(html).not.toContain('Groceries');
+      expect(html).toContain('>Refund</a>');
+    });
+
+    it('gives the own row its average month in a year', () => {
+      const rows = [...transactions, t('2026-04-04', -2000, 'cat_food')];
+      const html = breakdownOf(render('year', '2026-04', { rows, place: { category: 'cat_food' } }));
+
+      // Food filed on itself: 200.00 in January, 100.00 in March, 20.00 in April -- 320.00 over four months.
+      expect(html).toContain('>No subcategory</button></td><td class="num caption">8%</td><td class="num caption">80.00</td><td class="num">320.00</td>');
     });
   });
 

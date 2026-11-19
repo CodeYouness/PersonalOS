@@ -6,7 +6,10 @@
   [0053](0053-columns-beside-the-breakdown-and-one-tooltip.md): the
   breakdown is always on the right and the table view is gone, the left a
   Circle / Columns switch (`?view=columns`) with the totals and the summary
-  under the chart, and the strip of bars across the top is gone
+  under the chart, and the strip of bars across the top is gone; amended
+  by [0057](0057-the-breakdown-lists-what-the-period-holds.md): no change
+  column, the lines that hold a movement in the period (every income line),
+  and a parent's own movements a row of their own, "No subcategory"
 - **Date** 2026-11-17
 - **Amends** [0044](0044-spending-over-time-reads-by-the-months-rules.md) (the average month, the composition bar),
   [0046](0046-spending-by-tag.md) (a line listed for its average),

@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { formatMoney, formatMoneyChange, monthSpan } from '@/components/format.js';
 import { financesAddress } from '@/lib/domain/addresses.js';
-import { UNCATEGORISED_INCOME, UNCATEGORISED_SPENDING } from '@/lib/domain/derive/finance.js';
+import { ownLineParent, UNCATEGORISED_INCOME, UNCATEGORISED_SPENDING } from '@/lib/domain/derive/finance.js';
 import { CATEGORY_KINDS } from '@/personalos.config.js';
 
 /**
@@ -18,8 +18,9 @@ import { CATEGORY_KINDS } from '@/personalos.config.js';
  */
 
 /**
- * A line of the month as a heading names it: a category's name, or
- * "Uncategorised" with its direction. Null for a line that does not exist.
+ * A line of the month as a heading names it: a category's name,
+ * "Uncategorised" with its direction, or a parent's own line (ADR 0057) as
+ * "Home with no subcategory". Null for a line that does not exist.
  *
  * @param {string} line
  * @param {import('@/lib/domain/types.js').FinanceCategory[]} categories
@@ -28,6 +29,11 @@ import { CATEGORY_KINDS } from '@/personalos.config.js';
 export function lineName(line, categories) {
   if (line === UNCATEGORISED_SPENDING) return 'Uncategorised spending';
   if (line === UNCATEGORISED_INCOME) return 'Uncategorised income';
+  const parent = ownLineParent(line);
+  if (parent !== null) {
+    const name = categories.find((category) => category.id === parent && category.parentId === null)?.name;
+    return name === undefined ? null : name + ' with no subcategory';
+  }
   return categories.find((category) => category.id === line)?.name ?? null;
 }
 

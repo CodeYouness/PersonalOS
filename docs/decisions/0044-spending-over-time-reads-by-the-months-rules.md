@@ -9,7 +9,9 @@
   composition bar shows only in the table view; and by
   [0053](0053-columns-beside-the-breakdown-and-one-tooltip.md): the trend's
   months (`trendMonths`) are gone, the bars drawn as the Columns view of a
-  year
+  year; and by [0057](0057-the-breakdown-lists-what-the-period-holds.md):
+  the breakdown shows no comparison, so a year is no longer compared with
+  the same months a year before
 - **Date** 2026-11-17
 
 ## Context

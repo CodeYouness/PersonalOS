@@ -15,11 +15,13 @@ import {
   financeOverview,
   flowMonths,
   flowTrend,
+  lineChanges,
   lineMovements,
   listedTransactions,
   monthFlows,
   movementLines,
   netWorthOn,
+  ownLine,
   savingsRate,
   splitEvenly,
   tagFlows,
@@ -114,7 +116,9 @@ describe('the flows read a spread movement in the months it is for (ADR 0052)', 
 
     expect(monthFlows(rows, categories, '2026-10').income).toBe(100000);
     // November: its own third, compared with October's.
-    expect(monthFlows(rows, categories, '2026-11').incomeCategories[0]).toMatchObject({ total: 100000, previous: 100000, change: 0 });
+    const november = monthFlows(rows, categories, '2026-11');
+    expect(november.incomeCategories[0]).toMatchObject({ total: 100000 });
+    expect(lineChanges(november, rows, categories, '2026-11').get('cat_salary')).toMatchObject({ previous: 100000, change: 0 });
   });
 
   it('reads the month of its date as before when it says nothing', () => {
@@ -302,7 +306,7 @@ describe('the movements a list shows for a line (ADR 0052)', () => {
     expect(list?.rows.map((row) => row.id)).toEqual(['tx_out']);
   });
 
-  it('asks for the lines whose name opens their movements: each subcategory, each line without, and Uncategorised', () => {
-    expect(movementLines(monthFlows(rows, categories, '2026-09'))).toEqual(['cat_salary', 'cat_rent', 'uncategorised-income', 'uncategorised-spending']);
+  it('asks for the lines whose name opens their movements: each subcategory, a parent\'s own line, each line without, and Uncategorised', () => {
+    expect(movementLines(monthFlows(rows, categories, '2026-09'))).toEqual(['cat_salary', 'cat_rent', ownLine('cat_home'), 'uncategorised-income', 'uncategorised-spending']);
   });
 });
