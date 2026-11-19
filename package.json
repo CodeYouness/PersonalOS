@@ -26,6 +26,7 @@
     "data:remove-demo-finance": "node scripts/remove-demo-finance.js",
     "data:import-ledger": "node scripts/import-ledger.js",
     "data:import-degiro": "node scripts/import-degiro.js",
+    "data:convert-dump": "node scripts/convert-dump.js",
     "data:convert-bybit": "node scripts/convert-bybit.js",
     "data:import-statement": "node scripts/import-statement.js",
     "data:categorise": "node scripts/categorise.js",
