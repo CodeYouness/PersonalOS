@@ -25,10 +25,12 @@ const accounts = /** @type {any} */ ([
   { id: 'account_b', name: 'Savings', valuation: 'balance', archivedOn: null },
 ]);
 
-/** @param {any} transaction */
-function render(transaction) {
+/** @param {any} transaction @param {any} [pairing] */
+function render(transaction, pairing) {
   return renderToStaticMarkup(
-    createElement(FinanceTransactionDetail, { transaction, accounts, categories: [], place: { month: '2026-11', transaction: transaction.id } })
+    createElement(FinanceTransactionDetail, {
+      transaction, accounts, categories: [], pairing, todayKey: '2026-11-19', place: { month: '2026-11', transaction: transaction.id },
+    })
   );
 }
 
@@ -66,6 +68,45 @@ describe('FinanceTransactionDetail', () => {
     it('is not there on a transfer or a movement not counted, which are in no flow', () => {
       expect(render(t({ counterAccountId: 'account_b' }))).not.toContain('Counts for');
       expect(render(t({ notCounted: true }))).not.toContain('Counts for');
+    });
+  });
+
+  describe('a refund and its purchase (ADR 0055)', () => {
+    const none = { purchase: null, refunds: [], net: 0, candidates: null };
+    const jacket = { id: 'tx_jacket', date: '2026-10-03', description: 'Jacket', amount: -4197 };
+
+    it('offers money in that can be a refund the purchases it could give back for, folded', () => {
+      const html = render(t({ amount: 262 }), { ...none, net: 262, candidates: { rows: [{ ...jacket, remaining: 4197 }], more: 0 } });
+
+      expect(html).toContain('aria-expanded="false" aria-controls="t-refund-candidates">Refund of…</button>');
+      expect(html).not.toContain('id="t-refund-candidates"');
+    });
+
+    it('names the purchase a refund is paired with, a link that opens it, and offers to unpair', () => {
+      const html = render(t({ amount: 262 }), { ...none, purchase: jacket, net: 262 });
+
+      expect(html).toContain('<span class="caption">Refund of</span>');
+      expect(html).toContain('href="/finances?month=2026-10&amp;transaction=tx_jacket"');
+      expect(html).toContain('>Jacket</a>');
+      expect(html).toContain('3 Oct');
+      expect(html).toContain('−\u200941.97');
+      expect(html).toContain('>Unpair</button>');
+      expect(html).not.toContain('Refund of…');
+    });
+
+    it('lists a purchase\'s refunds, each unpaired on its own, and its net', () => {
+      const back = { id: 'tx_back', date: '2026-10-09', description: 'Button', amount: 262 };
+      const html = render(t({ id: 'tx_jacket', amount: -4197 }), { ...none, refunds: [back], net: -3935 });
+
+      expect(html).toContain('>Refunds</span>');
+      expect(html).toContain('href="/finances?month=2026-10&amp;transaction=tx_back"');
+      expect(html).toContain('aria-label="Unpair Button, 9 Oct">Unpair</button>');
+      expect(html).toContain('Net <span class="num">−\u200939.35</span>');
+    });
+
+    it('shows nothing of pairing on a movement in no pair that cannot be a refund', () => {
+      expect(render(t({ amount: -500 }), none)).not.toContain('finance-refund');
+      expect(render(t({ amount: -500 }))).not.toContain('finance-refund');
     });
   });
 });

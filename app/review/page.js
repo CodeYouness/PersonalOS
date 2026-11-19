@@ -13,6 +13,7 @@ import {
   getJournalEntries,
   getProfile,
   getReview,
+  getRefundPairs,
   getTasks,
   getTransactions,
 } from '@/lib/store.js';
@@ -40,7 +41,7 @@ export default async function ReviewScreen({ searchParams }) {
   const week = resolveReviewWeek(weekParam, todayKey);
 
   const lastDay = shiftDayKey(week.from, 6);
-  const [profile, dailyLogs, tasks, goals, journalEntries, transactions, captures, review, previousReview] = await Promise.all([
+  const [profile, dailyLogs, tasks, goals, journalEntries, transactions, captures, review, previousReview, refunds] = await Promise.all([
     getProfile(),
     // The week before is read for the habits' "before" figure.
     getDailyLogs(shiftDayKey(week.from, -7), lastDay),
@@ -52,6 +53,9 @@ export default async function ReviewScreen({ searchParams }) {
     getCaptures(),
     getReview('week', week.from),
     getReview('week', week.previous),
+    // Over all the movements: a purchase can be months older than the week
+    // its refund lands in (ADR 0055).
+    getRefundPairs(),
   ]);
   // The lever the week before set: the one rule Home uses (`leverOf`), so a
   // draft or a blank lever is not shown here either.
@@ -63,6 +67,7 @@ export default async function ReviewScreen({ searchParams }) {
     goals,
     journalEntries,
     transactions,
+    refunds,
     captures,
     from: week.from,
     today: todayKey,

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { financesHref, MovementAmount } from '@/components/finance.js';
+import { financesHref, MovementAmount, refundNote, RefundedLine } from '@/components/finance.js';
 import {
   dayOfMonth,
   formatEuro,
@@ -46,7 +46,7 @@ import {
 /** @typedef {import('@/lib/domain/derive/finance.js').FlowCircle} FlowCircle */
 /** @typedef {import('@/lib/domain/derive/finance.js').CirclePart} CirclePart */
 /** @typedef {import('@/lib/domain/derive/finance.js').LineMovement} LineMovement */
-/** @typedef {Map<string, { rows: LineMovement[], more: number }>} Movements each line's movements of the period, by line id */
+/** @typedef {Map<string, { rows: LineMovement[], more: number, refunded?: number }>} Movements each line's movements of the period, by line id; `refunded` how many refunded movements it left out (ADR 0055) */
 /** @typedef {CirclePart['key'] | 'over'} PartKey what the circle can emphasise */
 /**
  * What the columns draw (ADR 0053): a month's days, with what is counted on
@@ -1002,7 +1002,7 @@ function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, 
   };
   /**
    * @param {CategoryFlow} line
-   * @param {{ rows: LineMovement[], more: number }} list
+   * @param {{ rows: LineMovement[], more: number, refunded?: number }} list
    * @param {boolean} deep under a subcategory
    */
   const movementRows = (line, list, deep) => [
@@ -1017,6 +1017,17 @@ function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, 
       : list.rows.map((row) => (
           <MovementRow key={line.id + ':' + row.id} row={row} span={width - 1} deep={deep} todayKey={todayKey} place={place} />
         ))),
+    // A paired refund and a purchase all of which came back, left out as
+    // the Transactions card leaves them out (ADR 0055).
+    ...((list.refunded ?? 0) > 0
+      ? [
+          <tr key={line.id + ':refunded'} className={'finance-movement-row' + (deep ? ' is-deep' : '')}>
+            <td colSpan={width}>
+              <RefundedLine count={list.refunded ?? 0} place={place} as="span" />
+            </td>
+          </tr>,
+        ]
+      : []),
     <tr key={line.id + ':listing'} className={'finance-movement-row finance-movements-row' + (deep ? ' is-deep' : '')}>
       <td colSpan={width}>
         <Link href={listing(line.id)} scroll={false} className="finance-account-link" aria-current={place.category === line.id ? 'true' : undefined}>
@@ -1093,8 +1104,10 @@ function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, 
  * Transactions card signs it (MovementAmount). A movement counted over
  * several months shows the month (or months) of the period it counts in
  * instead of a day, its part of the amount, and says which of its months
- * this is and when it was paid: "2 of 3 · paid 15 Apr". One line, the
- * description cut first, the note never.
+ * this is and when it was paid: "2 of 3 · paid 15 Apr". One end of a refund
+ * pair (ADR 0055) says what it is, as in the Transactions card (refundNote):
+ * a purchase partly refunded, hidden pair, shows what is left of it. One
+ * line, the description cut first, the note never.
  *
  * @param {{
  *   row: LineMovement,
@@ -1114,6 +1127,7 @@ function MovementRow({ row, span, deep, todayKey, place }) {
       : (spread.of === 1 ? '' : spread.count === 1 ? spread.index + ' of ' + spread.of + ' · ' : spread.count + ' of ' + spread.of + ' months · ') +
         'paid ' + paid;
   const selected = place.transaction === row.id;
+  const refund = refundNote(row.refund ?? null, place.refunded === 'show');
   return (
     <tr className={'finance-movement-row' + (deep ? ' is-deep' : '') + (selected ? ' is-selected' : '')}>
       <td colSpan={span}>
@@ -1129,6 +1143,7 @@ function MovementRow({ row, span, deep, todayKey, place }) {
             {description}
           </Link>
           {note !== null && <span className="caption">· {note}</span>}
+          {refund !== null && <span className="caption">· {refund}</span>}
         </span>
       </td>
       <MovementAmount amount={row.amount} />

@@ -13,12 +13,14 @@
  * computed by the one `accountValueOn`.
  *
  * Every refusal is in `blocking`, so the dry run lists exactly what --write
- * would refuse.
+ * would refuse -- a change the source makes to a refund or a purchase paired
+ * with each other (ADR 0055) that the store would refuse included.
  */
 
 import { FINANCE_CURRENCIES, ORIGIN_SOURCES } from '../../personalos.config.js';
 import { shiftDayKey } from '../../lib/domain/dates.js';
 import { accountValueOn, touchesAccount } from '../../lib/domain/derive/finance.js';
+import { pairBrokenBy } from '../../lib/domain/derive/refunds.js';
 import { isSyncedAccount } from '../../lib/domain/origin.js';
 import { unappliedTotals } from './formats/card-normalised.js';
 import { FEE_KEY_SUFFIX, externalIdFor, movementKeys } from './identity.js';
@@ -85,10 +87,11 @@ const NEW_ACCOUNT_ID = '(new account)';
  *   observations: FinanceObservation[],
  *   demoFinance: boolean,
  *   trackedSince: string | null,
- * }} input
+ *   links?: import('../../lib/domain/types.js').Link[],
+ * }} input `links`: the `refund_of` links, so a change that breaks a pair blocks
  * @returns {StatementPlan}
  */
-export function planStatement({ read, accountNames, accounts, transactions, observations, demoFinance, trackedSince }) {
+export function planStatement({ read, accountNames, accounts, transactions, observations, demoFinance, trackedSince, links = [] }) {
   const { format } = read;
   const skipped = [...read.skipped];
   /** @type {string[]} */
@@ -137,7 +140,7 @@ export function planStatement({ read, accountNames, accounts, transactions, obse
     plans.push(
       planAccount({
         format, product, name, account, rows: productRows, keys: keyed.keys, transactions, statementTransactions, observations, warnings,
-        unreadable: read.problems.length,
+        unreadable: read.problems.length, blocking, pairs: { transactions, links, accounts },
       })
     );
   }
@@ -227,10 +230,12 @@ function nameProducts(format, products, accountNames, blocking, warnings) {
  *   observations: FinanceObservation[],
  *   warnings: string[],
  *   unreadable: number,
+ *   blocking: string[],
+ *   pairs: Parameters<typeof pairBrokenBy>[1],
  * }} input
  * @returns {AccountPlan}
  */
-function planAccount({ format, product, name, account, rows, keys, transactions, statementTransactions, observations, warnings, unreadable }) {
+function planAccount({ format, product, name, account, rows, keys, transactions, statementTransactions, observations, warnings, unreadable, blocking, pairs }) {
   const accountId = account?.id ?? NEW_ACCOUNT_ID;
   /** @type {Map<StatementRow, string>} */
   const keyOf = new Map(rows.map((row, at) => [row, keys[at]]));
@@ -262,7 +267,13 @@ function planAccount({ format, product, name, account, rows, keys, transactions,
     const existing = account === null ? undefined : imported.get(externalIdFor(accountId, planned.key));
     if (existing === undefined) continue;
     planned.status = sameSourceZone(existing, planned, accountId) ? 'unchanged' : 'changed';
-    if (planned.status === 'changed') replaced.push(existing);
+    if (planned.status !== 'changed') continue;
+    replaced.push(existing);
+    // The store refuses a re-import that breaks a refund's pair (ADR 0055):
+    // said here, so the write never stops part way.
+    const changed = { ...existing, date: planned.date, amount: planned.amount, currency: planned.currency, description: planned.description, accountId };
+    const broken = pairBrokenBy(changed, pairs);
+    if (broken !== null) blocking.push('line ' + planned.line + ': ' + broken);
   }
   const counts = { new: 0, unchanged: 0, changed: 0 };
   let newSum = 0;

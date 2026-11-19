@@ -98,4 +98,7 @@ personal goes in this file, a commit, a PR or a test.
   counted twice.
 - Do not overwrite a category, note, tag or flag the user set. The scripts
   fill only what is empty; do the same by hand.
+- Never delete a refund or the purchase it refunds: the user pairs them in
+  the movement's panel ("Refund of…", ADR 0055), which hides the pair from
+  the list and keeps the balance and a re-import right.
 - Do not call the model on page load or outside `--review --model`.

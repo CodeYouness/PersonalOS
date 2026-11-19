@@ -57,6 +57,7 @@ remembers whether it was `belongs_to`, `belongsTo` or `parent`.
 | `about` | loose subject matter | memory → anything · capture → what it produced |
 | `derived_from` | provenance | memory → journal · memory → capture · task or transaction → the journal entry a check-in's open answer wrote |
 | `funds` | money aimed at something | transaction → goal |
+| `refund_of` | a refund → the purchase it gives money back for | transaction (money in) → transaction (money out), checked by the store (Refund, ADR 0055) |
 
 Links are a **set**: the same two things related the same way twice is one
 fact. Deleting an entity deletes its links, because an edge pointing at
@@ -1373,7 +1374,8 @@ category's kind decides** whether money is income or spending (#137): in a
 spending category a negative amount is spending and a positive one (a
 refund) reduces it; in an income category a positive amount is income and a
 negative one (a chargeback) reduces it. Uncategorised money counts by its
-sign.
+sign. A refund **paired** with its purchase counts in the purchase's
+category instead, whatever it carries itself (Refund, ADR 0055).
 
 **Two zones of ownership, and getting this wrong is the classic sync bug:**
 
@@ -1591,6 +1593,56 @@ there, which **reduces that category's spending** rather than counting as
 income. A returned order is not money earned. Its mirror is a chargeback, a
 negative amount in an income category, which reduces income.
 
+**A refund paired with its purchase** (ADR 0055) says which purchase it gives
+back for: a `refund_of` link from the refund to the purchase -- never a field
+on either, and never a deletion: the statement is the source, the balances
+must still reconcile, and a re-import would bring a deleted row back. The link
+is yours (ADR 0023): the movements' ids are stable, so a re-import keeps it.
+
+- **What may be paired** (`refundRefusal`, refused by the store whenever the
+  pair is made and whenever either end is corrected or re-imported): the
+  refund is money in on a cash account, the purchase money out; neither is a
+  transfer; one currency; the refund is not dated before the purchase. The
+  same account is not required -- a refund can land elsewhere. A refund pairs
+  with one purchase; a purchase may have several refunds (partial returns),
+  which never come to more than it cost. Deleting either movement deletes
+  the link.
+- **How it counts** (`countedFlow`, the one reading every flow adds up): a
+  paired refund counts where its purchase counts -- in the purchase's
+  category, top-level and subcategory, or, the purchase being uncategorised,
+  as uncategorised spending -- in the purchase's direction, so a refund of
+  spending reduces spending and is **never income**. Its own category is
+  left as stored and read by nothing while it is paired. It counts on **its
+  own date** (or its own months, when it says it is counted over several),
+  never the purchase's: a refund in November reduces November, even when the
+  purchase is counted over months. A purchase not counted, or a transfer,
+  takes its refunds out of every flow with it. Every reading agrees -- the
+  month, the year, the twelve months, the columns, the circle, the lines,
+  By tag, Home's and the review's week, the question context -- because each
+  is handed the pairs (`refundPairs`) and reads the movement through
+  `countedFlow`. Balances, the accounts table and net worth never read them:
+  both movements really moved money.
+- **How it is listed** (`listedTransactions`, `lineMovements`): side by side
+  a refund and its purchase are noise. Unless `?refunded=show`, the
+  Transactions card and the movements a line opens in place leave out a
+  paired refund and a purchase all of which came back; a purchase partly
+  refunded stays at **what is left of it**, "of 41.97, 2.62 refunded" after
+  its description. A last quiet line says how many were left out, "3
+  refunded movements hidden — show", the link keeping every other parameter;
+  shown, a refund says "refund of <purchase>", a purchase "refunded" (or
+  what came back) at its own amount, and "hide" replaces "show". The cap and
+  "and N more" count what is listed.
+- **Pairing it** is the movement's panel's: on money in that can be a
+  refund and is not paired, "Refund of…" lists the purchases it could give
+  back for (`refundCandidates`): money out, not a transfer, dated at most
+  `limits.financeRefundWindowDays` (90) before it and not after, with at
+  least its amount not refunded yet -- the same account first, then the same
+  merchant (`merchantKey`), then the nearest day -- the first
+  `limits.financeRefundCandidatesMax` (20), saying how many more. A paired
+  refund names its purchase, a link that opens it, and unpairs; a purchase
+  lists its refunds, each unpaired on its own, and its net. Nothing pairs by
+  itself: not an import, not `data:categorise`, not the model.
+
 ### The month's flows
 
 The Income & spending section on the Finances screen (#137) reads a month:
@@ -1732,7 +1784,9 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   quieter, and names both ends. Dates never wrap. The card never scrolls
   sideways (ADR 0053): the date and the amount as wide as their text, the
   rest shared, and a narrow card drops the account, then the category --
-  the description's title names both.
+  the description's title names both. A refund paired with its purchase and
+  a purchase all of which came back are left out unless `?refunded=show`,
+  and said in a last line (Refund, ADR 0055).
 - **The composition** (`spendingParts`), above the spending table: one bar of the
   period's spending by top-level category and Uncategorised, each line's
   part of what the lines with money spent add up to -- a net refund has no
@@ -1769,7 +1823,8 @@ selected line, and a line a tag.
 **Is** a transaction with `notCounted: true`: money that moves a balance but is
 neither income nor spending -- a friend paying back a loan, a deposit
 returned. Every aggregation excludes it, the same as a transfer; unlike a
-transfer, it has one end.
+transfer, it has one end. A refund paired with a purchase not counted is not
+counted either (Refund, ADR 0055).
 
 **Amounts are integers in minor units** (cents). Floating point and money do
 not belong in the same file. ADR 0009.
@@ -2288,7 +2343,7 @@ something.
 | goals, including horizonSetOn | goal progress when metric-backed, slipped and its period, a passed target date |
 | reviews (answers, lever, completedAt) | a review's week figures: habits, intake, spending, what was closed |
 | action records (name, params, day, origin, recordRef, before, status, error, the receipt line's text) | whether a receipt line can be undone now |
-| journal entries | the month's flows (income, spending, what is left, per category with share and change), the savings rate, fixed vs variable, what was invested (from the trades) and kept, a line's average month in a year -- transfers and not-counted transactions excluded; whether a transaction is a transfer |
+| journal entries | the month's flows (income, spending, what is left, per category with share and change), the savings rate, fixed vs variable, what was invested (from the trades) and kept, a line's average month in a year -- transfers and not-counted transactions excluded, a paired refund in its purchase's category; whether a transaction is a transfer; what is left of a purchase after its refunds |
 | memory entries | current net worth, an account's value between balances, a holding's units held and value, its cost basis, profit or loss, realised, change since the last price day and year to date, the monthly history and the 30-day and 1-year changes |
 | captures | days until deadline |
 | links, events | |

@@ -326,6 +326,50 @@ describe('the write', () => {
     expect(await movementsOf(account.id)).toHaveLength(3);
   });
 
+  it('keeps a refund paired with its purchase through a re-import that changes the source\'s zone (ADR 0055)', async () => {
+    const rows = [
+      ['2026-07-09', '2026-07-09', 'Entrata', '2.62', 'EUR', 'Grocer', 'Refunds', 'Grocer', 'Refund Grocer 09/07', 'MOV-0009'],
+      ...typedRows(),
+    ];
+    await runImport(typedExport(rows), { ...TYPED, write: true });
+    const account = await accountNamed('Second bank');
+    const movements = await movementsOf(account.id);
+    const refund = movements.find((movement) => movement.amount === 262);
+    const purchase = movements.find((movement) => movement.amount === -4500);
+    if (refund === undefined || purchase === undefined) throw new Error('no refund or purchase');
+    await store.pairRefund(refund.id, purchase.id);
+
+    const later = rows.map((row) => [...row]);
+    later[0][8] = 'Refund Grocer 09/07, booked';
+    const { plan } = await runImport(typedExport(later), { ...TYPED, write: true });
+    expect(plan.accounts[0].counts).toEqual({ new: 0, unchanged: 3, changed: 1 });
+
+    expect(await store.getLinks({ from: refund.id, rel: 'refund_of' })).toMatchObject([{ to: purchase.id }]);
+    expect(await movementsOf(account.id)).toHaveLength(4);
+  });
+
+  it('blocks, writing nothing, a re-import that would break a refund\'s pair (ADR 0055)', async () => {
+    const rows = [
+      ['2026-07-09', '2026-07-09', 'Entrata', '2.62', 'EUR', 'Grocer', 'Refunds', 'Grocer', 'Refund Grocer 09/07', 'MOV-0009'],
+      ...typedRows(),
+    ];
+    await runImport(typedExport(rows), { ...TYPED, write: true });
+    const account = await accountNamed('Second bank');
+    const movements = await movementsOf(account.id);
+    const refund = /** @type {any} */ (movements.find((movement) => movement.amount === 262));
+    const purchase = /** @type {any} */ (movements.find((movement) => movement.amount === -4500));
+    await store.pairRefund(refund.id, purchase.id);
+
+    const later = rows.map((row) => [...row]);
+    later[0][3] = '50.00';
+    const { plan, text } = await runImport(typedExport(later), TYPED);
+
+    expect(plan.blocking).toEqual([expect.stringMatching(/^line \d+: this movement is paired as a refund, and the refunds of a purchase may not come to more than it cost: 50\.00 back of 45\.00: unpair it first$/)]);
+    expect(text).toContain('unpair it first');
+    await expect(runImport(typedExport(later), { ...TYPED, write: true })).rejects.toThrow(/refused, nothing was written/);
+    expect((await store.getTransaction(refund.id))?.amount).toBe(262);
+  });
+
   it('takes a cleaned-up name in a later card export as a change, not a new movement', async () => {
     await runImport(cardExport(), { ...CARD, write: true });
     const renamed = csv(CARD_HEADER, [cardRow({ at: '2026-05-02 12:00:00', merchant: 'BOOKS LTD', clean: 'Books Ltd', importo: '15.00', categoria: 'Shopping', sotto: 'Books', fx: '0.30', cashback: '0.15' })]);

@@ -16,6 +16,8 @@ let sandbox;
 let collection;
 /** @type {typeof import('@/app/api/transactions/[id]/route.js')} */
 let item;
+/** @type {typeof import('@/app/api/transactions/[id]/refund-of/route.js')} */
+let refundOf;
 /** @type {typeof import('@/lib/store.js')} */
 let store;
 
@@ -25,6 +27,7 @@ beforeAll(async () => {
   process.env.DATA_DIR = sandbox;
   collection = await import('@/app/api/transactions/route.js');
   item = await import('@/app/api/transactions/[id]/route.js');
+  refundOf = await import('@/app/api/transactions/[id]/refund-of/route.js');
   store = await import('@/lib/store.js');
 });
 
@@ -219,5 +222,71 @@ describe('DELETE /api/transactions/[id]', () => {
 
   it('answers 404 for a transaction that does not exist', async () => {
     expect((await remove('transaction_nowhere')).status).toBe(404);
+  });
+});
+
+/** @param {string} id @param {unknown} body */
+function pairWith(id, body) {
+  return refundOf.PUT(new Request('http://localhost/api/transactions/' + id + '/refund-of', json('PUT', body)), {
+    params: Promise.resolve({ id }),
+  });
+}
+
+/** @param {string} id */
+function unpair(id) {
+  return refundOf.DELETE(new Request('http://localhost/api/transactions/' + id + '/refund-of', { method: 'DELETE' }), {
+    params: Promise.resolve({ id }),
+  });
+}
+
+describe('/api/transactions/[id]/refund-of (ADR 0055)', () => {
+  // The seed's groceries, 62.50 out of the current account on 4 January.
+  const PURCHASE = 'transaction_seed_4';
+
+  /** @param {number} amount */
+  async function moneyIn(amount) {
+    return store.createTransaction({ date: '2026-01-06', amount, accountId: SAVINGS, description: 'Market refund' });
+  }
+
+  it('pairs a refund with its purchase, once, and unpairs it', async () => {
+    const refund = await moneyIn(1250);
+
+    const response = await pairWith(refund.id, { purchaseId: PURCHASE });
+    expect(response.status).toBe(200);
+    expect((await pairWith(refund.id, { purchaseId: PURCHASE })).status).toBe(200);
+    expect(await store.getLinks({ from: refund.id, rel: 'refund_of' })).toMatchObject([{ to: PURCHASE }]);
+
+    expect((await unpair(refund.id)).status).toBe(200);
+    expect(await store.getLinks({ from: refund.id, rel: 'refund_of' })).toEqual([]);
+    expect((await unpair(refund.id)).status).toBe(200);
+  });
+
+  it('refuses what the store refuses, with its reason, pairing nothing', async () => {
+    const tooMuch = await moneyIn(6251);
+
+    const response = await pairWith(tooMuch.id, { purchaseId: PURCHASE });
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toMatch(/more than it cost/);
+    expect((await pairWith(PURCHASE, { purchaseId: tooMuch.id })).status).toBe(400);
+    expect(await store.getLinks({ to: PURCHASE, rel: 'refund_of' })).toEqual([]);
+    expect(await store.getLinks({ from: PURCHASE, rel: 'refund_of' })).toEqual([]);
+  });
+
+  it('refuses a body that is not { purchaseId }, and answers 404 for a movement that does not exist', async () => {
+    const refund = await moneyIn(100);
+
+    expect((await pairWith(refund.id, 'nope')).status).toBe(400);
+    expect((await pairWith(refund.id, {})).status).toBe(400);
+    expect((await pairWith(refund.id, { purchaseId: PURCHASE, note: 'x' })).status).toBe(400);
+    expect((await pairWith('transaction_nowhere', { purchaseId: PURCHASE })).status).toBe(404);
+    expect((await unpair('transaction_nowhere')).status).toBe(404);
+  });
+
+  it('a deleted purchase takes the pair with it', async () => {
+    const refund = await moneyIn(100);
+    await pairWith(refund.id, { purchaseId: PURCHASE });
+
+    await remove(PURCHASE);
+    expect(await store.getLinks({ from: refund.id })).toEqual([]);
   });
 });

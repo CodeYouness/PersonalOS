@@ -2286,6 +2286,119 @@ export function runAdapterContract(label, load) {
           ).rejects.toThrow(/itself/);
           expect((await store.getTransactions()).find((t) => t.id === imported.id)?.accountId).toBe(current.id);
         });
+
+        describe('a refund paired with its purchase (ADR 0055)', () => {
+          /** @param {string} from @param {string} to */
+          const pair = (from, to) => store.createLink({ from, to, rel: 'refund_of' });
+
+          async function bought() {
+            const { current, savings } = await twoAccounts();
+            const purchase = await store.createTransaction({ date: '2026-04-02', amount: -4197, accountId: current.id, categoryId: 'cat_groceries' });
+            return { current, savings, purchase };
+          }
+
+          it('pairs money in with money out before it, on another cash account too, once', async () => {
+            const { savings, purchase } = await bought();
+            const refund = await store.createTransaction({ date: '2026-04-09', amount: 262, accountId: savings.id });
+
+            const first = await pair(refund.id, purchase.id);
+            const again = await pair(refund.id, purchase.id);
+
+            expect(again.id).toBe(first.id);
+            expect(await store.getLinks({ from: refund.id, rel: 'refund_of' })).toEqual([first]);
+            expect(first).toMatchObject({ to: purchase.id, confidence: null, source: 'user' });
+          });
+
+          it('lets a purchase have several refunds up to what it cost, and refuses one more', async () => {
+            const { current, purchase } = await bought();
+            const first = await store.createTransaction({ date: '2026-04-05', amount: 4000, accountId: current.id });
+            const second = await store.createTransaction({ date: '2026-04-06', amount: 197, accountId: current.id });
+            const third = await store.createTransaction({ date: '2026-04-07', amount: 1, accountId: current.id });
+            await pair(first.id, purchase.id);
+            await pair(second.id, purchase.id);
+
+            await expect(pair(third.id, purchase.id)).rejects.toThrow(/more than it cost: 41\.98 back of 41\.97/);
+            expect(await store.getLinks({ to: purchase.id, rel: 'refund_of' })).toHaveLength(2);
+          });
+
+          it('refuses a refund already paired with another purchase', async () => {
+            const { current, purchase } = await bought();
+            const other = await store.createTransaction({ date: '2026-04-03', amount: -1000, accountId: current.id });
+            const refund = await store.createTransaction({ date: '2026-04-09', amount: 500, accountId: current.id });
+            await pair(refund.id, purchase.id);
+
+            await expect(pair(refund.id, other.id)).rejects.toThrow(/already the refund/);
+          });
+
+          it('refuses the wrong directions, a transfer, a refund before its purchase or off a cash account, and what is not a movement', async () => {
+            const { current, savings, purchase } = await bought();
+            const card = await store.createAccount({ name: 'Card', kind: 'liability' });
+            const moneyOut = await store.createTransaction({ date: '2026-04-09', amount: -100, accountId: current.id });
+            const moved = await store.createTransaction({ date: '2026-04-09', amount: 100, accountId: current.id, counterAccountId: savings.id });
+            const early = await store.createTransaction({ date: '2026-04-01', amount: 100, accountId: current.id });
+            const onCard = await store.createTransaction({ date: '2026-04-09', amount: 100, accountId: card.id });
+            const moneyIn = await store.createTransaction({ date: '2026-04-08', amount: 50, accountId: current.id });
+            const refund = await store.createTransaction({ date: '2026-04-09', amount: 100, accountId: current.id });
+
+            await expect(pair(moneyOut.id, purchase.id)).rejects.toThrow(/money in/);
+            await expect(pair(refund.id, refund.id)).rejects.toThrow(/itself/);
+            await expect(pair(refund.id, moneyIn.id)).rejects.toThrow(/money out/);
+            await expect(pair(moved.id, purchase.id)).rejects.toThrow(/transfer/);
+            await expect(pair(early.id, purchase.id)).rejects.toThrow(/before its purchase/);
+            await expect(pair(onCard.id, purchase.id)).rejects.toThrow(/cash account/);
+            await expect(pair(refund.id, current.id)).rejects.toThrow(/transaction/);
+            await expect(pair(refund.id, 'transaction_nowhere')).rejects.toThrow(/no transaction/);
+            expect(await store.getLinks({ to: purchase.id, rel: 'refund_of' })).toEqual([]);
+            expect(await store.getLinks({ from: refund.id, rel: 'refund_of' })).toEqual([]);
+          });
+
+          it('refuses a correction of either end that would break the pair, and allows any other', async () => {
+            const { savings, purchase, current } = await bought();
+            const refund = await store.createTransaction({ date: '2026-04-09', amount: 4000, accountId: current.id });
+            await pair(refund.id, purchase.id);
+
+            await expect(store.updateTransaction(refund.id, { amount: -4000 })).rejects.toThrow(/paired as a refund.*unpair it first/);
+            await expect(store.updateTransaction(refund.id, { counterAccountId: savings.id })).rejects.toThrow(/transfer/);
+            await expect(store.updateTransaction(refund.id, { date: '2026-04-01' })).rejects.toThrow(/before its purchase/);
+            await expect(store.updateTransaction(purchase.id, { amount: -3999 })).rejects.toThrow(/has a refund paired with it.*more than it cost/);
+            await expect(store.updateTransaction(purchase.id, { counterAccountId: savings.id })).rejects.toThrow(/transfer/);
+            expect((await store.getTransaction(refund.id))?.amount).toBe(4000);
+
+            await store.updateTransaction(refund.id, { categoryId: 'cat_eating_out', note: 'returned', accountId: savings.id });
+            await store.updateTransaction(purchase.id, { amount: -5000, notCounted: true });
+            expect(await store.getLinks({ from: refund.id, rel: 'refund_of' })).toHaveLength(1);
+          });
+
+          it('goes with either end when it is deleted', async () => {
+            const { current, purchase } = await bought();
+            const refund = await store.createTransaction({ date: '2026-04-09', amount: 100, accountId: current.id });
+            const other = await store.createTransaction({ date: '2026-04-10', amount: 100, accountId: current.id });
+            await pair(refund.id, purchase.id);
+            await pair(other.id, purchase.id);
+
+            await store.deleteTransaction(refund.id);
+            expect(await store.getLinks({ to: purchase.id, rel: 'refund_of' })).toHaveLength(1);
+            expect(await store.getLinks({ from: refund.id })).toEqual([]);
+            await store.deleteTransaction(purchase.id);
+            expect(await store.getLinks({ from: other.id })).toEqual([]);
+          });
+
+          it('is yours: a re-import of either end keeps it, and one that would break it is refused', async () => {
+            const { current, purchase } = await bought();
+            const origin = { source: 'statement', externalId: 'acct:id:REF-1', syncedAt: '2026-04-09T00:00:00.000Z' };
+            const refund = await store.createTransaction({ date: '2026-04-09', amount: 262, accountId: current.id, description: 'Refund', origin });
+            await pair(refund.id, purchase.id);
+
+            await store.upsertTransactionByOrigin({ date: '2026-04-10', amount: 300, accountId: current.id, description: 'Refund, booked', origin });
+            expect(await store.getLinks({ from: refund.id, rel: 'refund_of' })).toHaveLength(1);
+            expect((await store.getTransaction(refund.id))?.amount).toBe(300);
+
+            await expect(
+              store.upsertTransactionByOrigin({ date: '2026-04-10', amount: 5000, accountId: current.id, description: 'Refund', origin })
+            ).rejects.toThrow(/more than it cost/);
+            expect((await store.getTransaction(refund.id))?.amount).toBe(300);
+          });
+        });
       });
       describe('the default account (ADR 0026)', () => {
         it('sets an open account valued by balance, and clears it', async () => {

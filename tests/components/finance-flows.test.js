@@ -34,6 +34,7 @@ const {
   yearFlows,
 } = await import('@/lib/domain/derive/finance.js');
 const { yearOf } = await import('@/lib/domain/dates.js');
+const { NO_REFUNDS, refundPairs } = await import('@/lib/domain/derive/refunds.js');
 
 const TODAY = '2026-04-20';
 const UNIT = 100_000_000;
@@ -78,12 +79,12 @@ const trades = [trade('2026-04-10', 'buy', 50000)];
 /**
  * @param {'month' | 'year'} period
  * @param {string} month
- * @param {{ view?: 'circle' | 'columns', target?: number | null, rows?: any[], held?: any[], place?: any, max?: number, since?: string }} [options]
+ * @param {{ view?: 'circle' | 'columns', target?: number | null, rows?: any[], held?: any[], place?: any, max?: number, since?: string, refunds?: any }} [options]
  */
-function render(period, month, { view = 'circle', target = null, rows = transactions, held = trades, place = {}, max = 50, since = '2026-01-01' } = {}) {
+function render(period, month, { view = 'circle', target = null, rows = transactions, held = trades, place = {}, max = 50, since = '2026-01-01', refunds = NO_REFUNDS } = {}) {
   const months = flowMonths(rows, TODAY, since);
-  const year = period === 'year' ? calendarYearFlows(rows, categories, month, months) : null;
-  const flows = year ?? monthFlows(rows, categories, month);
+  const year = period === 'year' ? calendarYearFlows(rows, categories, month, months, refunds) : null;
+  const flows = year ?? monthFlows(rows, categories, month, refunds);
   const periodMonths = year?.months ?? [month];
   // As the page does: the columns only in the columns view, which draws them.
   const columns =
@@ -103,7 +104,7 @@ function render(period, month, { view = 'circle', target = null, rows = transact
       invested: periodInvested(held, periodMonths),
       averages: year === null ? null : lineAverages(year),
       uncategorised: uncategorisedCounts(rows, categories, periodMonths),
-      movements: lineMovements(rows, categories, { months: periodMonths, lines: movementLines(flows), max }),
+      movements: lineMovements(rows, categories, { months: periodMonths, lines: movementLines(flows), max, refunds, refunded: place.refunded ?? null }),
       months,
       month,
       todayKey: TODAY,
@@ -574,6 +575,23 @@ describe('FinanceFlows', () => {
       expect(html).toContain('<span class="num finance-date">Mar</span>');
       expect(html).toContain('>Bonus</a><span class="caption">· 2 of 3 · paid 15 Apr</span>');
       expect(html).toContain('<td class="num finance-amount up">+\u2009300.00</td>');
+    });
+
+    it('leaves a paired refund out of its purchase\'s line, shows what is left of the purchase, and offers the refund (ADR 0055)', () => {
+      const back = t('2026-04-08', 5000, null, { id: 'tx_back', description: 'Melon returned' });
+      const rows = [...transactions, back];
+      const refunds = refundPairs(rows, [{ from: 'tx_back', to: 'tx_2026-04-03-50000', rel: 'refund_of' }]);
+      const html = render('month', '2026-04', { rows, refunds, place: { category: 'cat_groceries' } });
+
+      expect(html).toContain('<span class="caption">· of 500.00, 50.00 refunded</span>');
+      expect(html).toContain('<td class="num finance-amount">−\u2009450.00</td>');
+      expect(html).not.toContain('Melon returned');
+      expect(html).toContain('1 refunded movement hidden — <a class="finance-account-link" aria-label="Show the 1 refunded movement" href="/finances?month=2026-04&amp;category=cat_groceries&amp;refunded=show">show</a>');
+
+      const shown = render('month', '2026-04', { rows, refunds, place: { category: 'cat_groceries', refunded: 'show' } });
+      expect(shown).toContain('>Melon returned</a><span class="caption">· refund of a purchase</span>');
+      expect(shown).toContain('<td class="num finance-amount up">+\u200950.00</td>');
+      expect(shown).toContain('1 refunded movement shown — ');
     });
 
     it('says when an opened line holds no movement in the period', () => {
