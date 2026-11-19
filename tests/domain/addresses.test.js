@@ -12,7 +12,7 @@ import {
   habitsAddress,
   nutritionAddress,
 } from '@/lib/domain/addresses.js';
-import { financesHref } from '@/components/finance.js';
+import { financesHref, lineName } from '@/components/finance.js';
 import { journalHref } from '@/components/journal.js';
 
 describe('addresses: one implementation of where a record opens', () => {
@@ -138,5 +138,18 @@ describe('addresses: one implementation of where a record opens', () => {
     expect(financesHref({ month: '2026-01', transaction: 'transaction_seed_4' })).toBe(
       financesAddress({ month: '2026-01', transaction: 'transaction_seed_4' })
     );
+  });
+
+  it('selects a parent\'s own line by an id of its own, and names it (ADR 0057)', () => {
+    /** @type {any[]} */
+    const categories = [
+      { id: 'cat_home', name: 'Home', kind: 'expense', parentId: null, fixedCost: false, archived: false },
+      { id: 'cat_rent', name: 'Rent', kind: null, parentId: 'cat_home', fixedCost: false, archived: false },
+    ];
+
+    expect(financesAddress({ month: '2026-03', category: 'own:cat_home' })).toBe('/finances?month=2026-03&category=own%3Acat_home');
+    expect(lineName('own:cat_home', categories)).toBe('Home with no subcategory');
+    expect(lineName('own:cat_rent', categories)).toBeNull();
+    expect(lineName('own:cat_gone', categories)).toBeNull();
   });
 });

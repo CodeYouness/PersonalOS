@@ -88,9 +88,9 @@ describe('a paired refund counts where its purchase counts (ADR 0055)', () => {
     const rows = [jacket, back];
     const flows = monthFlows(rows, categories, '2026-10', read(rows, [['transaction_back', 'transaction_jacket']]));
 
-    // A line at zero this month and the last is not listed (periodFlows).
-    expect(line(flows, 'cat_clothes')).toBeUndefined();
-    expect(line(flows, 'cat_shopping')).toBeUndefined();
+    // Listed at zero: the purchase and its refund happened (periodFlows, ADR 0057).
+    expect(line(flows, 'cat_clothes')).toMatchObject({ total: 0, movements: 2 });
+    expect(line(flows, 'cat_shopping')).toMatchObject({ total: 0, movements: 2 });
     expect(flows.spending).toBe(0);
     expect(flows.income).toBe(0);
   });
@@ -137,7 +137,8 @@ describe('a paired refund counts where its purchase counts (ADR 0055)', () => {
     const flows = monthFlows(rows, categories, '2026-10', read(rows, [['transaction_back', 'transaction_jacket']]));
 
     expect(line(flows, 'cat_clothes')?.total).toBe(3197);
-    expect(line(flows, 'cat_salary')).toBeUndefined();
+    // Salary is listed, as every income line is, with nothing in it.
+    expect(line(flows, 'cat_salary')).toMatchObject({ total: 0, movements: 0 });
     expect(flows.income).toBe(0);
     expect(back.categoryId).toBe('cat_salary');
     // Unpaired, it is what it says it is: income.

@@ -233,6 +233,12 @@ narrow card does, rather than scroll -- Transactions drops the account, then
 the category, measured on the card (ADR 0053); one that cannot scrolls
 inside its own box, never the card or the page.
 
+A breakdown lists **what the period holds**, never a row at zero kept for
+the period before; where every line matters even at zero (income's pay
+lines), it says so by listing all of them, not by a fold. **The rows an
+opened line shows add up to it**: what is filed on the line itself is a row
+of its own ("No subcategory"), never left out (ADR 0057).
+
 A list that leaves rows out or folds them says so in a **last quiet line**,
 a caption, with the count and the one word that undoes it as a link to the
 same place with every other parameter kept: "3 refunded movements hidden —

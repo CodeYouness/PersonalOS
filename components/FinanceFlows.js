@@ -10,7 +10,6 @@ import {
   formatEuro,
   formatEuroShort,
   formatMoney,
-  formatMoneyChange,
   formatRate,
   monthLabel,
   monthShort,
@@ -20,15 +19,15 @@ import {
 } from '@/components/format.js';
 import Segmented from '@/components/Segmented.js';
 import Tip, { TipFigures } from '@/components/Tip.js';
-import { shiftMonth, yearOf } from '@/lib/domain/dates.js';
+import { yearOf } from '@/lib/domain/dates.js';
 import {
   circleArc,
   dayBars,
   dayHigh,
   dayMarkFloor,
   flowCircle,
-  foldedLines,
   meetsSavingsTarget,
+  ownLineParent,
   savingsRate,
   spendingParts,
   targetShortfall,
@@ -113,18 +112,19 @@ const MONTH_TICK_STEP = 3;
  *   target (ADR 0045), a missed target's shortfall, fixed vs variable.
  *
  * **On the right, always**, the breakdown: income, then spending, with the
- * composition of spending (spendingParts, each part with its tooltip) and
- * the comparison columns -- the change from last month, or in a year each
- * line's average month (lineAverages) and the change from the same months of
- * last year. A line's
- * name with subcategories opens them, with what was spent in each and a link
- * to the line's movements (`?category=<line>`); a subcategory's name, and a
- * line's without any, opens its movements of the period in place
- * (`movements`, lineMovements, ADR 0052), the newest first and "and N more"
- * linking to the line's listing. A deposit's month of interest is one row
- * of the line that counts it (ADR 0056), naming its account (`accounts`).
- * The lines with nothing in the period fold
- * into one row at the end of their table (foldedLines, ADR 0048).
+ * composition of spending (spendingParts, each part with its tooltip) and,
+ * in a year, each line's average month (lineAverages). No comparison with
+ * the period before (ADR 0057). The lines are the ones the period lists
+ * (periodFlows): a spending line only when it holds a counted movement, every
+ * income line also at nothing, an Uncategorised line when it holds one. A
+ * line's name with subcategories opens them, with what was spent in each --
+ * and, last, what was filed on the line itself ("No subcategory"), so the
+ * rows add up to the line -- and a link to the line's movements
+ * (`?category=<line>`); a subcategory's name, the own row's and a line's
+ * without any open their movements of the period in place (`movements`,
+ * lineMovements, ADR 0052), the newest first and "and N more" linking to the
+ * line's listing. A deposit's month of interest is one row of the line that
+ * counts it (ADR 0056), naming its account (`accounts`).
  *
  * Read-only, and loading it calls neither the model nor an integration.
  *
@@ -155,12 +155,9 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
   const label = period === 'year' ? year : monthLabel(month);
   /** @param {string} target */
   const go = (target) => router.push(target, { scroll: false });
-  const tableColumns = {
-    change: period === 'year' ? 'vs ' + yearOf(shiftMonth(month, -12)) : 'vs last month',
-    averages: period === 'year' ? averages : null,
-  };
+  const yearAverages = period === 'year' ? averages : null;
   const quietLabel = period === 'year' ? 'this year' : 'this month';
-  const shared = { quietLabel, columns: tableColumns, compared: flows.compared, movements, accounts, todayKey, place };
+  const shared = { quietLabel, averages: yearAverages, movements, accounts, todayKey, place };
   const empty = circle.state === 'empty';
   const drawn = view === 'columns' ? columns : null;
   // The least a day's income is marked from, when a day of the month's columns reaches it.
@@ -171,7 +168,7 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
       <FlowTable
         title="Income"
         totalHead="Received"
-        table={foldedLines(flows.incomeCategories, flows.uncategorisedIncome, listed(flows.uncategorisedIncome))}
+        lines={flows.incomeCategories}
         uncategorised={flows.uncategorisedIncome}
         parts={[]}
         {...shared}
@@ -180,12 +177,12 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
       <FlowTable
         title="Spending"
         totalHead="Spent"
-        table={foldedLines(flows.spendingCategories, flows.uncategorisedSpending, listed(flows.uncategorisedSpending))}
+        lines={flows.spendingCategories}
         uncategorised={flows.uncategorisedSpending}
         parts={spendingParts(flows)}
         {...shared}
       />
-      {tableColumns.averages !== null && !empty && (
+      {yearAverages !== null && !empty && (
         <p className="caption finance-average-note">
           Average: per month over the {(flows.months?.length ?? 1) === 1 ? 'one month' : flows.months?.length + ' months'} of {year} on offer.
         </p>
@@ -258,17 +255,6 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
       </div>
     </article>
   );
-}
-
-/**
- * Whether a table lists its Uncategorised line: when it has money in the
- * period or the one before, as monthFlows lists a category.
- *
- * @param {CategoryFlow} line
- * @returns {boolean}
- */
-function listed(line) {
-  return line.total !== 0 || line.previous !== 0;
 }
 
 /**
@@ -922,47 +908,39 @@ function Composition({ flows }) {
 }
 
 /**
- * The columns a table shows besides the name, Share and the amount, which
- * is always last (ADR 0050): the change from the period before, headed by
- * it, and in a year each line's average month.
- *
- * @typedef {{ change: string | null, averages: Map<string, number> | null }} Columns
- */
-
-/**
- * One kind's table. A line with subcategories opens into them by its name;
- * one whose subcategory -- or itself -- is selected opens by itself. A
- * subcategory's name, and a line's with none, opens its movements of the
- * period in place (ADR 0052), as does selecting it. The lines with nothing
- * in the period sit folded in one row at the end, "N categories with nothing
- * this month", which opens to show them -- by itself when the selected line
- * is one of them.
+ * One kind's table: name, Share, in a year the line's average month
+ * (`averages`), and the amount, always last (ADR 0050, 0057). Its lines are
+ * the ones the period lists (periodFlows); the Uncategorised line when it
+ * holds a counted movement. A line with subcategories opens into them by its
+ * name, then its own row ("No subcategory", `line.own`) when something is
+ * filed on the line itself; one whose subcategory, own row -- or itself -- is
+ * selected opens by itself. A subcategory's name, the own row's and a line's
+ * with none open their movements of the period in place (ADR 0052), as does
+ * selecting one.
  *
  * @param {{
  *   title: string,
  *   totalHead: string,
- *   table: ReturnType<typeof foldedLines>,
+ *   lines: CategoryFlow[],
  *   quietLabel: string,
  *   uncategorised: CategoryFlow,
  *   parts: { id: string }[],
- *   columns: Columns,
- *   compared: boolean,
+ *   averages: Map<string, number> | null,
  *   movements: Movements | null,
  *   accounts: Pick<import('@/lib/domain/types.js').FinanceAccount, 'id' | 'name'>[],
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, columns, compared, movements, accounts, todayKey, place }) {
-  const { lines, quiet, showUncategorised } = table;
+function FlowTable({ title, totalHead, lines, quietLabel, uncategorised, parts, averages, movements, accounts, todayKey, place }) {
+  const showUncategorised = uncategorised.movements > 0;
+  const selected = place.category ?? null;
   /** @param {CategoryFlow} line */
-  const holdsSelected = (line) => line.id === place.category || line.children.some((child) => child.id === place.category);
-  const [open, setOpen] = useState(
-    () => new Set([...lines, ...quiet].filter((line) => line.children.length > 0 && holdsSelected(line)).map((line) => line.id))
-  );
+  const holdsSelected = (line) =>
+    selected !== null && [line, ...line.children, ...(line.own === null ? [] : [line.own])].some((each) => each.id === selected);
+  const [open, setOpen] = useState(() => new Set(lines.filter((line) => line.children.length > 0 && holdsSelected(line)).map((line) => line.id)));
   const [opened, setOpened] = useState(() => new Set(place.category !== null && place.category !== undefined && movements?.has(place.category) ? [place.category] : []));
-  const [showQuiet, setShowQuiet] = useState(() => quiet.some(holdsSelected));
-  if (lines.length === 0 && quiet.length === 0 && !showUncategorised) return null;
+  if (lines.length === 0 && !showUncategorised) return null;
 
   /**
    * @param {(update: (current: Set<string>) => Set<string>) => void} set
@@ -980,8 +958,8 @@ function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, 
     const at = parts.findIndex((part) => part.id === id);
     return parts.length < 2 || at === -1 ? null : SERIES[at % SERIES.length];
   };
-  const width = 3 + (columns.averages === null ? 0 : 1) + (columns.change === null ? 0 : 1);
-  const shared = { place, columns, compared };
+  const width = 3 + (averages === null ? 0 : 1);
+  const shared = { place, averages };
   /** @param {string} id */
   const listing = (id) => financesHref({ ...place, category: id, tag: null, span: null, transaction: null });
   /**
@@ -1051,7 +1029,7 @@ function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, 
     <tr key={line.id + ':listing'} className={'finance-movement-row finance-movements-row' + (deep ? ' is-deep' : '')}>
       <td colSpan={width}>
         <Link href={listing(line.id)} scroll={false} className="finance-account-link" aria-current={place.category === line.id ? 'true' : undefined}>
-          {list.more > 0 ? 'and ' + list.more + ' more' : 'Movements in ' + line.name}
+          {list.more > 0 ? 'and ' + list.more + ' more' : ownLineParent(line.id) !== null ? 'Movements with no subcategory' : 'Movements in ' + line.name}
         </Link>
       </td>
     </tr>,
@@ -1072,6 +1050,8 @@ function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, 
       ...(expanded
         ? [
             ...line.children.flatMap((child) => leaf(child, true)),
+            // What is filed on the line itself, so the rows add up to it (ADR 0057).
+            ...(line.own === null ? [] : leaf(line.own, true)),
             <tr key={line.id + ':movements'} className="is-child finance-movements-row">
               <td colSpan={width}>
                 <Link href={listing(line.id)} scroll={false} className="finance-account-link" aria-current={place.category === line.id ? 'true' : undefined}>
@@ -1086,32 +1066,18 @@ function FlowTable({ title, totalHead, table, quietLabel, uncategorised, parts, 
 
   return (
     <div className="finance-table-scroll">
-      <table className={'finance-table finance-flow-table' + (columns.averages !== null ? ' is-year' : '')}>
+      <table className={'finance-table finance-flow-table' + (averages !== null ? ' is-year' : '')}>
         <thead>
           <tr>
             <th>{title}</th>
             <th className="num">Share</th>
-            {columns.averages !== null && <th className="num">Average</th>}
-            {columns.change !== null && <th className="num">{columns.change}</th>}
+            {averages !== null && <th className="num">Average</th>}
             <th className="num">{totalHead}</th>
           </tr>
         </thead>
         <tbody>
           {lines.flatMap(rows)}
           {showUncategorised && leaf(uncategorised, false)}
-          {quiet.length > 0 && (
-            <tr className="finance-quiet-row">
-              <td colSpan={width}>
-                <button type="button" className="finance-quiet-toggle" aria-expanded={showQuiet} onClick={() => setShowQuiet((shown) => !shown)}>
-                  <span className="finance-quiet-mark" aria-hidden="true">
-                    {showQuiet ? '▾' : '▸'}
-                  </span>
-                  {quiet.length === 1 ? '1 category' : quiet.length + ' categories'} with nothing {quietLabel}
-                </button>
-              </td>
-            </tr>
-          )}
-          {showQuiet && quiet.flatMap(rows)}
         </tbody>
       </table>
     </div>
@@ -1221,17 +1187,16 @@ function InterestRow({ run, accounts, span, deep, todayKey, place }) {
  * @param {{
  *   line: CategoryFlow,
  *   place: import('@/components/finance.js').FinancesPlace,
- *   columns: Columns,
- *   compared: boolean,
+ *   averages: Map<string, number> | null,
  *   tone?: string | null,
  *   child?: boolean,
  *   open?: boolean,
  *   onToggle?: (() => void) | null,
  * }} props
  */
-function FlowRow({ line, place, columns, compared, tone = null, child = false, open = false, onToggle = null }) {
+function FlowRow({ line, place, averages, tone = null, child = false, open = false, onToggle = null }) {
   const selected = place.category === line.id;
-  const average = columns.averages?.get(line.id);
+  const average = averages?.get(line.id);
   return (
     <tr className={(selected ? 'is-selected' : '') + (child ? ' is-child' : '') || undefined}>
       <td title={line.name}>
@@ -1255,8 +1220,7 @@ function FlowRow({ line, place, columns, compared, tone = null, child = false, o
         )}
       </td>
       <td className="num caption">{percent(line.share)}</td>
-      {columns.averages !== null && <td className="num caption">{average === undefined ? '' : formatMoney(average, { cents: true })}</td>}
-      {columns.change !== null && <td className="num">{compared ? formatMoneyChange(line.change) : ''}</td>}
+      {averages !== null && <td className="num caption">{average === undefined ? '' : formatMoney(average, { cents: true })}</td>}
       <td className="num">{formatMoney(line.total, { cents: true })}</td>
     </tr>
   );

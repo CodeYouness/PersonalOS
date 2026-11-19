@@ -340,7 +340,7 @@ of its own.
 | `figure:savings-rate:<YYYY-MM>`, `savings-rate-12m:<YYYY-MM>` | the month's rate, and the 12 months ending with it; with a target savings rate set, whether each meets it | Finances, that month |
 | `figure:income:`, `spending:`, `left:`, `savings-rate:<YYYY>-ytd` | today's calendar year to date, as the year reading shows it (`calendarYearFlows`): from January or "tracked since" to today's month; the rate with whether it meets the target and, when not, what would have had to be left | Finances, the year |
 | `figure:tag:<YYYY-MM>:<tag key>`, `figure:tag:<YYYY>-ytd:<tag key>` | one tag of today's month or of the year to date (`tagFlows`): spending, income and movements; the year's also its totals over all time and its first and last day. The key spells the tag in the characters an id allows, anything else as `_<hex code point>_` | Finances, that period, the tag selected |
-| `figure:category:<YYYY-MM>:<line id>` | one line of the category table: total, share, change on the month before | Finances, that month |
+| `figure:category:<YYYY-MM>:<line id>` | one line of the category table, as the screen lists it: total, share, change on the month before (`lineChanges` -- the context's alone, the screen shows none, ADR 0057) | Finances, that month |
 | `figure:investments:now` | what the holdings cost, are worth and earned today (`investmentReturns`, ADR 0051): cost, value, profit or loss and its share, after tax, realised by sells, the change since the last price day, what was left out | Finances |
 | `figure:investments:<YYYY>-ytd` | the holdings' year to date, money put in or taken out not counted, and its share of the money at work | Finances |
 | `figure:habit-streak:now` | the current streak | Habits |
@@ -1782,20 +1782,30 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   share of the period's spending in a tooltip (ADR 0053, amended). The summary
   -- income, spent, invested, kept, then the notes, the savings rates against
   the target, the shortfall, fixed and variable -- is under the chart, on the
-  left (ADR 0053). Each table's columns are the line, its Share, the change from the period
-  before and its amount, last, headed "Spent" or "Received". **A line's name
-  opens its subcategories** when it has some, with what was spent in each
-  and a link to the line's movements; **a subcategory's name, and a line's
-  without any, opens its movements of the period in place**
+  left (ADR 0053). Each table's columns are the line, its Share, in a year
+  its average month, and its amount, last, headed "Spent" or "Received" --
+  **no comparison with the period before** (ADR 0057). **Which lines are
+  listed** (`periodFlows`, ADR 0057): a spending line or subcategory only
+  when it **holds a counted movement** in the period (`movements`, what
+  `lineHolds` counts) -- not "a total other than zero": a purchase refunded
+  in full nets to zero but happened, and is listed -- whatever the period
+  before held; **every income category and subcategory, also at zero**, so
+  each pay line shows in a month it paid nothing (an archived one only when
+  it holds a movement); an Uncategorised line when it holds one. Nothing is
+  folded. **A line's name opens its subcategories** when it has some listed,
+  with what was spent in each, then -- when something is filed on the line
+  itself -- **its own row, "No subcategory"** (`own`, `ownLine`), so the rows
+  of an opened line always add up to it, and a link to the line's
+  movements; **a subcategory's name, the own row's, and a line's without
+  any, opens its movements of the period in place**
   (`lineMovements`, the rule `lineHolds` counts by): the day, the
   description, the amount signed as the Transactions card signs it, newest
   first, the newest `limits.financeListMax` and "and N more" linking to the
   line's listing. A movement counted over several months shows the month it
   counts in, its part and "2 of 3 · paid 15 Nov". An account's month of
-  interest is one row of the line that counts it (Interest, ADR 0056). **A line with nothing in the period is folded**
-  (`foldedLines`, ADR 0048): the lines at a total of zero, in either table,
-  go into one row at its end, "N categories with nothing this month", which
-  opens to show them -- by itself when the selected line is one of them.
+  interest is one row of the line that counts it (Interest, ADR 0056). The
+  own row holds only what is filed on the line itself (`lineHolds`), and its
+  listing is `?category=own:<category>`, "Home with no subcategory".
 - **A line's average month** (`lineAverages`) is the year's only: the line's total over the year's months on offer, a month with
   no movement counting as **zero** -- the month was tracked -- rounded to a
   cent; every line, subcategories and Uncategorised included. A month has no
@@ -1805,10 +1815,8 @@ implementation, `periodFlows` under `monthFlows` and `calendarYearFlows`:
   month's **calendar year to date** -- its months on offer, from January or
   "tracked since" to December or today's month -- with the month's figures,
   tables, circle and savings rate ("Saved in 2026") over those months, and
-  each line's average month. Its change column compares with the **same months a year before** (January to
-  November against January to November, never a whole year), and only when
-  every one of them was on offer and something was counted in them;
-  otherwise it is blank. A selected line lists the year's transactions.
+  each line's average month, its lines listed by the month's rule over its
+  months. A selected line lists the year's transactions.
   `yearFlows` is not this: it is the twelve months ending with a month, the
   "Saved over 12 months" rate.
 - **The Transactions card** lists, with nothing selected, the period's

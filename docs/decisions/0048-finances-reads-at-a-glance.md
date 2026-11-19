@@ -12,7 +12,10 @@
   figures are a summary under the tables; and by
   [0053](0053-columns-beside-the-breakdown-and-one-tooltip.md): the bars
   left the top of Income & spending for its Columns view, a year's months
-  or a month's days
+  or a month's days; and by
+  [0057](0057-the-breakdown-lists-what-the-period-holds.md): the breakdown
+  lists only the lines that hold a movement in the period (every income
+  line), so nothing folds and `foldedLines` is gone
 
 ## Context
 

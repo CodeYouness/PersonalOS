@@ -311,7 +311,10 @@ describe('finance figures: a month', () => {
     expect(item(items, 'figure:left:2026-05')?.content).toContain('0.00 EUR');
     // No income: the screen shows "—", so there is no figure.
     expect(item(items, 'figure:savings-rate:2026-05')).toBeUndefined();
-    expect(items.filter((one) => one.id.startsWith('figure:category:2026-05:'))).toEqual([]);
+    // No spending line; each income line is listed at nothing, as the screen lists it (ADR 0057).
+    const lines = items.filter((one) => one.id.startsWith('figure:category:2026-05:'));
+    expect(lines.map((one) => one.id)).toEqual(['figure:category:2026-05:cat_consulting', 'figure:category:2026-05:cat_teaching']);
+    for (const one of lines) expect(one.content).toMatch(/^Income from .+ in May 2026: 0\.00 EUR/);
   });
 
   it('offers no month before "tracked since", and no month figure for one', async () => {
