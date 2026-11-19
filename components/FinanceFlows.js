@@ -10,7 +10,6 @@ import {
   formatEuro,
   formatEuroShort,
   formatMoney,
-  formatRate,
   monthLabel,
   monthShort,
   monthSpan,
@@ -26,9 +25,8 @@ import {
   dayHigh,
   dayMarkFloor,
   flowCircle,
-  meetsSavingsTarget,
   ownLineParent,
-  savingsRate,
+  savingsReading,
   spendingParts,
   targetShortfall,
   trendBars,
@@ -109,7 +107,9 @@ const MONTH_TICK_STEP = 3;
  *   its tone in the ring (in the columns: income outlined, spent solid), then
  *   the summary: what was spent beyond the income, invested from earlier
  *   savings or sold beyond what was bought, the savings rates against the
- *   target (ADR 0045), a missed target's shortfall, fixed vs variable.
+ *   target (ADR 0045) -- or, where a percent says nothing, what was saved
+ *   (savingsReading, ADR 0059) -- a missed target's shortfall, fixed vs
+ *   variable.
  *
  * **On the right, always**, the breakdown: income, then spending, with the
  * composition of spending (spendingParts, each part with its tooltip) and,
@@ -132,7 +132,7 @@ const MONTH_TICK_STEP = 3;
  *   flows: PeriodFlows & { months?: string[] },
  *   period: 'month' | 'year',
  *   view: import('@/lib/domain/addresses.js').FinancesView,
- *   yearRate: number | null,
+ *   twelveMonths: { income: number, spending: number } | null,
  *   target: number | null,
  *   columns: ChartColumns | null,
  *   invested: { bought: number, sold: number, net: number },
@@ -144,9 +144,11 @@ const MONTH_TICK_STEP = 3;
  *   month: string,
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
- * }} props `columns` only in the columns view, which draws them
+ * }} props `columns` only in the columns view, which draws them;
+ *   `twelveMonths` the twelve months ending with the month (yearFlows), in a
+ *   month only
  */
-export default function FinanceFlows({ flows, period, view, yearRate, target, columns, invested, averages, uncategorised, movements, accounts = [], months, month, todayKey, place }) {
+export default function FinanceFlows({ flows, period, view, twelveMonths, target, columns, invested, averages, uncategorised, movements, accounts = [], months, month, todayKey, place }) {
   const router = useRouter();
   /** @type {[PartKey | null, (key: PartKey | null) => void]} */
   const [active, setActive] = useState(/** @type {PartKey | null} */ (null));
@@ -247,7 +249,7 @@ export default function FinanceFlows({ flows, period, view, yearRate, target, co
                 <Circle circle={circle} label={label} active={active} setActive={setActive} />
               )}
               <CircleTotals flows={flows} circle={circle} legend={drawn === null ? 'circle' : drawn.kind} floor={floor} setActive={setActive} />
-              <Summary flows={flows} circle={circle} period={period} year={year} yearRate={yearRate} target={target} />
+              <Summary flows={flows} circle={circle} period={period} year={year} twelveMonths={twelveMonths} target={target} />
             </div>
             {breakdown}
           </div>
@@ -786,12 +788,11 @@ function CircleTotals({ flows, circle, legend, floor, setActive }) {
  *   circle: FlowCircle,
  *   period: 'month' | 'year',
  *   year: string,
- *   yearRate: number | null,
+ *   twelveMonths: { income: number, spending: number } | null,
  *   target: number | null,
  * }} props
  */
-function Summary({ flows, circle, period, year, yearRate, target }) {
-  const rate = savingsRate(flows);
+function Summary({ flows, circle, period, year, twelveMonths, target }) {
   const shortfall = period === 'year' ? targetShortfall(flows, target) : null;
   const [spent, invested] = circle.parts;
   /** @param {CirclePart} part */
@@ -819,7 +820,7 @@ function Summary({ flows, circle, period, year, yearRate, target }) {
         </p>
       ))}
       <dl>
-        <Rate label={period === 'year' ? 'Saved in ' + year : 'Saved this month'} rate={rate} target={target}>
+        <Rate label={period === 'year' ? 'Saved in ' + year : 'Saved this month'} flows={flows} target={target}>
           {shortfall !== null && (
             <dd className="caption finance-target-note">
               To meet the {target}% target on what came in during {year}, <span className="num">{formatEuro(shortfall.needed, { cents: true })}</span>{' '}
@@ -827,7 +828,7 @@ function Summary({ flows, circle, period, year, yearRate, target }) {
             </dd>
           )}
         </Rate>
-        {period === 'month' && <Rate label="Saved over 12 months" rate={yearRate} target={target} />}
+        {period === 'month' && twelveMonths !== null && <Rate label="Saved over 12 months" flows={twelveMonths} target={target} />}
         <div className="finance-summary-row is-quiet">
           <dt>Fixed</dt>
           <dd className="num">{formatEuro(flows.fixed, { cents: true })}</dd>
@@ -842,18 +843,21 @@ function Summary({ flows, circle, period, year, yearRate, target }) {
 }
 
 /**
- * A savings rate in the summary. With a target, a line under it says
- * whether it meets it -- in words, with a quiet mark (filled when met, an
- * outline when not), never colour alone (ADR 0045); a blank rate has none.
+ * A savings rate in the summary -- or, where a percent says nothing (no
+ * income, or below −100%), what was saved, signed, in the summary's money
+ * (savingsReading, ADR 0059); "—" with nothing in or out. With a target, a
+ * line under it says whether it meets it -- in words, with a quiet mark
+ * (filled when met, an outline when not), never colour alone (ADR 0045); a
+ * blank one has none.
  *
- * @param {{ label: string, rate: number | null, target: number | null, children?: import('react').ReactNode }} props
+ * @param {{ label: string, flows: { income: number, spending: number }, target: number | null, children?: import('react').ReactNode }} props
  */
-function Rate({ label, rate, target, children = null }) {
-  const meets = meetsSavingsTarget(rate, target);
+function Rate({ label, flows, target, children = null }) {
+  const { rate, saved, meets } = savingsReading(flows, target);
   return (
     <div className="finance-summary-row is-rate">
       <dt>{label}</dt>
-      <dd className="num">{formatRate(rate)}</dd>
+      <dd className="num">{rate !== null ? percent(rate) : saved !== null ? formatEuro(saved, { cents: true }) : '—'}</dd>
       {target !== null && meets !== null && (
         <dd className="caption finance-target">
           <i className={'finance-target-mark' + (meets ? ' is-met' : '')} aria-hidden="true" />
@@ -908,7 +912,8 @@ function Composition({ flows }) {
 }
 
 /**
- * One kind's table: name, Share, in a year the line's average month
+ * One kind's table: name, Share -- "—" for a net refund, or when the whole
+ * is not positive (lineShare, ADR 0059) -- in a year the line's average month
  * (`averages`), and the amount, always last (ADR 0050, 0057). Its lines are
  * the ones the period lists (periodFlows); the Uncategorised line when it
  * holds a counted movement. A line with subcategories opens into them by its
@@ -1219,7 +1224,7 @@ function FlowRow({ line, place, averages, tone = null, child = false, open = fal
           </Link>
         )}
       </td>
-      <td className="num caption">{percent(line.share)}</td>
+      <td className="num caption">{line.share === null ? '—' : percent(line.share)}</td>
       {averages !== null && <td className="num caption">{average === undefined ? '' : formatMoney(average, { cents: true })}</td>}
       <td className="num">{formatMoney(line.total, { cents: true })}</td>
     </tr>

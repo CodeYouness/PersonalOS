@@ -32,6 +32,7 @@ import {
   periodInvested,
   quietAccounts,
   savingsRate,
+  savingsReading,
   sparkBars,
   spendingParts,
   tagFlows,
@@ -734,6 +735,38 @@ describe("a month's flows (#137)", () => {
     expect(home?.children.map((row) => [row.id, row.total])).toEqual([['cat_rent', 90000], ['cat_repairs', 6000]]);
     expect(home?.own?.total).toBe(4000);
     expect(flows.spendingCategories.find((row) => row.id === 'cat_shopping')?.share).toBe(0.5);
+  });
+
+  describe('a share that says nothing (ADR 0059)', () => {
+    it('gives a net refund no share, and keeps the share of the lines beside it', () => {
+      // Shopping spent 100.00; Home is a net refund of 50.00: the month spent 50.00.
+      const flows = monthFlows([t('2026-03-01', -10000, 'cat_shopping'), t('2026-03-02', 5000, 'cat_home')], categories, '2026-03');
+
+      expect(flows.spending).toBe(5000);
+      expect(flows.spendingCategories.find((row) => row.id === 'cat_home')).toMatchObject({ total: -5000, share: null });
+      // As computed before: its share of the whole, which a refund beside it can take past 100%.
+      expect(flows.spendingCategories.find((row) => row.id === 'cat_shopping')).toMatchObject({ total: 10000, share: 2 });
+    });
+
+    it('gives no line a share when the whole is not positive', () => {
+      const refunds = monthFlows([t('2026-03-02', 5000, 'cat_home')], categories, '2026-03');
+      expect(refunds.spending).toBe(-5000);
+      expect(refunds.spendingCategories.find((row) => row.id === 'cat_home')?.share).toBeNull();
+
+      // Every income line is listed, also at nothing: with no income, none has a share.
+      const nothing = monthFlows([t('2026-03-02', -5000, 'cat_shopping')], categories, '2026-03');
+      expect(nothing.incomeCategories.length).toBeGreaterThan(0);
+      expect(nothing.incomeCategories.every((row) => row.share === null)).toBe(true);
+    });
+
+    it('gives a line at nothing beside a positive whole its 0%, and a refunded subcategory none', () => {
+      const flows = monthFlows([t('2026-03-01', -5000, 'cat_rent'), t('2026-03-02', 5000, 'cat_repairs'), t('2026-03-03', -1000, 'cat_shopping')], categories, '2026-03');
+      const home = flows.spendingCategories.find((row) => row.id === 'cat_home');
+
+      expect(home).toMatchObject({ total: 0, share: 0 });
+      expect(home?.children.find((row) => row.id === 'cat_repairs')).toMatchObject({ total: -5000, share: null });
+      expect(home?.children.find((row) => row.id === 'cat_rent')).toMatchObject({ total: 5000, share: 5 });
+    });
   });
 
   it('gives each line\'s change from the previous month, in euros and percent, "n.d." when it was zero', () => {
@@ -1522,6 +1555,49 @@ describe('the savings target', () => {
     expect(targetShortfall({ income: 100000, spending: 80500, left: 19500 }, 20)).toBeNull();
     expect(targetShortfall({ income: 0, spending: 5000, left: -5000 }, 20)).toBeNull();
     expect(targetShortfall({ income: 200000, spending: 170000, left: 30000 }, null)).toBeNull();
+  });
+});
+
+describe('what the savings show (ADR 0059)', () => {
+  it('is the rate when there is income and it is printed at −100% or above', () => {
+    expect(savingsReading({ income: 200000, spending: 150000 }, null)).toEqual({ rate: 0.25, saved: null, meets: null });
+    expect(savingsReading({ income: 200000, spending: 250000 }, 20)).toEqual({ rate: -0.25, saved: null, meets: false });
+    // Spent exactly twice what came in: −100%, still a rate.
+    expect(savingsReading({ income: 100000, spending: 200000 }, null)).toMatchObject({ rate: -1, saved: null });
+    // −100.4% is printed as −100%: the rate as printed decides, as the target's verdict does.
+    expect(percent(-1.004)).toBe('−100%');
+    expect(savingsReading({ income: 100000, spending: 200400 }, null)).toMatchObject({ rate: -1.004, saved: null });
+  });
+
+  it('is the money saved, signed, when the rate is below −100%', () => {
+    // 100.00 in, 350.00 out: −250% says nothing; −250.00 does.
+    expect(savingsReading({ income: 10000, spending: 35000 }, null)).toEqual({ rate: null, saved: -25000, meets: null });
+    expect(savingsReading({ income: 100000, spending: 200600 }, null)).toMatchObject({ rate: null, saved: -100600 });
+  });
+
+  it('is the money saved when nothing came in', () => {
+    expect(savingsReading({ income: 0, spending: 5000 }, null)).toEqual({ rate: null, saved: -5000, meets: null });
+    // A chargeback larger than the income: income below zero.
+    expect(savingsReading({ income: -100, spending: 0 }, null)).toEqual({ rate: null, saved: -100, meets: null });
+    // A net refund and no income: something was saved.
+    expect(savingsReading({ income: 0, spending: -3000 }, null)).toEqual({ rate: null, saved: 3000, meets: null });
+  });
+
+  it('is blank when nothing came in and nothing went out', () => {
+    expect(savingsReading({ income: 0, spending: 0 }, 20)).toEqual({ rate: null, saved: null, meets: null });
+  });
+
+  it('keeps the target\'s verdict true to what is shown', () => {
+    // A rate: as printed, against the target (meetsSavingsTarget).
+    expect(savingsReading({ income: 100000, spending: 80500 }, 20).meets).toBe(true);
+    expect(savingsReading({ income: 100000, spending: 80510 }, 20).meets).toBe(false);
+    // Money that is less than nothing meets no target.
+    expect(savingsReading({ income: 10000, spending: 35000 }, 50).meets).toBe(false);
+    expect(savingsReading({ income: 0, spending: 5000 }, 50).meets).toBe(false);
+    // Something saved with no income: no share of an income, so no verdict.
+    expect(savingsReading({ income: 0, spending: -3000 }, 50).meets).toBeNull();
+    // No target, no verdict.
+    expect(savingsReading({ income: 0, spending: 5000 }, null).meets).toBeNull();
   });
 });
 

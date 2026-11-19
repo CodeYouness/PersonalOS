@@ -20,7 +20,12 @@ import { formatMoney, shortDate } from '@/components/format.js';
  *
  * Selecting a tag (`?tag=<tag>`) lists its movements in the Transactions
  * card. One selection at a time: it clears a selected line, as selecting a
- * line clears the tag. Nothing is rendered when no movement has a tag.
+ * line clears the tag.
+ *
+ * Shown only when it has something to say (ADR 0059): nothing is rendered
+ * when the period holds no tagged movement -- unless a tag is selected,
+ * when the card stays, saying the period holds none, beside the list that
+ * clears it -- and never when no movement has a tag.
  *
  * @param {{
  *   tags: TagFlow[],
@@ -31,7 +36,7 @@ import { formatMoney, shortDate } from '@/components/format.js';
  * }} props
  */
 export default function FinanceTags({ tags, tagged, periodLabel, todayKey, place }) {
-  if (!tagged) return null;
+  if (!tagged || (tags.length === 0 && (place.tag ?? null) === null)) return null;
   return (
     <article id="card-finance-tags" className="card">
       <div className="card-head">

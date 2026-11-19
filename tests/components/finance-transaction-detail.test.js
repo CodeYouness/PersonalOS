@@ -1,9 +1,9 @@
 /**
- * The selected movement's panel on Finances: its "Counts for" control (ADR
- * 0052) -- the month it was paid, by default, or a range of months the flows
- * spread it over, a from/to pair of month pickers. Absent on a transfer and
- * on a movement not counted, which are in no flow. Every row here is
- * invented.
+ * The selected movement's panel on Finances: no control for the months a
+ * movement counts in (ADR 0059, retiring ADR 0052's "Counts for"), but one
+ * quiet line saying what a movement already spread is counted over -- absent
+ * on a transfer and on a movement not counted, which are in no flow -- and
+ * its refund pairing (ADR 0055). Every row here is invented.
  */
 
 import { createElement } from 'react';
@@ -35,39 +35,29 @@ function render(transaction, pairing) {
 }
 
 describe('FinanceTransactionDetail', () => {
-  describe('Counts for (ADR 0052)', () => {
-    it('counts a movement in the month it was paid by default, with no month pickers', () => {
+  describe('counted over months (ADRs 0052, 0059)', () => {
+    it('offers no control for the months a movement counts in', () => {
       const html = render(t());
 
-      expect(html).toContain('Counts for');
-      expect(html).toContain('aria-pressed="true">The month it was paid</button>');
-      expect(html).toContain('aria-pressed="false">Spread over months</button>');
+      expect(html).not.toContain('Counts for');
+      expect(html).not.toContain('Spread over months');
       expect(html).not.toContain('id="t-counted-from"');
+      expect(html).not.toContain('finance-counts-note');
     });
 
-    it('shows the months a movement is spread over in a from/to pair of pickers, and says what it does', () => {
+    it('says, read-only, what a movement already spread is counted over, in one quiet line', () => {
       const html = render(t({ countedOver: { from: '2026-09', to: '2026-11' } }));
 
-      expect(html).toContain('aria-pressed="true">Spread over months</button>');
-      expect(html).toMatch(/<select id="t-counted-from"[^>]*>.*<option value="2026-09" selected="">September 2026<\/option>/);
-      expect(html).toMatch(/<select id="t-counted-to"[^>]*>.*<option value="2026-11" selected="">November 2026<\/option>/);
-      expect(html).toContain('Income and spending count it over 3 months, Sept–Nov, in equal parts; the balance keeps the day it was paid.');
+      expect(html).toContain('<p class="caption finance-counts-note">Income and spending count it over 3 months, Sept–Nov, in equal parts; the balance keeps the day it was paid.</p>');
+      expect(html).not.toContain('<select id="t-counted');
+      expect(html).not.toContain('Spread over months');
+      expect(render(t({ countedOver: { from: '2026-10', to: '2026-10' } }))).toContain('Income and spending count it over one month, Oct; the balance keeps the day it was paid.');
     });
 
-    it('offers the months around the day it was paid, and a saved month further away', () => {
-      // Paid in November 2026: from 23 months before to 23 after, as a range
-      // of 24 months either side can reach.
-      const html = render(t({ countedOver: { from: '2024-06', to: '2024-07' } }));
-
-      expect(html).toContain('<option value="2024-06" selected="">June 2024</option>');
-      expect(html).toContain('<option value="2024-12">December 2024</option>');
-      expect(html).toContain('<option value="2028-10">October 2028</option>');
-      expect(html).not.toContain('<option value="2028-11">');
-    });
-
-    it('is not there on a transfer or a movement not counted, which are in no flow', () => {
-      expect(render(t({ counterAccountId: 'account_b' }))).not.toContain('Counts for');
-      expect(render(t({ notCounted: true }))).not.toContain('Counts for');
+    it('says nothing of it on a transfer or a movement not counted, which are in no flow', () => {
+      const across = { from: '2026-09', to: '2026-11' };
+      expect(render(t({ counterAccountId: 'account_b', amount: -300000, countedOver: across }))).not.toContain('count it over');
+      expect(render(t({ notCounted: true, countedOver: across }))).not.toContain('count it over');
     });
   });
 

@@ -1,6 +1,9 @@
 # 0045. A target savings rate, met by the rate as it is printed
 
-- **Status** accepted
+- **Status** accepted; amended by
+  [0059](0059-finances-shows-only-what-says-something.md): where a percent says
+  nothing -- no income, or below −100% -- the card shows what was saved, and
+  money below zero is under the target
 - **Date** 2026-11-17
 
 ## Context

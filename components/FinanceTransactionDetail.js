@@ -13,9 +13,9 @@ import {
   signedAmount,
   transactionUrl,
 } from '@/components/finance.js';
-import { formatMoney, formatMoneyChange, monthLabel, monthSpan, parseMoney, shortDate } from '@/components/format.js';
+import { formatMoney, formatMoneyChange, monthSpan, parseMoney, shortDate } from '@/components/format.js';
 import { messageOf, request } from '@/components/request.js';
-import { monthKeyRange, monthOf, shiftMonth } from '@/lib/domain/dates.js';
+import { monthKeyRange, monthOf } from '@/lib/domain/dates.js';
 import { limits } from '@/personalos.config.js';
 
 /** @typedef {import('@/lib/domain/types.js').Transaction} Transaction */
@@ -254,8 +254,6 @@ function editable(transaction) {
     note: transaction.note,
     tags: transaction.tags.join(', '),
     notCounted: transaction.notCounted,
-    /** @type {CountedOver | null} */
-    countedOver: transaction.countedOver ?? null,
   };
 }
 
@@ -271,11 +269,11 @@ function editable(transaction) {
  * money in flip the sign. Transfer asks for the other account and saves when
  * one is chosen -- that turns the movement into a transfer and clears its
  * category. A transfer keeps its sign: money that left this account went to
- * the other one, money that arrived came from it. Counts for (ADR 0052)
- * saves the months income and spending count it over, or clears them back
- * to the month it was paid; a transfer and a movement not counted are in no
- * flow, and do not show it. Delete asks first; a capture that produced the
- * movement keeps its sentence.
+ * the other one, money that arrived came from it. Nothing sets the months a
+ * movement counts in (ADR 0059, retiring ADR 0052's "Counts for"); one
+ * already spread says so in a quiet line (CountedOverLine) -- not on a
+ * transfer or a movement not counted, which are in no flow. Delete asks
+ * first; a capture that produced the movement keeps its sentence.
  *
  * A refund and its purchase (ADR 0055, `pairing`): money in that can be a
  * refund offers the purchases it could give back for ("Refund of…"); a
@@ -554,13 +552,7 @@ export default function FinanceTransactionDetail({ transaction, accounts, catego
           />
           Not counted: it moves the balance, not the month&apos;s income or spending
         </label>
-        {draft.direction !== 'transfer' && !draft.notCounted && (
-          <CountsFor
-            paid={saved.date}
-            value={draft.countedOver}
-            onChange={(countedOver) => save({ countedOver }, { countedOver })}
-          />
-        )}
+        {draft.direction !== 'transfer' && !draft.notCounted && <CountedOverLine value={transaction.countedOver ?? null} />}
         {pairing !== undefined && (
           <RefundPairing transactionId={transaction.id} pairing={pairing} todayKey={todayKey ?? transaction.date} place={place} />
         )}
@@ -747,93 +739,21 @@ function RefundPairing({ transactionId, pairing, todayKey, place }) {
 }
 
 /**
- * Which months a movement counts for in income and spending (ADR 0052): the
- * month it was paid -- the default, saved as no range -- or a range of
- * months, a From and a To month picker, over which the flows spread it in
- * equal parts. Choosing a range shows the pickers at the month it was paid
- * and saves nothing until one is changed; a From after the To moves the To
- * with it, and the reverse, so a range is never backwards. The store refuses
- * a range longer than `limits.financeCountedOverMaxMonths`, and the panel
- * says why. The pickers offer the months a range starting or ending in the
- * paid month can reach, and a saved month further away.
+ * What a movement already spread over months is counted over (ADR 0052), one
+ * quiet line, read-only: the panel no longer sets it (ADR 0059), but a figure
+ * that reads it never hides why it is what it is. Nothing for a movement
+ * counted in the month it was paid.
  *
- * @param {{ paid: string, value: CountedOver | null, onChange: (countedOver: CountedOver | null) => void }} props
- *   `paid` the day the money moved
+ * @param {{ value: CountedOver | null }} props
  */
-function CountsFor({ paid, value, onChange }) {
-  const [spreading, setSpreading] = useState(value !== null);
-  const own = monthOf(paid);
-  const from = value?.from ?? own;
-  const to = value?.to ?? own;
-  const reach = limits.financeCountedOverMaxMonths - 1;
-  const options = [...new Set([...monthKeyRange(shiftMonth(own, -reach), shiftMonth(own, reach)), from, to])].sort();
-  const spread = spreading || value !== null;
-  const months = monthKeyRange(from, to).length;
-
+function CountedOverLine({ value }) {
+  if (value === null) return null;
+  const months = monthKeyRange(value.from, value.to).length;
   return (
-    <div className="finance-counts-for">
-      <span className="caption" id="t-counts-for">Counts for</span>
-      <div className="segmented" role="group" aria-labelledby="t-counts-for">
-        <button
-          type="button"
-          className={'seg' + (spread ? '' : ' is-on')}
-          aria-pressed={!spread}
-          onClick={() => {
-            setSpreading(false);
-            if (value !== null) onChange(null);
-          }}
-        >
-          The month it was paid
-        </button>
-        <button type="button" className={'seg' + (spread ? ' is-on' : '')} aria-pressed={spread} onClick={() => setSpreading(true)}>
-          Spread over months
-        </button>
-      </div>
-      {spread && (
-        <>
-          <div className="finance-entry">
-            <MonthPicker
-              id="t-counted-from"
-              label="From"
-              value={from}
-              options={options}
-              onChange={(month) => onChange({ from: month, to: month > to ? month : to })}
-            />
-            <MonthPicker
-              id="t-counted-to"
-              label="To"
-              value={to}
-              options={options}
-              onChange={(month) => onChange({ from: month < from ? month : from, to: month })}
-            />
-          </div>
-          {value !== null && (
-            <p className="caption finance-counts-note">
-              Income and spending count it over {months === 1 ? 'one month' : months + ' months'}, {monthSpan(value.from, value.to)}
-              {months === 1 ? '' : ', in equal parts'}; the balance keeps the day it was paid.
-            </p>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-/**
- * @param {{ id: string, label: string, value: string, options: string[], onChange: (month: string) => void }} props
- */
-function MonthPicker({ id, label, value, options, onChange }) {
-  return (
-    <div className="field">
-      <label className="caption" htmlFor={id}>{label}</label>
-      <select id={id} className="input" value={value} onChange={(event) => onChange(event.target.value)}>
-        {options.map((month) => (
-          <option key={month} value={month}>
-            {monthLabel(month)}
-          </option>
-        ))}
-      </select>
-    </div>
+    <p className="caption finance-counts-note">
+      Income and spending count it over {months === 1 ? 'one month' : months + ' months'}, {monthSpan(value.from, value.to)}
+      {months === 1 ? '' : ', in equal parts'}; the balance keeps the day it was paid.
+    </p>
   );
 }
 

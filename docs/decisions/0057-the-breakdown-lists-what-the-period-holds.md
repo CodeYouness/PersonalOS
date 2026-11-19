@@ -1,6 +1,8 @@
 # 0057. The breakdown lists what the period holds, and its rows add up
 
-- **Status** accepted
+- **Status** accepted; amended by
+  [0059](0059-finances-shows-only-what-says-something.md): a net refund, or every
+  line of a whole that is not positive, shows no Share ("—")
 - **Date** 2026-11-19
 - **Amends** [0048](0048-finances-reads-at-a-glance.md) (the fold of the
   lines with nothing in the period), [0050](0050-income-and-spending-reads-as-a-circle.md)

@@ -1,6 +1,10 @@
 # 0052. A movement counts in the months it is for
 
-- **Status** accepted
+- **Status** accepted; amended by
+  [0059](0059-finances-shows-only-what-says-something.md): nothing sets
+  `countedOver` any more -- the panel's "Counts for" is gone, a movement
+  already spread says so in one read-only line; the field, its validation,
+  the route and the derivations stay
 - **Date** 2026-11-17
 - **Amends** [0023](0023-transactions-are-signed.md) (the user's zone gains a field),
   [0044](0044-spending-over-time-reads-by-the-months-rules.md) and

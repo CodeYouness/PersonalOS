@@ -29,7 +29,6 @@ const {
   monthFlows,
   movementLines,
   periodInvested,
-  savingsRate,
   uncategorisedCounts,
   yearColumns,
   yearFlows,
@@ -101,7 +100,7 @@ function render(period, month, { view = 'circle', target = null, rows = transact
       flows,
       period,
       view,
-      yearRate: period === 'year' ? null : savingsRate(yearFlows(rows, categories, month)),
+      twelveMonths: period === 'year' ? null : yearFlows(rows, categories, month),
       target,
       columns: /** @type {any} */ (columns),
       invested: periodInvested(held, periodMonths),
@@ -654,8 +653,28 @@ describe('FinanceFlows', () => {
     it('lists every income line, also at nothing', () => {
       const html = breakdownOf(render('month', '2026-02', {}));
 
-      expect(html).toContain(closed('Pay') + '</td><td class="num caption">0%</td><td class="num">0.00</td>');
+      // Nothing came in: no line has a share of it (ADR 0059).
+      expect(html).toContain(closed('Pay') + '</td><td class="num caption">—</td><td class="num">0.00</td>');
       expect(html).not.toContain('<th>Spending</th>');
+    });
+
+    it('gives a line at nothing its 0% when something else came in', () => {
+      // February: 10.00 came in, on no category.
+      const html = breakdownOf(render('month', '2026-02', { rows: [...transactions, t('2026-02-04', 1000, null)] }));
+
+      expect(html).toContain(closed('Pay') + '</td><td class="num caption">0%</td><td class="num">0.00</td>');
+    });
+
+    it('shows no share for a net refund, the lines beside it keeping theirs (ADR 0059)', () => {
+      // April: Home 1,000.00, Groceries 500.00, and Gym a net refund of 300.00 -- 1,200.00 spent.
+      const rows = [...transactions, t('2026-04-06', 30000, 'cat_gym', { id: 'tx_gym_back', description: 'Gym refund' })];
+      const html = breakdownOf(render('month', '2026-04', { rows }));
+
+      expect(html).toContain(closed('Gym') + '</td><td class="num caption">—</td><td class="num">−300.00</td>');
+      expect(html).not.toContain('−25%');
+      // Their share of the whole, as before: 1,000 of 1,200 and 500 of 1,200.
+      expect(html).toContain(closed('Home') + '</td><td class="num caption">83%</td><td class="num">1,000.00</td>');
+      expect(html).toContain('Food</button></td><td class="num caption">42%</td><td class="num">500.00</td>');
     });
 
     it('shows a parent\'s own movements as "No subcategory", so its rows add up to it, opening them in place', () => {
@@ -682,7 +701,8 @@ describe('FinanceFlows', () => {
       const rows = [t('2026-03-03', -10000, 'cat_groceries'), t('2026-04-05', 25070, 'cat_food', { id: 'tx_back', description: 'Refund' })];
       const html = breakdownOf(render('month', '2026-04', { rows, held: [], place: { category: 'cat_food' } }));
 
-      expect(html).toContain('▾</span>Food</button></td><td class="num caption">100%</td><td class="num">−250.70</td>');
+      // A month of nothing but a refund: no share of a whole that is not positive (ADR 0059).
+      expect(html).toContain('▾</span>Food</button></td><td class="num caption">—</td><td class="num">−250.70</td>');
       expect(html).not.toContain('Groceries');
       expect(html).toContain('>Refund</a>');
     });
@@ -710,11 +730,39 @@ describe('FinanceFlows', () => {
       expect(render('month', '2026-04', { target: 50 })).toMatch(/>50%<\/dd><dd class="caption finance-target"><i class="finance-target-mark is-met"/);
     });
 
-    it('says nothing about a target with no rate, or with no target', () => {
-      // A month with spending and no income: its rate is blank, and so is its comparison.
-      const blank = render('month', '2026-04', { rows: [t('2026-04-02', -5000, 'cat_home')], held: [], target: 20 });
-      expect(blank).toContain('Saved this month</dt><dd class="num">—</dd></div>');
-      expect(blank).not.toContain('the 20% target');
+    it('shows what was saved instead of a rate with no income, still under the target (ADR 0059)', () => {
+      // A month with spending and no income, the twelve months the same: no rate, the money.
+      const html = render('month', '2026-04', { rows: [t('2026-04-02', -5000, 'cat_home')], held: [], target: 20 });
+      expect(html).toContain('Saved this month</dt><dd class="num">−€\u200950.00</dd><dd class="caption finance-target"><i class="finance-target-mark" aria-hidden="true"></i>Under the 20% target</dd>');
+      expect(html).toContain('Saved over 12 months</dt><dd class="num">−€\u200950.00</dd>');
+      expect(html).not.toMatch(/Saved[^<]*<\/dt><dd class="num">[^<]*%/);
+    });
+
+    it('shows what was saved instead of a rate below −100%, still under the target (ADR 0059)', () => {
+      // April: 100.00 in, 350.00 out -- −250% says nothing; −250.00 does.
+      const rows = [t('2026-04-01', 10000, 'cat_pay'), t('2026-04-02', -35000, 'cat_home')];
+      const html = render('month', '2026-04', { rows, held: [], target: 50 });
+      expect(html).toContain('Saved this month</dt><dd class="num">−€\u2009250.00</dd><dd class="caption finance-target"><i class="finance-target-mark" aria-hidden="true"></i>Under the 50% target</dd>');
+      expect(html).not.toContain('−250%');
+
+      // Spent exactly twice what came in: −100% is still a rate.
+      const twice = render('month', '2026-04', { rows: [t('2026-04-01', 10000, 'cat_pay'), t('2026-04-02', -20000, 'cat_home')], held: [] });
+      expect(twice).toContain('Saved this month</dt><dd class="num">−100%</dd>');
+    });
+
+    it('in a year below −100%, shows the money and still what would have to be left', () => {
+      const rows = [t('2026-01-01', 10000, 'cat_pay'), t('2026-01-02', -35000, 'cat_home')];
+      const html = render('year', '2026-04', { rows, held: [], target: 50 });
+      expect(html).toContain('Saved in 2026</dt><dd class="num">−€\u2009250.00</dd>');
+      expect(html).toContain('Under the 50% target');
+      expect(html).toContain('To meet the 50% target on what came in during 2026, <span class="num">€\u200950.00</span> would have to be left: <span class="num">€\u2009300.00</span> more.');
+    });
+
+    it('is blank with nothing in or out, and says nothing of a target with no target', () => {
+      // Only a trade in April, nothing in the twelve months: nothing to read.
+      const html = render('month', '2026-04', { rows: [], target: 20 });
+      expect(html).toContain('Saved this month</dt><dd class="num">—</dd></div>');
+      expect(html).not.toContain('the 20% target');
       expect(render('month', '2026-04')).not.toContain('finance-target');
     });
 
