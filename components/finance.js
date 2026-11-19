@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { formatMoney, formatMoneyChange, monthSpan } from '@/components/format.js';
 import { financesAddress } from '@/lib/domain/addresses.js';
 import { UNCATEGORISED_INCOME, UNCATEGORISED_SPENDING } from '@/lib/domain/derive/finance.js';
@@ -130,6 +132,69 @@ export function countedOverNote(transaction) {
   const range = transaction.countedOver ?? null;
   if (range === null || transaction.counterAccountId !== null || transaction.notCounted) return null;
   return 'counted over ' + monthSpan(range.from, range.to);
+}
+
+/**
+ * The note one end of a refund pair carries in a list (ADR 0055), after its
+ * description as "not counted" is: a refund shown says what it refunds; a
+ * purchase all of which came back, "refunded"; one partly refunded, what
+ * came back -- and, while the pair is hidden and its amount is what is left,
+ * of how much: "of 41.97, 2.62 refunded". Null for a movement in no pair.
+ *
+ * @param {import('@/lib/domain/derive/refunds.js').RefundStanding | null | undefined} standing
+ * @param {boolean} shown whether the list shows the refunded movements (`?refunded=show`)
+ * @returns {string | null}
+ */
+export function refundNote(standing, shown) {
+  if (standing === null || standing === undefined) return null;
+  if (standing.kind === 'refund') return 'refund of ' + (standing.purchase.description === '' ? 'a purchase' : standing.purchase.description);
+  if (standing.whole) return 'refunded';
+  const back = formatMoney(standing.refunded, { cents: true }) + ' refunded';
+  return shown ? back : 'of ' + formatMoney(Math.abs(standing.net - standing.refunded), { cents: true }) + ', ' + back;
+}
+
+/**
+ * The amount a list prints for a movement (ADR 0055): while the refunded
+ * movements are hidden, a purchase partly refunded shows what is left of it
+ * (its standing's `net`); otherwise, and for any other movement, its own.
+ *
+ * @param {number} amount minor units, signed from its account's side
+ * @param {import('@/lib/domain/derive/refunds.js').RefundStanding | null | undefined} standing
+ * @param {boolean} shown
+ * @returns {number}
+ */
+export function listedAmount(amount, standing, shown) {
+  return !shown && standing?.kind === 'purchase' ? standing.net : amount;
+}
+
+/**
+ * The quiet line under a list that left out refunded movements, or shows
+ * them (ADR 0055): "3 refunded movements hidden — show", or "… shown —
+ * hide", the word the link to the same place with them shown or hidden.
+ * Nothing when the list has none.
+ *
+ * @param {{ count: number, place: FinancesPlace, as?: 'p' | 'span' }} props
+ *   `count` how many of the list's span are a paired refund or a purchase
+ *   all of which came back
+ */
+export function RefundedLine({ count, place, as = 'p' }) {
+  if (count === 0) return null;
+  const shown = place.refunded === 'show';
+  const what = count === 1 ? '1 refunded movement' : count + ' refunded movements';
+  const Tag = as;
+  return (
+    <Tag className="caption finance-list-more finance-refunded-line">
+      {what} {shown ? 'shown' : 'hidden'} —{' '}
+      <Link
+        href={financesHref({ ...place, refunded: shown ? null : 'show' })}
+        scroll={false}
+        className="finance-account-link"
+        aria-label={(shown ? 'Hide the ' : 'Show the ') + what}
+      >
+        {shown ? 'hide' : 'show'}
+      </Link>
+    </Tag>
+  );
 }
 
 /** How the account panel names a kind, as the mockup does: "invested", "debt". */

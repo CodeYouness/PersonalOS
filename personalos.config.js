@@ -130,6 +130,11 @@ export const LINK_RELS = Object.freeze([
   'derived_from',
   /** money aimed at something: transaction -> goal */
   'funds',
+  /**
+   * a refund and the purchase it gives money back for: transaction (money
+   * in) -> transaction (money out). The store checks the pair (ADR 0055).
+   */
+  'refund_of',
 ]);
 
 /**
@@ -427,6 +432,16 @@ export const limits = Object.freeze({
    * more often than a plan.
    */
   financeCountedOverMaxMonths: 24,
+  /**
+   * A refund is paired with the purchase it gives money back for (ADR 0055).
+   * The movement's panel offers the purchases dated at most this many days
+   * before the refund -- a return window is weeks, a quarter at most -- and
+   * at most `financeRefundCandidatesMax` of them, saying how many more there
+   * are. The store refuses only a purchase dated after its refund: an older
+   * one is rare, not wrong.
+   */
+  financeRefundWindowDays: 90,
+  financeRefundCandidatesMax: 20,
   /**
    * Income & spending's day columns (ADR 0053, amended) mark a day's income
    * only when it is at least this whole percent of the month's income,

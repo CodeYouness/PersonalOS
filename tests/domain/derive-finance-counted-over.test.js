@@ -266,11 +266,12 @@ describe('the movements a list shows for a line (ADR 0052)', () => {
     const lists = lineMovements(rows, categories, { months: ['2026-09'], lines: ['cat_salary', 'cat_rent', 'cat_insurance'], max: 50 });
 
     expect(lists.get('cat_salary')).toEqual({
-      rows: [{ id: 'tx_salary', date: '2026-11-12', description: 'Salary Sep-Nov', amount: 100000, spread: { first: '2026-09', last: '2026-09', index: 1, count: 1, of: 3 } }],
+      rows: [{ id: 'tx_salary', date: '2026-11-12', description: 'Salary Sep-Nov', amount: 100000, spread: { first: '2026-09', last: '2026-09', index: 1, count: 1, of: 3 }, refund: null }],
       more: 0,
+      refunded: 0,
     });
-    expect(lists.get('cat_rent')).toEqual({ rows: [{ id: 'tx_rent_sep', date: '2026-09-01', description: '', amount: -60000, spread: null }], more: 0 });
-    expect(lists.get('cat_insurance')).toEqual({ rows: [], more: 0 });
+    expect(lists.get('cat_rent')).toEqual({ rows: [{ id: 'tx_rent_sep', date: '2026-09-01', description: '', amount: -60000, spread: null, refund: null }], more: 0, refunded: 0 });
+    expect(lists.get('cat_insurance')).toEqual({ rows: [], more: 0, refunded: 0 });
     // Only the lines asked for: Home's own movements were not.
     expect(lists.has('cat_home')).toBe(false);
   });

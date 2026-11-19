@@ -32,7 +32,7 @@ import '../lib/config/env.js';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
-import { getAccounts, getObservations, getProfile, getTransactions, hasDemoFinance } from '../lib/store.js';
+import { getAccounts, getLinks, getObservations, getProfile, getTransactions, hasDemoFinance } from '../lib/store.js';
 import { FORMATS } from './statement-import/formats/index.js';
 import { formatMinor } from './statement-import/money.js';
 import { planStatement } from './statement-import/plan.js';
@@ -55,12 +55,13 @@ import { writePlan } from './statement-import/write.js';
  */
 export async function importStatement({ csvPath, format = null, account = null, accountFor = {}, write = false, print = (line) => console.log(line) }) {
   const read = readStatement(await readFile(csvPath, 'utf8'), format);
-  const [accounts, transactions, observations, profile, demoFinance] = await Promise.all([
+  const [accounts, transactions, observations, profile, demoFinance, links] = await Promise.all([
     getAccounts(),
     getTransactions(),
     getObservations({}),
     getProfile(),
     hasDemoFinance(),
+    getLinks({ rel: 'refund_of' }),
   ]);
   const plan = planStatement({
     read,
@@ -70,6 +71,7 @@ export async function importStatement({ csvPath, format = null, account = null, 
     observations,
     demoFinance,
     trackedSince: profile.financeTrackedSince,
+    links,
   });
 
   if (!write) {

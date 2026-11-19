@@ -4,6 +4,7 @@ import { env } from '@/lib/config/env.js';
 import { shiftDayKey, weekDayKeys } from '@/lib/domain/dates.js';
 import { financeOverview, worthChart } from '@/lib/domain/derive/finance.js';
 import { homeClock, homeTiles, needsYou, worthNoting } from '@/lib/domain/derive/home.js';
+import { refundPairs } from '@/lib/domain/derive/refunds.js';
 import { lastWeekFrom, lastWeekReview } from '@/lib/domain/derive/review.js';
 import { BASELINE_WEEKS, weekFigures } from '@/lib/domain/derive/week.js';
 import {
@@ -78,6 +79,8 @@ export default async function Home({ searchParams }) {
     goals,
     journalEntries,
     transactions: finance.transactions,
+    // A refund paired with its purchase reduces the purchase's spending (ADR 0055).
+    refunds: refundPairs(finance.transactions, finance.refundLinks ?? []),
     captures,
     from: lastMonday,
     today,

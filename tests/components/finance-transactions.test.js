@@ -153,6 +153,48 @@ describe('FinanceTransactions', () => {
     });
   });
 
+  describe('a refund paired with its purchase (ADR 0055)', () => {
+    const jacket = t('tx_jacket', 'Jacket', { amount: -4197 });
+    const partly = new Map([['tx_jacket', { kind: 'purchase', refunded: 262, net: -3935, whole: false }]]);
+
+    it('shows a purchase partly refunded at what is left of it, saying of how much', () => {
+      const html = render({ transactions: [jacket], standings: partly });
+
+      expect(html).toContain('<td class="num finance-amount">−\u200939.35</td>');
+      expect(html).toContain('<span class="caption">· of 41.97, 2.62 refunded</span>');
+    });
+
+    it('says how many refunded movements it left out, and offers them with the other parameters kept', () => {
+      const html = render({ transactions: [jacket], standings: partly, refunded: 3, place: { month: '2026-03', category: 'cat_1', span: 'all' } });
+
+      expect(html).toContain('3 refunded movements hidden — ');
+      expect(html).toContain('aria-label="Show the 3 refunded movements" href="/finances?month=2026-03&amp;category=cat_1&amp;span=all&amp;refunded=show">show</a>');
+    });
+
+    it('shown, each end says what it is at its own amount, and hide replaces show', () => {
+      const back = t('tx_back', 'Jacket return', { amount: 4197 });
+      const standings = new Map([
+        ['tx_back', { kind: 'refund', purchase: { id: 'tx_jacket', description: 'Jacket' } }],
+        ['tx_jacket', { kind: 'purchase', refunded: 4197, net: 0, whole: true }],
+      ]);
+      const html = render({ transactions: [back, jacket], standings, refunded: 2, place: { month: '2026-03', refunded: 'show' } });
+
+      expect(html).toContain('<span class="caption">· refund of Jacket</span>');
+      expect(html).toContain('<span class="caption">· refunded</span>');
+      expect(html).toContain('<td class="num finance-amount">−\u200941.97</td>');
+      expect(html).toContain('2 refunded movements shown — ');
+      expect(html).toContain('aria-label="Hide the 2 refunded movements" href="/finances?month=2026-03">hide</a>');
+    });
+
+    it('says nothing of refunds when none was left out', () => {
+      expect(render({})).not.toContain('refunded');
+    });
+
+    it('says the rest is empty when everything listed was refunded', () => {
+      expect(render({ transactions: [], refunded: 2 })).toContain('Nothing else recorded in March 2026.');
+    });
+  });
+
   it('offers no span without a tag', () => {
     expect(render({ lineName: 'Food', place: { month: '2026-03', category: 'cat_food' } })).not.toContain('All time');
   });

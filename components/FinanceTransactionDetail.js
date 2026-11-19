@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 
@@ -12,7 +13,7 @@ import {
   signedAmount,
   transactionUrl,
 } from '@/components/finance.js';
-import { formatMoney, monthLabel, monthSpan, parseMoney } from '@/components/format.js';
+import { formatMoney, formatMoneyChange, monthLabel, monthSpan, parseMoney, shortDate } from '@/components/format.js';
 import { messageOf, request } from '@/components/request.js';
 import { monthKeyRange, monthOf, shiftMonth } from '@/lib/domain/dates.js';
 import { limits } from '@/personalos.config.js';
@@ -23,6 +24,8 @@ import { limits } from '@/personalos.config.js';
 /** @typedef {import('@/components/finance.js').Direction} Direction */
 /** @typedef {import('@/components/finance.js').FinancesPlace} FinancesPlace */
 /** @typedef {import('@/lib/domain/types.js').CountedOver} CountedOver */
+/** @typedef {import('@/lib/domain/derive/refunds.js').RefundPanel} RefundPanel */
+/** @typedef {import('@/lib/domain/derive/refunds.js').PairedMovement} PairedMovement */
 
 /** @type {Direction[]} */
 const DIRECTIONS = ['out', 'in', 'transfer'];
@@ -274,11 +277,16 @@ function editable(transaction) {
  * flow, and do not show it. Delete asks first; a capture that produced the
  * movement keeps its sentence.
  *
+ * A refund and its purchase (ADR 0055, `pairing`): money in that can be a
+ * refund offers the purchases it could give back for ("Refund of…"); a
+ * paired refund names its purchase, a link that opens it, and unpairs; a
+ * purchase lists its refunds, each unpaired on its own, and its net.
+ *
  * Mounted with `key={transaction.id}`, so selecting another starts clean.
  *
- * @param {PanelProps & { transaction: Transaction }} props
+ * @param {PanelProps & { transaction: Transaction, pairing?: RefundPanel, todayKey?: string }} props
  */
-export default function FinanceTransactionDetail({ transaction, accounts, categories, place }) {
+export default function FinanceTransactionDetail({ transaction, accounts, categories, pairing, todayKey, place }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [draft, setDraft] = useState(() => editable(transaction));
@@ -553,6 +561,9 @@ export default function FinanceTransactionDetail({ transaction, accounts, catego
             onChange={(countedOver) => save({ countedOver }, { countedOver })}
           />
         )}
+        {pairing !== undefined && (
+          <RefundPairing transactionId={transaction.id} pairing={pairing} todayKey={todayKey ?? transaction.date} place={place} />
+        )}
         <div className="detail-actions">
           <button type="button" className="btn-danger" disabled={isActing} onClick={remove}>
             Delete
@@ -560,6 +571,178 @@ export default function FinanceTransactionDetail({ transaction, accounts, catego
         </div>
       </div>
     </aside>
+  );
+}
+
+/**
+ * @param {string} id a transaction
+ * @returns {string}
+ */
+function refundOfUrl(id) {
+  return transactionUrl(id) + '/refund-of';
+}
+
+/**
+ * A refund and its purchase in the movement's panel (ADR 0055). Each write
+ * is one pair made or undone through `/api/transactions/<refund>/refund-of`;
+ * whatever the answer, the page is read again, so a refused write shows the
+ * pairing as it is stored, with the store's reason.
+ *
+ * - A paired refund: "Refund of" its purchase -- a link that opens it, its
+ *   day and amount -- and Unpair.
+ * - A purchase with refunds: each refund's day and amount, a link that opens
+ *   it, an Unpair of its own, and the net.
+ * - Money in that can be a refund and is not paired: "Refund of…", a
+ *   disclosure listing the purchases it could be paired with (the page's
+ *   refundCandidates: the same account first, then the same merchant, then
+ *   the nearest), each a button that pairs it -- or why there is none.
+ *
+ * @param {{ transactionId: string, pairing: RefundPanel, todayKey: string, place: FinancesPlace }} props
+ */
+function RefundPairing({ transactionId, pairing, todayKey, place }) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState(/** @type {string | null} */ (null));
+  const [isActing, setIsActing] = useState(false);
+  const { purchase, refunds, net, candidates } = pairing;
+  if (purchase === null && refunds.length === 0 && candidates === null) return null;
+
+  /**
+   * @param {string} refundId
+   * @param {string | null} purchaseId null to unpair
+   */
+  async function write(refundId, purchaseId) {
+    setIsActing(true);
+    setError(null);
+    try {
+      await request(
+        refundOfUrl(refundId),
+        purchaseId === null
+          ? { method: 'DELETE' }
+          : { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ purchaseId }) }
+      );
+      setOpen(false);
+    } catch (caught) {
+      setError(messageOf(caught));
+    }
+    setIsActing(false);
+    // Saved or refused, the page reads the pairing again (CODING_STANDARDS).
+    startTransition(() => router.refresh());
+  }
+
+  /** @param {PairedMovement} movement */
+  const opens = (movement) => financesHref({ ...place, month: monthOf(movement.date), transaction: movement.id });
+  /** @param {PairedMovement} movement */
+  const named = (movement) => (movement.description === '' ? '(no description)' : movement.description);
+
+  return (
+    <section className="finance-refund" aria-labelledby="t-refund">
+      <span className="caption" id="t-refund">
+        {refunds.length > 0 ? 'Refunds' : 'Refund'}
+      </span>
+      {error !== null && (
+        <p className="caption is-error" role="alert">
+          {error}
+        </p>
+      )}
+      {purchase !== null && (
+        <div className="finance-refund-row">
+          <span className="finance-cut">
+            <span className="caption">Refund of</span>
+            <Link href={opens(purchase)} scroll={false} className="finance-account-link finance-cut-text" title={named(purchase)}>
+              {named(purchase)}
+            </Link>
+          </span>
+          <span className="num finance-date">{shortDate(purchase.date, todayKey)}</span>
+          <span className="num">{formatMoneyChange(purchase.amount, { cents: true })}</span>
+          <button type="button" className="link-btn" disabled={isActing} onClick={() => write(transactionId, null)}>
+            Unpair
+          </button>
+        </div>
+      )}
+      {refunds.length > 0 && (
+        <>
+          <ul className="finance-refund-list">
+            {refunds.map((refund) => (
+              <li key={refund.id} className="finance-refund-row">
+                <Link href={opens(refund)} scroll={false} className="finance-account-link finance-cut-text" title={named(refund)}>
+                  {named(refund)}
+                </Link>
+                <span className="num finance-date">{shortDate(refund.date, todayKey)}</span>
+                <span className="num up">{formatMoneyChange(refund.amount, { cents: true })}</span>
+                <button
+                  type="button"
+                  className="link-btn"
+                  disabled={isActing}
+                  aria-label={'Unpair ' + named(refund) + ', ' + shortDate(refund.date, todayKey)}
+                  onClick={() => write(refund.id, null)}
+                >
+                  Unpair
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="caption finance-refund-net">
+            Net <span className="num">{formatMoneyChange(net, { cents: true })}</span>
+            {net === 0 ? ': all of it came back.' : ''}
+          </p>
+        </>
+      )}
+      {candidates !== null && (
+        <>
+          <button
+            type="button"
+            className="btn-ghost finance-refund-toggle"
+            aria-expanded={open}
+            aria-controls="t-refund-candidates"
+            onClick={() => setOpen((shown) => !shown)}
+          >
+            Refund of…
+          </button>
+          {open &&
+            (candidates.rows.length === 0 ? (
+              <p className="caption" id="t-refund-candidates">
+                No purchase to pair it with: money out in the {limits.financeRefundWindowDays} days before it, with at least its
+                amount not refunded yet.
+              </p>
+            ) : (
+              <div id="t-refund-candidates">
+                <ul className="finance-refund-list">
+                  {candidates.rows.map((candidate) => {
+                    const whole = -candidate.amount;
+                    return (
+                      <li key={candidate.id}>
+                        <button
+                          type="button"
+                          className="finance-refund-candidate"
+                          disabled={isActing}
+                          onClick={() => write(transactionId, candidate.id)}
+                        >
+                          <span className="num finance-date">{shortDate(candidate.date, todayKey)}</span>
+                          <span className="finance-cut-text">{named(candidate)}</span>
+                          <span className="num">
+                            {formatMoneyChange(candidate.amount, { cents: true })}
+                            {candidate.remaining < whole && (
+                              <span className="caption"> · {formatMoney(candidate.remaining, { cents: true })} left</span>
+                            )}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {candidates.more > 0 && (
+                  <p className="caption">
+                    {candidates.rows.length} of the {candidates.rows.length + candidates.more} purchases it could give back for, the likeliest
+                    first.
+                  </p>
+                )}
+              </div>
+            ))}
+        </>
+      )}
+    </section>
   );
 }
 

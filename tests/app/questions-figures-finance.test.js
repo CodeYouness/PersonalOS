@@ -291,6 +291,18 @@ describe('finance figures: a month', () => {
     expect(item(items, 'figure:spending:2026-01')?.content).toContain('992.50 EUR');
   });
 
+  it('counts a refund paired with its purchase where the screen does: less spending in its category, never income (ADR 0055)', async () => {
+    const before = await build();
+    const back = await store.createTransaction({ date: '2026-01-12', amount: 2000, currency: 'EUR', accountId: SAVINGS, description: 'Market refund' });
+    await store.pairRefund(back.id, 'transaction_seed_4');
+    const { archive, items } = await build();
+
+    expect(item(items, 'figure:spending:2026-01')?.content).toContain('992.50 EUR');
+    expect(item(items, 'figure:income:2026-01')).toEqual(item(before.items, 'figure:income:2026-01'));
+    const listed = build_.buildItems(archive, { today: TODAY, timezone: 'Europe/Rome' }).find((entry) => entry.id === back.id);
+    expect(listed?.content).toContain('refund of transaction: Mercado da Ribeira');
+  });
+
   it('is zero, with no rate, for a month with no transactions', async () => {
     const { items } = await build();
 

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { countedOverNote, financesHref, MovementAmount, transferEnds } from '@/components/finance.js';
+import { countedOverNote, financesHref, listedAmount, MovementAmount, refundNote, RefundedLine, transferEnds } from '@/components/finance.js';
 import { shortDate } from '@/components/format.js';
 import Segmented from '@/components/Segmented.js';
 
@@ -40,6 +40,14 @@ import Segmented from '@/components/Segmented.js';
  * (app/globals.css) -- so the description's title names them too:
  * "Lunch — Restaurants · Current".
  *
+ * A refund paired with its purchase (ADR 0055) is noise beside it: the page
+ * hands the list without a paired refund and a purchase all of which came
+ * back, and `refunded`, how many it left out; a last quiet line says so and
+ * offers them (`?refunded=show`), then offers to hide them again. A purchase
+ * partly refunded shows what is left of it and "of 41.97, 2.62 refunded";
+ * shown, each end says what it is ("refund of Jacket", "refunded"). Each
+ * end's `standing` comes from the page (listedTransactions).
+ *
  * @param {{
  *   transactions: Transaction[],
  *   accounts: FinanceAccount[],
@@ -47,13 +55,16 @@ import Segmented from '@/components/Segmented.js';
  *   lineName: string | null,
  *   tag: string | null,
  *   more: number,
+ *   standings?: Map<string, import('@/lib/domain/derive/refunds.js').RefundStanding>,
+ *   refunded?: number,
  *   max: number,
  *   periodLabel: string,
  *   todayKey: string,
  *   place: import('@/components/finance.js').FinancesPlace,
  * }} props
  */
-export default function FinanceTransactions({ transactions, accounts, categories, lineName, tag, more, max, periodLabel, todayKey, place }) {
+export default function FinanceTransactions({ transactions, accounts, categories, lineName, tag, more, standings = new Map(), refunded = 0, max, periodLabel, todayKey, place }) {
+  const shown = place.refunded === 'show';
   /** @param {string} id */
   const accountName = (id) => accounts.find((account) => account.id === id)?.name ?? 'an account that no longer exists';
   /** @param {string | null} id */
@@ -100,8 +111,8 @@ export default function FinanceTransactions({ transactions, accounts, categories
         {transactions.length === 0 ? (
           <p className="caption">
             {tag !== null
-              ? 'Nothing tagged ' + tag + (allTime ? '' : ' in ' + periodLabel) + '.'
-              : 'Nothing recorded ' + (lineName === null ? '' : 'in ' + lineName + ' ') + 'in ' + periodLabel + '.'}
+              ? 'Nothing ' + (refunded > 0 ? 'else ' : '') + 'tagged ' + tag + (allTime ? '' : ' in ' + periodLabel) + '.'
+              : 'Nothing ' + (refunded > 0 ? 'else ' : '') + 'recorded ' + (lineName === null ? '' : 'in ' + lineName + ' ') + 'in ' + periodLabel + '.'}
           </p>
         ) : (
           <div className="finance-table-scroll">
@@ -123,6 +134,8 @@ export default function FinanceTransactions({ transactions, accounts, categories
                   const description = transaction.description === '' ? '(no description)' : transaction.description;
                   const filedUnder = transfer ? 'Transfer' : category ?? 'Uncategorised';
                   const countedOver = countedOverNote(transaction);
+                  const standing = standings.get(transaction.id);
+                  const refund = refundNote(standing, shown);
                   const where = transfer
                     ? accountName(transferEnds(transaction).from) + ' → ' + accountName(transferEnds(transaction).to)
                     : accountName(transaction.accountId);
@@ -142,6 +155,7 @@ export default function FinanceTransactions({ transactions, accounts, categories
                           </Link>
                           {transaction.notCounted && <span className="caption">· not counted</span>}
                           {countedOver !== null && <span className="caption">· {countedOver}</span>}
+                          {refund !== null && <span className="caption">· {refund}</span>}
                         </span>
                       </td>
                       <td className={transfer || category === null ? 'caption' : undefined}>
@@ -154,7 +168,7 @@ export default function FinanceTransactions({ transactions, accounts, categories
                           {where}
                         </span>
                       </td>
-                      <MovementAmount amount={transaction.amount} transfer={transfer} notCounted={transaction.notCounted} />
+                      <MovementAmount amount={listedAmount(transaction.amount, standing, shown)} transfer={transfer} notCounted={transaction.notCounted} />
                     </tr>
                   );
                 })}
@@ -179,6 +193,7 @@ export default function FinanceTransactions({ transactions, accounts, categories
             </Link>
           </p>
         )}
+        <RefundedLine count={refunded} place={place} />
       </div>
     </article>
   );
