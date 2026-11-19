@@ -1,6 +1,10 @@
 # 0056. A deposit's interest is one row a month in the lists
 
-- **Status** accepted
+- **Status** accepted; amended by
+  [0058](0058-the-transactions-card-reads-a-month-and-searches.md): in the
+  Transactions card the quiet line is part of one service line ("60 interest
+  movements folded by month — show: interest"), and a search lists interest
+  one by one
 - **Date** 2026-11-19
 - **Amends** [0055](0055-a-refund-is-paired-with-its-purchase.md) (how the
   lists show what they leave out), [0048](0048-finances-reads-at-a-glance.md)

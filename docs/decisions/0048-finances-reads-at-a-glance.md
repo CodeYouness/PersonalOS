@@ -1,6 +1,8 @@
 # 0048. Finances reads at a glance: net worth over all tracked time, money in and out unmistakable, the rest folded
 
-- **Status** accepted
+- **Status** accepted; amended by
+  [0058](0058-the-transactions-card-reads-a-month-and-searches.md): the cap is 100,
+  and the Transactions card says what it leaves out in one service line
 - **Date** 2026-11-17
 - **Amends** [0044](0044-spending-over-time-reads-by-the-months-rules.md) (the chart switch, the net worth line's months),
   [0046](0046-spending-by-tag.md) (the capped list), [0040](0040-home-shows-what-needs-you.md) (Home's money reading)

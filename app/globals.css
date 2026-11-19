@@ -1458,6 +1458,11 @@ a.cite { text-decoration: none; }
 /* Transactions: a tag's Period / All time switch beside Show all. */
 #card-finance-transactions .card-head { flex-wrap: wrap; }
 .finance-list-more { margin: var(--s-xs) 0 0; }
+/* Transactions' search (ADR 0058): a field beside the eyebrow that takes
+   the whole line under it on a phone, never wider than the card; what a
+   search lists on a line of its own under them. */
+.finance-search { flex: 1 1 14rem; max-width: 22rem; min-width: 0; margin: 0; }
+.finance-search-what { flex: 1 0 100%; margin: 0; }
 .finance-category-group + .finance-category-group { margin-top: var(--s-md); }
 .finance-categories { list-style: none; margin: var(--s-xs) 0 var(--s-md); padding: 0; }
 .finance-category { display: flex; align-items: center; gap: var(--s-xs); padding: 2px 0; }

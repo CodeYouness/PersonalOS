@@ -4,7 +4,9 @@
   a month with nothing selected is capped too (`limits.financeListMax`), with
   `?span=all` to show them all; and by
   [0050](0050-income-and-spending-reads-as-a-circle.md): a month has no
-  average any more, so no line is listed for one
+  average any more, so no line is listed for one; and by
+  [0058](0058-the-transactions-card-reads-a-month-and-searches.md): the movement open in
+  the panel is never left out of the list beside it
 - **Date** 2026-11-17
 
 ## Context

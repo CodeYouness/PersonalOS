@@ -70,16 +70,18 @@ describe('FinanceTransactions', () => {
     const html = render({ more: 212, periodLabel: '2026', place: { month: '2026-03', period: 'year' } });
 
     expect(html).toContain(
-      'The newest 1 of 213 in 2026. <a class="finance-account-link" href="/finances?month=2026-03&amp;period=year&amp;span=all">Show all 213</a>, or pick a month, a category or a tag to narrow it.'
+      '<p class="caption finance-list-more finance-list-line">The newest 1 of 213 in 2026 — show: <a class="finance-account-link" aria-label="Show all 213 movements" href="/finances?month=2026-03&amp;period=year&amp;span=all">all 213</a></p>'
     );
     expect(render({})).not.toContain('The newest');
   });
 
   it('caps a month too, and once all are shown offers the newest only again', () => {
-    expect(render({ more: 60 })).toContain('href="/finances?month=2026-03&amp;span=all">Show all 61</a>, or pick a category or a tag to narrow it.');
+    expect(render({ more: 60 })).toContain('The newest 1 of 61 in March 2026 — show: ');
 
     const all = render({ transactions: [t('tx_1', 'a'), t('tx_2', 'b'), t('tx_3', 'c')], max: 2, place: { month: '2026-03', span: 'all' } });
-    expect(all).toContain('All 3 in March 2026. <a class="finance-account-link" href="/finances?month=2026-03">Show the newest 2</a>');
+    expect(all).toContain(
+      'All 3 in March 2026 — show: <a class="finance-account-link" aria-label="Show the newest 2 only" href="/finances?month=2026-03">newest 2</a>'
+    );
   });
 
   describe('money in and money out', () => {
@@ -167,8 +169,8 @@ describe('FinanceTransactions', () => {
     it('says how many refunded movements it left out, and offers them with the other parameters kept', () => {
       const html = render({ transactions: [jacket], standings: partly, refunded: 3, place: { month: '2026-03', category: 'cat_1', span: 'all' } });
 
-      expect(html).toContain('3 refunded movements hidden — ');
-      expect(html).toContain('aria-label="Show the 3 refunded movements" href="/finances?month=2026-03&amp;category=cat_1&amp;span=all&amp;refunded=show">show</a>');
+      expect(html).toContain('3 refunded movements hidden — show: <a ');
+      expect(html).toContain('aria-label="Show the 3 refunded movements" href="/finances?month=2026-03&amp;category=cat_1&amp;span=all&amp;refunded=show">refunded</a>');
     });
 
     it('shown, each end says what it is at its own amount, and hide replaces show', () => {
@@ -182,8 +184,8 @@ describe('FinanceTransactions', () => {
       expect(html).toContain('<span class="caption">· refund of Jacket</span>');
       expect(html).toContain('<span class="caption">· refunded</span>');
       expect(html).toContain('<td class="num finance-amount">−\u200941.97</td>');
-      expect(html).toContain('2 refunded movements shown — ');
-      expect(html).toContain('aria-label="Hide the 2 refunded movements" href="/finances?month=2026-03">hide</a>');
+      expect(html).toContain('2 refunded movements shown — hide: <a ');
+      expect(html).toContain('aria-label="Hide the 2 refunded movements" href="/finances?month=2026-03">refunded</a>');
     });
 
     it('says nothing of refunds when none was left out', () => {
@@ -212,8 +214,8 @@ describe('FinanceTransactions', () => {
       );
       expect(html).toContain('<span class="finance-cut-text" title="Interest, Taxes">Interest, Taxes</span>');
       expect(html).toContain('<td class="num finance-amount up">+\u20093.72</td>');
-      expect(html).toContain('62 interest movements folded by month — ');
-      expect(html).toContain('aria-label="Show the 62 interest movements one by one" href="/finances?month=2026-03&amp;interest=show">show</a>');
+      expect(html).toContain('62 interest movements folded by month — show: <a ');
+      expect(html).toContain('aria-label="Show the 62 interest movements one by one" href="/finances?month=2026-03&amp;interest=show">interest</a>');
     });
 
     it('marks the run selected when it holds the selected movement', () => {
@@ -225,12 +227,130 @@ describe('FinanceTransactions', () => {
     it('shown, offers to fold them again, keeping the other parameters', () => {
       const html = render({ interest: 62, place: { month: '2026-03', refunded: 'show', interest: 'show' } });
 
-      expect(html).toContain('62 interest movements shown one by one — ');
-      expect(html).toContain('aria-label="Fold the 62 interest movements by month" href="/finances?month=2026-03&amp;refunded=show">fold</a>');
+      expect(html).toContain('62 interest movements shown one by one — fold: <a ');
+      expect(html).toContain('aria-label="Fold the 62 interest movements by month" href="/finances?month=2026-03&amp;refunded=show">interest</a>');
     });
 
     it('says nothing of interest when there is none to fold', () => {
       expect(render({})).not.toContain('interest');
+    });
+  });
+
+  describe('one service line under the list (ADR 0058)', () => {
+    /** @param {string} html */
+    const lines = (html) => html.split('finance-list-more').length - 1;
+
+    it('says everything the list leaves out in one line, each toggle a link inside it', () => {
+      const html = render({ more: 40, refunded: 5, uncounted: 12, interest: 60 });
+
+      expect(lines(html)).toBe(1);
+      expect(html).toContain(
+        'The newest 1 of 41 in March 2026 · 5 refunded and 12 not-counted movements hidden · 60 interest movements folded by month — show: '
+      );
+      expect(html).toContain('aria-label="Show all 41 movements" href="/finances?month=2026-03&amp;span=all">all 41</a>, <a ');
+      expect(html).toContain('aria-label="Show the 5 refunded movements" href="/finances?month=2026-03&amp;refunded=show">refunded</a>, <a ');
+      expect(html).toContain('aria-label="Show the 12 not-counted movements" href="/finances?month=2026-03&amp;uncounted=show">not counted</a>, <a ');
+      expect(html).toContain('aria-label="Show the 60 interest movements one by one" href="/finances?month=2026-03&amp;interest=show">interest</a></p>');
+    });
+
+    it('names only what applies', () => {
+      expect(render({ uncounted: 1 })).toContain('>1 not-counted movement hidden — show: <a ');
+      expect(render({ refunded: 1, uncounted: 1 })).toContain('>1 refunded and 1 not-counted movements hidden — show: <a ');
+      expect(render({ interest: 4 })).toContain('>4 interest movements folded by month — show: <a ');
+    });
+
+    it('offers to hide or fold again what is already shown, each under its own word', () => {
+      const html = render({ refunded: 5, uncounted: 12, interest: 60, place: { month: '2026-03', refunded: 'show', interest: 'show' } });
+
+      expect(lines(html)).toBe(1);
+      expect(html).toContain('12 not-counted movements hidden · 5 refunded movements shown · 60 interest movements shown one by one — show: <a ');
+      expect(html).toContain(
+        'href="/finances?month=2026-03&amp;refunded=show&amp;interest=show&amp;uncounted=show">not counted</a> · hide: <a '
+      );
+      expect(html).toContain('aria-label="Hide the 5 refunded movements" href="/finances?month=2026-03&amp;interest=show">refunded</a> · fold: <a ');
+      expect(html).toContain('aria-label="Fold the 60 interest movements by month" href="/finances?month=2026-03&amp;refunded=show">interest</a></p>');
+    });
+
+    it('offers to hide the not-counted movements once shown', () => {
+      const html = render({ uncounted: 2, place: { month: '2026-03', uncounted: 'show' } });
+
+      expect(html).toContain('2 not-counted movements shown — hide: <a ');
+      expect(html).toContain('aria-label="Hide the 2 not-counted movements" href="/finances?month=2026-03">not counted</a>');
+    });
+
+    it('says nothing when nothing is left out', () => {
+      expect(render({})).not.toContain('finance-list-more');
+    });
+
+    it('says the rest is empty when everything was left out', () => {
+      expect(render({ transactions: [], uncounted: 2 })).toContain('Nothing else recorded in March 2026.');
+    });
+
+    it('lists the open movement as itself even while the refunded ones are hidden', () => {
+      const jacket = t('tx_jacket', 'Jacket', { amount: -4197 });
+      const standings = new Map([['tx_jacket', { kind: 'purchase', refunded: 4197, net: 0, whole: true }]]);
+      const html = render({ transactions: [jacket], standings, refunded: 1, place: { month: '2026-03', transaction: 'tx_jacket' } });
+
+      expect(html).toContain('<td class="num finance-amount">−\u200941.97</td>');
+      expect(html).toContain('<span class="caption">· refunded</span>');
+    });
+  });
+
+  describe('search (ADR 0058)', () => {
+    it('offers a search field in the head, a plain GET form carrying the place but not the selection', () => {
+      const html = render({
+        place: { account: 'account_a', month: '2026-03', period: 'year', view: 'columns', category: 'cat_1', tag: 'trip', span: 'all', refunded: 'show', uncounted: 'show', transaction: 'tx_1' },
+      });
+
+      expect(html).toContain('<form class="finance-search" role="search" action="/finances" method="get">');
+      expect(html).toContain(
+        '<input type="hidden" name="account" value="account_a"/><input type="hidden" name="month" value="2026-03"/><input type="hidden" name="period" value="year"/><input type="hidden" name="view" value="columns"/><input type="hidden" name="refunded" value="show"/><input type="hidden" name="uncounted" value="show"/><input class="input finance-search-input" type="search" placeholder="Search all movements" aria-label="Search all movements" maxLength="100" name="q" value=""/>'
+      );
+      expect(html).not.toContain('name="category"');
+      expect(html).not.toContain('name="tag"');
+      expect(html).not.toContain('name="transaction"');
+      expect(html).not.toContain('name="span"');
+    });
+
+    it('says what it lists and the way back to the month, the query in the field', () => {
+      const html = render({
+        transactions: [t('tx_2', 'Loan repaid', { amount: 5000, notCounted: true }), t('tx_1', 'Loan to a friend', { notCounted: true })],
+        place: { month: '2026-03', q: 'loan', uncounted: 'show' },
+      });
+
+      expect(html).toContain('2 movements matching “loan” — <a class="finance-account-link" href="/finances?month=2026-03&amp;uncounted=show">back to March 2026</a>');
+      expect(html).toContain('name="q" value="loan"/>');
+      // A movement not counted keeps its mark.
+      expect(html).toContain('<span class="caption">· not counted</span>');
+      // Opening a result keeps the results listed.
+      expect(html).toContain('href="/finances?month=2026-03&amp;uncounted=show&amp;q=loan&amp;transaction=tx_2"');
+    });
+
+    it('keeps a refunded movement\'s mark and its own amount', () => {
+      const jacket = t('tx_jacket', 'Jacket', { amount: -4197 });
+      const standings = new Map([['tx_jacket', { kind: 'purchase', refunded: 262, net: -3935, whole: false }]]);
+      const html = render({ transactions: [jacket], standings, place: { month: '2026-03', q: 'jacket' } });
+
+      expect(html).toContain('<td class="num finance-amount">−\u200941.97</td>');
+      expect(html).toContain('<span class="caption">· 2.62 refunded</span>');
+    });
+
+    it('caps the matches and offers them all in the one line', () => {
+      const html = render({ more: 4, place: { month: '2026-03', q: 'loan' } });
+
+      expect(html).toContain('5 movements matching “loan”');
+      expect(html).toContain('The newest 1 of 5 matching “loan” — show: <a class="finance-account-link" aria-label="Show all 5 movements" href="/finances?month=2026-03&amp;span=all&amp;q=loan">all 5</a>');
+    });
+
+    it('says when nothing matches', () => {
+      const html = render({ transactions: [], place: { month: '2026-03', q: 'zzz' } });
+
+      expect(html).toContain('No movements matching “zzz” — ');
+      expect(html).not.toContain('Nothing recorded');
+    });
+
+    it('names one match in the singular', () => {
+      expect(render({ place: { month: '2026-03', q: 'pas' } })).toContain('1 movement matching “pas”');
     });
   });
 

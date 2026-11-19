@@ -9,7 +9,7 @@ import { lineName } from '@/components/finance.js';
 import { monthLabel } from '@/components/format.js';
 import FinanceTransactionDetail, { FinanceMovementForm } from '@/components/FinanceTransactionDetail.js';
 import FinanceTransactions from '@/components/FinanceTransactions.js';
-import { financesInterest, financesRefunded, financesSpan, financesView } from '@/lib/domain/addresses.js';
+import { financesInterest, financesQuery, financesRefunded, financesSpan, financesUncounted, financesView } from '@/lib/domain/addresses.js';
 import { isMonthKey, monthOf, today, yearOf } from '@/lib/domain/dates.js';
 import {
   allocationAccounts,
@@ -96,7 +96,8 @@ export const dynamic = 'force-dynamic';
  * counts, or, with `?span=all`, all of them. One selection at a time: with
  * a line selected too (an address typed by hand), the line wins. A month or
  * a year with nothing selected lists only its newest `limits.financeListMax`
- * movements, says how many more, and `?span=all` lists them all (ADR 0048).
+ * (100) movements, says how many more, and `?span=all` lists them all (ADR
+ * 0048, 0058).
  *
  * Each savings rate is set against the target savings rate, when one is set
  * in Settings, under Manage (ADR 0045).
@@ -115,11 +116,20 @@ export const dynamic = 'force-dynamic';
  * each line's at what the line counts, unless `?interest=show` lists them
  * one by one. Display only: no figure reads it.
  *
+ * The Transactions card (ADR 0058) leaves out, with nothing selected, a
+ * movement not counted -- in no total -- unless `?uncounted=show`; the
+ * movement open in the panel is never left out, refunded or not counted.
+ * `?q=<text>` (financesQuery: trimmed, capped) searches it: every movement of
+ * all time that matches, nothing hidden or folded, capped as a period is. A
+ * selected line or tag wins over a search, as a line wins over a tag, and
+ * the search is then dropped from the place. Display only: no figure reads
+ * either, and a search never calls the model (rule 3).
+ *
  * What the holdings earned (investmentReturns, ADR 0051) is read once: the
  * Net worth card's Invested section and Investments fold show all of them,
  * and a selected holding's panel shows its own.
  *
- * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], view?: string | string[], transaction?: string | string[], category?: string | string[], tag?: string | string[], span?: string | string[], refunded?: string | string[], interest?: string | string[] }> }} props
+ * @param {{ searchParams: Promise<{ account?: string | string[], month?: string | string[], period?: string | string[], view?: string | string[], transaction?: string | string[], category?: string | string[], tag?: string | string[], span?: string | string[], refunded?: string | string[], interest?: string | string[], uncounted?: string | string[], q?: string | string[] }> }} props
  */
 export default async function FinancesScreen({ searchParams }) {
   const {
@@ -133,6 +143,8 @@ export default async function FinancesScreen({ searchParams }) {
     span: spanParam,
     refunded: refundedParam,
     interest: interestParam,
+    uncounted: uncountedParam,
+    q: queryParam,
   } = await searchParams;
   const todayKey = today();
   const [finance, syncStates, selected, profile, selectedTransaction] = await Promise.all([
@@ -151,6 +163,7 @@ export default async function FinancesScreen({ searchParams }) {
   const refunds = refundPairs(transactions, finance.refundLinks ?? []);
   const refunded = financesRefunded(refundedParam);
   const interest = financesInterest(interestParam);
+  const uncounted = financesUncounted(uncountedParam);
   // The month of the selected transaction is on offer even when the section
   // would not (before "tracked since", or after today): a citation links to
   // a transaction with its month, and the list beside it has to contain it.
@@ -168,8 +181,10 @@ export default async function FinancesScreen({ searchParams }) {
   const tag =
     category === null && typeof tagParam === 'string' && transactions.some((transaction) => transaction.tags.includes(tagParam)) ? tagParam : null;
   const span = financesSpan(spanParam);
+  const query = category === null && tag === null ? financesQuery(queryParam) : null;
   const listed = listedTransactions(transactions, {
     categories,
+    accounts,
     months: periodMonths,
     category,
     tag,
@@ -178,6 +193,9 @@ export default async function FinancesScreen({ searchParams }) {
     refunds,
     refunded,
     interest,
+    uncounted,
+    selected: selectedTransaction?.id ?? null,
+    query,
   });
   const periodLabel = period === 'year' ? yearOf(month) : monthLabel(month);
   const view = financesView(viewParam);
@@ -206,7 +224,20 @@ export default async function FinancesScreen({ searchParams }) {
       ? []
       : rows.filter((row) => row.accountId === selected.id).sort((a, b) => b.date.localeCompare(a.date));
   /** @type {import('@/components/finance.js').FinancesPlace} */
-  const place = { account: selected?.id ?? null, month, period, view, category, tag, span, refunded, interest, transaction: selectedTransaction?.id ?? null };
+  const place = {
+    account: selected?.id ?? null,
+    month,
+    period,
+    view,
+    category,
+    tag,
+    span,
+    refunded,
+    interest,
+    uncounted,
+    q: query,
+    transaction: selectedTransaction?.id ?? null,
+  };
 
   return (
     <section id="screen-finances" className="screen is-active">
@@ -274,6 +305,7 @@ export default async function FinancesScreen({ searchParams }) {
             more={listed.more}
             standings={listed.standings}
             refunded={listed.refunded}
+            uncounted={listed.uncounted}
             interest={listed.interest}
             max={limits.financeListMax}
             periodLabel={periodLabel}
