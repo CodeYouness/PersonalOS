@@ -1,6 +1,7 @@
 import localFont from 'next/font/local';
 
 import CaptureBar from '@/components/CaptureBar.js';
+import LiveUpdates from '@/components/LiveUpdates.js';
 import Topbar from '@/components/Topbar.js';
 
 import './globals.css';
@@ -45,6 +46,7 @@ export default function RootLayout({ children }) {
         <Topbar />
         {children}
         <CaptureBar />
+        <LiveUpdates />
       </body>
     </html>
   );
