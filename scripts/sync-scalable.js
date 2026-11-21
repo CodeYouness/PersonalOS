@@ -18,9 +18,8 @@
  */
 
 import '../lib/config/env.js';
-import { SCALABLE_SYNC_SOURCE } from '../lib/domain/derive/sync-staleness.js';
 import { makeScRunner } from '../lib/integrations/scalable/run-sc.js';
-import { syncScalable } from '../lib/integrations/scalable/sync.js';
+import { runScalableSync, ScalableRefusal } from '../lib/integrations/scalable/run-sync.js';
 import * as store from '../lib/store.js';
 
 const dryRun = process.argv.includes('--dry-run');
@@ -29,16 +28,12 @@ const unknown = process.argv.slice(2).filter((arg) => arg !== '--dry-run');
 if (unknown.length > 0) {
   console.error('unknown argument: ' + unknown.join(' ') + ' (only --dry-run)');
   process.exitCode = 1;
-} else if (await store.hasDemoFinance()) {
-  console.error('the demo finance rows are still in your data: run `npm run data:remove-demo-finance` first');
-  process.exitCode = 1;
 } else {
   try {
-    const result = await syncScalable({ run: makeScRunner(), store, dryRun });
+    const result = await runScalableSync({ run: makeScRunner(), store, dryRun });
     if (dryRun) {
       console.log('dry run: nothing was written');
     } else {
-      await store.updateSyncState(SCALABLE_SYNC_SOURCE, { lastRunAt: result.syncedAt, status: 'ok', error: '', itemCount: result.written });
       if (result.backupPath !== null) console.log('the data before the first sync is backed up at ' + result.backupPath);
       console.log('synced: ' + result.written + ' record(s) written, ' + result.skipped + ' row(s) left alone');
     }
@@ -46,8 +41,7 @@ if (unknown.length > 0) {
     for (const warning of result.warnings) console.log('  warning: ' + warning);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (!dryRun) await store.updateSyncState(SCALABLE_SYNC_SOURCE, { status: 'error', error: message });
-    console.error('scalable sync failed: ' + message);
+    console.error(error instanceof ScalableRefusal ? message : 'scalable sync failed: ' + message);
     process.exitCode = 1;
   }
 }

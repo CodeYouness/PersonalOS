@@ -8,38 +8,20 @@
  * of the real data layer through lib/store.js instead of reaching around it.
  */
 
-import { env } from '../lib/config/env.js';
-import { findIntegration } from '../lib/integrations/registry.js';
+import { runCalendarSync } from '../lib/integrations/google-calendar/run-sync.js';
 import * as store from '../lib/store.js';
 
-const integration = findIntegration('google-calendar');
-if (integration === null) {
-  console.error('google-calendar is not registered in lib/integrations/registry.js');
-  process.exitCode = 1;
-} else if (!integration.isConfigured()) {
-  console.error('GOOGLE_CALENDAR_ICAL_URL is not set -- nothing to sync.');
-  process.exitCode = 1;
-} else {
-  const profile = await store.getProfile();
-
-  try {
-    const result = await integration.sync({ store, timezone: env.timezone, baseCurrency: profile.baseCurrency });
-    await store.updateSyncState('google-calendar', {
-      lastRunAt: result.syncedAt,
-      status: 'ok',
-      error: '',
-      itemCount: result.written,
-    });
+try {
+  const outcome = await runCalendarSync({ store });
+  if (!outcome.configured) {
+    console.error('GOOGLE_CALENDAR_ICAL_URL is not set -- nothing to sync.');
+    process.exitCode = 1;
+  } else {
+    const { result } = outcome;
     console.log('synced ' + result.written + ' appointment(s), skipped ' + result.skipped);
     for (const warning of result.warnings) console.log('  ' + warning);
-  } catch (error) {
-    await store.updateSyncState('google-calendar', {
-      lastRunAt: new Date().toISOString(),
-      status: 'error',
-      error: error instanceof Error ? error.message : String(error),
-      itemCount: 0,
-    });
-    console.error('calendar sync failed: ' + (error instanceof Error ? error.message : String(error)));
-    process.exitCode = 1;
   }
+} catch (error) {
+  console.error('calendar sync failed: ' + (error instanceof Error ? error.message : String(error)));
+  process.exitCode = 1;
 }

@@ -2052,7 +2052,7 @@ keyword rules.
 Until a Sources view exists, **Finances shows the broker's staleness**: a
 line under the net worth, "Scalable · synced N days ago", read from the saved
 `SyncState` keyed `scalable` (`lib/domain/derive/sync-staleness.js`) and never
-from the broker. It turns the warning colour after 7 days and, after a failed
+from the broker. It turns the warning colour after 9 days and, after a failed
 run, shows the error beside the last successful run; with no run ever it is
 absent. So `lastRunAt` of that SyncState is the last *successful* run: a
 failed run patches only `status` and `error`.

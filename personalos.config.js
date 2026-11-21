@@ -141,6 +141,20 @@ export const SCHEDULES = Object.freeze([
     engine: 'script',
     catchUp: 'once',
   }),
+  Object.freeze({
+    id: 'sync-calendar',
+    time: '07:00',
+    days: Object.freeze([1, 2, 3, 4, 5, 6, 7]),
+    engine: 'script',
+    catchUp: 'once',
+  }),
+  Object.freeze({
+    id: 'sync-scalable',
+    time: '07:00',
+    days: Object.freeze([1]),
+    engine: 'script',
+    catchUp: 'once',
+  }),
 ]);
 
 /** The ids of {@link SCHEDULES}, the closed list a run's `schedule` is checked against. */
@@ -173,6 +187,8 @@ export const RUN_WRITE_KINDS = Object.freeze([
   'appointments', 'accounts', 'observations', 'trades', 'prices', 'transactions', 'snapshots', 'files',
   // Runs removed by the nightly prune.
   'runs',
+  // The broker sync's total of records written (accounts, trades, prices ...).
+  'records',
 ]);
 
 /**
