@@ -141,6 +141,13 @@ export const SCHEDULES = Object.freeze([
     engine: 'script',
     catchUp: 'once',
   }),
+  Object.freeze({
+    id: 'nightly-backup',
+    time: '03:00',
+    days: Object.freeze([1, 2, 3, 4, 5, 6, 7]),
+    engine: 'script',
+    catchUp: 'once',
+  }),
 ]);
 
 /** The ids of {@link SCHEDULES}, the closed list a run's `schedule` is checked against. */
@@ -173,7 +180,15 @@ export const RUN_WRITE_KINDS = Object.freeze([
   'appointments', 'accounts', 'observations', 'trades', 'prices', 'transactions', 'snapshots', 'files',
   // Runs removed by the nightly prune.
   'runs',
+  // The nightly backup (#288): copies made, and how many it kept and removed.
+  'backups', 'backupsKept', 'backupsRemoved',
 ]);
+
+/**
+ * How long the nightly backup keeps its copies (#288): every day for this
+ * many days, and the earliest copy of each of this many months.
+ */
+export const backupRetention = Object.freeze({ dailyDays: 30, months: 12 });
 
 /**
  * Relationship vocabulary for the link collection.

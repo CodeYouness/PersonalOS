@@ -143,6 +143,31 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/personalos.serve.plist
 - **The Dock:** open http://127.0.0.1:3000 in Safari, File > Add to Dock (in
   Chrome, Install PersonalOS). The window uses the manifest's name and icon.
 
+## The nightly backup (ticket #288)
+
+At 03:00 (catching up once after a closed lid) the `nightly-backup` schedule
+copies the data file and `data/finance/` to a dated folder, then prunes.
+Server only, in `.env.local`:
+
+```
+PERSONALOS_BACKUP_DIR=<a directory outside the repository>
+```
+
+Unset, every run is `skipped` with that reason. One folder per day, named
+`personalos-backup-YYYY-MM-DD` by the day in `USER_TIMEZONE`; a second run the
+same day replaces it. Retention (`backupRetention` in `personalos.config.js`,
+the function in `lib/domain/derive/backup-retention.js`): the newest 30 days
+plus the earliest copy of each of the last 12 months. Pruning runs only after
+the new copy succeeded and only removes folders with that name pattern; a
+failed copy prunes nothing and is a `failed` run. The run's `wrote` counts
+`backups` made, `backupsKept` and `backupsRemoved`. Copies are not encrypted.
+
+**Restoring by hand.** Stop `npm run serve` (`launchctl bootout`, see the
+Dock section), copy `personalos-backup-<day>/personalos.json` over
+`data/personalos.json` and `personalos-backup-<day>/finance/` over
+`data/finance/`, then start it again. The document is migrated on first read
+if the backup is from an older schema.
+
 ## Debugging
 
 Server errors appear in the terminal running `npm run dev`. Browser errors
