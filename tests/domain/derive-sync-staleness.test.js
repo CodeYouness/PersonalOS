@@ -48,11 +48,13 @@ describe('brokerStaleness', () => {
     expect(three?.text).toBe('Scalable · synced 3 days ago');
   });
 
-  it('turns to warning after 7 days, not at 7', () => {
-    const seven = brokerStaleness([state({ status: 'ok', lastRunAt: '2026-11-02T12:00:00Z' })], '2026-11-09', TZ);
-    expect(seven?.tone).toBe('ok');
+  it('turns to warning after 9 days (a weekly sync is not stale on its due morning)', () => {
     const eight = brokerStaleness([state({ status: 'ok', lastRunAt: '2026-11-01T12:00:00Z' })], '2026-11-09', TZ);
-    expect(eight).toEqual({ text: 'Scalable · synced 8 days ago', tone: 'warning', error: null });
+    expect(eight?.tone).toBe('ok');
+    const nine = brokerStaleness([state({ status: 'ok', lastRunAt: '2026-10-31T12:00:00Z' })], '2026-11-09', TZ);
+    expect(nine?.tone).toBe('ok');
+    const ten = brokerStaleness([state({ status: 'ok', lastRunAt: '2026-10-30T12:00:00Z' })], '2026-11-09', TZ);
+    expect(ten).toEqual({ text: 'Scalable · synced 10 days ago', tone: 'warning', error: null });
   });
 
   it('after a failed run shows the error and the last successful run', () => {
