@@ -39,6 +39,13 @@ describe('FinanceManage', () => {
     expect(html).toContain('the add form');
   });
 
+  it('links to the run log, which is a page of its own and not a fold', () => {
+    const html = render();
+
+    expect(html).toMatch(/<a [^>]*href="\/manage\/runs"[^>]*>Run log<\/a>/);
+    expect(html.match(/<details /g)).toHaveLength(3);
+  });
+
   it('opens adding an account while there is none, and the categories while there are none', () => {
     expect(render({ accountCount: 0 })).toMatch(/<details id="card-finance-add-account" class="card finance-manage-part" open="">/);
     expect(render({ accountCount: 0 })).toMatch(/<details id="card-finance-categories" class="card finance-manage-part">/);

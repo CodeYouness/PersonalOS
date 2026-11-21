@@ -40,7 +40,7 @@ guessed at the time.
 
 ## Consequences
 
-- The run log page (a later ticket) reads saved values only: the last run of
+- The run log page (`/manage/runs`, #289) reads saved values only: the last run of
   each schedule on top, the list below. Opening it starts nothing.
 - "Last run of a schedule" is the one input to "is it due"; the log is thus
   load-bearing for the scheduler, not only a report. Pruning at 90 days can

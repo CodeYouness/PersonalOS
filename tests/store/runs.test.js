@@ -37,6 +37,9 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await store.resetToSeed();
+  // The seed carries demo runs for the sandbox's run log page; these tests
+  // start from an empty log.
+  await store.removeRunsBefore('9999-01-01T00:00:00.000Z');
 });
 
 afterAll(async () => {
@@ -101,15 +104,25 @@ describe('runs', () => {
   });
 });
 
+describe('the seed', () => {
+  it('carries demo runs, among them a failed one with its error and a skipped one with its reason', async () => {
+    await store.resetToSeed();
+    const runs = await store.getRuns();
+
+    expect(runs.length).toBeGreaterThanOrEqual(3);
+    expect(runs.find((r) => r.outcome === 'failed')?.reason).not.toBe('');
+    expect(runs.find((r) => r.outcome === 'skipped')?.reason).not.toBe('');
+  });
+});
+
 describe('a v25 data file', () => {
   it('gains an empty run log on its first read, keeping the old file as a backup', async () => {
     const seed = JSON.parse(await readFile('data/seed.json', 'utf8'));
-    const { runs, ...v25 } = seed;
+    const { runs: _demoRuns, ...v25 } = seed;
     const before = JSON.stringify({ ...v25, schemaVersion: 25 }, null, 2);
     const working = path.join(sandbox, 'personalos.json');
     await writeFile(working, before);
 
-    expect(runs).toEqual([]);
     expect(await store.getRuns()).toEqual([]);
 
     expect(await readFile(working + '.v25.backup', 'utf8')).toBe(before);
