@@ -24,6 +24,8 @@ let calendar;
 let client;
 /** @type {typeof import('@/lib/domain/dates.js')} */
 let dates;
+/** @type {typeof import('@/lib/scheduler/run-manually.js')} */
+let manual;
 
 beforeAll(async () => {
   sandbox = await mkdtemp(path.join(tmpdir(), 'personalos-sync-jobs-'));
@@ -35,6 +37,7 @@ beforeAll(async () => {
   jobs = await import('@/lib/scheduler/sync-jobs.js');
   calendar = await import('@/lib/integrations/google-calendar/index.js');
   client = await import('@/lib/integrations/scalable/client.js');
+  manual = await import('@/lib/scheduler/run-manually.js');
 });
 
 beforeEach(async () => {
@@ -70,6 +73,12 @@ function feedIntegration(configured, failure = null) {
     },
   };
 }
+
+const scenario = () => fakeSc({
+  holdings: [],
+  transactions: [savingsPlanBuy({ id: 'tx-1', isin: 'XX0000000001', description: 'Example ETF', amount: 100, quantity: 2, last_event_datetime: '2026-11-02T10:00:00Z' })],
+  cashBalance: 0,
+});
 
 describe('the calendar job', () => {
   it('writes what the sync writes and counts it', async () => {
@@ -108,12 +117,6 @@ describe('the calendar job', () => {
 describe('the broker job', () => {
   beforeEach(async () => {
     await store.removeDemoFinance();
-  });
-
-  const scenario = () => fakeSc({
-    holdings: [],
-    transactions: [savingsPlanBuy({ id: 'tx-1', isin: 'XX0000000001', description: 'Example ETF', amount: 100, quantity: 2, last_event_datetime: '2026-11-02T10:00:00Z' })],
-    cashBalance: 0,
   });
 
   it('writes through the same sync and its run counts match what was written', async () => {
@@ -161,5 +164,50 @@ describe('the broker job', () => {
     expect(result?.outcome).toBe('failed');
     expect(result?.reason).toMatch(/demo finance/);
     expect((await store.getSyncStates()).find((s) => s.integration === 'scalable')?.status ?? 'never').toBe('never');
+  });
+});
+
+describe('a sync run by hand', () => {
+  beforeEach(async () => {
+    await store.removeDemoFinance();
+  });
+
+  it('records a run started by the user, so the run log agrees with the sync', async () => {
+    const run = await manual.runManually('sync-calendar', {
+      job: jobs.makeCalendarSyncJob({ integration: feedIntegration(true) }),
+      store,
+      timezone: 'Europe/Rome',
+    });
+
+    expect(run).toMatchObject({ schedule: 'sync-calendar', startedBy: 'user', outcome: 'ok', wrote: { appointments: 2 } });
+    const [latest] = await store.getRuns({ schedule: 'sync-calendar' });
+    expect(latest?.startedBy).toBe('user');
+    expect(latest?.outcome).toBe('ok');
+  });
+
+  it('records a failure by hand with its reason', async () => {
+    const failing = async () => { throw new client.ScCommandError(20, 'session expired'); };
+    const run = await manual.runManually('sync-scalable', {
+      job: jobs.makeScalableSyncJob({ makeRunner: () => failing }),
+      store,
+      timezone: 'Europe/Rome',
+    });
+
+    expect(run).toMatchObject({ schedule: 'sync-scalable', startedBy: 'user', outcome: 'failed', reason: 'needs-login' });
+  });
+
+  it('refuses a schedule that is not configured', async () => {
+    await expect(manual.runManually('no-such-schedule', { job: async () => undefined, store, timezone: 'Europe/Rome' }))
+      .rejects.toThrow(/unknown schedule/);
+  });
+
+  it('hands the sync result to the caller so a script can print it', async () => {
+    /** @type {any[]} */
+    const seen = [];
+    await jobs.makeCalendarSyncJob({ integration: feedIntegration(true), onResult: (r) => seen.push(r) })(context());
+    await jobs.makeScalableSyncJob({ makeRunner: () => scenario().run, onResult: (r) => seen.push(r) })(context());
+
+    expect(seen[0]?.written).toBe(2);
+    expect(Array.isArray(seen[1]?.report)).toBe(true);
   });
 });
