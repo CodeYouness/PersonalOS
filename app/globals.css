@@ -1675,6 +1675,26 @@ a.cite { text-decoration: none; }
 .finance-fold-mark::before { content: '▸'; color: var(--ink-subtle); }
 .finance-manage-part[open] > summary .finance-fold-mark::before { content: '▾'; }
 .finance-manage-part[open] > .finance-manage-body { margin-top: var(--s-sm); }
+.finance-manage-pages { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-xs); }
+.finance-manage-pages .link-btn { min-height: var(--control-h); }
+
+/* The run log (#289, under Manage): two tables of saved values. A wide one
+   scrolls inside its own box; the detail column is the one that is cut. */
+#screen-runs .screen-grid { align-content: start; }
+.runlog-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--s-xs) var(--s-md); }
+.runlog-head .caption {
+  display: inline-flex; align-items: center; min-height: var(--control-h);
+  color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px;
+  text-decoration-color: var(--hairline-tertiary); text-underline-offset: 3px;
+}
+.runlog-head .caption:hover { text-decoration-color: currentColor; }
+.runlog-id { font-family: var(--font-mono); white-space: nowrap; }
+.runlog-detail { max-width: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.runlog-table td, .runlog-table th { white-space: nowrap; }
+.runlog-outcome { font-weight: var(--w-label); }
+.runlog-outcome.is-ok { color: var(--success); }
+.runlog-outcome.is-failed { color: var(--danger); }
+.runlog-outcome.is-skipped { color: var(--warning); }
 
 /* ==========================================================================
    CAPTURE LOG — the drawer that answers "where did everything go?" Undo,

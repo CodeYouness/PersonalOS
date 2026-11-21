@@ -745,6 +745,21 @@ export const defaultModels = Object.freeze({
   categorise: 'claude-haiku-5-5',
 });
 
+/**
+ * What a model costs, for the run log's derived cost (ADR 0063): micro-dollars
+ * per million tokens, read 2026-10-15 from
+ * https://platform.claude.com/docs/en/about-claude/pricing (the same figures
+ * `scripts/eval-classify.js` prices a run with). Haiku 5.5 is the price for
+ * prompts up to 100,000 tokens. A model missing here is shown with no cost,
+ * never at zero.
+ *
+ * @type {Readonly<Record<string, { inputPerMTok: number, outputPerMTok: number }>>}
+ */
+export const MODEL_PRICES = Object.freeze({
+  'claude-haiku-5-5': Object.freeze({ inputPerMTok: 100_000, outputPerMTok: 500_000 }),
+  'claude-sonnet-5-5': Object.freeze({ inputPerMTok: 2_000_000, outputPerMTok: 10_000_000 }),
+});
+
 /** Fallback timezone, used only when USER_TIMEZONE is unset. */
 export const defaultTimezone = 'Europe/Rome';
 

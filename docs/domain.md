@@ -2420,7 +2420,10 @@ for a model run `model`, `inputTokens` and `outputTokens`.
   `needs-login`.
 - `wrote` is counts by kind (`RUN_WRITE_KINDS`), what the run changed: a sync
   that found nothing and one that changed the data read differently.
-- **Cost in money is never stored**: it is derived from the tokens.
+- **Cost in money is never stored**: it is derived from the tokens and
+  `MODEL_PRICES` in `personalos.config.js` (`runCostMicros`); a model with no
+  price is shown with no cost, never at zero. The page that lists runs is
+  `/manage/runs`.
 - Kept 90 days (`limits.runRetentionDays`); the nightly schedule removes older
   runs. A job that throws is recorded `failed` with its message.
 - The last run of a schedule is the input of "is it due". `SyncState` is not
