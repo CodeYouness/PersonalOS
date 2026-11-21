@@ -26,7 +26,8 @@ it from an old `.env.local`, it changes nothing.
 
 | Command | What it does |
 | --- | --- |
-| `npm run serve` | **The one writer** (ADR 0032). A production build, then `next start` on :3000, on your real `data/personalos.json`, listening on `127.0.0.1` only. It takes a lock on the data directory (`data/serve.lock`, holding its pid); a second `serve` refuses. Code changes reach it only when you stop it and run it again. A lock whose process is gone is stale and is taken over |
+| `npm run serve` | **The one writer** (ADR 0032). A production build, then `next start` on :3000, on your real `data/personalos.json`, listening on `127.0.0.1` only. It takes a lock on the data directory (`data/serve.lock`, holding its pid); a second `serve` refuses. It also runs the scheduler (ADR 0062): the schedules in `personalos.config.js` run inside it, and no other command starts them. Code changes reach it only when you stop it and run it again. A lock whose process is gone is stale and is taken over |
+| `npm run sync:calendar`, `npm run sync:scalable` | The manual syncs, for a server that is stopped. `serve` runs the same functions on a schedule (#287): the calendar daily at 07:00, the broker on Monday at 07:00, in `USER_TIMEZONE`, each leaving a run (ADR 0063). A source with nothing configured is a `skipped` run; a broker login that expired is a failed run with the reason `needs-login`; a failed sync leaves the last good data and its date. The broker's staleness line warns after 9 days |
 | `npm run dev` | Development server on :3000, on your real `data/personalos.json`, on `127.0.0.1` only. **Refuses to start while `serve` runs**, naming its process and how to stop it. `-- -p 3100` for another port |
 | `npm run dev:sandbox` | The same, also on `127.0.0.1`, on a throwaway copy of the seed, its habit history moved to recent days, removed when it stops. It neither takes nor checks the lock. **For checking a change in the browser.** It follows `data/seed.json`: a branch switch that changes the seed starts the sandbox again from it. It prints whether the model is on -- a key exported in your shell counts, not only `.env.local` -- since a model path checked there calls the real API. `-- -p 3100` for another port |
 | `npm run build` | Production build. Stricter than dev -- things pass `dev` and fail here |
@@ -142,6 +143,31 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/personalos.serve.plist
   (`tail -f`). Build errors land there.
 - **The Dock:** open http://127.0.0.1:3000 in Safari, File > Add to Dock (in
   Chrome, Install PersonalOS). The window uses the manifest's name and icon.
+
+## The nightly backup (ticket #288)
+
+At 03:00 (catching up once after a closed lid) the `nightly-backup` schedule
+copies the data file and `data/finance/` to a dated folder, then prunes.
+Server only, in `.env.local`:
+
+```
+PERSONALOS_BACKUP_DIR=<a directory outside the repository>
+```
+
+Unset, every run is `skipped` with that reason. One folder per day, named
+`personalos-backup-YYYY-MM-DD` by the day in `USER_TIMEZONE`; a second run the
+same day replaces it. Retention (`backupRetention` in `personalos.config.js`,
+the function in `lib/domain/derive/backup-retention.js`): the newest 30 days
+plus the earliest copy of each of the last 12 months. Pruning runs only after
+the new copy succeeded and only removes folders with that name pattern; a
+failed copy prunes nothing and is a `failed` run. The run's `wrote` counts
+`backups` made, `backupsKept` and `backupsRemoved`. Copies are not encrypted.
+
+**Restoring by hand.** Stop `npm run serve` (`launchctl bootout`, see the
+Dock section), copy `personalos-backup-<day>/personalos.json` over
+`data/personalos.json` and `personalos-backup-<day>/finance/` over
+`data/finance/`, then start it again. The document is migrated on first read
+if the backup is from an older schema.
 
 ## Debugging
 

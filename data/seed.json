@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 25,
+  "schemaVersion": 26,
   "profile": {
     "name": "Sam Rivers",
     "role": "Independent consultant",
@@ -986,6 +986,53 @@
       "status": "ok",
       "error": "",
       "itemCount": 9
+    }
+  ],
+  "runs": [
+    {
+      "id": "run_seed_1",
+      "schedule": "prune-runs",
+      "startedBy": "schedule",
+      "engine": "script",
+      "startedAt": "2026-11-18T02:30:00.000Z",
+      "durationMs": 42,
+      "outcome": "ok",
+      "reason": "",
+      "wrote": { "runs": 3 },
+      "model": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "createdAt": "2026-11-18T02:30:00.042Z"
+    },
+    {
+      "id": "run_seed_2",
+      "schedule": "prune-runs",
+      "startedBy": "schedule",
+      "engine": "script",
+      "startedAt": "2026-11-19T02:30:00.000Z",
+      "durationMs": 1830,
+      "outcome": "failed",
+      "reason": "The data file was locked by another process",
+      "wrote": {},
+      "model": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "createdAt": "2026-11-19T02:30:01.830Z"
+    },
+    {
+      "id": "run_seed_3",
+      "schedule": "prune-runs",
+      "startedBy": "user",
+      "engine": "script",
+      "startedAt": "2026-11-20T09:15:00.000Z",
+      "durationMs": 8,
+      "outcome": "skipped",
+      "reason": "Nothing older than 90 days to remove",
+      "wrote": {},
+      "model": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "createdAt": "2026-11-20T09:15:00.008Z"
     }
   ]
 }

@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 /**
  * Manage, at the bottom of the Finances screen (ADR 0048): what you set up
  * once and come back to rarely -- adding an account, the categories, the
@@ -47,6 +49,10 @@ export default function FinanceManage({ accountCount, categoryCount, addAccount,
           {settings}
         </Part>
       </div>
+      <p className="finance-manage-pages caption">
+        Beyond Finances: <Link className="link-btn" href="/manage/runs">Run log</Link>
+        <span> — what runs on its own, and whether it worked</span>
+      </p>
     </section>
   );
 }

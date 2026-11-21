@@ -2052,7 +2052,7 @@ keyword rules.
 Until a Sources view exists, **Finances shows the broker's staleness**: a
 line under the net worth, "Scalable · synced N days ago", read from the saved
 `SyncState` keyed `scalable` (`lib/domain/derive/sync-staleness.js`) and never
-from the broker. It turns the warning colour after 7 days and, after a failed
+from the broker. It turns the warning colour after 9 days and, after a failed
 run, shows the error beside the last successful run; with no run ever it is
 absent. So `lastRunAt` of that SyncState is the last *successful* run: a
 failed run patches only `status` and `error`.
@@ -2383,6 +2383,56 @@ the answer succeeds. Mood and energy are never read off it.
 
 ---
 
+## Schedule
+
+**Is** one thing the system does on its own clock, declared in
+`personalos.config.js` (`SCHEDULES`) and nowhere else: an `id`, a `time` of
+day (HH:MM, read in `USER_TIMEZONE`), the ISO `days` it applies to (1 Monday
+to 7 Sunday), an `engine` (`script` or `small-model`; never the strong model)
+and a `catchUp` rule. A schedule is configuration, not data: nothing about it
+is stored, and neither is its next run.
+
+- **Slot**: one moment it is meant to run -- its time on an allowed day.
+- **Due** is derived (`lib/domain/derive/schedule.js`): the latest slot that
+  has passed is later than the start of the schedule's last run, of any
+  outcome and whoever started it. A schedule never run is owed its latest
+  slot.
+- **Catch-up**: `once` runs a missed slot late, however late, one time -- a
+  sleep across several slots owes one run; `same-day` runs it late only while
+  the slot's day is still today and drops it otherwise.
+- **One run at a time**: a schedule with a run in flight starts nothing.
+- It runs only in the process `npm run serve` started (ADR 0062).
+
+Schedules so far, in `USER_TIMEZONE`:
+
+- `nightly-backup`, 03:00 every day, copies the data to the backup folder;
+- `prune-runs`, 03:30 every day, removes runs older than 90 days;
+- `sync-calendar`, 07:00 every day, reads the calendar feed;
+- `sync-scalable`, 07:00 on Monday, syncs the broker.
+
+## Run
+
+**Is** the record of one execution of a schedule (ADR 0063), kept in `runs`
+and written once, when the run ends: `schedule` (one of the declared ids),
+`startedBy` (`schedule`, `user`, `telegram`), `engine`, `startedAt`,
+`durationMs`, `outcome` (`ok`, `failed`, `skipped`), `reason`, `wrote`, and
+for a model run `model`, `inputTokens` and `outputTokens`.
+
+- `reason` is the error of a failed run and why a skipped run did not work
+  ("nothing configured"), so a skipped run is not mistaken for one that never
+  tried. A job may report an expected failure with a short code such as
+  `needs-login` (`RUN_REASONS`).
+- `wrote` is counts by kind (`RUN_WRITE_KINDS`), what the run changed: a sync
+  that found nothing and one that changed the data read differently.
+- **Cost in money is never stored**: it is derived from the tokens and
+  `MODEL_PRICES` in `personalos.config.js` (`runCostMicros`); a model with no
+  price is shown with no cost, never at zero. The page that lists runs is
+  `/manage/runs`.
+- Kept 90 days (`limits.runRetentionDays`); the nightly schedule removes older
+  runs. A job that throws is recorded `failed` with its message.
+- The last run of a schedule is the input of "is it due". `SyncState` is not
+  folded into runs: the manual scripts still write it.
+
 ## Jarvis (planned)
 
 Every term in this section is **planned, not built** (ADR 0037). The words
@@ -2399,11 +2449,7 @@ import a statement, read the week. It may be started by you, by a schedule or
 by another skill, and it says which engine runs it. A skill that needs the
 strong model starts only on your command.
 
-### Run
-
-**Is** one execution of a skill, kept: who or what started it, when, how
-long it took, what it cost, how it ended, and what it wrote. The history of
-runs is how the system answers "what did you do, and when".
+A **run** of a skill is built as the run of a schedule: see Run.
 
 ### Coach
 
@@ -2458,6 +2504,7 @@ something.
 | links, events | |
 | daily logs (ticks, skip reasons, meals, measurements, the day's mood and energy, the day's time declared against areas) | the average mood and energy over a week or 30 days, and how many days each rests on; a day's total time and the time by area over a span, over the declared days |
 | finance accounts (including valuation and archivedOn), observations, trades, prices, transactions (signed amount, counter account, notCounted, tags) | |
+| runs (schedule, starter, engine, start, duration, outcome, reason, counts written, model and tokens) | whether a schedule is due and when it is next due; the cost of a model run (ADR 0063) |
 | **net worth snapshots** — the one exception, not written in one currency (ADR 0022) | |
 
 ---

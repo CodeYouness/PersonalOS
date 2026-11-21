@@ -44,6 +44,7 @@ export const ENTITY_TYPES = Object.freeze([
   'category',
   'review',
   'action',
+  'run',
 ]);
 
 /**
@@ -105,6 +106,116 @@ export const CAPTURE_ROUTES = Object.freeze(/** @type {const} */ (['model', 'rul
  * @type {readonly ('capture' | 'journal' | 'checkin')[]}
  */
 export const ACTION_ORIGINS = Object.freeze(/** @type {const} */ (['capture', 'journal', 'checkin']));
+
+/**
+ * What can run a schedule's work: a script, or the small model. Never the
+ * strong model -- nothing expensive runs without the user (ADR 0037).
+ *
+ * @type {readonly ('script' | 'small-model')[]}
+ */
+export const SCHEDULE_ENGINES = Object.freeze(/** @type {const} */ (['script', 'small-model']));
+
+/**
+ * What a schedule does with a slot it missed (ADR 0062). `once`: run late,
+ * however late, one time. `same-day`: run late only while the slot's day is
+ * still today, otherwise drop it.
+ *
+ * @type {readonly ('once' | 'same-day')[]}
+ */
+export const CATCH_UP_RULES = Object.freeze(/** @type {const} */ (['once', 'same-day']));
+
+/**
+ * The schedules, the only things that run on their own (ADR 0062; domain.md,
+ * "Schedule"). Time of day is read in USER_TIMEZONE; `days` are ISO weekdays,
+ * 1 Monday to 7 Sunday. A schedule is added here together with its job in
+ * `lib/scheduler/jobs.js` (a test fails when the two disagree). The id is
+ * the key of its runs.
+ *
+ * @type {readonly import('./lib/domain/types.js').Schedule[]}
+ */
+export const SCHEDULES = Object.freeze([
+  Object.freeze({
+    id: 'prune-runs',
+    time: '03:30',
+    days: Object.freeze([1, 2, 3, 4, 5, 6, 7]),
+    engine: 'script',
+    catchUp: 'once',
+  }),
+  Object.freeze({
+    id: 'nightly-backup',
+    time: '03:00',
+    days: Object.freeze([1, 2, 3, 4, 5, 6, 7]),
+    engine: 'script',
+    catchUp: 'once',
+  }),
+  Object.freeze({
+    id: 'sync-calendar',
+    time: '07:00',
+    days: Object.freeze([1, 2, 3, 4, 5, 6, 7]),
+    engine: 'script',
+    catchUp: 'once',
+  }),
+  Object.freeze({
+    id: 'sync-scalable',
+    time: '07:00',
+    days: Object.freeze([1]),
+    engine: 'script',
+    catchUp: 'once',
+  }),
+]);
+
+/** The ids of {@link SCHEDULES}, the closed list a run's `schedule` is checked against. */
+export const SCHEDULE_IDS = Object.freeze(SCHEDULES.map((schedule) => schedule.id));
+
+/**
+ * Who started a run (ADR 0063): the scheduler, the user's button, or a
+ * Telegram message.
+ */
+export const RUN_STARTERS = Object.freeze(/** @type {const} */ (['schedule', 'user', 'telegram']));
+
+/** @typedef {(typeof RUN_STARTERS)[number]} RunStarter */
+
+/**
+ * The short codes a job gives as a run's `reason` when it skips or fails for
+ * an expected cause (ADR 0063), so a screen and a test name one string.
+ */
+export const RUN_REASONS = Object.freeze({
+  /** The source has nothing configured: a skipped run, not a failed one. */
+  notConfigured: 'not-configured',
+  /** The source's login expired: a failed run that needs the user. */
+  needsLogin: 'needs-login',
+  /** The backup has no destination configured. */
+  backupDirNotSet: 'PERSONALOS_BACKUP_DIR is not set',
+});
+
+/**
+ * How a run ended. `skipped` is a run that chose not to do its work and says
+ * why in its reason ("nothing configured"), so it is not mistaken for one
+ * that never tried.
+ *
+ * @type {readonly ('ok' | 'failed' | 'skipped')[]}
+ */
+export const RUN_OUTCOMES = Object.freeze(/** @type {const} */ (['ok', 'failed', 'skipped']));
+
+/**
+ * The kinds of record a run can count in `wrote` -- a count of what it
+ * changed, per kind. A ticket whose job writes a new kind adds it here.
+ *
+ * @type {readonly string[]}
+ */
+export const RUN_WRITE_KINDS = Object.freeze([
+  'appointments', 'accounts', 'observations', 'trades', 'prices', 'transactions', 'snapshots', 'files',
+  // Runs removed by the nightly prune.
+  'runs',
+  // The nightly backup (#288): copies made, and how many it kept and removed.
+  'backups', 'backupsKept', 'backupsRemoved',
+]);
+
+/**
+ * How long the nightly backup keeps its copies (#288): every day for this
+ * many days, and the earliest copy of each of this many months.
+ */
+export const backupRetention = Object.freeze({ dailyDays: 30, months: 12 });
 
 /**
  * Relationship vocabulary for the link collection.
@@ -373,6 +484,10 @@ export const TIME_AREAS = Object.freeze({
  * when that feature lands.
  */
 export const limits = Object.freeze({
+  /** Runs older than this many days are removed by the nightly prune (ADR 0063). */
+  runRetentionDays: 90,
+  /** How often the scheduler asks whether a schedule is due (ADR 0062). */
+  schedulerTickMs: 60_000,
   /** The longest answer to one of a review's three questions (ADR 0034). */
   reviewAnswerMaxLength: 2000,
   /** The longest lever -- one sentence for next week, not a plan. */
@@ -670,6 +785,21 @@ export const defaultModels = Object.freeze({
    * screen. scripts/categorise/model.js.
    */
   categorise: 'claude-haiku-5-5',
+});
+
+/**
+ * What a model costs, for the run log's derived cost (ADR 0063): micro-dollars
+ * per million tokens, read 2026-10-15 from
+ * https://platform.claude.com/docs/en/about-claude/pricing (the same figures
+ * `scripts/eval-classify.js` prices a run with). Haiku 5.5 is the price for
+ * prompts up to 100,000 tokens. A model missing here is shown with no cost,
+ * never at zero.
+ *
+ * @type {Readonly<Record<string, { inputPerMTok: number, outputPerMTok: number }>>}
+ */
+export const MODEL_PRICES = Object.freeze({
+  'claude-haiku-5-5': Object.freeze({ inputPerMTok: 100_000, outputPerMTok: 500_000 }),
+  'claude-sonnet-5-5': Object.freeze({ inputPerMTok: 2_000_000, outputPerMTok: 10_000_000 }),
 });
 
 /** Fallback timezone, used only when USER_TIMEZONE is unset. */
