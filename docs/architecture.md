@@ -111,6 +111,28 @@ throws if it is.
 - A **sync**: runs outside the request cycle, writes observations or
   transactions through the store, updates its `SyncState`.
 
+## The scheduler
+
+`lib/scheduler/` (ADRs 0062, 0063) runs what the system does on its own
+clock. It lives in the `serve` process, so its writes share the write queue
+of every route (ADR 0011).
+
+- `instrumentation.js` (Next's `register()`, Node runtime) calls
+  `startScheduler()` in `lib/scheduler/start.js` without awaiting it. It
+  starts only when `env.schedulerEnabled`, which `scripts/serve.js` sets for
+  the `next start` it spawns: never under `dev`, `dev:sandbox`, a script or
+  Vitest.
+- `createScheduler` (`scheduler.js`) takes its clock, schedules, jobs and
+  store as arguments. Each tick asks, per schedule, `dueSlot` from
+  `lib/domain/derive/schedule.js` -- the schedule's rule, the last run in the
+  run log and now through `lib/domain/dates.js` -- and runs what is due, one
+  run per schedule at a time. The job contract is documented at the top of
+  `scheduler.js`; the jobs are registered in `jobs.js`.
+- Every run is written to the run log through `store.recordRun`; a job that
+  throws is recorded `failed` and the loop goes on.
+- Schedules are declared in `personalos.config.js`; a test fails when a
+  declared schedule has no job.
+
 ## The action registry
 
 `lib/actions/registry.js` (ADR 0037) names every write a channel can make on

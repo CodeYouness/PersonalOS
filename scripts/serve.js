@@ -38,7 +38,11 @@ async function stop(code) {
 const build = spawnSync('npx', ['next', 'build'], { stdio: 'inherit' });
 if (build.status !== 0) await stop(build.status ?? 1);
 
-const server = spawn('npx', ['next', 'start', '-H', '127.0.0.1', ...process.argv.slice(2)], { stdio: 'inherit' });
+// PERSONALOS_SCHEDULER=1 is what makes instrumentation.js start the scheduler
+// (ADR 0062): set here, on the server only -- not for the build, not for dev.
+// eslint-disable-next-line no-restricted-syntax
+const serverEnv = { ...process.env, PERSONALOS_SCHEDULER: '1' };
+const server = spawn('npx', ['next', 'start', '-H', '127.0.0.1', ...process.argv.slice(2)], { stdio: 'inherit', env: serverEnv });
 server.on('exit', (code) => stop(code ?? 0));
 for (const signal of /** @type {const} */ (['SIGINT', 'SIGTERM'])) {
   process.on(signal, () => server.kill(signal));

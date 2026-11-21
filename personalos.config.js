@@ -44,6 +44,7 @@ export const ENTITY_TYPES = Object.freeze([
   'category',
   'review',
   'action',
+  'run',
 ]);
 
 /**
@@ -105,6 +106,74 @@ export const CAPTURE_ROUTES = Object.freeze(/** @type {const} */ (['model', 'rul
  * @type {readonly ('capture' | 'journal' | 'checkin')[]}
  */
 export const ACTION_ORIGINS = Object.freeze(/** @type {const} */ (['capture', 'journal', 'checkin']));
+
+/**
+ * What can run a schedule's work: a script, or the small model. Never the
+ * strong model -- nothing expensive runs without the user (ADR 0037).
+ *
+ * @type {readonly ('script' | 'small-model')[]}
+ */
+export const SCHEDULE_ENGINES = Object.freeze(/** @type {const} */ (['script', 'small-model']));
+
+/**
+ * What a schedule does with a slot it missed (ADR 0062). `once`: run late,
+ * however late, one time. `same-day`: run late only while the slot's day is
+ * still today, otherwise drop it.
+ *
+ * @type {readonly ('once' | 'same-day')[]}
+ */
+export const CATCH_UP_RULES = Object.freeze(/** @type {const} */ (['once', 'same-day']));
+
+/**
+ * The schedules, the only things that run on their own (ADR 0062; domain.md,
+ * "Schedule"). Time of day is read in USER_TIMEZONE; `days` are ISO weekdays,
+ * 1 Monday to 7 Sunday. A schedule is added here together with its job in
+ * `lib/scheduler/jobs.js` (a test fails when the two disagree). The id is
+ * the key of its runs.
+ *
+ * @type {readonly import('./lib/domain/types.js').Schedule[]}
+ */
+export const SCHEDULES = Object.freeze([
+  Object.freeze({
+    id: 'prune-runs',
+    time: '03:30',
+    days: Object.freeze([1, 2, 3, 4, 5, 6, 7]),
+    engine: 'script',
+    catchUp: 'once',
+  }),
+]);
+
+/** The ids of {@link SCHEDULES}, the closed list a run's `schedule` is checked against. */
+export const SCHEDULE_IDS = Object.freeze(SCHEDULES.map((schedule) => schedule.id));
+
+/**
+ * Who started a run (ADR 0063): the scheduler, the user's button, or a
+ * Telegram message.
+ *
+ * @type {readonly ('schedule' | 'user' | 'telegram')[]}
+ */
+export const RUN_STARTERS = Object.freeze(/** @type {const} */ (['schedule', 'user', 'telegram']));
+
+/**
+ * How a run ended. `skipped` is a run that chose not to do its work and says
+ * why in its reason ("nothing configured"), so it is not mistaken for one
+ * that never tried.
+ *
+ * @type {readonly ('ok' | 'failed' | 'skipped')[]}
+ */
+export const RUN_OUTCOMES = Object.freeze(/** @type {const} */ (['ok', 'failed', 'skipped']));
+
+/**
+ * The kinds of record a run can count in `wrote` -- a count of what it
+ * changed, per kind. A ticket whose job writes a new kind adds it here.
+ *
+ * @type {readonly string[]}
+ */
+export const RUN_WRITE_KINDS = Object.freeze([
+  'appointments', 'accounts', 'observations', 'trades', 'prices', 'transactions', 'snapshots', 'files',
+  // Runs removed by the nightly prune.
+  'runs',
+]);
 
 /**
  * Relationship vocabulary for the link collection.
@@ -373,6 +442,10 @@ export const TIME_AREAS = Object.freeze({
  * when that feature lands.
  */
 export const limits = Object.freeze({
+  /** Runs older than this many days are removed by the nightly prune (ADR 0063). */
+  runRetentionDays: 90,
+  /** How often the scheduler asks whether a schedule is due (ADR 0062). */
+  schedulerTickMs: 60_000,
   /** The longest answer to one of a review's three questions (ADR 0034). */
   reviewAnswerMaxLength: 2000,
   /** The longest lever -- one sentence for next week, not a plan. */
