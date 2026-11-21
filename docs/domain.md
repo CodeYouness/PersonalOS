@@ -2403,8 +2403,12 @@ is stored, and neither is its next run.
 - **One run at a time**: a schedule with a run in flight starts nothing.
 - It runs only in the process `npm run serve` started (ADR 0062).
 
-Schedules so far: `prune-runs`, 03:30 every day, removes runs older than 90
-days.
+Schedules so far, in `USER_TIMEZONE`:
+
+- `nightly-backup`, 03:00 every day, copies the data to the backup folder;
+- `prune-runs`, 03:30 every day, removes runs older than 90 days;
+- `sync-calendar`, 07:00 every day, reads the calendar feed;
+- `sync-scalable`, 07:00 on Monday, syncs the broker.
 
 ## Run
 
@@ -2417,7 +2421,7 @@ for a model run `model`, `inputTokens` and `outputTokens`.
 - `reason` is the error of a failed run and why a skipped run did not work
   ("nothing configured"), so a skipped run is not mistaken for one that never
   tried. A job may report an expected failure with a short code such as
-  `needs-login`.
+  `needs-login` (`RUN_REASONS`).
 - `wrote` is counts by kind (`RUN_WRITE_KINDS`), what the run changed: a sync
   that found nothing and one that changed the data read differently.
 - **Cost in money is never stored**: it is derived from the tokens and

@@ -132,6 +132,19 @@ of every route (ADR 0011).
   throws is recorded `failed` and the loop goes on.
 - Schedules are declared in `personalos.config.js`; a test fails when a
   declared schedule has no job.
+- The sync jobs (`sync-jobs.js`) are thin: they call the same
+  `runCalendarSync` and `runScalableSync` the scripts call, and map the
+  outcome to a run (a source with nothing configured is `skipped`, an expired
+  broker login is `failed` with `needs-login`). A failed sync leaves the last
+  good data and its date; the run counts what it wrote by kind.
+- The backup job (`backup.js`) copies the data file and the finance folder to
+  a dated folder in `PERSONALOS_BACKUP_DIR` through `store.backupTo`, then
+  prunes old copies by `lib/domain/derive/backup-retention.js`. The
+  destination must be an absolute path.
+- Live updates (ADR 0065): a successful write calls `announceChange()` in
+  `lib/changes.js`; `GET /api/changes` streams that data-less signal and an
+  open page re-reads its saved values. Nothing is pushed and no model or
+  integration is called (rule 3).
 
 ## The action registry
 

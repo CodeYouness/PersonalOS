@@ -35,6 +35,19 @@ function clockAt(iso) {
 }
 
 describe('the scheduler', () => {
+  it('times a run with the injected clock', async () => {
+    const store = fakeStore();
+    const clock = clockAt('2026-06-15T08:00:00Z');
+    const scheduler = createScheduler({
+      schedules: [schedule('a')], store, clock: clock.now, timezone: ROME,
+      jobs: { a: async () => { clock.set('2026-06-15T08:00:01.500Z'); } },
+    });
+
+    await scheduler.tick();
+
+    expect(store.runs[0].durationMs).toBe(1500);
+  });
+
   it('runs a due schedule once and records who started it, when, and what it wrote', async () => {
     const store = fakeStore();
     const clock = clockAt('2026-06-15T08:00:00Z');

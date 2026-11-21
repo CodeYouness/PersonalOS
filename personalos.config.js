@@ -170,10 +170,23 @@ export const SCHEDULE_IDS = Object.freeze(SCHEDULES.map((schedule) => schedule.i
 /**
  * Who started a run (ADR 0063): the scheduler, the user's button, or a
  * Telegram message.
- *
- * @type {readonly ('schedule' | 'user' | 'telegram')[]}
  */
 export const RUN_STARTERS = Object.freeze(/** @type {const} */ (['schedule', 'user', 'telegram']));
+
+/** @typedef {(typeof RUN_STARTERS)[number]} RunStarter */
+
+/**
+ * The short codes a job gives as a run's `reason` when it skips or fails for
+ * an expected cause (ADR 0063), so a screen and a test name one string.
+ */
+export const RUN_REASONS = Object.freeze({
+  /** The source has nothing configured: a skipped run, not a failed one. */
+  notConfigured: 'not-configured',
+  /** The source's login expired: a failed run that needs the user. */
+  needsLogin: 'needs-login',
+  /** The backup has no destination configured. */
+  backupDirNotSet: 'PERSONALOS_BACKUP_DIR is not set',
+});
 
 /**
  * How a run ended. `skipped` is a run that chose not to do its work and says
@@ -194,8 +207,6 @@ export const RUN_WRITE_KINDS = Object.freeze([
   'appointments', 'accounts', 'observations', 'trades', 'prices', 'transactions', 'snapshots', 'files',
   // Runs removed by the nightly prune.
   'runs',
-  // The broker sync's total of records written (accounts, trades, prices ...).
-  'records',
   // The nightly backup (#288): copies made, and how many it kept and removed.
   'backups', 'backupsKept', 'backupsRemoved',
 ]);

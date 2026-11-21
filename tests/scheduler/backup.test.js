@@ -137,3 +137,11 @@ describe('the nightly backup job', () => {
     expect(Array.isArray(copy.runs)).toBe(true);
   });
 });
+
+describe('the backup destination', () => {
+  it('is refused unless it is an absolute path', async () => {
+    await expect(store.backupTo('relative/dir', 'personalos-backup-2026-11-21')).rejects.toThrow(/absolute/);
+    await expect(store.listBackups('relative/dir')).rejects.toThrow(/absolute/);
+    await expect(store.removeBackups('relative/dir', [])).rejects.toThrow(/absolute/);
+  });
+});

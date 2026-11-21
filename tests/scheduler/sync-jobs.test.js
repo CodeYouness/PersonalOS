@@ -99,6 +99,9 @@ describe('the calendar job', () => {
     const after = (await store.getSyncStates()).find((s) => s.integration === calendar.name);
     expect(after?.status).toBe('error');
     expect(before?.status).toBe('ok');
+    expect(after?.lastRunAt).toBe(before?.lastRunAt);
+    expect(after?.itemCount).toBe(before?.itemCount);
+    expect(after?.error).toBe('HTTP 500');
   });
 });
 
@@ -122,6 +125,14 @@ describe('the broker job', () => {
     const state = (await store.getSyncStates()).find((s) => s.integration === 'scalable');
     expect(state?.status).toBe('ok');
     expect(state?.itemCount).toBe(total);
+  });
+
+  it('counts what it wrote by kind, never as a lump', async () => {
+    const result = await jobs.makeScalableSyncJob({ makeRunner: () => scenario().run })(context());
+
+    expect(result?.wrote).not.toHaveProperty('records');
+    expect(result?.wrote?.accounts).toBeGreaterThan(0);
+    expect(result?.wrote?.trades).toBeGreaterThan(0);
   });
 
   it('records an auth failure of the CLI as needs-login and keeps the last success date', async () => {
