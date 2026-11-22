@@ -475,6 +475,7 @@ export const TIME_AREAS = Object.freeze({
   projects: 'Projects',
   training: 'Training',
   refereeing: 'Refereeing',
+  gaming: 'Gaming',
 });
 
 /**

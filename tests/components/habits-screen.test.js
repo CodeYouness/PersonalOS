@@ -122,7 +122,7 @@ describe('HabitsManager: counted from a time area (ADR 0039)', () => {
     expect(add).toContain('<label class="caption" for="counted-new">Counted from time on</label>');
     expect(add).toMatch(/<select id="counted-new" class="input">/);
     expect(add).toContain('<option value="" selected="">—</option>');
-    for (const area of ['Work', 'Projects', 'Training', 'Refereeing']) expect(add).toContain('>' + area + '</option>');
+    for (const area of ['Work', 'Projects', 'Training', 'Refereeing', 'Gaming']) expect(add).toContain('>' + area + '</option>');
     expect(add).not.toContain('Study');
   });
 
