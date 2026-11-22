@@ -952,7 +952,7 @@ by area means **declared**, an area with no time having no key, so `{}` is
 evening's honest guess, never a stopwatch.
 
 The areas are a closed vocabulary, `TIME_AREAS` in `personalos.config.js` --
-`work`, `projects`, `training`, `refereeing`, each with the label the
+`work`, `projects`, `training`, `refereeing`, `gaming`, each with the label the
 screens show -- validated at the store boundary (`isTimeArea`,
 `lib/domain/day-time.js`). Minutes are whole steps of `limits.timeStepMinutes`
 (30), from 0 to `limits.timeAreaMaxMinutes` (a whole day) per area
