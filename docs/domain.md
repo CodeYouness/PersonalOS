@@ -2388,8 +2388,8 @@ the answer succeeds. Mood and energy are never read off it.
 **Is** one thing the system does on its own clock, declared in
 `personalos.config.js` (`SCHEDULES`) and nowhere else: an `id`, a `time` of
 day (HH:MM, read in `USER_TIMEZONE`), the ISO `days` it applies to (1 Monday
-to 7 Sunday), an `engine` (`script` or `small-model`; never the strong model)
-and a `catchUp` rule. A schedule is configuration, not data: nothing about it
+to 7 Sunday), an `engine` (`script` or `small-model`; never the strong model),
+a `catchUp` rule, and optionally what it `needs` of the machine. A schedule is configuration, not data: nothing about it
 is stored, and neither is its next run.
 
 - **Slot**: one moment it is meant to run -- its time on an allowed day.
@@ -2401,6 +2401,13 @@ is stored, and neither is its next run.
   sleep across several slots owes one run; `same-day` runs it late only while
   the slot's day is still today and drops it otherwise.
 - **One run at a time**: a schedule with a run in flight starts nothing.
+- **Needs** (ADR 0066): one of `SCHEDULE_NEEDS` in `personalos.config.js`, so
+  far only `unlocked`, the Mac's screen not locked. A due schedule whose need
+  is not met **waits**: nothing runs and no run is recorded, the slot stays
+  owed, and it runs at the first tick that finds the machine ready
+  (`isMachineReady`, `lib/scheduler/machine.js`). A need that cannot be read
+  counts as met. A run started by hand does not ask. A failed run is still
+  not retried: waiting is for a failure that can be seen coming.
 - It runs only in the process `npm run serve` started (ADR 0062).
 
 Schedules so far, in `USER_TIMEZONE`:
@@ -2408,7 +2415,8 @@ Schedules so far, in `USER_TIMEZONE`:
 - `nightly-backup`, 03:00 every day, copies the data to the backup folder;
 - `prune-runs`, 03:30 every day, removes runs older than 90 days;
 - `sync-calendar`, 07:00 every day, reads the calendar feed;
-- `sync-scalable`, 07:00 on Monday, syncs the broker.
+- `sync-scalable`, 07:00 on Monday, syncs the broker; needs `unlocked`, as
+  the broker's signing key cannot be used while the Mac is locked.
 
 ## Run
 

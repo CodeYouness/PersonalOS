@@ -113,7 +113,7 @@ throws if it is.
 
 ## The scheduler
 
-`lib/scheduler/` (ADRs 0062, 0063) runs what the system does on its own
+`lib/scheduler/` (ADRs 0062, 0063, 0066) runs what the system does on its own
 clock. It lives in the `serve` process, so its writes share the write queue
 of every route (ADR 0011).
 
@@ -128,6 +128,10 @@ of every route (ADR 0011).
   run log and now through `lib/domain/dates.js` -- and runs what is due, one
   run per schedule at a time. The job contract is documented at the top of
   `scheduler.js`; the jobs are registered in `jobs.js`.
+- A due schedule that declares `needs` is asked for first, through the
+  `ready` argument -- `isMachineReady` in `machine.js`, which reads the Mac's
+  lock from `ioreg`. Not ready is no run and no record: the slot stays owed
+  and the next tick asks again (ADR 0066).
 - Every run is written to the run log through `store.recordRun`; a job that
   throws is recorded `failed` and the loop goes on.
 - Schedules are declared in `personalos.config.js`; a test fails when a

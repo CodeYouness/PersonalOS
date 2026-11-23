@@ -125,11 +125,19 @@ export const SCHEDULE_ENGINES = Object.freeze(/** @type {const} */ (['script', '
 export const CATCH_UP_RULES = Object.freeze(/** @type {const} */ (['once', 'same-day']));
 
 /**
+ * What a schedule may need of the machine before it runs (ADR 0066). Closed:
+ * `unlocked` is the Mac's screen not locked, which the broker's signing key
+ * requires. Read by `lib/scheduler/machine.js`.
+ */
+export const SCHEDULE_NEEDS = Object.freeze(/** @type {const} */ (['unlocked']));
+
+/**
  * The schedules, the only things that run on their own (ADR 0062; domain.md,
  * "Schedule"). Time of day is read in USER_TIMEZONE; `days` are ISO weekdays,
  * 1 Monday to 7 Sunday. A schedule is added here together with its job in
  * `lib/scheduler/jobs.js` (a test fails when the two disagree). The id is
- * the key of its runs.
+ * the key of its runs. `needs`, one of SCHEDULE_NEEDS, makes a due schedule
+ * wait until the machine has it (ADR 0066).
  *
  * @type {readonly import('./lib/domain/types.js').Schedule[]}
  */
@@ -161,6 +169,7 @@ export const SCHEDULES = Object.freeze([
     days: Object.freeze([1]),
     engine: 'script',
     catchUp: 'once',
+    needs: 'unlocked',
   }),
 ]);
 
