@@ -42,6 +42,17 @@ describe('RunLog', () => {
     expect(html).toContain('No runs yet');
   });
 
+  it('says what a schedule owed a run is waiting for, in place of its next slot, until it has run', () => {
+    const waits = { ...schedule('sync-broker'), needs: 'unlocked' };
+    const waiting = render([waits], [run({ schedule: 'sync-broker', startedAt: '2026-06-14T01:30:00Z' })]);
+    expect(waiting).toContain('When the Mac is unlocked');
+    expect(waiting).not.toContain('16 Jun, 03:30');
+
+    const ran = render([waits], [run({ schedule: 'sync-broker', startedAt: '2026-06-15T01:30:00Z' })]);
+    expect(ran).not.toContain('When the Mac is unlocked');
+    expect(ran).toContain('16 Jun, 03:30');
+  });
+
   it('lists every schedule it is given, one with runs and one without', () => {
     const html = render([schedule('prune-runs'), schedule('sync-broker')], [run({})]);
 

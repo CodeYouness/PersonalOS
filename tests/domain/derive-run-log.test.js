@@ -26,6 +26,14 @@ describe('runLogView', () => {
     expect(view.rows).toEqual([]);
   });
 
+  it('says a schedule is owed a run when its latest slot is later than its last run, and not once it ran', () => {
+    // 03:30 Rome on the 15th is 01:30Z: passed at NOW, and nothing ran since the 14th.
+    const owed = runLogView({ schedules: [schedule()], runs: [run({ startedAt: '2026-06-14T01:30:00Z' })], now: NOW, timezone: ROME });
+    expect(owed.schedules[0].due).toBe(true);
+    const ran = runLogView({ schedules: [schedule()], runs: [run({ startedAt: '2026-06-15T01:30:00Z', outcome: 'failed' })], now: NOW, timezone: ROME });
+    expect(ran.schedules[0].due).toBe(false);
+  });
+
   it("takes each schedule's last run from the newest of its own runs", () => {
     const runs = [
       run({ id: 'old', startedAt: '2026-06-13T01:30:00Z' }),

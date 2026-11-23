@@ -13,12 +13,17 @@ const STARTERS = { schedule: 'Schedule', user: 'You', telegram: 'Telegram' };
 /** How a run ended, as the log words it. */
 const OUTCOMES = { ok: 'OK', failed: 'Failed', skipped: 'Skipped' };
 
+/** What a due schedule waits for (ADR 0066), as the log words it. */
+const WAITS = { unlocked: 'When the Mac is unlocked' };
+
 /** The engine of a run, as the log words it. */
 const ENGINES = { script: 'Script', 'small-model': 'Model' };
 
 /**
  * The run log (#289, ADR 0063): each configured schedule with its last run
- * and when it is next due, then the runs, newest first. Saved values only --
+ * and when it is next due, then the runs, newest first. A schedule that is
+ * owed a run and waits for what it needs says what for, in place of a date
+ * (ADR 0066). Saved values only --
  * nothing here starts a run or calls a model or an integration. A server
  * component; the view is derived by `runLogView`.
  *
@@ -50,7 +55,7 @@ export default function RunLog({ view, timezone, prices }) {
                 </tr>
               </thead>
               <tbody>
-                {view.schedules.map(({ id, schedule, last, nextAt }) => (
+                {view.schedules.map(({ id, schedule, last, nextAt, due }) => (
                   <tr key={id} data-schedule-row>
                     <td className="runlog-id">{id}</td>
                     <td className="finance-date-cell">
@@ -58,7 +63,9 @@ export default function RunLog({ view, timezone, prices }) {
                     </td>
                     <td className="finance-date-cell">{last === null ? 'Never' : formatInstant(last.startedAt, timezone)}</td>
                     <td>{last === null ? <span className="caption">—</span> : <Outcome outcome={last.outcome} />}</td>
-                    <td className="finance-date-cell">{formatInstant(nextAt, timezone)}</td>
+                    <td className="finance-date-cell">
+                      {due && schedule.needs !== undefined ? WAITS[schedule.needs] : formatInstant(nextAt, timezone)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

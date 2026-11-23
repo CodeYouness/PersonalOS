@@ -149,6 +149,70 @@ describe('the scheduler', () => {
     expect(calls).toBe(1);
   });
 
+  it('waits for what a schedule needs: no run and no record while the Mac is locked, one run at the first unlock', async () => {
+    const store = fakeStore();
+    const clock = clockAt('2026-06-15T05:00:00Z');
+    let unlocked = false;
+    let calls = 0;
+    /** @type {string[]} */
+    const asked = [];
+    const scheduler = createScheduler({
+      schedules: [{ ...schedule('a'), needs: 'unlocked' }], store, clock: clock.now, timezone: ROME,
+      jobs: { a: async () => { calls += 1; } },
+      ready: async (need) => { asked.push(need); return unlocked; },
+    });
+
+    await scheduler.tick();
+    clock.set('2026-06-15T05:01:00Z');
+    await scheduler.tick();
+    expect(calls).toBe(0);
+    expect(store.runs).toHaveLength(0);
+    expect(asked).toEqual(['unlocked', 'unlocked']);
+
+    unlocked = true;
+    clock.set('2026-06-15T09:30:00Z');
+    await scheduler.tick();
+    await scheduler.tick();
+    expect(calls).toBe(1);
+    expect(store.runs).toHaveLength(1);
+    expect(store.runs[0]).toMatchObject({ startedBy: 'schedule', outcome: 'ok', startedAt: '2026-06-15T09:30:00.000Z' });
+  });
+
+  it('runs a schedule whose need cannot be read, as it did before', async () => {
+    const store = fakeStore();
+    const scheduler = createScheduler({
+      schedules: [{ ...schedule('a'), needs: 'unlocked' }], store, clock: clockAt('2026-06-15T08:00:00Z').now, timezone: ROME,
+      jobs: { a: async () => undefined }, log: () => {},
+      ready: async () => { throw new Error('ioreg is gone'); },
+    });
+    await scheduler.tick();
+    expect(store.runs).toHaveLength(1);
+  });
+
+  it('asks nothing for a schedule that needs nothing, nor for one that is not due', async () => {
+    const store = fakeStore();
+    let asked = 0;
+    const clock = clockAt('2026-06-15T08:00:00Z');
+    const scheduler = createScheduler({
+      schedules: [schedule('a'), { ...schedule('b'), needs: 'unlocked' }], store, clock: clock.now, timezone: ROME,
+      jobs: { a: async () => undefined, b: async () => undefined },
+      ready: async () => { asked += 1; return true; },
+    });
+    await scheduler.tick();
+    await scheduler.tick();
+    expect(store.runs).toHaveLength(2);
+    expect(asked).toBe(1);
+  });
+
+  it('runNow does not wait for what the schedule needs: the user is at the Mac', async () => {
+    const store = fakeStore();
+    const scheduler = createScheduler({
+      schedules: [{ ...schedule('a'), needs: 'unlocked' }], store, clock: clockAt('2026-06-15T04:00:00Z').now, timezone: ROME,
+      jobs: { a: async () => undefined }, ready: async () => false,
+    });
+    expect(await scheduler.runNow('a', 'user')).toMatchObject({ startedBy: 'user', outcome: 'ok' });
+  });
+
   it('runNow starts a schedule for the user and refuses while it runs', async () => {
     const store = fakeStore();
     const scheduler = createScheduler({
