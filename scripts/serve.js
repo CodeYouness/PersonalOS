@@ -9,12 +9,23 @@
  * gone is taken over.
  *
  * Arguments pass through to `next start`: `npm run serve -- -p 3100`.
+ *
+ * Told to stop (SIGTERM from launchd, Ctrl-C), it always does (ADR 0067):
+ * the server is asked first and killed when it has not gone within
+ * `limits.serveStopGraceMs`, then the lock is released. The server is
+ * started as `node next`, with no `npx` in between, so the signal and the
+ * kill reach the server itself and not a wrapper that would leave it behind.
  */
 
 import { spawn, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 import { env } from '../lib/config/env.js';
 import { acquireLock, lockPathFor } from '../lib/writer-lock.js';
+import { limits } from '../personalos.config.js';
+import { stopChild } from './stop-child.js';
+
+const NEXT_BIN = fileURLToPath(new URL('../node_modules/next/dist/bin/next', import.meta.url));
 
 const lock = await acquireLock(lockPathFor(env.dataDir));
 if (!lock.acquired) {
@@ -42,8 +53,12 @@ if (build.status !== 0) await stop(build.status ?? 1);
 // (ADR 0062): set here, on the server only -- not for the build, not for dev.
 // eslint-disable-next-line no-restricted-syntax
 const serverEnv = { ...process.env, PERSONALOS_SCHEDULER: '1' };
-const server = spawn('npx', ['next', 'start', '-H', '127.0.0.1', ...process.argv.slice(2)], { stdio: 'inherit', env: serverEnv });
+const server = spawn(process.execPath, [NEXT_BIN, 'start', '-H', '127.0.0.1', ...process.argv.slice(2)], { stdio: 'inherit', env: serverEnv });
 server.on('exit', (code) => stop(code ?? 0));
 for (const signal of /** @type {const} */ (['SIGINT', 'SIGTERM'])) {
-  process.on(signal, () => server.kill(signal));
+  process.on(signal, async () => {
+    const ended = await stopChild(server, signal, limits.serveStopGraceMs);
+    if (ended.killed) console.error('The server had not stopped after ' + limits.serveStopGraceMs + ' ms and was killed.');
+    await stop(ended.code ?? 0);
+  });
 }

@@ -496,6 +496,12 @@ export const TIME_AREAS = Object.freeze({
 export const limits = Object.freeze({
   /** Runs older than this many days are removed by the nightly prune (ADR 0063). */
   runRetentionDays: 90,
+  /**
+   * How long `npm run serve` waits for its server to stop by itself before
+   * killing it (ADR 0067). Under launchd's own 20 s, after which launchd
+   * kills `serve` and nothing is left to release the lock.
+   */
+  serveStopGraceMs: 5000,
   /** How often the scheduler asks whether a schedule is due (ADR 0062). */
   schedulerTickMs: 60_000,
   /** The longest answer to one of a review's three questions (ADR 0034). */
