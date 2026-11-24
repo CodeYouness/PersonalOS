@@ -137,7 +137,9 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/personalos.serve.plist
   http://127.0.0.1:3000.
 - **Remove:** `launchctl bootout gui/$(id -u)/personalos.serve`, then delete the plist.
 - **Rebuild after a change:** `launchctl kickstart -k gui/$(id -u)/personalos.serve`
-  restarts it, and `serve` builds again on start (give it a minute). `bootout`
+  restarts it, and `serve` builds again on start (give it a minute). `serve`
+  stops within 5 seconds of being told to, killing a server that a page left
+  open keeps from exiting (ADR 0067). `bootout`
   it first before `npm run dev` or any script that writes the data.
 - **Logs:** `~/Library/Logs/PersonalOS/serve.log` and `serve.err.log`
   (`tail -f`). Build errors land there.
