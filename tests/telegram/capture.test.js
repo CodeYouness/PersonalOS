@@ -80,7 +80,7 @@ describe('a sentence sent to the bot', () => {
     const reply = await handle({ updateId: 7001, text: SENTENCE, replyTo: null });
 
     expect(reply).toBe(texts.captureReply('task', 'model'));
-    expect(reply).toContain('task');
+    expect(reply).toContain(texts.DESTINATION_NAMES.task);
     expect(reply).not.toContain('plumber');
     expect(await telegramCaptures()).toEqual([
       expect.objectContaining({ text: SENTENCE, origin: 'telegram', destination: 'task', route: 'model', clientId: 'telegram:7001' }),
@@ -191,6 +191,31 @@ describe('a question sent to the bot', () => {
     expect(fromBar).not.toContain(CHAT_BRIEF);
     // Said with the question, so the instructions every question shares stay as measured (ADR 0030).
     expect(callTool.mock.calls[0][0].system).toBe(callTool.mock.calls[1][0].system);
+  });
+
+  it('asks that no point repeat another', async () => {
+    const { CHAT_BRIEF } = await import('@/lib/answer.js');
+
+    expect(CHAT_BRIEF).toMatch(/never say the same thing twice/i);
+  });
+
+  describe('asked over part of an archive too large to send whole', () => {
+    const READ = { parts: ['life'], months: { from: '2026-09', to: '2026-09' } };
+
+    it('says what was read when the answer is that it is not there', async () => {
+      const { answerReply } = await import('@/lib/telegram/handle.js');
+
+      expect(answerReply({ outcome: 'not-in-data', summarised: null, read: READ })).toBe(
+        texts.TELEGRAM_TEXTS.notInData + '\n\n' + texts.readReply(READ)
+      );
+    });
+
+    it('does not say it under an answer that was found', async () => {
+      const { answerReply } = await import('@/lib/telegram/handle.js');
+      const found = { text: 'Found.', citations: [] };
+
+      expect(answerReply({ outcome: 'answer', statements: [found], leftOut: false, summarised: null, read: READ })).toBe('Found.');
+    });
   });
 
   it('refuses a question that is too long without asking the model', async () => {

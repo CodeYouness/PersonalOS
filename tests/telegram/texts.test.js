@@ -5,8 +5,18 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { ALERT_TEXTS, alertText, captureReply, NEEDS_LOGIN_TEXTS, reminderText, TELEGRAM_TEXTS } from '@/lib/telegram/texts.js';
-import { DESTINATIONS, SCHEDULE_IDS } from '@/personalos.config.js';
+import {
+  ALERT_TEXTS,
+  alertText,
+  captureReply,
+  DESTINATION_NAMES,
+  NEEDS_LOGIN_TEXTS,
+  PART_NAMES,
+  readReply,
+  reminderText,
+  TELEGRAM_TEXTS,
+} from '@/lib/telegram/texts.js';
+import { CONTEXT_PARTS, DESTINATIONS, SCHEDULE_IDS } from '@/personalos.config.js';
 
 describe('the bot\'s sentences', () => {
   it('are plain strings, never a function of anything', () => {
@@ -24,7 +34,7 @@ describe('the bot\'s sentences', () => {
   });
 
   it('say of the reminder only that the check-in is open', () => {
-    expect(TELEGRAM_TEXTS.reminder).toBe("Today's check-in is open.");
+    expect(TELEGRAM_TEXTS.reminder).toBe('Il check-in di oggi è aperto.');
     expect(reminderText(null)).toBe(TELEGRAM_TEXTS.reminder);
   });
 
@@ -35,12 +45,32 @@ describe('the bot\'s sentences', () => {
   });
 
   it('answer a capture with its destination and nothing else', () => {
+    // Named in the language the bot speaks (ADR 0072), from a closed list.
+    expect(Object.keys(DESTINATION_NAMES).sort()).toEqual([...DESTINATIONS].sort());
     for (const destination of DESTINATIONS) {
-      expect(captureReply(destination, 'model')).toBe('Filed under ' + destination + '.');
+      expect(captureReply(destination, 'model')).toBe('Archiviato in: ' + DESTINATION_NAMES[destination] + '.');
     }
+    expect(captureReply('task', 'rules')).toBe('Archiviato in: attività.');
     expect(captureReply('memory', 'unclassified')).toBe(TELEGRAM_TEXTS.savedNotFiled);
     // The destination and the route: there is nowhere to pass a sentence.
     expect(captureReply.length).toBe(2);
+  });
+});
+
+describe('what was read, said in a chat', () => {
+  it('names the parts and the months in Italian', () => {
+    expect(Object.keys(PART_NAMES).sort()).toEqual([...CONTEXT_PARTS].sort());
+    expect(readReply({ parts: ['life', 'money'], months: { from: '2026-09', to: '2026-11' } })).toBe(
+      'Ho letto solo: attività e giorni, conti e totali mensili. Mesi: da settembre 2026 a novembre 2026.'
+    );
+    expect(readReply({ parts: ['transactions'], months: { from: '2026-10', to: '2026-10' } })).toBe(
+      'Ho letto solo: singoli movimenti. Mese: ottobre 2026.'
+    );
+  });
+
+  it('says nothing when the whole archive was read', () => {
+    expect(readReply(null)).toBeNull();
+    expect(readReply(undefined)).toBeNull();
   });
 });
 
