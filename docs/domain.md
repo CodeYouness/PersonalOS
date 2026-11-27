@@ -432,8 +432,9 @@ from the question alone -- none of the data is sent to choose -- and, when
 the question names a period, the months: of what belongs to a month, only
 those months are read (the newest `limits.contextRecentMonths` when it names
 none). What was **read** goes with the answer, and with "not in your data":
-"Read only: tasks and days. Months: September 2026 to November 2026." What
-was not read is unknown, never absent.
+"Read only: tasks and days. Months: September 2026 to November 2026." In the
+Telegram chat it is said in Italian and only with "not in your data"
+(ADR 0072). What was not read is unknown, never absent.
 
 When no part can be chosen, or the chosen parts do not fit either, the
 question is refused (the **too-large** outcome) and is not asked: an honest
@@ -2497,8 +2498,11 @@ no time of day and is never due.
   update id, and the reply names its destination and nothing else. A
   question is answered as the bar's Ask mode answers and stored nowhere; its
   reply is the answer and may carry data. It is asked to be brief (ADR 0071):
-  one statement is a sentence, several are points, and the notes about the
-  answer follow a blank line.
+  one statement is a sentence, several are points, no point repeats another,
+  and the notes about the answer follow a blank line. What was read is said
+  only under "not in your data" (ADR 0072).
+- **It speaks Italian** (ADR 0072): every fixed sentence, a capture's reply
+  and the line about what was read. The app's screens stay in English.
 - **A failure alert** (ADR 0069) is one fixed sentence, the schedule's own,
   sent when a schedule's run failed and the run before it had not; a
   skipped run is read past. Nothing more until it succeeds. A broker sync
