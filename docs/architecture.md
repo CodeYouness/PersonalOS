@@ -171,7 +171,8 @@ out" does not cover it, and ADR 0064 bounds what it may send.
   made. Its errors never carry the address, which holds the token.
 - `handleTelegramText` (`handle.js`) is the loop's handler: a reply to an
   evening reminder is filed with `answerCheckin` on the reminder's day; a
-  text that ends with a question mark is answered with `answerQuestion`;
+  text that ends with a question mark is answered with `ask(question, {
+  brief: true })` (ADR 0071);
   any other text is filed with `fileCapture` (`lib/capture.js`), the entry
   point `POST /api/capture` files through too (ADR 0069).
   `telegramSender` (`send.js`) is what a schedule sends with; the
