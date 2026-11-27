@@ -171,9 +171,14 @@ yourself, then restart the server (`launchctl kickstart -k ...`, above).
   that message and your reply is that day's open answer. To get a link under
   it, add the address you reach the app at from the phone:
   `PERSONALOS_BASE_URL=<https://...>` (unset: no link).
-- **Any other text** from that chat is answered "Received." and
-  filed nowhere (filing is #292). A voice note, a photo or a file gets a line
+- **Any other text** from that chat is a capture, filed as the capture bar
+  files it; the bot answers with where it went and nothing else. End it
+  with a question mark and it is a question instead: the bot answers it and
+  files nothing (ADR 0069). A voice note, a photo or a file gets a line
   pointing to the Shortcut. Anyone else gets no answer at all.
+- **A failing schedule** sends one message, the first time it fails, and no
+  other until it has succeeded again. The error is in the run log
+  (`/manage/runs`), never in the message.
 - **Off:** with either line missing nothing is asked of Telegram, and the
   run log shows one `skipped` run for `telegram`.
 - **Only under `serve`:** `dev`, `dev:sandbox` and the tests never listen.

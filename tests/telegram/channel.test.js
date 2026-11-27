@@ -12,6 +12,8 @@ import { TELEGRAM_TEXTS } from '@/lib/telegram/texts.js';
 
 const MINE = 1001;
 const OTHER = 2002;
+/** What the fake handler answers with: the loop sends back whatever line it is given. */
+const HANDLED = 'handled';
 
 /** @param {number} id @param {Record<string, unknown>} message @param {number} [chat] */
 const update = (id, message, chat = MINE) => ({ update_id: id, message: { message_id: id, chat: { id: chat, type: 'private' }, ...message } });
@@ -51,7 +53,7 @@ function fakeTelegram(pending) {
 function channelOn(telegram, over = {}) {
   return createTelegramChannel({
     transport: telegram.transport, chatId: MINE, pollSeconds: 0, backoff: { minMs: 10, maxMs: 40 },
-    handle: async () => TELEGRAM_TEXTS.received, sleep: async () => {}, log: () => {}, ...over,
+    handle: async () => HANDLED, sleep: async () => {}, log: () => {}, ...over,
   });
 }
 
@@ -61,14 +63,14 @@ describe('the Telegram channel', () => {
     /** @type {any[]} */
     const handled = [];
     const channel = channelOn(telegram, {
-      handle: async (/** @type {any} */ message) => { telegram.calls.push('handle'); handled.push(message); return TELEGRAM_TEXTS.received; },
+      handle: async (/** @type {any} */ message) => { telegram.calls.push('handle'); handled.push(message); return HANDLED; },
     });
 
     await channel.pollOnce();
     await channel.pollOnce();
 
     expect(handled).toEqual([{ updateId: 7, text: 'hello', replyTo: null }]);
-    expect(telegram.sent).toEqual([{ chatId: MINE, text: TELEGRAM_TEXTS.received }]);
+    expect(telegram.sent).toEqual([{ chatId: MINE, text: HANDLED }]);
     // Asked with no offset, handled, answered, and only then asked from 8 on.
     expect(telegram.calls).toEqual(['getUpdates:none', 'handle', 'send', 'getUpdates:8']);
     expect(telegram.pending()).toEqual([]);
@@ -78,7 +80,7 @@ describe('the Telegram channel', () => {
     const telegram = fakeTelegram([update(7, { text: 'done', reply_to_message: { message_id: 55, text: 'not read' } })]);
     /** @type {any[]} */
     const handled = [];
-    const channel = channelOn(telegram, { handle: async (/** @type {any} */ message) => { handled.push(message); return TELEGRAM_TEXTS.received; } });
+    const channel = channelOn(telegram, { handle: async (/** @type {any} */ message) => { handled.push(message); return HANDLED; } });
 
     await channel.pollOnce();
 
@@ -91,7 +93,7 @@ describe('the Telegram channel', () => {
     const telegram = fakeTelegram([twice]);
     // A Telegram that ignores the acknowledgement and delivers it again.
     telegram.transport.getUpdates = async () => [twice];
-    const channel = channelOn(telegram, { handle: async () => { handled += 1; return TELEGRAM_TEXTS.received; } });
+    const channel = channelOn(telegram, { handle: async () => { handled += 1; return HANDLED; } });
 
     await channel.pollOnce();
     await channel.pollOnce();
@@ -107,7 +109,7 @@ describe('the Telegram channel', () => {
     const filed = new Map();
     const handle = async (/** @type {{ updateId: number, text: string }} */ { updateId, text }) => {
       if (!filed.has(updateId)) filed.set(updateId, text);
-      return TELEGRAM_TEXTS.received;
+      return HANDLED;
     };
 
     // Handled, then the process dies before the next request acknowledges it.
@@ -133,7 +135,7 @@ describe('the Telegram channel', () => {
         attempts += 1;
         if (attempts === 1) throw new Error('the disk is full');
         done.push(updateId);
-        return TELEGRAM_TEXTS.received;
+        return HANDLED;
       },
     });
 
@@ -150,7 +152,7 @@ describe('the Telegram channel', () => {
     /** @type {unknown[]} */
     const logged = [];
     const channel = channelOn(telegram, {
-      handle: async () => { handled += 1; return TELEGRAM_TEXTS.received; },
+      handle: async () => { handled += 1; return HANDLED; },
       log: (/** @type {unknown[]} */ ...args) => { logged.push(...args); },
     });
 
@@ -166,7 +168,7 @@ describe('the Telegram channel', () => {
   it('drops an update that is not a message, and one with no chat', async () => {
     const telegram = fakeTelegram([{ update_id: 7, edited_message: { chat: { id: MINE }, text: 'edited' } }, { update_id: 8, message: { text: 'no chat' } }]);
     let handled = 0;
-    const channel = channelOn(telegram, { handle: async () => { handled += 1; return TELEGRAM_TEXTS.received; } });
+    const channel = channelOn(telegram, { handle: async () => { handled += 1; return HANDLED; } });
 
     await channel.pollOnce();
 
@@ -181,7 +183,7 @@ describe('the Telegram channel', () => {
       update(9, { document: { file_id: 'd', file_name: 'statement.pdf' } }),
     ]);
     let handled = 0;
-    const channel = channelOn(telegram, { handle: async () => { handled += 1; return TELEGRAM_TEXTS.received; } });
+    const channel = channelOn(telegram, { handle: async () => { handled += 1; return HANDLED; } });
 
     await channel.pollOnce();
 
