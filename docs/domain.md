@@ -112,7 +112,7 @@ deduplicated. The same `clientId` under another `origin` is another capture.
 
 `origin` is the surface the sentence arrived through, one of `CAPTURE_ORIGINS`:
 `bar` (the capture bar, on any device), `shortcut` (the iPhone Shortcut) or
-`telegram` (reserved, flagged off). It names the surface, not the device: a
+`telegram` (the Telegram channel; no text is filed from it yet, #292). It names the surface, not the device: a
 browser on the phone is still `bar`. Validated in the store; a missing one is
 `bar`, an unknown one is refused (the route answers 400). The capture log marks
 any origin other than `bar`. `source` is who created
@@ -2421,7 +2421,9 @@ Schedules so far, in `USER_TIMEZONE`:
 ## Run
 
 **Is** the record of one execution of a schedule (ADR 0063), kept in `runs`
-and written once, when the run ends: `schedule` (one of the declared ids),
+and written once, when the run ends: `schedule` (one of `RUN_SUBJECTS`: a
+declared schedule's id, or a channel's for what a channel does on its own,
+ADR 0064),
 `startedBy` (`schedule`, `user`, `telegram`), `engine`, `startedAt`,
 `durationMs`, `outcome` (`ok`, `failed`, `skipped`), `reason`, `wrote`, and
 for a model run `model`, `inputTokens` and `outputTokens`.
@@ -2440,6 +2442,30 @@ for a model run `model`, `inputTokens` and `outputTokens`.
   runs. A job that throws is recorded `failed` with its message.
 - The last run of a schedule is the input of "is it due". `SyncState` is not
   folded into runs: the manual scripts still write it.
+
+## Channel
+
+**Is** a way a sentence of mine reaches the system from outside a page, and
+the only kind of code that may send one out (ADR 0064). A closed list,
+`CHANNEL_IDS` in `personalos.config.js`; one so far, `telegram`.
+
+**Is not** an integration: an integration is a source the system reads on
+its clock and never writes to (ADR 0010). And not a schedule: a channel has
+no time of day and is never due.
+
+- **One chat.** The Telegram channel listens to the chat in
+  `TELEGRAM_CHAT_ID` and to no other. An update from anywhere else is
+  dropped as soon as its chat is read: no reply, nothing kept of it.
+- **Text only.** Anything else gets one fixed line pointing to the Shortcut.
+- **Update id**: Telegram's id of an update, and the key of the message it
+  carries. An update is handled first and acknowledged after, so one may
+  arrive twice; what is filed from it is filed once per update id.
+- **Off**: with the token or the chat id missing the channel does not start
+  and asks nothing of Telegram. That is recorded as one `skipped` run under
+  the channel's id, reason `not-configured`.
+- **What it says** is fixed text (`lib/telegram/texts.js`). After #290 a text
+  from the chat is answered with an acknowledgement and filed nowhere.
+- It listens only in the process `npm run serve` started, like the scheduler.
 
 ## Jarvis (planned)
 

@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { readModelSettings, readTimezone } from '@/lib/config/variables.js';
+import { readModelSettings, readOptionalInteger, readTimezone } from '@/lib/config/variables.js';
 import { defaultModels, defaultTimezone } from '@/personalos.config.js';
 
 describe('readModelSettings', () => {
@@ -75,5 +75,23 @@ describe('readTimezone', () => {
 
   it('refuses a zone the platform cannot resolve, by name', () => {
     expect(() => readTimezone({ USER_TIMEZONE: 'Mars/Olympus' })).toThrow(/USER_TIMEZONE is not a valid IANA timezone/);
+  });
+});
+
+describe('readOptionalInteger', () => {
+  it('reads a whole number, trimmed, and null when unset or empty', () => {
+    expect(readOptionalInteger({ TELEGRAM_CHAT_ID: ' 1001 ' }, 'TELEGRAM_CHAT_ID')).toBe(1001);
+    expect(readOptionalInteger({ TELEGRAM_CHAT_ID: '-500' }, 'TELEGRAM_CHAT_ID')).toBe(-500);
+    expect(readOptionalInteger({}, 'TELEGRAM_CHAT_ID')).toBeNull();
+    expect(readOptionalInteger({ TELEGRAM_CHAT_ID: '  ' }, 'TELEGRAM_CHAT_ID')).toBeNull();
+  });
+
+  it('refuses anything else by the name of the variable, never by its value', () => {
+    for (const value of ['abc', '10.5', '1e3', '@someone', '99999999999999999999']) {
+      /** @type {any} */
+      let thrown;
+      try { readOptionalInteger({ TELEGRAM_CHAT_ID: value }, 'TELEGRAM_CHAT_ID'); } catch (error) { thrown = error; }
+      expect(thrown?.message).toBe('TELEGRAM_CHAT_ID is set but is not a whole number.');
+    }
   });
 });

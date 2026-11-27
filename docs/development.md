@@ -146,6 +146,38 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/personalos.serve.plist
 - **The Dock:** open http://127.0.0.1:3000 in Safari, File > Add to Dock (in
   Chrome, Install PersonalOS). The window uses the manifest's name and icon.
 
+## The Telegram channel (ticket #290)
+
+The server can listen to one Telegram chat (ADR 0064). Making the bot is
+yours to do, by hand; a script walks you through it:
+
+```
+npm run telegram:setup
+```
+
+It asks you to create a bot with @BotFather, paste its token, and send the
+bot a message, then prints two lines for `.env.local`:
+
+```
+TELEGRAM_BOT_TOKEN=<the token BotFather gave you>
+TELEGRAM_CHAT_ID=<your chat's number>
+```
+
+The script never writes `.env.local` and keeps nothing. Put the lines in
+yourself, then restart the server (`launchctl kickstart -k ...`, above).
+
+- **What it does now:** a text from that chat is answered "Received." and
+  filed nowhere (filing is #292). A voice note, a photo or a file gets a line
+  pointing to the Shortcut. Anyone else gets no answer at all.
+- **Off:** with either line missing nothing is asked of Telegram, and the
+  run log shows one `skipped` run for `telegram`.
+- **Only under `serve`:** `dev`, `dev:sandbox` and the tests never listen.
+- **One listener per token:** run the setup script before the lines are in
+  `.env.local`, or with the server stopped; otherwise Telegram refuses it.
+- **A leaked token:** send `/revoke` to @BotFather, run the script again.
+- **Logs:** lines starting `[telegram]` in `serve.err.log`. A lost
+  connection is logged and retried; it never stops the server.
+
 ## The nightly backup (ticket #288)
 
 At 03:00 (catching up once after a closed lid) the `nightly-backup` schedule

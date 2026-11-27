@@ -32,6 +32,7 @@
     "data:categorise": "node scripts/categorise.js",
     "sync:calendar": "node scripts/sync-calendar.js",
     "sync:scalable": "node scripts/sync-scalable.js",
+    "telegram:setup": "node scripts/telegram-setup.js",
     "eval:classify": "node scripts/eval-classify.js",
     "measure:context": "node scripts/measure-context.js"
   },
