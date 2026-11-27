@@ -10,6 +10,7 @@ import {
   formatChange,
   formatCostMicros,
   formatDuration,
+  formatEuro,
   formatInstant,
   formatCount,
   formatDayReading,
@@ -35,6 +36,7 @@ export {
   formatChange,
   formatCostMicros,
   formatDuration,
+  formatEuro,
   formatInstant,
   formatCount,
   formatDayReading,
@@ -227,18 +229,6 @@ export function provenanceLabel({ createdDayKey, source, route }, todayKey) {
 }
 
 const THIN_SPACE = '\u2009';
-
-/**
- * A headline amount: "€ 84,320", the sign before the euro.
- *
- * @param {number} minor
- * @param {{ cents?: boolean }} [options]
- * @returns {string}
- */
-export function formatEuro(minor, options) {
-  const sign = minor < 0 ? MINUS : '';
-  return sign + '€' + THIN_SPACE + formatMoney(Math.abs(minor), options);
-}
 
 /**
  * An amount on a chart's scale, short so the axis stays narrow: "€ 950",

@@ -785,7 +785,7 @@ export const limits = Object.freeze({
  * is not doing yet.
  */
 export const features = Object.freeze({
-  telegramCapture: false,
+  telegramCapture: true,
   semanticMemory: false,
   morningBriefing: false,
   integrations: true,

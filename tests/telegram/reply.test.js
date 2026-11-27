@@ -129,16 +129,3 @@ describe('a reply to the evening reminder', () => {
     expect((await journalOf(REMINDER_DAY)).sort()).toEqual(['first thought', 'second thought']);
   });
 });
-
-describe('any other text', () => {
-  it.each([
-    ['a text that replies to nothing', null],
-    ['a reply to a message that was not a reminder', 1],
-  ])('%s is acknowledged and filed nowhere, with no model asked', async (_what, replyTo) => {
-    const reply = await handle({ updateId: 9007, text: SENTENCE, replyTo });
-
-    expect(reply).toBe(TEXTS.received);
-    expect(await journalOf(REMINDER_DAY)).toEqual([]);
-    expect(callTool).not.toHaveBeenCalled();
-  });
-});

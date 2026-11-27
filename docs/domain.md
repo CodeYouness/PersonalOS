@@ -112,7 +112,8 @@ deduplicated. The same `clientId` under another `origin` is another capture.
 
 `origin` is the surface the sentence arrived through, one of `CAPTURE_ORIGINS`:
 `bar` (the capture bar, on any device), `shortcut` (the iPhone Shortcut) or
-`telegram` (the Telegram channel; no text is filed from it yet, #292). It names the surface, not the device: a
+`telegram` (the Telegram channel, ADR 0069; its `clientId` is
+`telegram:<update id>`). It names the surface, not the device: a
 browser on the phone is still `bar`. Validated in the store; a missing one is
 `bar`, an unknown one is refused (the route answers 400). The capture log marks
 any origin other than `bar`. `source` is who created
@@ -2468,16 +2469,26 @@ no time of day and is never due.
 - **Off**: with the token or the chat id missing the channel does not start
   and asks nothing of Telegram. That is recorded as one `skipped` run under
   the channel's id, reason `not-configured`.
-- **What it says** is fixed text (`lib/telegram/texts.js`), with no slot for
-  data.
+- **What it says on its own** is fixed text (`lib/telegram/texts.js`), with
+  no slot for data: the reminder and the failure alerts. Only a reply to
+  what I just sent may be built from data.
 - **The evening reminder** (ADR 0068) is the one message the system starts:
   that the check-in is open, and the app's address when
   `PERSONALOS_BASE_URL` is set. Never two for a day.
 - **A reply to a reminder** is the open answer of the day that reminder was
   about, even after midnight: a journal entry on that day first, then read
   by the small model, once per update id.
-- **Any other text** is answered with an acknowledgement and filed nowhere
-  (#292 files it).
+- **Any other text** (ADR 0069) is a **question** when it ends with a
+  question mark, and a **capture** otherwise. A capture goes through the
+  capture bar's entry point (`fileCapture`) with origin `telegram`, once per
+  update id, and the reply names its destination and nothing else. A
+  question is answered as the bar's Ask mode answers and stored nowhere; its
+  reply is the answer and may carry data.
+- **A failure alert** (ADR 0069) is one fixed sentence, the schedule's own,
+  sent when a schedule's run failed and the run before it had not; a
+  skipped run is read past. Nothing more until it succeeds. A broker sync
+  that failed with `needs-login` has its own sentence. Derived from the run
+  log (`failureAlert`), never stored; with the channel off nothing is sent.
 - It listens only in the process `npm run serve` started, like the scheduler.
 
 ## Jarvis (planned)

@@ -170,10 +170,16 @@ out" does not cover it, and ADR 0064 bounds what it may send.
 - `makeTelegramTransport` (`transport.js`) is the one place a request is
   made. Its errors never carry the address, which holds the token.
 - `handleTelegramText` (`handle.js`) is the loop's handler: a reply to an
-  evening reminder is filed with `answerCheckin` on the reminder's day; any
-  other text is acknowledged. `telegramSender` (`send.js`) is what a
-  schedule sends with; the reminder's job is `lib/scheduler/reminder.js`
-  (ADR 0068).
+  evening reminder is filed with `answerCheckin` on the reminder's day; a
+  text that ends with a question mark is answered with `answerQuestion`;
+  any other text is filed with `fileCapture` (`lib/capture.js`), the entry
+  point `POST /api/capture` files through too (ADR 0069).
+  `telegramSender` (`send.js`) is what a schedule sends with; the
+  reminder's job is `lib/scheduler/reminder.js` (ADR 0068).
+- Failure alerts (ADR 0069): the scheduler tells `afterRun` of every run it
+  recorded; the real one is `makeFailureAlerter` (`lib/scheduler/alerts.js`),
+  which asks `failureAlert` (`lib/domain/derive/run-alerts.js`) and sends
+  the schedule's fixed sentence. It cannot fail a run.
 - No route, page or component imports `lib/telegram/`. Nothing is exposed to
   the internet: the server asks, Telegram answers.
 
