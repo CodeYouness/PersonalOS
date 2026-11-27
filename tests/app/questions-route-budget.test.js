@@ -234,6 +234,19 @@ describe('POST /api/questions over the size budget: under it', () => {
   });
 });
 
+/**
+ * Over the budget the question is not refused at once (ADR 0070): the small
+ * model is asked which parts it needs. Here it says nothing usable, so the
+ * question is refused as before -- and was never asked: the one call is the
+ * choice of parts, made from the question alone.
+ */
+function expectOnlyTheChoiceOfParts() {
+  expect(mockCreate).toHaveBeenCalledTimes(1);
+  const [request] = mockCreate.mock.calls[0];
+  expect(JSON.stringify(request.tools)).toContain('choose_parts');
+  expect(JSON.stringify(request)).not.toContain('<context>');
+}
+
 describe('POST /api/questions over the size budget: summarised', () => {
   it('replaces the oldest months of transactions by their monthly figures, and keeps the newest three whole', async () => {
     const byMonth = await addYear();
@@ -297,7 +310,7 @@ describe('POST /api/questions over the size budget: summarised', () => {
     const response = await ask();
 
     expect(await response.json()).toEqual({ ok: true, outcome: 'too-large' });
-    expect(mockCreate).not.toHaveBeenCalled();
+    expectOnlyTheChoiceOfParts();
   });
 
   it('keeps every figure: only transactions are replaced, nothing else is cut', async () => {
@@ -425,7 +438,7 @@ describe('POST /api/questions over the size budget: months with no figure', () =
     const response = await ask();
 
     expect(await response.json()).toEqual({ ok: true, outcome: 'too-large' });
-    expect(mockCreate).not.toHaveBeenCalled();
+    expectOnlyTheChoiceOfParts();
     expect(await workingFile()).toBe(before);
   });
 });
@@ -449,7 +462,7 @@ describe('POST /api/questions over the size budget: a month after today', () => 
 });
 
 describe('POST /api/questions over the size budget: still too large', () => {
-  it('refuses with too-large, never calls the model, and writes nothing', async () => {
+  it('refuses with too-large, never asks the question of the model, and writes nothing', async () => {
     await addYear();
     await store.getTasks();
     const before = await workingFile();
@@ -459,7 +472,7 @@ describe('POST /api/questions over the size budget: still too large', () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, outcome: 'too-large' });
-    expect(mockCreate).not.toHaveBeenCalled();
+    expectOnlyTheChoiceOfParts();
     expect(await workingFile()).toBe(before);
   });
 

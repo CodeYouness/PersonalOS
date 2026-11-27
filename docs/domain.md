@@ -423,9 +423,22 @@ so the context carries `since` too (`{ since, before }`, the months from
 2026 to May 2026 were read as monthly totals". The model is told the same, and
 told never to say that nothing happened in those months.
 If it is still too large once everything that may be summarised is, the
-question is refused (the **too-large** outcome) and the model is not called:
-an honest "too large" is better than an archive cut silently. With no model
-there is nothing to refuse: that answer is no-model, first.
+question is asked over **part** of the archive (ADR 0070). The parts are a
+closed list, `CONTEXT_PARTS`: `life` (everything that is not money), `money`
+(accounts, net worth, a month's totals), `categories` (a month's totals by
+category and tag), `transactions` (the single movements) and `investments`
+(trades, prices, the investment figures). The small model chooses the parts
+from the question alone -- none of the data is sent to choose -- and, when
+the question names a period, the months: of what belongs to a month, only
+those months are read (the newest `limits.contextRecentMonths` when it names
+none). What was **read** goes with the answer, and with "not in your data":
+"Read only: tasks and days. Months: September 2026 to November 2026." What
+was not read is unknown, never absent.
+
+When no part can be chosen, or the chosen parts do not fit either, the
+question is refused (the **too-large** outcome) and is not asked: an honest
+"too large" is better than an archive cut silently. With no model there is
+nothing to refuse: that answer is no-model, first.
 
 ---
 

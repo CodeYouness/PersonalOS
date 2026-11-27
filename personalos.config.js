@@ -78,6 +78,14 @@ export const DESTINATIONS = Object.freeze([
 ]);
 
 /**
+ * The parts of the question context (ADR 0070). An archive too large to ask
+ * over whole is asked a part at a time: the small model chooses among these
+ * and nothing else. Which item is in which part is `partOf`
+ * (lib/ai/context/parts.js); docs/domain.md, Question, says what each holds.
+ */
+export const CONTEXT_PARTS = Object.freeze(/** @type {const} */ (['life', 'money', 'categories', 'transactions', 'investments']));
+
+/**
  * The surfaces a capture can arrive through. `origin` names the surface, not
  * the device: a browser on the phone is still `bar`. `telegram` is reserved
  * for the flagged-off surface.
@@ -777,6 +785,11 @@ export const limits = Object.freeze({
    * answer the question just as well.
    */
   contextRecentMonths: 3,
+  /**
+   * The ceiling on the reply that chooses a question's parts (ADR 0070): a
+   * handful of words from a closed list and two months.
+   */
+  partsMaxTokens: 200,
 });
 
 /**

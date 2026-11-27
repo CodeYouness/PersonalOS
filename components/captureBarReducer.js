@@ -43,6 +43,7 @@
  * @property {AnswerStatement[]} [statements]
  * @property {boolean} [leftOut]
  * @property {Summarised | null} [summarised]
+ * @property {import('@/lib/ai/context/parts.js').Read} [read] what of the archive was read, when not all of it (ADR 0070)
  *
  * @typedef {object} AnswerState
  * @property {string} question
@@ -50,6 +51,7 @@
  * @property {AnswerStatement[]} [statements]
  * @property {boolean} [leftOut]
  * @property {Summarised | null} [summarised]
+ * @property {import('@/lib/ai/context/parts.js').Read} [read]
  * @property {string} [message] why a question failed
  * @property {boolean} [retryable] false when sending it again would fail the same way
  *

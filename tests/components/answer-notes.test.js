@@ -73,3 +73,27 @@ describe('TOO_LARGE_TEXT', () => {
     expect(TOO_LARGE_TEXT).toBe('Too much data to ask over, even summarised. Nothing was sent.');
   });
 });
+
+describe('what was read of the archive (ADR 0070)', () => {
+  const READ = { parts: ['life', 'money'], months: { from: '2026-09', to: '2026-11' } };
+
+  it('is said in one line, parts then months', async () => {
+    const { readNote } = await import('@/components/answerNotes.js');
+    expect(readNote(READ)).toBe('Read only: tasks and days, accounts and monthly totals. Months: September 2026 to November 2026.');
+    expect(readNote({ parts: ['transactions'], months: { from: '2026-10', to: '2026-10' } })).toBe('Read only: single movements. Months: October 2026.');
+  });
+
+  it('is nothing when the whole archive was read', async () => {
+    const { readNote } = await import('@/components/answerNotes.js');
+    expect(readNote(null)).toBeNull();
+    expect(readNote(undefined)).toBeNull();
+  });
+
+  it('is trusted from a response only in the shape the route sends', async () => {
+    const { readRead } = await import('@/components/answerNotes.js');
+    expect(readRead(READ)).toEqual(READ);
+    for (const bad of [null, 'life', [], { parts: [] }, { parts: ['everything'], months: READ.months }, { parts: ['life'] }, { parts: ['life'], months: { from: '2026-11', to: '2026-09' } }, { parts: ['life'], months: { from: 'x', to: 'y' } }]) {
+      expect(readRead(bad), JSON.stringify(bad)).toBeNull();
+    }
+  });
+});

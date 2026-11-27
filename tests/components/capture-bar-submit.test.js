@@ -108,6 +108,15 @@ describe('submitQuestion', () => {
     });
   });
 
+  it('carries what of the archive was read, and drops one that is not the shape the route sends', async () => {
+    const read = { parts: ['life'], months: { from: '2026-09', to: '2026-11' } };
+    const withRead = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'not-in-data', summarised: null, read }));
+    const withJunk = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'not-in-data', summarised: null, read: { parts: ['everything'] } }));
+
+    expect(await submitQuestion('What is due?', withRead)).toEqual({ type: 'answerReceived', result: { outcome: 'not-in-data', summarised: null, read } });
+    expect(await submitQuestion('What is due?', withJunk)).toEqual({ type: 'answerReceived', result: { outcome: 'not-in-data', summarised: null } });
+  });
+
   it('turns the no-model outcome into an answerReceived action', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(fakeResponse(200, { ok: true, outcome: 'no-model' }));
 

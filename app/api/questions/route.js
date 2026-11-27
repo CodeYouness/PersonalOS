@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { buildContext } from '@/lib/ai/context/index.js';
-import { answerQuestion } from '@/lib/answer.js';
+import { ask } from '@/lib/answer.js';
 import { limits } from '@/personalos.config.js';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +22,9 @@ export const dynamic = 'force-dynamic';
  * transactions are summarised (#175): nothing was asked, which is the honest
  * answer. An answer over a summarised archive says so (`summarised`, the
  * month before which transactions were read only as monthly totals, with
- * `since` when older months stayed whole, or null). A model that did not answer is a 502 the screen offers to retry.
+ * `since` when older months stayed whole, or null). An archive too large to
+ * ask over whole is asked over the parts the question needs (ADR 0070), and
+ * the answer then says which (`read`, absent when all of it was read). A model that did not answer is a 502 the screen offers to retry.
  *
  * @param {Request} request
  */
@@ -41,7 +42,9 @@ export async function POST(request) {
     return NextResponse.json({ status: 'error', message }, { status: 400 });
   }
 
-  const answer = await answerQuestion(question, await buildContext('question'));
+  const answer = await ask(question);
+  // What of the archive was read, only when it was not all of it (ADR 0070).
+  const read = (answer.outcome === 'answer' || answer.outcome === 'not-in-data') && answer.read !== null ? { read: answer.read } : {};
   if (answer.outcome === 'failed') {
     return NextResponse.json(
       { status: 'error', outcome: 'failed', message: "The model didn't answer." },
@@ -52,7 +55,7 @@ export async function POST(request) {
     return NextResponse.json({ ok: true, outcome: 'no-model' });
   }
   if (answer.outcome === 'not-in-data') {
-    return NextResponse.json({ ok: true, outcome: 'not-in-data', summarised: answer.summarised });
+    return NextResponse.json({ ok: true, outcome: 'not-in-data', summarised: answer.summarised, ...read });
   }
   if (answer.outcome === 'too-large') {
     return NextResponse.json({ ok: true, outcome: 'too-large' });
@@ -63,5 +66,6 @@ export async function POST(request) {
     statements: answer.statements,
     leftOut: answer.leftOut,
     summarised: answer.summarised,
+    ...read,
   });
 }
