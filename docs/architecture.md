@@ -308,7 +308,7 @@ it answers. It is built for questions first; the classifier and extraction
 keep their own prompts until they move. One entry point:
 
 ```
-buildContext('question') -> { today, week: { from, to }, timezone, trackedSince, items, summarised, tooLarge }
+buildContext('question') -> { today, week: { from, to }, timezone, trackedSince, items, summarised, read, tooLarge }
 item = { id, type, label, content, labels, opens }
 ```
 
@@ -356,6 +356,16 @@ full after the summarised ones -- plus `since` when older months (before
 returns `too-large` without calling the model (after `no-model`, which comes
 first). The route passes `summarised` on an answer and a not-in-data, and
 answers `too-large` with a 200; nothing is written.
+
+A question is asked through `ask(question)` (`lib/answer.js`, ADR 0070), by
+the route and by the Telegram channel. It builds the whole context; when
+that is `tooLarge` it asks the classify model which parts and months the
+question needs (`chooseParts`: the question alone, no data), builds the
+context again with `buildContext('question', { read })` and asks over that.
+`lib/ai/context/parts.js` says which part an item is in (`partOf`), which
+month it belongs to, and what a choice leaves; it is pure, and the context
+layer still never calls a model. The context then carries `read`, which is
+serialised only when set, and the answer carries it to the panel.
 
 `opens` (#173) is where a citation of the item goes: a site-relative address,
 or `null` when the record has no screen of its own and the panel expands its

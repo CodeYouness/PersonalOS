@@ -7,7 +7,7 @@
 
 import { limits } from '@/personalos.config.js';
 
-import { readSummarised } from './answerNotes.js';
+import { readRead, readSummarised } from './answerNotes.js';
 
 /**
  * @param {string} text
@@ -95,7 +95,7 @@ export async function submitQuestion(question, fetchImpl = fetch, timeoutMs = li
     // What was summarised comes with the answer and with "not in your data":
     // a "not in your data" over a summarised archive must say what was not read.
     if (body.outcome === 'not-in-data') {
-      return { type: 'answerReceived', result: { outcome: 'not-in-data', summarised: readSummarised(body.summarised) } };
+      return { type: 'answerReceived', result: { outcome: 'not-in-data', summarised: readSummarised(body.summarised), ...readOf(body) } };
     }
     if (!Array.isArray(body.statements)) {
       return { type: 'questionFailed', message: FAILED_MESSAGE };
@@ -107,6 +107,7 @@ export async function submitQuestion(question, fetchImpl = fetch, timeoutMs = li
         statements: body.statements,
         leftOut: body.leftOut === true,
         summarised: readSummarised(body.summarised),
+        ...readOf(body),
       },
     };
   } catch (caught) {
@@ -118,6 +119,18 @@ export async function submitQuestion(question, fetchImpl = fetch, timeoutMs = li
       message: timedOut ? TIMEOUT_MESSAGE : caught instanceof TypeError ? 'Could not reach the server' : FAILED_MESSAGE,
     };
   }
+}
+
+/**
+ * What of the archive the answer was asked over, there only when it was not
+ * all of it (ADR 0070).
+ *
+ * @param {{ read?: unknown }} body
+ * @returns {{ read?: import('@/lib/ai/context/parts.js').Read }}
+ */
+function readOf(body) {
+  const read = readRead(body.read);
+  return read === null ? {} : { read };
 }
 
 /**

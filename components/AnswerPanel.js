@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useId, useState } from 'react';
 
-import { summarisedNote, TOO_LARGE_TEXT } from './answerNotes.js';
+import { readNote, summarisedNote, TOO_LARGE_TEXT } from './answerNotes.js';
 import { citationBadgeText, citationBadgeTone, citationDetailId, citationKey, citationTarget } from './answerCitations.js';
 
 /**
@@ -27,6 +27,8 @@ export default function AnswerPanel({ answer, onClose, onRetry }) {
   // Only an answer or a "not in your data" was asked of the model, so only
   // those can have read part of the archive as totals.
   const summarised = answer.outcome === 'answer' || answer.outcome === 'not-in-data' ? summarisedNote(answer.summarised) : null;
+  // Asked over part of the archive (ADR 0070): the panel says which.
+  const read = answer.outcome === 'answer' || answer.outcome === 'not-in-data' ? readNote(answer.read) : null;
   const panelId = useId();
   // Local UI state, never stored. A new answer is a new panel state, so it
   // starts collapsed: `key` on the component would do, but the bar keeps one
@@ -121,6 +123,7 @@ export default function AnswerPanel({ answer, onClose, onRetry }) {
             </p>
           )}
           {summarised && <p className="caption answer-note note-summarised">{summarised}</p>}
+          {read && <p className="caption answer-note note-read">{read}</p>}
         </div>
       )}
 
@@ -128,6 +131,7 @@ export default function AnswerPanel({ answer, onClose, onRetry }) {
         <div className="answer-outcome outcome-not-in-data">
           <p className="caption">Not in your data</p>
           {summarised && <p className="caption answer-note note-summarised">{summarised}</p>}
+          {read && <p className="caption answer-note note-read">{read}</p>}
         </div>
       )}
       {answer.outcome === 'no-model' && <p className="caption answer-outcome outcome-no-model">No model configured</p>}

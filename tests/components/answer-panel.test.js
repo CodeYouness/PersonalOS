@@ -91,4 +91,13 @@ describe('AnswerPanel', () => {
   it('says there is no model', () => {
     expect(render({ question: 'q', outcome: 'no-model' })).toContain('No model configured');
   });
+
+  it('says what of the archive was read when it was not all of it, with an answer and with "not in your data"', () => {
+    const read = { parts: ['life'], months: { from: '2026-09', to: '2026-11' } };
+    const note = 'Read only: tasks and days. Months: September 2026 to November 2026.';
+
+    expect(render(answered([{ id: 'task_1', type: 'task', label: 'Send the quote', labels: [], opens: '/crm?task=task_1' }], { read }))).toContain(note);
+    expect(render({ question: 'Q', outcome: 'not-in-data', summarised: null, read })).toContain(note);
+    expect(render({ question: 'Q', outcome: 'not-in-data', summarised: null })).not.toContain('Read only');
+  });
 });
