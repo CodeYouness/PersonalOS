@@ -2496,7 +2496,9 @@ no time of day and is never due.
   capture bar's entry point (`fileCapture`) with origin `telegram`, once per
   update id, and the reply names its destination and nothing else. A
   question is answered as the bar's Ask mode answers and stored nowhere; its
-  reply is the answer and may carry data.
+  reply is the answer and may carry data. It is asked to be brief (ADR 0071):
+  one statement is a sentence, several are points, and the notes about the
+  answer follow a blank line.
 - **A failure alert** (ADR 0069) is one fixed sentence, the schedule's own,
   sent when a schedule's run failed and the run before it had not; a
   skipped run is read past. Nothing more until it succeeds. A broker sync

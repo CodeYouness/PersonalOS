@@ -160,7 +160,37 @@ describe('a question sent to the bot', () => {
 
     const reply = await handle({ updateId: 7104, text: 'what is due today?', replyTo: null });
 
-    expect(reply).toBe('Kept.\n' + texts.TELEGRAM_TEXTS.leftOut);
+    // What the reader must know about the answer stands apart from it.
+    expect(reply).toBe('Kept.\n\n' + texts.TELEGRAM_TEXTS.leftOut);
+  });
+
+  it('lists several statements as points, one to a line', async () => {
+    const context = await buildContext('question');
+    const [first, second] = context.items;
+    modelSays({ statements: [
+      { text: 'Nothing is set for tomorrow.', citations: [first.id] },
+      { text: 'One thing is overdue.', citations: [second.id] },
+    ] });
+
+    const reply = await handle({ updateId: 7106, text: 'what is due tomorrow?', replyTo: null });
+
+    expect(reply).toBe('• Nothing is set for tomorrow.\n• One thing is overdue.');
+  });
+
+  it('asks for an answer short enough for a chat, and the capture bar does not', async () => {
+    const { ask, CHAT_BRIEF } = await import('@/lib/answer.js');
+    modelSays({ notInData: true });
+    modelSays({ notInData: true });
+
+    await handle({ updateId: 7107, text: 'what is due tomorrow?', replyTo: null });
+    await ask('what is due tomorrow?');
+
+    const [fromChat, fromBar] = callTool.mock.calls.map(([request]) => request.messages[0].content[0].text);
+    expect(fromChat).toContain('what is due tomorrow?');
+    expect(fromChat).toContain(CHAT_BRIEF);
+    expect(fromBar).not.toContain(CHAT_BRIEF);
+    // Said with the question, so the instructions every question shares stay as measured (ADR 0030).
+    expect(callTool.mock.calls[0][0].system).toBe(callTool.mock.calls[1][0].system);
   });
 
   it('refuses a question that is too long without asking the model', async () => {
