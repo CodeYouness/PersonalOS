@@ -2416,7 +2416,9 @@ Schedules so far, in `USER_TIMEZONE`:
 - `prune-runs`, 03:30 every day, removes runs older than 90 days;
 - `sync-calendar`, 07:00 every day, reads the calendar feed;
 - `sync-scalable`, 07:00 on Monday, syncs the broker; needs `unlocked`, as
-  the broker's signing key cannot be used while the Mac is locked.
+  the broker's signing key cannot be used while the Mac is locked;
+- `evening-reminder`, 21:30 every day, `same-day`: one Telegram message
+  when a closed question of today's check-in is unanswered (ADR 0068).
 
 ## Run
 
@@ -2432,6 +2434,9 @@ for a model run `model`, `inputTokens` and `outputTokens`.
   ("nothing configured"), so a skipped run is not mistaken for one that never
   tried. A job may report an expected failure with a short code such as
   `needs-login` (`RUN_REASONS`).
+- `about` and `messageId` are kept only by a run that sent a message (the
+  evening reminder, ADR 0068): the day it was about, and the channel's id of
+  the message, so a reply to it is recognised. Absent on every other run.
 - `wrote` is counts by kind (`RUN_WRITE_KINDS`), what the run changed: a sync
   that found nothing and one that changed the data read differently.
 - **Cost in money is never stored**: it is derived from the tokens and
@@ -2463,8 +2468,16 @@ no time of day and is never due.
 - **Off**: with the token or the chat id missing the channel does not start
   and asks nothing of Telegram. That is recorded as one `skipped` run under
   the channel's id, reason `not-configured`.
-- **What it says** is fixed text (`lib/telegram/texts.js`). After #290 a text
-  from the chat is answered with an acknowledgement and filed nowhere.
+- **What it says** is fixed text (`lib/telegram/texts.js`), with no slot for
+  data.
+- **The evening reminder** (ADR 0068) is the one message the system starts:
+  that the check-in is open, and the app's address when
+  `PERSONALOS_BASE_URL` is set. Never two for a day.
+- **A reply to a reminder** is the open answer of the day that reminder was
+  about, even after midnight: a journal entry on that day first, then read
+  by the small model, once per update id.
+- **Any other text** is answered with an acknowledgement and filed nowhere
+  (#292 files it).
 - It listens only in the process `npm run serve` started, like the scheduler.
 
 ## Jarvis (planned)

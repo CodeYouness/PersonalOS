@@ -43,7 +43,8 @@ describe('the Telegram transport', () => {
 
   it('sends a plain text to a chat', async () => {
     const { fetch, requests } = fakeFetch(() => ({ body: { ok: true, result: { message_id: 3 } } }));
-    await makeTelegramTransport({ token: TOKEN, fetch }).sendMessage({ chatId: 1001, text: 'Received.' });
+    const messageId = await makeTelegramTransport({ token: TOKEN, fetch }).sendMessage({ chatId: 1001, text: 'Received.' });
+    expect(messageId).toBe(3);
     expect(requests).toEqual([{ url: 'https://api.telegram.org/bot' + TOKEN + '/sendMessage', body: { chat_id: 1001, text: 'Received.' } }]);
   });
 

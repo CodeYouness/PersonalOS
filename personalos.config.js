@@ -171,6 +171,16 @@ export const SCHEDULES = Object.freeze([
     catchUp: 'once',
     needs: 'unlocked',
   }),
+  // The evening reminder (ADR 0068). `same-day`: missed with the lid closed,
+  // it is sent on wake that evening and dropped after midnight -- never a
+  // reminder about yesterday.
+  Object.freeze({
+    id: 'evening-reminder',
+    time: '21:30',
+    days: Object.freeze([1, 2, 3, 4, 5, 6, 7]),
+    engine: 'script',
+    catchUp: 'same-day',
+  }),
 ]);
 
 /** The ids of {@link SCHEDULES}. */
@@ -204,6 +214,10 @@ export const RUN_REASONS = Object.freeze({
   notConfigured: 'not-configured',
   /** The source's login expired: a failed run that needs the user. */
   needsLogin: 'needs-login',
+  /** The reminder had nothing to remind of: every closed question is answered (ADR 0068). */
+  checkinDone: 'check-in-done',
+  /** The day already has its reminder (ADR 0068). */
+  alreadySent: 'already-sent',
   /** The backup has no destination configured. */
   backupDirNotSet: 'PERSONALOS_BACKUP_DIR is not set',
 });

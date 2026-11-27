@@ -166,7 +166,12 @@ TELEGRAM_CHAT_ID=<your chat's number>
 The script never writes `.env.local` and keeps nothing. Put the lines in
 yourself, then restart the server (`launchctl kickstart -k ...`, above).
 
-- **What it does now:** a text from that chat is answered "Received." and
+- **The evening reminder (#291):** at 21:30, when a closed question of
+  today's check-in is unanswered, the bot says the check-in is open. Reply to
+  that message and your reply is that day's open answer. To get a link under
+  it, add the address you reach the app at from the phone:
+  `PERSONALOS_BASE_URL=<https://...>` (unset: no link).
+- **Any other text** from that chat is answered "Received." and
   filed nowhere (filing is #292). A voice note, a photo or a file gets a line
   pointing to the Shortcut. Anyone else gets no answer at all.
 - **Off:** with either line missing nothing is asked of Telegram, and the
