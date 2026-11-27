@@ -90,6 +90,15 @@ describe('runs', () => {
     await expect(store.recordRun(run({ schedule: 'whatsapp' }))).rejects.toThrow(/schedule/);
   });
 
+  it('keeps the day a reminder was about and the message it sent, and leaves them off every other run', async () => {
+    const sent = await store.recordRun(run({ schedule: 'evening-reminder', about: '2026-11-21', messageId: 4242, wrote: {} }));
+    expect(sent).toMatchObject({ about: '2026-11-21', messageId: 4242 });
+    const plain = await store.recordRun(run());
+    expect('about' in plain || 'messageId' in plain).toBe(false);
+    await expect(store.recordRun(run({ about: '21 November' }))).rejects.toThrow(/about/);
+    await expect(store.recordRun(run({ messageId: 'x' }))).rejects.toThrow(/messageId/);
+  });
+
   it('reads newest first, of one schedule, up to a limit', async () => {
     await store.recordRun(run({ startedAt: '2026-11-19T02:30:00.000Z' }));
     await store.recordRun(run({ startedAt: '2026-11-21T02:30:00.000Z' }));

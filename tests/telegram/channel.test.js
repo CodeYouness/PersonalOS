@@ -67,11 +67,22 @@ describe('the Telegram channel', () => {
     await channel.pollOnce();
     await channel.pollOnce();
 
-    expect(handled).toEqual([{ updateId: 7, text: 'hello' }]);
+    expect(handled).toEqual([{ updateId: 7, text: 'hello', replyTo: null }]);
     expect(telegram.sent).toEqual([{ chatId: MINE, text: TELEGRAM_TEXTS.received }]);
     // Asked with no offset, handled, answered, and only then asked from 8 on.
     expect(telegram.calls).toEqual(['getUpdates:none', 'handle', 'send', 'getUpdates:8']);
     expect(telegram.pending()).toEqual([]);
+  });
+
+  it('tells the handler which message a text replies to', async () => {
+    const telegram = fakeTelegram([update(7, { text: 'done', reply_to_message: { message_id: 55, text: 'not read' } })]);
+    /** @type {any[]} */
+    const handled = [];
+    const channel = channelOn(telegram, { handle: async (/** @type {any} */ message) => { handled.push(message); return TELEGRAM_TEXTS.received; } });
+
+    await channel.pollOnce();
+
+    expect(handled).toEqual([{ updateId: 7, text: 'done', replyTo: 55 }]);
   });
 
   it('handles an update delivered twice once', async () => {

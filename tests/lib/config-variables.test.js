@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { readModelSettings, readOptionalInteger, readTimezone } from '@/lib/config/variables.js';
+import { readModelSettings, readOptionalInteger, readOptionalUrl, readTimezone } from '@/lib/config/variables.js';
 import { defaultModels, defaultTimezone } from '@/personalos.config.js';
 
 describe('readModelSettings', () => {
@@ -92,6 +92,20 @@ describe('readOptionalInteger', () => {
       let thrown;
       try { readOptionalInteger({ TELEGRAM_CHAT_ID: value }, 'TELEGRAM_CHAT_ID'); } catch (error) { thrown = error; }
       expect(thrown?.message).toBe('TELEGRAM_CHAT_ID is set but is not a whole number.');
+    }
+  });
+});
+
+describe('readOptionalUrl', () => {
+  it('reads an http or https address without its trailing slash, and null when unset', () => {
+    expect(readOptionalUrl({ PERSONALOS_BASE_URL: ' https://personalos.example/ ' }, 'PERSONALOS_BASE_URL')).toBe('https://personalos.example');
+    expect(readOptionalUrl({ PERSONALOS_BASE_URL: 'http://127.0.0.1:3000' }, 'PERSONALOS_BASE_URL')).toBe('http://127.0.0.1:3000');
+    expect(readOptionalUrl({}, 'PERSONALOS_BASE_URL')).toBeNull();
+  });
+
+  it('refuses anything else by the name of the variable', () => {
+    for (const value of ['personalos.example', 'ftp://personalos.example', 'javascript:alert(1)', 'https://']) {
+      expect(() => readOptionalUrl({ PERSONALOS_BASE_URL: value }, 'PERSONALOS_BASE_URL')).toThrow('PERSONALOS_BASE_URL is set but is not an http or https address.');
     }
   });
 });
