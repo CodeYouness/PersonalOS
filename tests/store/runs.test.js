@@ -83,6 +83,13 @@ describe('runs', () => {
     expect(await store.getRuns()).toEqual([]);
   });
 
+  it('keeps a run of a channel under its id, and refuses a subject that is neither a schedule nor a channel', async () => {
+    const off = await store.recordRun(run({ schedule: 'telegram', outcome: 'skipped', reason: 'not-configured', wrote: {} }));
+    expect(off).toMatchObject({ schedule: 'telegram', outcome: 'skipped', reason: 'not-configured' });
+    expect(await store.getRuns({ schedule: 'telegram' })).toHaveLength(1);
+    await expect(store.recordRun(run({ schedule: 'whatsapp' }))).rejects.toThrow(/schedule/);
+  });
+
   it('reads newest first, of one schedule, up to a limit', async () => {
     await store.recordRun(run({ startedAt: '2026-11-19T02:30:00.000Z' }));
     await store.recordRun(run({ startedAt: '2026-11-21T02:30:00.000Z' }));

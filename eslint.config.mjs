@@ -21,6 +21,13 @@ const NO_ADAPTER_IMPORT = {
     "Only lib/store.js may import a storage adapter. Add a domain operation to lib/store.js instead.",
 };
 
+// ADR 0064: lib/telegram/ is the only code that talks to Telegram, and a
+// message leaves from the loop or a schedule, never from a route or a render.
+const NO_TELEGRAM_IMPORT = {
+  group: ["**/lib/telegram/*", "@/lib/telegram/*"],
+  message: "Only the server's start-up and a schedule talk to Telegram (ADR 0064): no route, page or component imports lib/telegram/.",
+};
+
 // ADR 0037: every model call goes through the seam in lib/ai/provider.js,
 // and only lib/ai/providers/anthropic.js imports the provider's SDK. Scripts
 // and tests are outside it: a script counts tokens with the SDK, a test
@@ -130,7 +137,7 @@ const eslintConfig = defineConfig([
   {
     files: ["app/**/*.js", "components/**/*.js"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [NO_ADAPTER_IMPORT, NO_MODEL_SDK_IMPORT] }],
+      "no-restricted-imports": ["error", { patterns: [NO_ADAPTER_IMPORT, NO_MODEL_SDK_IMPORT, NO_TELEGRAM_IMPORT] }],
     },
   },
   {

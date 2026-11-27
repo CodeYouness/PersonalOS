@@ -173,8 +173,19 @@ export const SCHEDULES = Object.freeze([
   }),
 ]);
 
-/** The ids of {@link SCHEDULES}, the closed list a run's `schedule` is checked against. */
+/** The ids of {@link SCHEDULES}. */
 export const SCHEDULE_IDS = Object.freeze(SCHEDULES.map((schedule) => schedule.id));
+
+/**
+ * The channels (ADR 0064): the ways a sentence reaches the system from
+ * outside a page, and the only code that may send one out. One so far. A
+ * channel is not a schedule -- it has no time of day -- but what it does on
+ * its own is recorded in the same run log, under its id.
+ */
+export const CHANNEL_IDS = Object.freeze(/** @type {const} */ (['telegram']));
+
+/** What a run may be a run of: a schedule or a channel. The closed list a run's `schedule` is checked against. */
+export const RUN_SUBJECTS = Object.freeze([...SCHEDULE_IDS, ...CHANNEL_IDS]);
 
 /**
  * Who started a run (ADR 0063): the scheduler, the user's button, or a
@@ -496,6 +507,15 @@ export const TIME_AREAS = Object.freeze({
 export const limits = Object.freeze({
   /** Runs older than this many days are removed by the nightly prune (ADR 0063). */
   runRetentionDays: 90,
+  /**
+   * How long Telegram holds one request for updates open (ADR 0064): a long
+   * poll, so a message arrives at once and an idle channel costs one request
+   * a minute.
+   */
+  telegramPollSeconds: 50,
+  /** The wait after a failed poll, doubled each time up to the max (ADR 0064). */
+  telegramBackoffMinMs: 1000,
+  telegramBackoffMaxMs: 60_000,
   /**
    * How long `npm run serve` waits for its server to stop by itself before
    * killing it (ADR 0067). Under launchd's own 20 s, after which launchd

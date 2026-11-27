@@ -150,6 +150,28 @@ of every route (ADR 0011).
   open page re-reads its saved values. Nothing is pushed and no model or
   integration is called (rule 3).
 
+## The Telegram channel
+
+`lib/telegram/` (ADR 0064) is the only code that talks to Telegram, both
+ways. It is a channel, not an integration: ADR 0010's "the app never calls
+out" does not cover it, and ADR 0064 bounds what it may send.
+
+- `startTelegramChannel()` (`start.js`) is called from `instrumentation.js`
+  beside the scheduler and not awaited. It starts only when
+  `env.schedulerEnabled` and both `env.telegramBotToken` and
+  `env.telegramChatId` are set; otherwise no transport is made, and being off
+  is recorded once as a skipped run.
+- `createTelegramChannel` (`channel.js`) is the long-poll loop. It takes its
+  transport, its handler and its sleep as arguments. It reads an update as
+  far as its chat id, drops anything not from the one chat, hands a text to
+  the handler and sends back the line the handler returns. An update is
+  acknowledged only by the next request, after it was handled; a failure
+  backs off and retries, and never leaves the loop.
+- `makeTelegramTransport` (`transport.js`) is the one place a request is
+  made. Its errors never carry the address, which holds the token.
+- No route, page or component imports `lib/telegram/`. Nothing is exposed to
+  the internet: the server asks, Telegram answers.
+
 ## The action registry
 
 `lib/actions/registry.js` (ADR 0037) names every write a channel can make on
